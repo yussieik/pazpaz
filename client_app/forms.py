@@ -1,5 +1,6 @@
 from django import forms
 from .models import Client, Record
+from django.forms import modelformset_factory
 
 
 class ClientForm(forms.ModelForm):
@@ -20,3 +21,5 @@ class RecordForm(forms.ModelForm):
         widgets = {
             'description': forms.Textarea(attrs={'class': 'textarea'}),
         }
+
+

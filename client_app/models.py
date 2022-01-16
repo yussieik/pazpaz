@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from phonenumber_field.modelfields import PhoneNumberField
 
 
 # Create your models here.
@@ -8,6 +9,7 @@ class Client(models.Model):
     f_name = models.CharField(max_length=200)
     l_name = models.CharField(max_length=200)
     age = models.IntegerField()
+    phone = PhoneNumberField(region='IL')
 
     description = models.TextField()
 
