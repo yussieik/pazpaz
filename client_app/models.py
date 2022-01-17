@@ -6,12 +6,12 @@ from phonenumber_field.modelfields import PhoneNumberField
 # Create your models here.
 
 class Client(models.Model):
-    f_name = models.CharField(max_length=200)
-    l_name = models.CharField(max_length=200)
-    age = models.IntegerField()
-    phone = PhoneNumberField(region='IL')
+    f_name = models.CharField('שם פרטי', max_length=200)
+    l_name = models.CharField('שם משפחה',max_length=200)
+    age = models.IntegerField('גיל')
+    phone = PhoneNumberField('מספר טלפון',region='IL')
 
-    description = models.TextField()
+    description = models.TextField('תיאור')
 
     created = models.DateTimeField(editable=False)
     modified = models.DateTimeField()
