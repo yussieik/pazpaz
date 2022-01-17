@@ -2,10 +2,22 @@ from django.shortcuts import render, redirect
 from .models import Client, Record
 from .forms import ClientForm, RecordForm
 
+
 def index(request):
-    context = {'Title': 'Index'}
+    context = {'Title': 'Index', 'Clients': Client.objects.all()}
+
     return render(request, 'client/index.html', context)
+
+
 # Create your views here.
+
+def get_client(request, id):
+    client = Client.objects.get(id=id)
+    records = client.record_patient.all()
+    context = {'client': client, 'records': records}
+    return render(request, 'client/client.html', context)
+
+
 def add_client(request):
     context = {'Title': 'New Client'}
 
@@ -31,6 +43,7 @@ def add_client(request):
         context['form'] = ClientForm()
         return render(request, 'client/new_client.html', context)
 
+
 def add_record(request):
     context = {'Title': 'Add record'}
     if request.method == 'POST':
@@ -51,4 +64,3 @@ def add_record(request):
     else:
         context['form'] = RecordForm()
         return render(request, 'client/add_record.html', context)
-

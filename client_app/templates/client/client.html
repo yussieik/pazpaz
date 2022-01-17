@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+
+{% block content %}
+
+<body>
+{{ client }}
+
+{% for record in records %}
+<br> {{ record }}
+{% endfor %}
+
+</body>
+
+{% endblock %}
