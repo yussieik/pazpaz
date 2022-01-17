@@ -27,9 +27,9 @@ class Client(models.Model):
 
 
 class Record(models.Model):
-    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='record_patient')
+    client = models.ForeignKey(Client, verbose_name="מטופל", on_delete=models.CASCADE, related_name='record_patient')
 
-    description = models.TextField()
+    description = models.TextField('תיאור')
 
     created = models.DateTimeField(editable=False)
     modified = models.DateTimeField()

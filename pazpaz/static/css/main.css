@@ -1,0 +1,73 @@
+
+.bd-placeholder-img {
+    font-size: 1.125rem;
+    text-anchor: middle;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+@media (min-width: 768px) {
+    .bd-placeholder-img-lg {
+        font-size: 3.5rem;
+    }
+}
+
+.showPasswordToggle {
+    cursor: pointer;
+    transition: all;
+}
+
+.showPasswordToggle:hover {
+    transform: scale(1.2);
+}
+
+
+#createsplit h4 {
+    padding: 0 15px;
+}
+
+#createsplit ul li {
+    padding: 5px 20px;
+}
+
+#addmemberform button {
+    margin: 20px 0px;
+    padding: 5px;
+}
+
+#managesplits ul li {
+    padding: 5px 10px;
+}
+
+#deletemember {
+    border: none;
+    cursor: pointer;
+    margin: 0 5px;
+}
+
+#addsplittrans .fas {
+    margin-right: 5px;
+}
+
+#addsplittrans a:hover {
+    text-decoration: none;
+    padding: 10px 0;
+}
+
+#addsplittrans h4 {
+    padding: 10px 0;
+}
+
+#addsplittransform {
+    padding: 0px 0;
+}
+
+#addsplittransform .form-group {
+    padding: 10px 0;
+}
+
+#addsplittransform button, table {
+    margin: 10px 0;
+}
