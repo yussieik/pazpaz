@@ -17,7 +17,7 @@ class RecordForm(forms.ModelForm):
     class Meta:
         model = Record
         fields = '__all__'
-        exclude = ['created', 'modified']
+        exclude = ['client', 'created', 'modified']
         widgets = {
             'description': forms.Textarea(attrs={'class': 'textarea'}),
         }

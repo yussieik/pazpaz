@@ -5,14 +5,6 @@
 
 <body>
 
-<button id="myButton1" class="float-left submit-button" >עדכון תיק</button>
-
-<script type="text/javascript">
-    document.getElementById("myButton1").onclick = function () {
-        location.href = "new_record";
-    };
-</script>
-
 <button id="myButton2" class="float-left submit-button" >מטופל חדש</button>
 
 <script type="text/javascript">
@@ -26,7 +18,7 @@
 
 {% for client in Clients %}
 
-    <br>{{client}} מספר תיקים: {{ client.record_patient.all.count }}
+    <br> <a href="/client/{{ client.id }}"> {{client}} מספר תיקים: {{ client.record_patient.all.count }} </a>
 
 {% endfor %}
 

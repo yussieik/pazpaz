@@ -7,8 +7,19 @@
 {{ client }}
 
 {% for record in records %}
-<br> {{ record }}
+<br> {{ record }} {{ record.modified }}
 {% endfor %}
+
+<button id="myButton1" class="float-left submit-button" >עדכון תיק</button>
+
+
+
+<br> <script type="text/javascript">
+    document.getElementById("myButton1").onclick = function () {
+        location.href = "new_record/{{ client.id }}";
+    }
+
+</script>
 
 </body>
 
