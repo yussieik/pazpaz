@@ -1,9 +1,21 @@
 <!DOCTYPE html>
-{% extends 'base.html' %}
+<html lang="he" dir="rtl">
 
 {% block content %}
 
 <body>
+
+<h2> מטופלים </h2>
+
+{% for client in Clients %}
+
+    <p> <a href="/client/{{ client.id }}"> {{client}} מספר טיפולים: {{ client.treatments.all.count }} </a>
+
+{% endfor %}
+
+</body>
+
+    <p>
 
 <button id="myButton2" class="float-left submit-button" >מטופל חדש</button>
 
@@ -14,13 +26,6 @@
 
 </script>
 
-<br>
-
-{% for client in Clients %}
-
-    <br> <a href="/client/{{ client.id }}"> {{client}} מספר תיקים: {{ client.record_patient.all.count }} </a>
-
-{% endfor %}
-
-</body>
 {% endblock %}
+
+</html>

@@ -1,5 +1,5 @@
 from django import forms
-from .models import Client, Record
+from .models import Client, Record, Treatment
 from django.forms import modelformset_factory
 
 
@@ -23,3 +23,11 @@ class RecordForm(forms.ModelForm):
         }
 
 
+class TreatmentForm(forms.ModelForm):
+    class Meta:
+        model = Treatment
+        fields = '__all__'
+        exclude = ['client', 'modified', 'created']
+        widgets = {
+            'description': forms.Textarea(attrs={'class': 'textarea'}),
+        }

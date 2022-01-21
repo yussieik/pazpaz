@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-{% extends 'base.html' %}
+<html lang="he" dir="rtl">
 
 {% block content %}
 
@@ -7,18 +7,12 @@
     <form method="POST">
         {% csrf_token %}
         <table>
-            {{form.as_table}}
+            {{client_form.as_table}}
+            {{record_form.as_table}}
         </table>
         <input type="submit" value="הוספה">
     </form>
 
-    {% if formInfo %}
-        {% for info in formInfo %}
-            <ul class="list">
-                <li>{{ info }}</li>
-            </ul>
-        {% endfor %}
-    {% endif %}
-
 </body>
 {% endblock %}
+</html>

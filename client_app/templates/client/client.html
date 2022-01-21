@@ -1,22 +1,35 @@
 <!DOCTYPE html>
-{% extends 'base.html' %}
+<html lang="he" dir="rtl">
 
 {% block content %}
 
 <body>
-{{ client }}
 
-{% for record in records %}
-<br> {{ record }} {{ record.modified }}
-{% endfor %}
+<h2>{{ client.get_fields.name}} , {{ client.get_fields.age}}</h2>
+    <p>
+    {{ client.get_fields.phone}}
+    <p>
+    {{ client.get_fields.address}}
+    <p>
+    {{ record.description }}
+        <br> עדכון אחרון: {{ record.modified }}
+<p>
 
-<button id="myButton1" class="float-left submit-button" >עדכון תיק</button>
+<h3> הסטוריית טיפולים </h3>
 
+{% for treat in client.treatments.all %}
+    <p>
+    {{ treat|truncatewords:10 }}
+    {% endfor %}
+
+<p>
+    <button id="myButton1" class="float-right submit-button" >עדכן</button>
+</p>
 
 
 <br> <script type="text/javascript">
     document.getElementById("myButton1").onclick = function () {
-        location.href = "new_record/{{ client.id }}";
+        location.href = "add_treatment/{{ client.id }}";
     }
 
 </script>
@@ -24,3 +37,5 @@
 </body>
 
 {% endblock %}
+
+</html>
