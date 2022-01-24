@@ -28,19 +28,6 @@
 
 <h3> הסטוריית טיפולים </h3>
 
-{% for treat in client.treatments.all %}
-    <p>
-    {{ treat|truncatewords:10 }}
-    <button id="{{treat.id}}" class="float-right submit-button" >עדכן</button>
-
-<br> <script type="text/javascript">
-    document.getElementById("{{treat.id}}").onclick = function () {
-        location.href = "update_treatment/{{client.id}}/{{treat.id}}";
-    }
-</script>
-
-        {% endfor %}
-
 <p>
     <button id="myButton1" class="float-right submit-button" >הוסף</button>
 </p>
@@ -52,6 +39,21 @@
     }
 
 </script>
+
+{% for treat in treatments %}
+
+    {{ treat|truncatewords:10 }}
+    <button id="{{treat.id}}" class="float-right submit-button" >עדכן</button>
+
+<br> <script type="text/javascript">
+    document.getElementById("{{treat.id}}").onclick = function () {
+        location.href = "update_treatment/{{client.id}}/{{treat.id}}";
+    }
+</script>
+
+    <p>
+
+        {% endfor %}
 
 </body>
 

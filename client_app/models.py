@@ -23,7 +23,9 @@ class Client(models.Model):
     def save(self, *args, **kwargs):
         if not self.id:
             self.created = timezone.localtime(time).strftime("%Y-%m-%d %H:%M:%S")
+
         self.modified = timezone.localtime(time).strftime("%Y-%m-%d %H:%M:%S")
+
         return super(Client, self).save(*args, **kwargs)
 
     def __str__(self):
@@ -49,6 +51,10 @@ class Record(models.Model):
 
 
 class Treatment(models.Model):
+
+    class Meta:
+        ordering = ('modified',)
+
     client = models.ForeignKey(Client, on_delete=models.DO_NOTHING, related_name='treatments')
     description = models.TextField('תיאור')
 

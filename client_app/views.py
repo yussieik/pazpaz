@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 
 
 def index(request):
-    context = {'Title': 'Index', 'Clients': Client.objects.all().order_by('modified')}
+    context = {'Title': 'Index', 'Clients': Client.objects.all()}
 
     return render(request, 'client/index.html', context)
 
@@ -19,7 +19,7 @@ def handle_404(request, exception):
 def get_client(request, id):
     client = Client.objects.get(id=id)
     record = client.record_patient
-    context = {'client': client, 'record': record}
+    context = {'client': client, 'record': record, 'treatments': client.treatments.all().order_by('-modified')}
     return render(request, 'client/client.html', context)
 
 
@@ -48,6 +48,14 @@ def add_client(request):
         context['client_form'] = ClientForm()
         context['record_form'] = RecordForm()
         return render(request, 'client/new_client.html', context)
+
+
+def delete_client(request, id):
+    pass
+
+
+def delete_treatment(request, c_id, t_id):
+    pass
 
 
 def update_client(request, id):
