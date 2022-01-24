@@ -63,3 +63,6 @@ class Treatment(models.Model):
 
     def __str__(self):
         return f"{self.modified}, {self.description}"
+
+
+

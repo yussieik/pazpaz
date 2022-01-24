@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>{{Title}}</title>
+</head>
+<body>
+
+<form method="POST">
+    {% csrf_token %}
+    <table>
+        <table>
+            {{client_form.as_table}}
+            {{record_form.as_table}}
+        </table>
+    </table>
+    <input type="submit" value="עדכון">
+</form>
+
+</body>
+</html>

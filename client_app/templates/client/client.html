@@ -15,15 +15,34 @@
         <br> עדכון אחרון: {{ record.modified }}
 <p>
 
+<p>
+    <button id="myButton0" class="float-right submit-button" >עדכן</button>
+</p>
+
+
+<br> <script type="text/javascript">
+    document.getElementById("myButton0").onclick = function () {
+        location.href = "update_client/{{ client.id }}";
+    }
+</script>
+
 <h3> הסטוריית טיפולים </h3>
 
 {% for treat in client.treatments.all %}
     <p>
     {{ treat|truncatewords:10 }}
-    {% endfor %}
+    <button id="{{treat.id}}" class="float-right submit-button" >עדכן</button>
+
+<br> <script type="text/javascript">
+    document.getElementById("{{treat.id}}").onclick = function () {
+        location.href = "update_treatment/{{client.id}}/{{treat.id}}";
+    }
+</script>
+
+        {% endfor %}
 
 <p>
-    <button id="myButton1" class="float-right submit-button" >עדכן</button>
+    <button id="myButton1" class="float-right submit-button" >הוסף</button>
 </p>
 
 

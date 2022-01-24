@@ -50,6 +50,42 @@ def add_client(request):
         return render(request, 'client/new_client.html', context)
 
 
+def update_client(request, id):
+    client = Client.objects.get(id=id)
+    record = Record.objects.get(client_id = client.id)
+    form_client = ClientForm(request.POST or None, instance=client)
+    form_record = RecordForm(request.POST or None, instance=record)
+    context = {'Title': 'Update client', 'client_form': form_client, 'record_form': form_record}
+
+    if request.method == 'POST':
+        if form_client.is_valid() and form_record.is_valid():
+            form_client.save()
+            form_record.save()
+            print('Success')
+            return redirect(f'../../client/{client.id}')
+        else:
+            print("---ERRORS---", form_client.errors)
+    else:
+        return render(request, 'client/update_client.html', context)
+
+
+def update_treat(request, c_id, t_id):
+    client = Client.objects.get(id=c_id)
+    treatment = client.treatments.get(id=t_id)
+    form_treat = TreatmentForm(request.POST or None, instance=treatment)
+    context = {'Title': 'Update treat', 'form': form_treat}
+
+    if request.method == 'POST':
+        if form_treat.is_valid():
+            form_treat.save()
+            print('Success')
+            return redirect(f'../../../client/{client.id}')
+        else:
+            print("---ERRORS---", form_treat.errors)
+    else:
+        return render(request, 'client/update_treatment.html', context)
+
+
 def add_treatment(request, id):
     client = Client.objects.get(id=id)
 
@@ -62,7 +98,6 @@ def add_treatment(request, id):
         if form.is_valid():
             n_record = Treatment(client=client, description=form.cleaned_data['description'])
             n_record.save()
-            # form.save()
             description = form.cleaned_data['description']
             context['formInfo'] = [client, description]
             return redirect(f'../../client/{client.id}')
