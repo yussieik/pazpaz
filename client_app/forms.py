@@ -1,5 +1,5 @@
 from django import forms
-from .models import Client, Record, Treatment
+from .models import Client, Record, Treatment, Event
 from django.forms import modelformset_factory
 
 
@@ -30,4 +30,21 @@ class TreatmentForm(forms.ModelForm):
         exclude = ['client', 'modified', 'created']
         widgets = {
             'description': forms.Textarea(attrs={'class': 'textarea'}),
+        }
+
+
+class EventForm(forms.ModelForm):
+
+    def __init__(self, *args, **kwargs):
+        super(EventForm, self).__init__(*args, **kwargs)
+        self.fields['event_date'].localize = True
+        self.fields['event_date'].widget.is_localized = True
+
+    class Meta:
+        model = Event
+        fields = '__all__'
+
+        widgets = {
+            'client': forms.Select(),
+            'event_date': forms.DateTimeInput(attrs={'type':'datetime-local','language': 'he'}),
         }

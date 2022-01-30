@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+{% block content %}
+
+    <script>
+        let options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    </script>
+    <h1> {{ client }} | <span id="datetime"></span></p><script>var dt = new Date();
+    document.getElementById("datetime").innerHTML=dt.toLocaleString(locales= 'he-IL', options);</script>
+    </h1>
+
+    <body>
+
+    <form method="POST">
+        {% csrf_token %}
+    {{ event_form }}
+        <input type="submit" value="הוספה">
+    </form>
+
+{% for event in events %}
+    <p> <a href="/client/{{ event.client.id }}"> {{ event.client }} </a>
+    <script>
+        let options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    </script>
+    <span id="{{event.id}}"> </span> <script> var dt = new Date("{{ event.event_date|date:"Y-m-d H:i:s"}}")
+document.getElementById("{{event.id}}").innerHTML=dt.toLocaleString(locales= 'he-IL', options);
+</script>
+
+    {% endfor %}
+
+</body>
+
+{% endblock %}
+
+</html>

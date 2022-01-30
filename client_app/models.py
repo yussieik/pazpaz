@@ -4,6 +4,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 
 time = timezone.localtime(timezone.now())
 
+
 # Create your models here.
 
 class Client(models.Model):
@@ -51,12 +52,13 @@ class Record(models.Model):
 
 
 class Treatment(models.Model):
-
     class Meta:
         ordering = ('modified',)
 
     client = models.ForeignKey(Client, on_delete=models.DO_NOTHING, related_name='treatments')
-    description = models.TextField('תיאור')
+    description = models.TextField('תיאור הבעיה')
+    process = models.TextField('הטיפול הניתן')
+    notice = models.TextField('הערות')
 
     created = models.DateTimeField(editable=False)
     modified = models.DateTimeField()
@@ -71,4 +73,9 @@ class Treatment(models.Model):
         return f"{self.modified}, {self.description}"
 
 
+class Event(models.Model):
+    client = models.ForeignKey(Client, verbose_name='מטופל', on_delete=models.CASCADE,related_name='events')
+    event_date = models.DateTimeField(verbose_name='תאריך')
 
+    def __str__(self):
+        return f"{self.client} + {self.event_date}"

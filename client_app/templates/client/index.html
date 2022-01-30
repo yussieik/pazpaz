@@ -5,6 +5,14 @@
 
 <body>
 
+<button id="BackButton2" class="float-left submit-button" >לו״ז</button>
+
+<script type="text/javascript">
+    document.getElementById("BackButton2").onclick = function () {
+        location.href = "schedule/schedule_treatment";
+    }
+</script>
+
 <h2> מטופלים </h2>
 
 {% for client in Clients %}

@@ -6,6 +6,15 @@
 </head>
 <body>
 
+<button id="BackButton" class="float-left submit-button" >חזרה</button>
+
+<script type="text/javascript">
+    document.getElementById("BackButton").onclick = function () {
+        location.href = "../{{ client.id }}";
+    }
+
+</script>
+
 <form method="POST">
     {% csrf_token %}
     <table>

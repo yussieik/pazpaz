@@ -5,6 +5,23 @@
 
 <body>
 
+
+<button id="BackButton1" class="float-left submit-button" >רשימת מטופלים</button>
+
+<script type="text/javascript">
+    document.getElementById("BackButton1").onclick = function () {
+        location.href = "../index";
+    }
+</script>
+
+<button id="BackButton2" class="float-left submit-button" >לו״ז</button>
+
+<script type="text/javascript">
+    document.getElementById("BackButton2").onclick = function () {
+        location.href = "../schedule/schedule_treatment";
+    }
+</script>
+
 <h2>{{ client.get_fields.name}} , {{ client.get_fields.age}}</h2>
     <p>
     {{ client.get_fields.phone}}
@@ -12,8 +29,13 @@
     {{ client.get_fields.address}}
     <p>
     {{ record.description }}
-        <br> עדכון אחרון: {{ record.modified }}
-<p>
+    <p>
+        <br> עדכון אחרון: <script>
+    let options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+</script>
+    <span id="modified"> </span>  </p> <script> var dt = new Date("{{ record.modified|date:"Y-m-d H:i:s"}}")
+document.getElementById("modified").innerHTML=dt.toLocaleString(locales= 'he-IL', options);
+</script>
 
 <p>
     <button id="myButton0" class="float-right submit-button" >עדכן</button>
@@ -26,34 +48,67 @@
     }
 </script>
 
-<h3> הסטוריית טיפולים </h3>
-
-<p>
-    <button id="myButton1" class="float-right submit-button" >הוסף</button>
-</p>
 
 
-<br> <script type="text/javascript">
+{% if treatments %}
+
+<div class="container" style = "position:relative;">
+    <h3> הסטוריית טיפולים <button id="myButton1" class="float-left submit-button" >הוסף</button></h3>
+
+    <script type="text/javascript">
     document.getElementById("myButton1").onclick = function () {
         location.href = "add_treatment/{{ client.id }}";
     }
 
 </script>
 
+    <table class="table" style="width:100%">
+    <thead>
+    <tr>
+        <th>תאריך</th>
+        <th>תיאור</th>
+        <th>הטיפול הניתן</th>
+        <th>הערות</th>
+    </tr>
+    </thead>
+    <tbody>
 {% for treat in treatments %}
+    <tr>
+        <td>
+            <script>
+            let options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        </script>
+            <span id="{{treat.id}}"> </span> <script> var dt = new Date("{{ treat.created|date:"Y-m-d H:i:s"}}")
+            document.getElementById("{{treat.id}}").innerHTML=dt.toLocaleString(locales= 'he-IL', options);
+            </script>
+        </td>
+        <td>{{treat.description|truncatewords:10}}</td>
+        <td>{{treat.process|truncatewords:10}}</td>
+        <td>{{treat.notice|truncatewords:10}}</td>
+        <td>
+            <button id="treat: {{treat.id}}" class="float-right submit-button" >עדכן</button>
+            <script type="text/javascript">
+            document.getElementById("treat: {{treat.id}}").onclick = function () {
+                location.href = "update_treatment/{{client.id}}/{{treat.id}}";
+            }</script></td>
+    </tr>
+{% endfor %}
+    </tbody>
+    </table>
+    </div>
 
-    {{ treat|truncatewords:10 }}
-    <button id="{{treat.id}}" class="float-right submit-button" >עדכן</button>
+   {% else %}
 
-<br> <script type="text/javascript">
-    document.getElementById("{{treat.id}}").onclick = function () {
-        location.href = "update_treatment/{{client.id}}/{{treat.id}}";
+    הסטוריית טיפולים <button id="myButton1" class="float-left submit-button" >הוסף</button></h3>
+
+    <script type="text/javascript">
+    document.getElementById("myButton1").onclick = function () {
+        location.href = "add_treatment/{{ client.id }}";
     }
-</script>
+    </script>
+{% endif %}
 
-    <p>
 
-        {% endfor %}
 
 </body>
 

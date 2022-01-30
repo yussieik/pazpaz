@@ -2,7 +2,22 @@
 <html lang="he" dir="rtl">
 
 {% block content %}
-    <h1> {{ client }}</h1>
+
+    <button id="BackButton" class="float-left submit-button" >חזרה</button>
+
+    <script type="text/javascript">
+        document.getElementById("BackButton").onclick = function () {
+            location.href = "../{{ client.id }}";
+        }
+
+    </script>
+
+    <script>
+    let options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    </script>
+    <h1> {{ client }} | <span id="datetime"></span></p><script>var dt = new Date();
+    document.getElementById("datetime").innerHTML=dt.toLocaleString(locales= 'he-IL', options);</script>
+    </h1>
     <body>
     <form method="POST">
         {% csrf_token %}
