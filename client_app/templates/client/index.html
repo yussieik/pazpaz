@@ -4,7 +4,7 @@
 
 <head>
     <title>{{Title}}</title>
-    <link rel="stylesheet" href="{% static 'css/main.css'%}" type="text/css">
+    <link rel="stylesheet" href="{% static 'css/../../static/css/main.css' %}" type="text/css">
 </head>
 
 
@@ -21,11 +21,11 @@
     </script>
 </nav>
 
-    <h2> מטופלים </h2>
+    <h1> מטופלים </h1>
     <nav>
         {% for client in Clients %}
 
-            <p> <a href="/client/{{ client.id }}"> {{client}} מספר טיפולים: {{ client.treatments.all.count }} </a>
+            <p> <a href="/client/{{ client.id }}"> <strong>{{client}}</strong>/מספר טיפולים:  {{ client.treatments.all.count }} </a>
 
         {% endfor %}
     </nav>

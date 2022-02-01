@@ -10,6 +10,10 @@ urlpatterns = [
     path("client/update_client/<int:id>", views.update_client, name='update_client'),
     path("client/update_treatment/<int:c_id>/<int:t_id>", views.update_treat, name='update_treatment'),
     path("schedule/schedule_treatment", views.schedule_treatment, name='schedule_treatment'),
+    path("client/remove_treatment/<int:part_id>", views.remove_treatment, name='remove_treatment'),
+    path("schedule/remove_event/<int:event_id>", views.remove_event, name='remove_event'),
+    path("schedule/update_event/<int:event_id>", views.update_event, name='update_event'),
+
 ]
 
 handler404 = "client_app.views.handle_404"

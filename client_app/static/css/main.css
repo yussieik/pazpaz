@@ -3,11 +3,11 @@ html {
 }
 
 body {
-    background-color: #1a6dca;
+    background-color: antiquewhite;
 }
 
 table {
-    border-collapse: collapse;
+    border-collapse: separate;
     border: 2px solid rgb(200,200,200);
     letter-spacing: 1px;
     font-size: 0.8rem;
@@ -15,7 +15,7 @@ table {
 
 td, th {
     border: 1px solid rgb(190,190,190);
-    padding: 10px 20px;
+    padding: 10px 10px;
 }
 
 th {
@@ -39,9 +39,21 @@ caption {
 }
 
 p {
-    color: blue;
+    color: navy;
 }
 
 nav {
     color: #0d2a4a;
+}
+
+h1 {
+    color: #0d2a4a;
+}
+
+h2 {
+    color: #0d2a4a;
+}
+
+button {
+    color: aqua;
 }

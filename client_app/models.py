@@ -30,7 +30,7 @@ class Client(models.Model):
         return super(Client, self).save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.name}, {self.age}"
+        return f"{self.name}"
 
 
 class Record(models.Model):

@@ -4,7 +4,7 @@
 
 <head>
     <title>{{Title}}</title>
-    <link rel="stylesheet" href="{% static "css/main.css"%}" type="text/css">
+    <link rel="stylesheet" href="{% static "css/main.css" %}" type="text/css">
 </head>
 
 <body>
@@ -15,7 +15,7 @@
 
 <script type="text/javascript">
     document.getElementById("BackButton1").onclick = function () {
-        location.href = "../index";
+        location.href = "../../index";
     }
 </script>
 
@@ -40,10 +40,9 @@
 
 <div class="UpdateInfoButton">
     <br> עדכון אחרון: <script>
-    let options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
 </script>
-    <span id="modified"> </span>  </p> <script> var dt = new Date("{{ record.modified|date:"Y-m-d H:i:s"}}")
-document.getElementById("modified").innerHTML=dt.toLocaleString(locales= 'he-IL', options);
+    <span id="modified"> </span>  </p> <script> var dt = new Date("{{ record.modified|date:"Y-m-d"}}")
+document.getElementById("modified").innerHTML=dt.toLocaleDateString(locales="he-IL");
 </script>
 
 <p>
@@ -60,7 +59,7 @@ document.getElementById("modified").innerHTML=dt.toLocaleString(locales= 'he-IL'
 
 {% if treatments %}
 
-<div class="container" style = "position:relative;">
+<div class="add_treat" style = "position:relative;">
     <h3> הסטוריית טיפולים <button id="myButton1" class="float-left submit-button" >הוסף</button></h3>
 
     <script type="text/javascript">
@@ -90,10 +89,9 @@ document.getElementById("modified").innerHTML=dt.toLocaleString(locales= 'he-IL'
         <hgroup class="TreatInfo">
         <td>
             <script>
-            let options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         </script>
-            <span id="{{treat.id}}"> </span> <script> var dt = new Date("{{ treat.created|date:"Y-m-d H:i:s"}}")
-            document.getElementById("{{treat.id}}").innerHTML=dt.toLocaleString(locales= 'he-IL', options);
+            <span id="{{treat.id}}"> </span> <script> var dt = new Date("{{ treat.created|date:"Y-m-d"}}")
+            document.getElementById("{{treat.id}}").innerHTML=dt.toLocaleDateString(locales="he-IL");
             </script>
         </td>
         <td>{{treat.description|truncatewords:10}}</td>
@@ -105,6 +103,12 @@ document.getElementById("modified").innerHTML=dt.toLocaleString(locales= 'he-IL'
             document.getElementById("treat: {{treat.id}}").onclick = function () {
                 location.href = "update_treatment/{{client.id}}/{{treat.id}}";
             }</script></td>
+            <td>
+                <button id="treat: {{treat.id}} remove" class="float-right submit-button" >הסר</button>
+                <script type="text/javascript">
+                    document.getElementById("treat: {{treat.id}} remove").onclick = function () {
+                        location.href = "remove_treatment/{{treat.id}}";
+                    }</script></td>
         </hgroup>
     </tr>
 {% endfor %}

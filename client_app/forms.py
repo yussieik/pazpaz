@@ -46,5 +46,5 @@ class EventForm(forms.ModelForm):
 
         widgets = {
             'client': forms.Select(),
-            'event_date': forms.DateTimeInput(attrs={'type':'datetime-local','language': 'he'}),
+            'event_date': forms.DateTimeInput(attrs={'type': 'datetime-local','language': 'he'}),
         }

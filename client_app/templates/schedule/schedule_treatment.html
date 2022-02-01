@@ -1,22 +1,29 @@
 <!DOCTYPE html>
+{% load static %}
+
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <title>{{Title}}</title>
+    <link rel="stylesheet" href="{% static 'css/../../static/css/main.css' %}" type="text/css">
 </head>
 
 <nav class="Navigation">
 
+        <button id="BackButton1" class="float-left submit-button">רשימת מטופלים</button>
+
+        <script type="text/javascript">
+            document.getElementById("BackButton1").onclick = function () {
+                location.href = "../../index";
+            }
+        </script>
 </nav>
 
-    <script>
-        let options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    </script>
-    <h1> {{ client }} | <span id="datetime"></span></p><script>var dt = new Date();
-    document.getElementById("datetime").innerHTML=dt.toLocaleString(locales= 'he-IL', options);</script>
-    </h1>
-
     <body>
+
+    <h1> {{ client }} <span id="datetime"></span></p><script>var dt = new Date();
+    document.getElementById("datetime").innerHTML=dt.toLocaleDateString(locales="us-IL");</script>
+    </h1>
 
     <form method="POST">
         {% csrf_token %}
@@ -24,17 +31,36 @@
         <input type="submit" value="הוספה">
     </form>
 
-{% for event in events %}
-    <p> <a href="/client/{{ event.client.id }}"> {{ event.client }} </a>
-    <script>
-        let options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    </script>
-    <span id="{{event.id}}"> </span> <script> var dt = new Date("{{ event.event_date|date:"Y-m-d H:i:s"}}")
-document.getElementById("{{event.id}}").innerHTML=dt.toLocaleString(locales= 'he-IL', options);
-</script>
+    {% for date, event in events_divided.items %}
+        <script>
+            let options1 = { weekday: 'long'};
 
+        </script>
+        <p id="date"><h2>{{ date }}  <span id="{{ date }}"> </span></p> <script> var dt = new Date("{{date}}");
+    document.getElementById("{{ date }}").innerHTML=dt.toLocaleDateString(locales="he-IL", options1);</script> </h2> </p>
+
+
+        {% for e in event %}
+           <p id="client"> <strong><span id="{{e.id}}{{date}}"> </span> <script> var options = { weekday: 'long'}; var dt = new Date("{{ e.event_date|date:"Y-m-d H:m:"}}")
+        document.getElementById("{{e.id}}{{date}}").innerHTML =  (("0"+dt.getHours()).slice(-2)) +":"+ (("0"+dt.getMinutes()).slice(-2));
+        </script></strong>
+            <a href="/client/{{ e.client.id }}"> {{ e.client }} </a>
+
+
+                <button id="event: {{e.id}} remove" class="float-right submit-button" >הסר</button>
+                <script type="text/javascript">
+                    document.getElementById("event: {{e.id}} remove").onclick = function () {
+                        location.href = "remove_event/{{e.id}}";
+                    }</script>
+
+               <button id="event: {{e.id}} update" class="float-right submit-button" >עדכן</button>
+               <script type="text/javascript">
+                   document.getElementById("event: {{e.id}} update").onclick = function () {
+                       location.href = "update_event/{{e.id}}";
+                   }</script>
+           </p>
+        {% endfor %}
     {% endfor %}
-
 </body>
 
 
