@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 
+<head>
+    <title>{{Title}}</title>
+</head>
+
 {% block content %}
 
 <body>
     <form method="POST">
         {% csrf_token %}
-        <table>
+        <table class="NewClient">
             {{client_form.as_table}}
             {{record_form.as_table}}
         </table>

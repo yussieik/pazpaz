@@ -17,11 +17,11 @@
 
 <form method="POST">
     {% csrf_token %}
-    <table>
-        <table>
+    <table class="UpdateClient">
+
             {{client_form.as_table}}
             {{record_form.as_table}}
-        </table>
+        
     </table>
     <input type="submit" value="עדכון">
 </form>

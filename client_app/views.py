@@ -21,7 +21,7 @@ def handle_404(request, exception):
 def get_client(request, id):
     client = Client.objects.get(id=id)
     record = client.record_patient
-    context = {'client': client, 'record': record, 'treatments': client.treatments.all().order_by('-created')}
+    context = {'Title': 'Client','client': client, 'record': record, 'treatments': client.treatments.all().order_by('-created')}
     return render(request, 'client/client.html', context)
 
 
@@ -65,7 +65,7 @@ def update_client(request, id):
     record = Record.objects.get(client_id = client.id)
     form_client = ClientForm(request.POST or None, instance=client)
     form_record = RecordForm(request.POST or None, instance=record)
-    context = {'Title': 'Update client', 'client': client, 'record': record, 'client_form': form_client, 'record_form': form_record}
+    context = {'Title': 'Update Client', 'client': client, 'record': record, 'client_form': form_client, 'record_form': form_record}
 
     if request.method == 'POST':
         if form_client.is_valid() and form_record.is_valid():
@@ -83,7 +83,7 @@ def update_treat(request, c_id, t_id):
     client = Client.objects.get(id=c_id)
     treatment = client.treatments.get(id=t_id)
     form_treat = TreatmentForm(request.POST or None, instance=treatment)
-    context = {'Title': 'Update treat', 'form': form_treat, 'client': client, 'treatment': treatment}
+    context = {'Title': 'Update treatment', 'form': form_treat, 'client': client, 'treatment': treatment}
 
     if request.method == 'POST':
         if form_treat.is_valid():
@@ -136,7 +136,7 @@ def search_client(request):
 def schedule_treatment(request):
     today = datetime.today()
     events = Event.objects.filter(event_date__gte=today).order_by('event_date')
-    context = {'Title': 'Schedule treatment', 'events': events}
+    context = {'Title': 'Scheduler', 'events': events}
 
     if request.method == 'POST':
         form_event = EventForm(request.POST)
