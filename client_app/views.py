@@ -21,7 +21,7 @@ def schedule_treatment(request):
             events_divided[event_d].append(event)
         else:
             events_divided[event_d] = [event]
-    context = {'Title': 'Scheduler', 'events': events, 'events_divided': events_divided}
+    context = {'Title': 'Scheduler', 'events': events, 'events_divided': events_divided, 'today': today.strftime("%Y/%m/%d")}
 
     if request.method == 'POST':
         form_event = EventForm(request.POST)

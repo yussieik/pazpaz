@@ -21,23 +21,55 @@
 
     <body>
 
-    <h1> {{ client }} <span id="datetime"></span></p><script>var dt = new Date();
-    document.getElementById("datetime").innerHTML=dt.toLocaleDateString(locales="us-IL");</script>
-    </h1>
-
     <form method="POST">
         {% csrf_token %}
-    {{ event_form }}
+        {{ event_form }}
         <input type="submit" value="הוספה">
     </form>
 
-    {% for date, event in events_divided.items %}
-        <script>
-            let options1 = { weekday: 'long'};
+    <h1> {{ client }} <span id="datetime"></span></p><script> var dt = new Date();
+    document.getElementById("datetime").innerHTML=dt.toLocaleDateString(locales="he");</script>
+    </h1>
 
+
+
+    {% for date, event in events_divided.items %}
+
+        {% if date == today %}
+
+            {% for e in event %}
+            <p id="client"> <strong><span id="{{e.id}}{{date}}"> </span> <script> var options = { weekday: 'long'}; var dt = new Date("{{ e.event_date|date:"Y-m-d H:m:"}}")
+            document.getElementById("{{e.id}}{{date}}").innerHTML =  (("0"+dt.getHours()).slice(-2)) +":"+ (("0"+dt.getMinutes()).slice(-2));
+            </script></strong>
+                <a href="/client/{{ e.client.id }}"> {{ e.client }} </a>
+
+
+                <button id="event: {{e.id}} remove" class="float-right submit-button" >הסר</button>
+                <script type="text/javascript">
+                    document.getElementById("event: {{e.id}} remove").onclick = function () {
+                        location.href = "remove_event/{{e.id}}";
+                    }</script>
+
+                <button id="event: {{e.id}} update" class="float-right submit-button" >עדכן</button>
+                <script type="text/javascript">
+                    document.getElementById("event: {{e.id}} update").onclick = function () {
+                        location.href = "update_event/{{e.id}}";
+                    }</script>
+            {% endfor %}
+            </p>
+        {% else %}
+
+        <script>
+            let options1 = { year: 'numeric', month: 'numeric', day: 'numeric' }
+            let options2 = { weekday: 'long'};
         </script>
-        <p id="date"><h2>{{ date }}  <span id="{{ date }}"> </span></p> <script> var dt = new Date("{{date}}");
-    document.getElementById("{{ date }}").innerHTML=dt.toLocaleDateString(locales="he-IL", options1);</script> </h2> </p>
+        <p id="date"><h2>
+
+        <span id="{{ date }} ddmmyy"> </span> <script> var dt = new Date("{{date}}");
+        document.getElementById("{{ date }} ddmmyy").innerHTML=dt.toLocaleDateString(locales="he-IL", options1);</script>
+
+        <span id="{{ date }}"> </span></p> <script> var dt = new Date("{{date}}");
+    document.getElementById("{{ date }}").innerHTML=dt.toLocaleDateString(locales="he-IL", options2);</script> </h2> </p>
 
 
         {% for e in event %}
@@ -59,9 +91,13 @@
                        location.href = "update_event/{{e.id}}";
                    }</script>
            </p>
+
         {% endfor %}
+        {% endif %}
     {% endfor %}
-</body>
+
+
+    </body>
 
 
 </html>
