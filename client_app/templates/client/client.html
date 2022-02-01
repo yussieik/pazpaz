@@ -4,7 +4,7 @@
 
 <head>
     <title>{{Title}}</title>
-    <link rel="stylesheet" href="{% static 'css/main.css'%}" type="text/css">
+    <link rel="stylesheet" href="{% static "css/main.css"%}" type="text/css">
 </head>
 
 <body>
@@ -31,13 +31,11 @@
 
 <nav class="ClientInfo">
 <h2 id="ClientDetails">{{ client.get_fields.name}} , {{ client.get_fields.age}}</h2>
-    <p>
-    <a id="Phone" href="{{ client.get_fields.phone}}"> {{ client.get_fields.phone}} </a>
-    <p>
-    {{ client.get_fields.address}}
-    <p>
-    {{ record.description }}
-    <p>
+
+    <p> <a id="Phone" href="{{ client.get_fields.phone}}"> {{ client.get_fields.phone}} </a> </p>
+    <p> {{ client.get_fields.address}} </p>
+    <p> {{ record.description }} </p>
+
 </nav>
 
 <div class="UpdateInfoButton">

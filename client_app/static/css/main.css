@@ -2,6 +2,10 @@ html {
     font-family: sans-serif;
 }
 
+body {
+    background-color: #1a6dca;
+}
+
 table {
     border-collapse: collapse;
     border: 2px solid rgb(200,200,200);
@@ -32,4 +36,12 @@ tr:nth-child(odd) td {
 
 caption {
     padding: 10px;
+}
+
+p {
+    color: blue;
+}
+
+nav {
+    color: #0d2a4a;
 }
