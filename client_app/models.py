@@ -65,7 +65,8 @@ class Treatment(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.id:
-            self.created = timezone.localtime(time).strftime("%Y-%m-%d %H:%M:%S")
+            if not self.created:
+                self.created = timezone.localtime(time).strftime("%Y-%m-%d %H:%M:%S")
         self.modified = timezone.localtime(time).strftime("%Y-%m-%d %H:%M:%S")
         return super(Treatment, self).save(*args, **kwargs)
 

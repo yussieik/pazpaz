@@ -11,23 +11,31 @@ def index(request):
     return render(request, 'client/index.html', context)
 
 
+def divide_events(events):
+    res = {}
+    for event in events:
+        event_d = event.event_date.strftime("%Y/%m/%d")
+        if event_d in res:
+            res[event_d].append(event)
+        else:
+            res[event_d] = [event]
+    return res
+
+
 def schedule_treatment(request):
     today = datetime.today()
     events = Event.objects.filter(event_date__gte=today).order_by('event_date')
-    events_divided = {}
-    for event in events:
-        event_d = event.event_date.strftime("%Y/%m/%d")
-        if event_d in events_divided:
-            events_divided[event_d].append(event)
-        else:
-            events_divided[event_d] = [event]
-    context = {'Title': 'Scheduler', 'events': events, 'events_divided': events_divided, 'today': today.strftime("%Y/%m/%d")}
+    past_events = Event.objects.filter(event_date__lt=today).order_by('-event_date')
+    events_divided = divide_events(events)
+    past_events = divide_events(past_events)
+    context = {'Title': 'Scheduler', 'events': events, 'events_divided': events_divided,
+               'today': today.strftime("%Y/%m/%d"), 'past_events': past_events}
 
     if request.method == 'POST':
         form_event = EventForm(request.POST)
         if form_event.is_valid():
             form_event.save()
-            return redirect('index')
+            return redirect('schedule_treatment')
         else:
             print("---ERRORS---", form_event.errors)
             context['event_form'] = form_event
@@ -37,8 +45,8 @@ def schedule_treatment(request):
         return render(request, 'schedule/schedule_treatment.html', context)
 
 
-def get_client(request, id):
-    client = Client.objects.get(id=id)
+def get_client(request, c_id):
+    client = Client.objects.get(id=c_id)
     record = client.record_patient
     context = {'Title': 'Client', 'client': client, 'record': record,
                'treatments': client.treatments.all().order_by('-created')}
@@ -72,24 +80,26 @@ def add_client(request):
         return render(request, 'client/new_client.html', context)
 
 
-def add_treatment(request, id):
-    client = Client.objects.get(id=id)
-
+def add_treatment(request, c_id, date=None):
+    client = Client.objects.get(id=c_id)
     context = {'Title': 'New treatment', 'client': client}
 
     if request.method == 'POST':
         form = TreatmentForm(request.POST)
         form.client = client
-
         if form.is_valid():
 
             description = form.cleaned_data['description']
             process = form.cleaned_data['process']
             notice = form.cleaned_data['notice']
             n_treat = Treatment(client=client, description=description, process=process, notice=notice)
+            if date:
+                n_treat.created = date
             n_treat.save()
             context['formInfo'] = [client, description, process, notice]
-            return redirect(f'../../client/{client.id}')
+            if date:
+                return redirect(f'../../{client.id}')
+            return redirect(f"../{client.id}")
         else:
             print("---ERRORS---", form.errors)
             context['form'] = form
@@ -99,8 +109,8 @@ def add_treatment(request, id):
         return render(request, 'client/add_treatment.html', context)
 
 
-def update_client(request, id):
-    client = Client.objects.get(id=id)
+def update_client(request, c_id):
+    client = Client.objects.get(id=c_id)
     record = Record.objects.get(client_id=client.id)
     form_client = ClientForm(request.POST or None, instance=client)
     form_record = RecordForm(request.POST or None, instance=record)
@@ -155,13 +165,13 @@ def remove_treatment(request, part_id):
     treatment_obj = Treatment.objects.get(id=part_id)
     client = treatment_obj.client
     treatment_obj.delete()
-    return get_client(request, client.id)
+    return redirect(f"../../client/{client.id}")
 
 
 def remove_event(request, event_id):
     event_obj = Event.objects.get(id=event_id)
     event_obj.delete()
-    return schedule_treatment(request)
+    return redirect("../schedule_treatment")
 
 
 def search_client(request):
