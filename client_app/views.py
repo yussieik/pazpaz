@@ -3,6 +3,7 @@ from .models import Client, Record, Treatment, Event
 from .forms import ClientForm, RecordForm, TreatmentForm, EventForm
 from django.http import JsonResponse
 from datetime import datetime
+from datetime import timedelta
 
 
 def index(request):
@@ -24,12 +25,13 @@ def divide_events(events):
 
 def schedule_treatment(request):
     today = datetime.today()
-    events = Event.objects.filter(event_date__gte=today).order_by('event_date')
+    yesterday = today - timedelta(days = 1)
+    events = Event.objects.filter(event_date__gte=yesterday).order_by('event_date')
     past_events = Event.objects.filter(event_date__lt=today).order_by('-event_date')
     events_divided = divide_events(events)
     past_events = divide_events(past_events)
     context = {'Title': 'Scheduler', 'events': events, 'events_divided': events_divided,
-               'today': today.strftime("%Y/%m/%d"), 'past_events': past_events}
+               'today': today.strftime("%Y/%m/%d"), 'past_events': past_events, 'past_dates': list(past_events.keys())}
 
     if request.method == 'POST':
         form_event = EventForm(request.POST)
@@ -80,7 +82,7 @@ def add_client(request):
         return render(request, 'client/new_client.html', context)
 
 
-def add_treatment(request, c_id, date=None):
+def add_treatment(request, c_id, e_id=None):
     client = Client.objects.get(id=c_id)
     context = {'Title': 'New treatment', 'client': client}
 
@@ -88,18 +90,25 @@ def add_treatment(request, c_id, date=None):
         form = TreatmentForm(request.POST)
         form.client = client
         if form.is_valid():
-
             description = form.cleaned_data['description']
             process = form.cleaned_data['process']
             notice = form.cleaned_data['notice']
-            n_treat = Treatment(client=client, description=description, process=process, notice=notice)
-            if date:
-                n_treat.created = date
-            n_treat.save()
-            context['formInfo'] = [client, description, process, notice]
-            if date:
-                return redirect(f'../../{client.id}')
-            return redirect(f"../{client.id}")
+            if e_id:
+                    print('TRUE TRUE')
+                    event = Event.objects.get(id = e_id, client_id=c_id)
+                    event.done = True
+                    event.save()
+                    n_treat = Treatment.objects.get(id = event.treatment.id ,client=client)
+                    n_treat.description = description
+                    n_treat.process = process
+                    n_treat.notice = notice
+                    n_treat.save()
+                    return redirect(f'../../{client.id}')
+            else:
+                n_treat = Treatment(client_id=c_id, description=description, process=process, notice=notice)
+                n_treat.save()
+                context['formInfo'] = [client, description, process, notice]
+                return redirect(f"../{client.id}")
         else:
             print("---ERRORS---", form.errors)
             context['form'] = form
@@ -129,9 +138,12 @@ def update_client(request, c_id):
         return render(request, 'client/update_client.html', context)
 
 
-def update_treat(request, c_id, t_id):
+def update_treat(request, c_id, e_id=None, t_id=None):
     client = Client.objects.get(id=c_id)
-    treatment = client.treatments.get(id=t_id)
+    if e_id:
+        treatment = Event.objects.get(id=e_id).treatment
+    elif t_id:
+        treatment = Treatment.objects.get(id=t_id)
     form_treat = TreatmentForm(request.POST or None, instance=treatment)
     context = {'Title': 'Update treatment', 'form': form_treat, 'client': client, 'treatment': treatment}
 

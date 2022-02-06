@@ -43,6 +43,23 @@
             </script></strong>
                 <a href="/client/{{ e.client.id }}"> {{ e.client }} </a>
 
+                {% if e.done == False %}
+
+                <button id="treatment: {{e.id}} add" class="float-right submit-button" >הוסף דיווח</button>
+                <script type="text/javascript">
+                    document.getElementById("treatment: {{e.id}} add").onclick = function () {
+                        location.href = "/client/add_treatment/{{e.client.id}}/{{e.id}}";
+                    }</script>
+
+                {% else %}
+
+                    <button id="treatment: {{e.id}} add" class="float-right submit-button" >עדכן דיווח</button>
+                    <script type="text/javascript">
+                        document.getElementById("treatment: {{e.id}} add").onclick = function () {
+                            location.href = "{%url 'update_treatment_scheduler' c_id=e.client.id e_id=e.id%}";
+                        }</script>
+
+                {% endif %}
 
                 <button id="event: {{e.id}} remove" class="float-right submit-button" >הסר</button>
                 <script type="text/javascript">
@@ -55,6 +72,7 @@
                     document.getElementById("event: {{e.id}} update").onclick = function () {
                         location.href = "update_event/{{e.id}}";
                     }</script>
+
             {% endfor %}
             </p>
         {% else %}
@@ -73,8 +91,8 @@
         <span id="{{ date }}"> </span></p> <script> var dt = new Date("{{date}}");
     document.getElementById("{{ date }}").innerHTML=dt.toLocaleDateString(locales="he-IL", options2);</script> </h2> </p>
 
-
         {% for e in event %}
+
            <p id="client"> <strong><span id="{{e.id}}{{date}}"> </span> <script> var options = { weekday: 'long'}; var dt = new Date("{{ e.event_date|date:"Y-m-d H:m:"}}")
         document.getElementById("{{e.id}}{{date}}").innerHTML =  (("0"+dt.getHours()).slice(-2)) +":"+ (("0"+dt.getMinutes()).slice(-2));
         </script></strong>
@@ -95,41 +113,11 @@
            </p>
 
         {% endfor %}
+
         {% endif %}
-    {% endfor %}
-
-<h1 id="Archive"> Archive </h1>
-
-    {% for date, event in past_events.items %}
-
-    <p id="ArchiveDate"><h2>
-
-        <span id="{{ date }} ddmmyy"> </span> <script> var dt = new Date("{{date}}");
-    document.getElementById("{{ date }} ddmmyy").innerHTML=dt.toLocaleDateString(locales="he-IL", options1);</script>
-
-        <span id="{{ date }}"> </span></p> <script> var dt = new Date("{{date}}");
-    document.getElementById("{{ date }}").innerHTML=dt.toLocaleDateString(locales="he-IL", options2);</script> </h2> </p>
-
-
-    {% for e in event %}
-        <p id="client"> <strong><span id="{{e.id}}{{date}}"> </span> <script> var options = { weekday: 'long'}; var dt = new Date("{{ e.event_date|date:"Y-m-d H:m:"}}")
-    document.getElementById("{{e.id}}{{date}}").innerHTML =  (("0"+dt.getHours()).slice(-2)) +":"+ (("0"+dt.getMinutes()).slice(-2));
-    </script></strong>
-        <a href="/client/{{ e.client.id }}"> {{ e.client }} </a>
-
-        <button id="treatment: {{e.id}} add" class="float-right submit-button" >הוסף טיפול</button>
-        <script type="text/javascript">
-            document.getElementById("treatment: {{e.id}} add").onclick = function () {
-                location.href = "remove_event/{{e.id}}"; location.href = "/client/add_treatment/{{e.client.id}}/{{e.event_date|date:"Y-m-d"}}";
-            }</script>
-
-        {% endfor %}
 
     {% endfor %}
-
-
 
     </body>
-
 
 </html>

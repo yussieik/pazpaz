@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.utils import timezone
 from phonenumber_field.modelfields import PhoneNumberField
@@ -50,17 +51,16 @@ class Record(models.Model):
     def __str__(self):
         return f"תיק  {self.id} : {self.description}"
 
-
 class Treatment(models.Model):
     class Meta:
         ordering = ('modified',)
 
     client = models.ForeignKey(Client, on_delete=models.DO_NOTHING, related_name='treatments')
-    description = models.TextField('תיאור הבעיה')
-    process = models.TextField('הטיפול הניתן')
-    notice = models.TextField('הערות')
+    description = models.TextField('תיאור הבעיה', blank=True)
+    process = models.TextField('הטיפול הניתן', blank=True)
+    notice = models.TextField('הערות', blank=True)
 
-    created = models.DateTimeField(editable=False)
+    created = models.DateTimeField(editable=True)
     modified = models.DateTimeField()
 
     def save(self, *args, **kwargs):
@@ -73,10 +73,17 @@ class Treatment(models.Model):
     def __str__(self):
         return f"{self.modified}, {self.description}"
 
-
 class Event(models.Model):
-    client = models.ForeignKey(Client, verbose_name='מטופל', on_delete=models.CASCADE,related_name='events')
+    client = models.ForeignKey(Client, verbose_name='מטופל', on_delete=models.CASCADE, related_name='events')
+    treatment = models.ForeignKey(Treatment, on_delete=models.CASCADE, related_name='treatment')
     event_date = models.DateTimeField(verbose_name='תאריך')
+    done = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.client} + {self.event_date}"
+
+    def save(self, force_insert=False, force_update=False, *args, **kwargs):
+        if not self.id:
+            self.treatment = Treatment.objects.create(client=self.client, created=self.event_date)
+            super(Event, self).save(force_insert=False, force_update=False, *args, **kwargs)
+        super(Event, self).save(force_insert=False, force_update=False, *args, **kwargs)

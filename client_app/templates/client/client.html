@@ -101,7 +101,7 @@ document.getElementById("modified").innerHTML=dt.toLocaleDateString(locales="he-
             <button id="treat: {{treat.id}}" class="float-right submit-button" >עדכן</button>
             <script type="text/javascript">
             document.getElementById("treat: {{treat.id}}").onclick = function () {
-                location.href = "update_treatment/{{client.id}}/{{treat.id}}";
+                location.href = "{%url 'update_treatment_client' c_id=client.id t_id=treat.id%}";
             }</script></td>
             <td>
                 <button id="treat: {{treat.id}} remove" class="float-right submit-button" >הסר</button>
