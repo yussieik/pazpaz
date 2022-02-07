@@ -11,18 +11,18 @@
 
 <nav class="Navigation">
 
-<button id="BackButton1" class="float-left submit-button">רשימת מטופלים</button>
+<button id="ToPatients" class="float-left submit-button">רשימת מטופלים</button>
 
 <script type="text/javascript">
-    document.getElementById("BackButton1").onclick = function () {
+    document.getElementById("ToPatients").onclick = function () {
         location.href = "../../index";
     }
 </script>
 
-<button id="BackButton2" class="float-left submit-button" >לו״ז</button>
+<button id="ToSchedule" class="float-left submit-button" >לו״ז</button>
 
 <script type="text/javascript">
-    document.getElementById("BackButton2").onclick = function () {
+    document.getElementById("ToSchedule").onclick = function () {
         location.href = "../schedule/schedule_treatment";
     }
 </script>
@@ -60,7 +60,7 @@ document.getElementById("modified").innerHTML=dt.toLocaleDateString(locales="he-
 {% if treatments %}
 
 <div class="add_treat" style = "position:relative;">
-    <h3> הסטוריית טיפולים <button id="myButton1" class="float-left submit-button" >הוסף</button></h3>
+    <h3> הסטוריית טיפולים <button id="myButton1" class="AddTreatment" >הוסף</button></h3>
 
     <script type="text/javascript">
     document.getElementById("myButton1").onclick = function () {
@@ -104,7 +104,7 @@ document.getElementById("modified").innerHTML=dt.toLocaleDateString(locales="he-
                 location.href = "{%url 'update_treatment_client' c_id=client.id t_id=treat.id%}";
             }</script></td>
             <td>
-                <button id="treat: {{treat.id}} remove" class="float-right submit-button" >הסר</button>
+                <button id="treat: {{treat.id}} remove" class="RemoveTreatment" >הסר</button>
                 <script type="text/javascript">
                     document.getElementById("treat: {{treat.id}} remove").onclick = function () {
                         location.href = "remove_treatment/{{treat.id}}";

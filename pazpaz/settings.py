@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'client_app',
     'phonenumber_field',
+    'colorfield',
 
 ]
 

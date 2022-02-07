@@ -10,6 +10,7 @@ class ClientForm(forms.ModelForm):
         exclude = ['created', 'modified']
         widgets = {
             'description': forms.Textarea(attrs={'class': 'textarea'}),
+            'color': forms.TextInput(attrs={'type': 'color'})
         }
 
 

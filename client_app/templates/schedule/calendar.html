@@ -5,7 +5,9 @@
     <meta charset="UTF-8">
     <title>Calendar</title>
     <link rel="stylesheet" href="{% static 'css/../../static/js/fullcalendar/main.css' %}" type="text/css" />
+    <link rel="stylesheet" href="{% static 'css/../../static/css/main.css' %}" type="text/css">
     <script src={%static 'js/fullcalendar/main.js'%}></script>
+    <script src={%static 'js/fullcalendar/locales/he.js'%}></script>
     <script>
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -22,9 +24,11 @@
                 events: [
                     {% for event in events %}
                         {
-                            title: "{{event.client}}",
+                            title:  "{{event.client}}",
                             id: "{{ event.id }}",
-                            start: "{{ event.event_date|date:"Y-m-d H:m"}}"
+                            start: "{{ event.event_date|date:"Y-m-d H:m"}}",
+                            url: "../client/{{event.client.id}}",
+                            backgroundColor: '{{event.client.color}}'
                         },
                     {% endfor %}
                 ],
@@ -37,11 +41,19 @@
 
 <body>
 <nav class="Navigation">
-    <button id="BackButton2" class="float-left submit-button" >לו״ז</button>
+    <button id="ToSchedule" class="float-left submit-button" >לו״ז</button>
 
     <script type="text/javascript">
-        document.getElementById("BackButton2").onclick = function () {
+        document.getElementById("ToSchedule").onclick = function () {
             location.href = "./schedule_treatment";
+        }
+    </script>
+
+    <button id="ToPatients" class="float-left submit-button" >רשימת מטופלים</button>
+
+    <script type="text/javascript">
+        document.getElementById("ToPatients").onclick = function () {
+            location.href = "../../index";
         }
     </script>
 </nav>

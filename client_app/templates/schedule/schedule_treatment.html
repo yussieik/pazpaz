@@ -55,7 +55,7 @@
 
                 {% if e.done == False %}
 
-                <button id="treatment: {{e.id}} add" class="float-right submit-button" >הוסף דיווח</button>
+                <button id="treatment: {{e.id}} add" class="NewTreatment" >הוסף דיווח</button>
                 <script type="text/javascript">
                     document.getElementById("treatment: {{e.id}} add").onclick = function () {
                         location.href = "/client/add_treatment/{{e.client.id}}/{{e.id}}";
@@ -63,7 +63,7 @@
 
                 {% else %}
 
-                    <button id="treatment: {{e.id}} add" class="float-right submit-button" >עדכן דיווח</button>
+                    <button id="treatment: {{e.id}} add" class="AddTreatment" >עדכן דיווח</button>
                     <script type="text/javascript">
                         document.getElementById("treatment: {{e.id}} add").onclick = function () {
                             location.href = "{%url 'update_treatment_scheduler' c_id=e.client.id e_id=e.id%}";
@@ -71,13 +71,13 @@
 
                 {% endif %}
 
-                <button id="event: {{e.id}} remove" class="float-right submit-button" >הסר</button>
+                <button id="event: {{e.id}} remove" class="RemoveTreatment" >הסר</button>
                 <script type="text/javascript">
                     document.getElementById("event: {{e.id}} remove").onclick = function () {
                         location.href = "remove_event/{{e.id}}";
                     }</script>
 
-                <button id="event: {{e.id}} update" class="float-right submit-button" >עדכן</button>
+                <button id="event: {{e.id}} update" class="UpdateTreatment" >עדכן</button>
                 <script type="text/javascript">
                     document.getElementById("event: {{e.id}} update").onclick = function () {
                         location.href = "update_event/{{e.id}}";
@@ -109,13 +109,13 @@
             <a href="/client/{{ e.client.id }}"> {{ e.client }} </a>
 
 
-                <button id="event: {{e.id}} remove" class="float-right submit-button" >הסר</button>
+                <button id="event: {{e.id}} remove" class="RemoveTreatment" >הסר</button>
                 <script type="text/javascript">
                     document.getElementById("event: {{e.id}} remove").onclick = function () {
                         location.href = "remove_event/{{e.id}}";
                     }</script>
 
-               <button id="event: {{e.id}} update" class="float-right submit-button" >עדכן</button>
+               <button id="event: {{e.id}} update" class="UpdateTreatment" >עדכן</button>
                <script type="text/javascript">
                    document.getElementById("event: {{e.id}} update").onclick = function () {
                        location.href = "update_event/{{e.id}}";

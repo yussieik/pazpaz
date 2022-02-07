@@ -55,5 +55,37 @@ h2 {
 }
 
 button {
-    color: aqua;
+    color: #151e27;
+}
+
+#ToPatients {
+    color: #1d990c;
+}
+
+#ToCalendar{
+    color: #3788d8;
+}
+
+#ToSchedule{
+    color: darkgreen;
+}
+
+#ModifyClient{
+    background-color: #d8dc8e;
+}
+
+.UpdateTreatment{
+    background-color: #ffffff;
+}
+
+.NewTreatment{
+    background-color: #d8dc8e;
+}
+
+.AddTreatment{
+    background-color: #4CAF50;
+}
+
+.RemoveTreatment{
+    background-color: firebrick;
 }

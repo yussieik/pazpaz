@@ -2,6 +2,7 @@ import uuid
 from django.db import models
 from django.utils import timezone
 from phonenumber_field.modelfields import PhoneNumberField
+from colorfield.fields import ColorField
 
 time = timezone.localtime(timezone.now())
 
@@ -12,6 +13,13 @@ class Client(models.Model):
     name = models.CharField('שם', max_length=200)
     age = models.IntegerField('גיל')
     phone = PhoneNumberField('מספר טלפון', region='IL')
+
+    COLOR_PALETTE = [
+        ('#FFFFFF', 'white', ),
+        ('#000000', 'black', ),
+    ]
+
+    color = ColorField(samples=COLOR_PALETTE, default='#FF0000')
 
     address = models.CharField('כתובת', max_length=255)
 
