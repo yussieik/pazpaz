@@ -1,4 +1,7 @@
 from django.shortcuts import render, redirect
+from django.utils.decorators import method_decorator
+from django.views.generic import TemplateView
+
 from .models import Client, Record, Treatment, Event
 from .forms import ClientForm, RecordForm, TreatmentForm, EventForm
 from django.http import JsonResponse
@@ -25,7 +28,7 @@ def divide_events(events):
 
 def schedule_treatment(request):
     today = datetime.today()
-    yesterday = today - timedelta(days = 1)
+    yesterday = today - timedelta(days=1)
     events = Event.objects.filter(event_date__gte=yesterday).order_by('event_date')
     past_events = Event.objects.filter(event_date__lt=today).order_by('-event_date')
     events_divided = divide_events(events)
@@ -94,16 +97,16 @@ def add_treatment(request, c_id, e_id=None):
             process = form.cleaned_data['process']
             notice = form.cleaned_data['notice']
             if e_id:
-                    print('TRUE TRUE')
-                    event = Event.objects.get(id = e_id, client_id=c_id)
-                    event.done = True
-                    event.save()
-                    n_treat = Treatment.objects.get(id = event.treatment.id ,client=client)
-                    n_treat.description = description
-                    n_treat.process = process
-                    n_treat.notice = notice
-                    n_treat.save()
-                    return redirect(f'../../{client.id}')
+                print('TRUE TRUE')
+                event = Event.objects.get(id=e_id, client_id=c_id)
+                event.done = True
+                event.save()
+                n_treat = Treatment.objects.get(id=event.treatment.id, client=client)
+                n_treat.description = description
+                n_treat.process = process
+                n_treat.notice = notice
+                n_treat.save()
+                return redirect(f'../../{client.id}')
             else:
                 n_treat = Treatment(client_id=c_id, description=description, process=process, notice=notice)
                 n_treat.save()
@@ -182,7 +185,7 @@ def remove_treatment(request, part_id):
 
 def remove_event(request, event_id):
     event_obj = Event.objects.get(id=event_id)
-    event_obj.delete()
+    event_obj.treatment.delete()
     return redirect("../schedule_treatment")
 
 
@@ -197,6 +200,16 @@ def search_client(request):
             payload.append(client)
 
     return JsonResponse({'status': 200, 'data': payload})
+
+
+class calendar(TemplateView):
+    template_name = 'schedule/calendar.html'
+    form_class = EventForm
+
+    def get_context_data(self, **kwargs):
+        context = super(calendar, self).get_context_data(**kwargs)
+        context['events'] = Event.objects.all()
+        return context
 
 
 def handle_404(request, exception):

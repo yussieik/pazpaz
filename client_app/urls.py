@@ -31,7 +31,7 @@ urlpatterns = [
     path("client/remove_treatment/<int:part_id>", views.remove_treatment, name='remove_treatment'),
     path("schedule/remove_event/<int:event_id>", views.remove_event, name='remove_event'),
     path("schedule/update_event/<int:event_id>", views.update_event, name='update_event'),
-
+    path("schedule/calendar", views.calendar.as_view(), name='calendar'),
 ]
 
 handler404 = "client_app.views.handle_404"

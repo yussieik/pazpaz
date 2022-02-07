@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Calendar</title>
+    <link rel="stylesheet" href="{% static 'css/../../static/js/fullcalendar/main.css' %}" type="text/css" />
+    <script src={%static 'js/fullcalendar/main.js'%}></script>
+    <script>
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                locale: 'he',
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                editable: true,
+                events: [
+                    {% for event in events %}
+                        {
+                            title: "{{event.client}}",
+                            id: "{{ event.id }}",
+                            start: "{{ event.event_date|date:"Y-m-d H:m"}}"
+                        },
+                    {% endfor %}
+                ],
+            });
+            calendar.render();
+        });
+
+    </script>
+</head>
+
+<body>
+<nav class="Navigation">
+    <button id="BackButton2" class="float-left submit-button" >לו״ז</button>
+
+    <script type="text/javascript">
+        document.getElementById("BackButton2").onclick = function () {
+            location.href = "./schedule_treatment";
+        }
+    </script>
+</nav>
+<div id='calendar'></div>
+</body>
+</html>

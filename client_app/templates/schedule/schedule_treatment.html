@@ -10,14 +10,24 @@
 
 <nav class="Navigation">
 
-        <button id="BackButton1" class="float-left submit-button">רשימת מטופלים</button>
+        <button id="ToPatients" class="float-left submit-button">רשימת מטופלים</button>
 
         <script type="text/javascript">
-            document.getElementById("BackButton1").onclick = function () {
+            document.getElementById("ToPatients").onclick = function () {
                 location.href = "../../index";
             }
         </script>
+
+    <button id="ToCalendar" class="float-left submit-button">לוח שנה</button>
+
+    <script type="text/javascript">
+        document.getElementById("ToCalendar").onclick = function () {
+            location.href = "./calendar";
+        }
+    </script>
 </nav>
+
+
 
     <body>
 
