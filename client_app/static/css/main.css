@@ -89,3 +89,9 @@ button {
 .RemoveTreatment{
     background-color: firebrick;
 }
+
+.myCustomClassToExclude {
+  color: #FFF; /*override color*/
+  font-size: 20px; /*override font-size*/
+  /* here you need to override all the style already set by bootstrap */
+}

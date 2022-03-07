@@ -1,7 +1,7 @@
 from django import forms
 from .models import Client, Record, Treatment, Event
-from django.forms import modelformset_factory
-
+from tempus_dominus.widgets import DateTimePicker
+from bootstrap_datepicker_plus.widgets import DateTimePickerInput
 
 class ClientForm(forms.ModelForm):
     class Meta:
@@ -34,6 +34,10 @@ class TreatmentForm(forms.ModelForm):
         }
 
 
+class MyDatePickerInput(DateTimePickerInput):
+    template_name = 'widgets/date-picker.html'
+
+
 class EventForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
@@ -45,8 +49,15 @@ class EventForm(forms.ModelForm):
         model = Event
         fields = ['client', 'event_date']
 
-        widgets = {
-            'client': forms.Select(),
-            'event_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'language': 'he'}),
-        }
+    event_date = forms.DateTimeField(
+        widget=MyDatePickerInput(
+            options={
+                'locale': 'he',
+            }
+        ),
+    )
+
+
+
+
 

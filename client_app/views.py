@@ -148,7 +148,7 @@ def update_treat(request, c_id, e_id=None, t_id=None):
     elif t_id:
         treatment = Treatment.objects.get(id=t_id)
     form_treat = TreatmentForm(request.POST or None, instance=treatment)
-    context = {'Title': 'Update treatment', 'form': form_treat, 'client': client, 'treatment': treatment}
+    context = {'Title': 'Update treatment', 'form': form_treat, 'client': client, 'treatment': treatment, "event_id": e_id, "treatment_id": t_id}
 
     if request.method == 'POST':
         if form_treat.is_valid():

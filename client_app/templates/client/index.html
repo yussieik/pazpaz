@@ -25,7 +25,7 @@
     <nav>
         {% for client in Clients %}
 
-            <p> <a href="/client/{{ client.id }}"> <strong>{{client}}</strong>/מספר טיפולים:  {{ client.treatments.all.count }} </a>
+            <p> <a href="/client/{{ client.id }}"> <strong  class="ClientName" style="color: {{ client.color }}">{{client}}</strong>/מספר טיפולים:  {{ client.treatments.all.count }} </a>
 
         {% endfor %}
     </nav>
