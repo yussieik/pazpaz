@@ -43,7 +43,6 @@ INSTALLED_APPS = [
     'django.forms',
     "bootstrap4",
     "bootstrap_datepicker_plus",
-    'tempus_dominus',
 ]
 
 MIDDLEWARE = [
@@ -61,7 +60,9 @@ ROOT_URLCONF = 'pazpaz.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'client_app', 'templates'),
+                 ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

@@ -1,22 +1,19 @@
 <!DOCTYPE html>
-{% load static %}
 
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <title>PazPaz</title>
-    <link rel="stylesheet" href="{% static 'css/boostrap.min.css' %}">
-    <link rel="shortcut icon" type="image/png" href="{% static 'favicon.ico' %}"/>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <title>{% block title %}{% endblock %}</title>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.rtl.min.css" integrity="sha384-gXt9imSW0VcJVHezoNQsP+TNrjYXoGcrqBZJpry9zJt8PCQjobwmhMGaDHTASo9N" crossorigin="anonymous">
+    {% load bootstrap4 %}
+    {% bootstrap_javascript jquery='full' %}
+    {{event_form.media}}
 </head>
 <body>
-
 {% block content %}
 {% endblock %}
-
 </body>
-<aside> Navbar </aside>
-<footer>
-    <h3>&copy;PazPaz, 2022</h3>
-</footer>
 </html>

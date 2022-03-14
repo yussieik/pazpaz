@@ -1,6 +1,5 @@
 from django import forms
 from .models import Client, Record, Treatment, Event
-from tempus_dominus.widgets import DateTimePicker
 from bootstrap_datepicker_plus.widgets import DateTimePickerInput
 
 class ClientForm(forms.ModelForm):
@@ -49,10 +48,13 @@ class EventForm(forms.ModelForm):
         model = Event
         fields = ['client', 'event_date']
 
-    event_date = forms.DateTimeField(
+    event_date = forms.DateTimeField(label="תאריך",
         widget=MyDatePickerInput(
             options={
-                'locale': 'he',
+                "format": "MM/DD/YYYY HH:mm",
+                "sideBySide": True,
+                "locale": "he",
+                "stepping": 15,
             }
         ),
     )

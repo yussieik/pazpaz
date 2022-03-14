@@ -1,14 +1,10 @@
-<!DOCTYPE html>
+{% extends "base.html" %}
 {% load static %}
 
-<html lang="he" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <title>{{Title}}</title>
-    <link rel="stylesheet" href="{% static 'css/../../static/css/main.css' %}" type="text/css">
+{% block title %} {{Title}} {% endblock %}
 
-    {{event_form.media}}
-</head>
+
+{% block content %}
 
 <nav class="Navigation">
 
@@ -30,16 +26,11 @@
 </nav>
 
 
-
-    <body>
-
-
     <form method="POST">
         {% csrf_token %}
         {{ event_form.as_p }}
         <input type="submit" value="הוספה">
     </form>
-
 
     <h1> {{ client }} <span id="datetime"></span></p><script> var dt = new Date();
     document.getElementById("datetime").innerHTML=dt.toLocaleDateString(locales="he");</script>
@@ -132,6 +123,4 @@
 
     {% endfor %}
 
-
-    </body>
-</html>
+    {% endblock content%}
