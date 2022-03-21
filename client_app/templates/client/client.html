@@ -1,13 +1,9 @@
+{% extends "base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
 
-<head>
-    <title>{{Title}}</title>
-    <link rel="stylesheet" href="{% static "css/main.css" %}" type="text/css">
-</head>
+{% block title %} {{Title}} {% endblock %}
 
-<body>
+{% block content %}
 
 <nav class="Navigation">
 
@@ -128,4 +124,4 @@ document.getElementById("modified").innerHTML=dt.toLocaleDateString(locales="he-
 </div>
 </body>
 
-</html>
+{% endblock content%}

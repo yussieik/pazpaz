@@ -1,10 +1,18 @@
-import uuid
 from django.db import models
 from django.utils import timezone
 from phonenumber_field.modelfields import PhoneNumberField
 from colorfield.fields import ColorField
+import pytz
+from _datetime import datetime
 
-time = timezone.localtime(timezone.now())
+
+def get_localtime(utctime):
+    utc = utctime.replace(tzinfo=pytz.UTC)
+    localtz = utc.astimezone(timezone.get_current_timezone())
+    return localtz
+
+
+time = get_localtime(datetime.now())
 
 
 # Create your models here.

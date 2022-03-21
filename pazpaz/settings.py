@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'phonenumber_field',
     'colorfield',
     'django.forms',
-    "bootstrap4",
+    "bootstrap5",
     "bootstrap_datepicker_plus",
 ]
 
@@ -120,7 +120,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'Israel'
+TIME_ZONE = 'Asia/Jerusalem'
 
 USE_I18N = True
 
