@@ -48,6 +48,9 @@ class EventForm(forms.ModelForm):
         model = Event
         fields = ['client', 'event_date']
 
+
+
+
     event_date = forms.DateTimeField(label="תאריך",
         widget=MyDatePickerInput(
             options={
