@@ -43,7 +43,7 @@
         {% if date == today %}
 
             {% for e in event %}
-            <p id="client"> <strong><span id="{{e.id}}{{date}}"> </span> <script> var options = { weekday: 'long'}; var dt = new Date("{{ e.event_date|date:"Y-m-d H:m:"}}")
+            <p id="client"> <strong><span id="{{e.id}}{{date}}"> </span> <script> var options = { weekday: 'long'}; var dt = new Date("{{e.event_date.isoformat }}")
             document.getElementById("{{e.id}}{{date}}").innerHTML =  (("0"+dt.getHours()).slice(-2)) +":"+ (("0"+dt.getMinutes()).slice(-2));
             </script></strong>
                 <a href="/client/{{ e.client.id }}"> {{ e.client }} </a>
@@ -98,7 +98,7 @@
 
         {% for e in event %}
 
-           <p id="client"> <strong><span id="{{e.id}}{{date}}"> </span> <script> var options = { weekday: 'long'}; var dt = new Date("{{ e.event_date|date:"Y-m-d H:m:"}}")
+           <p id="client"> <strong><span id="{{e.id}}{{date}}"> </span> <script> var options = { weekday: 'long'}; var dt = new Date("{{e.event_date.isoformat }}")
         document.getElementById("{{e.id}}{{date}}").innerHTML =  (("0"+dt.getHours()).slice(-2)) +":"+ (("0"+dt.getMinutes()).slice(-2));
         </script></strong>
             <a href="/client/{{ e.client.id }}"> {{ e.client }} </a>
