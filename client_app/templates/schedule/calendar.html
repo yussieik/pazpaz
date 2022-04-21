@@ -27,7 +27,7 @@
                         {
                             title:  "{{event.client}}",
                             id: "{{ event.id }}",
-                            start: "{{ event.event_date|date:"Y-m-d H:m"}}",
+                            start: "{{ event.event_date.isoformat }}",
                             url: "../client/{{event.client.id}}",
                             backgroundColor: '{{event.client.color}}'
                         },

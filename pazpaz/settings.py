@@ -41,9 +41,16 @@ INSTALLED_APPS = [
     'phonenumber_field',
     'colorfield',
     'django.forms',
+    "crispy_forms",
     "bootstrap5",
+    "crispy_bootstrap5",
     "bootstrap_datepicker_plus",
 ]
+
+
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -130,6 +137,8 @@ USE_L10N = True
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
 STATIC_URL = '/static/'
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 

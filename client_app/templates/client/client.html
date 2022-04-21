@@ -30,7 +30,7 @@
 
     <p> <a id="Phone" href="{{ client.get_fields.phone}}"> {{ client.get_fields.phone}} </a> </p>
     <p> {{ client.get_fields.address}} </p>
-    <p> {{ record.description }} </p>
+    <p> {{ record.description|linebreaks }} </p>
 
 </nav>
 
