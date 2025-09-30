@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, watchEffect } from 'vue'
 import { useAppointmentsStore } from '@/stores/appointments'
 import FullCalendar from '@fullcalendar/vue3'
 import type {
@@ -156,22 +156,18 @@ function handleDatesSet(dateInfo: { start: Date; end: Date }) {
 }
 
 /**
- * Initialize calendar on component mount
+ * Initialize calendar API when ref becomes available
  *
- * Note: We don't need to fetch appointments here because FullCalendar's
- * datesSet callback will fire immediately after initialization and handle
- * the initial fetch. This prevents duplicate API calls.
+ * watchEffect automatically tracks calendarRef.value and runs whenever it changes.
+ * This handles the timing issue where FullCalendar is conditionally rendered
+ * (v-else) and not available immediately on mount.
  *
- * We store a reference to the Calendar API for use in navigation handlers.
+ * The calendar API is needed for navigation handlers (prev/next/today) and view switching.
  */
-onMounted(async () => {
-  // Store calendar API reference for navigation
-  // Use nextTick to ensure FullCalendar is fully mounted and rendered
-  await nextTick()
-  if (calendarRef.value) {
+watchEffect(() => {
+  if (calendarRef.value && !calendarApi.value) {
     calendarApi.value = calendarRef.value.getApi()
-  } else {
-    console.error('Calendar ref is undefined - navigation buttons will not work')
+    console.log('Calendar API initialized successfully')
   }
 })
 
