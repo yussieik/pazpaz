@@ -1,0 +1,102 @@
+---
+alwaysApply: true
+description: Global best practices for Git commit messages using Conventional Commits
+---
+
+# Git Commit Best Practices (Conventional Commits)
+
+Use Conventional Commits v1.0.0 style for all commits:
+
+```
+<type>(<scope>)!: <subject>
+
+<body>
+
+<footer>
+```
+
+## Format rules
+- **type**: one of `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+- **scope** (optional): a short area name in kebab-case, e.g. `auth`, `api`, `ui`, `deps`, `uv`, or a path-like area such as `web/signup`.
+- **!**: append when introducing a breaking change.
+- **subject**: imperative, present tense, no final period. Keep ≤ 50 chars.
+- **body** (optional): explain the what and why, not the how. Wrap at 72 cols.
+- **footer** (optional): reference issues/PRs, co-authors, and breaking changes.
+
+## Breaking changes
+- Prefer `!` after the scope when the whole commit is breaking: `feat(api)!: ...`
+- Or include a footer line starting with `BREAKING CHANGE:` describing impact and migration.
+
+## Issue and PR references
+- Use `Closes #123` / `Fixes #123` to auto-close issues.
+- Use `Refs #123` for related work that should not auto-close.
+
+## Choosing the right type
+- `feat`: user-visible addition or change in functionality.
+- `fix`: bug fix.
+- `docs`: documentation-only changes.
+- `style`: formatting, whitespace, missing semi-colons, no code behavior change.
+- `refactor`: code change that neither fixes a bug nor adds a feature.
+- `perf`: performance improvement.
+- `test`: add or refactor tests only.
+- `build`: changes to build system or external dependencies (e.g., `uv` updates).
+- `ci`: CI configuration or scripts.
+- `chore`: routine tasks with no production code change (repo maintenance).
+- `revert`: reverts a previous commit (see Reverts).
+
+## Dependency management
+- For dependency updates via `uv`, prefer `build(deps): ...`.
+- For repository maintenance unrelated to build/deps, use `chore: ...`.
+
+## Atomic commits
+- One logical change per commit; avoid mixing refactors with features or fixes.
+- Commit early and often; keep diffs focused and reviewable.
+- Avoid `WIP` commits. Use draft PRs or local branches instead.
+
+## Examples
+```
+feat(auth): add TOTP verification to login flow
+
+Explain why TOTP is added, security benefits, and any UX implications.
+
+Closes #123
+```
+
+```
+fix(api): handle 429 errors with exponential backoff
+
+Prevent request storms by retrying up to 3 times with jittered backoff.
+
+Refs #512
+```
+
+```
+build(deps): update numpy to 2.1 and sync with uv
+
+BREAKING CHANGE: numpy 2.x removes deprecated aliases. Updated code accordingly.
+```
+
+```
+revert: feat(ui): migrate modal to headless implementation
+
+This reverts commit abcdef123456 due to accessibility regressions.
+```
+
+## Footer conventions
+- `BREAKING CHANGE: <description>` for breaking changes (also add `!` when applicable).
+- `Co-authored-by: Name <email>` for shared contributions.
+- `Closes|Fixes|Refs: #<id>` for tracker integration.
+
+## Subject style checklist
+- Imperative mood (e.g., "add", "fix", "remove", not "adds" or "fixed").
+- Describe the change, not the implementation details.
+- No trailing period; ≤ 50 chars.
+
+## Body style checklist
+- Wrap at 72 characters.
+- Explain motivation and impact; call out side effects and risks.
+- If relevant, summarize benchmarks, security considerations, or migration notes.
+
+---
+Adhering to these guidelines improves history readability, changelog generation, and automated tooling.
+

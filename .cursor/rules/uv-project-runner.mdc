@@ -1,0 +1,88 @@
+---
+alwaysApply: true
+description: Use uv as the sole Python runner and dependency manager across the project
+---
+
+# Python Project Runner and Dependencies — uv Only
+
+This project uses `uv` exclusively for Python dependency management and execution.
+
+## Project Python version
+- Pin the project to the latest stable CPython: `3.13.5`.
+- Install and pin with uv:
+
+```bash
+uv python install 3.13.5
+uv python pin 3.13.5
+```
+
+This writes `.python-version` with the pinned version:
+
+```text
+3.13.5
+```
+
+## Core rules
+- Use `uv` for all Python installs, upgrades, removals, and execution.
+- Do not use `pip`, `pip-tools`, or `poetry` directly.
+- Keep `pyproject.toml` and `uv.lock` in sync via `uv` commands only.
+
+## Commands
+- Add/upgrade dependencies:
+  - `uv add <package>`
+- Remove dependencies:
+  - `uv remove <package>`
+- Sync from lock:
+  - `uv sync`
+- Run a script or module with proper env:
+  - `uv run script.py`
+  - `uv run -m package.module`
+
+## Script-level metadata (inline)
+You can declare per-script deps and Python version inline:
+
+```python
+# /// script
+# requires-python = "==3.13.5"
+# dependencies = [
+#     "ruff",
+#     "pytest",
+# ]
+# ///
+
+if __name__ == "__main__":
+    print("Script executed with uv-managed env")
+```
+
+Manage inline script deps:
+- Add/upgrade: `uv add package-name --script path/to/script.py`
+- Remove: `uv remove package-name --script path/to/script.py`
+- Sync only that script: `uv sync --script path/to/script.py`
+
+## Project scripts (recommended)
+Define reusable tasks in `pyproject.toml`:
+
+```toml
+[tool.uv]
+package = true
+
+[tool.uv.scripts]
+lint = "ruff check --fix . && ruff format ."
+test = "pytest -q"
+run = "python -m your_package"
+```
+
+Run them via:
+- `uv run lint`
+- `uv run test`
+- `uv run run`
+
+## CI guidance
+- Use `uv` setup and cache steps.
+- Install: `uv sync`
+- Execute: `uv run <task>`
+
+## Lockfile policy
+- Commit `uv.lock`.
+- Regenerate only via `uv` flows (e.g., `uv add/remove`, `uv sync`).
+

@@ -1,0 +1,96 @@
+---
+globs: *.py
+description: Python clean code rules based on TestDriven.io; Ruff as single formatter and linter
+---
+
+# Python Clean Code Rules
+
+Based on the guidelines from [Clean Code in Python](https://testdriven.io/blog/clean-code-python/).
+
+## Python version
+- Use CPython `3.13.5` across the project.
+- Prefer 3.13 features when they improve clarity/perf, e.g.:
+  - Enhanced typing: `typing.override`, narrowed exception groups, better error messages
+  - `match` statement for structured control flow when clearer than nested `if`/`elif`
+  - Fine-grained F-string improvements and interpreter perf gains
+
+## Formatter and Linter (single choice)
+- Use Ruff as the only formatter and linter.
+- Commands:
+  - `ruff format` (format code)
+  - `ruff check --fix` (lint and auto-fix)
+
+Suggested `pyproject.toml` configuration (Python 3.13.5):
+
+```toml
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+  "E",  # pycodestyle
+  "F",  # pyflakes
+  "W",  # warnings
+  "I",  # import sorting
+  "N",  # naming
+  "UP", # pyupgrade
+  "B",  # bugbear
+  "C90",# mccabe complexity
+  "SIM",# simplify
+  "PL", # pylint subset
+  "RUF" # ruff-specific
+]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ruff.lint.pylint]
+max-args = 5
+```
+
+## PEP 8 essentials
+- Indent using 4 spaces; avoid tabs.
+- Max line length: 88.
+- Imports on separate lines; group stdlib, third-party, local. Let Ruff auto-sort.
+- Avoid extra spaces in brackets; avoid trailing whitespace.
+- Surround binary operators with single spaces; be consistent with string quotes.
+
+## Naming conventions
+- Classes: `CamelCase`.
+- Variables/functions: `snake_case`.
+- Constants: `UPPER_SNAKE_CASE`.
+- Modules/packages: short `snake_case`.
+
+## Pythonic code
+- Prefer built-ins and comprehensions over manual loops when clearer.
+- Use `enumerate`, `zip`, and generator expressions where appropriate.
+- Replace magic numbers with named constants.
+- Favor readability and explicitness (Zen of Python).
+
+## Functions
+- Names are verbs; each function does one thing.
+- Keep functions small; minimize arguments (≤ 3-5). Avoid boolean flags.
+- Avoid side effects; prefer pure functions when feasible.
+
+## Comments and docstrings
+- Prefer rewriting unclear code over adding comments.
+- Use docstrings for public APIs with a brief summary then details.
+- Do not leave commented-out code.
+
+## Modularity and classes
+- Keep modules/classes cohesive and small; prefer composition over inheritance.
+- Use `dataclasses` for simple data containers.
+
+## Error handling
+- Catch specific exceptions; avoid bare `except`.
+- Use `try/except/else/finally` appropriately; fail fast and handle errors explicitly.
+
+## Context managers, iterators, generators
+- Use `with` for resource management.
+- Embrace iterators/generators for lazy, memory-efficient flows when suitable.
+
+## Testing
+- Write isolated, deterministic tests. Favor `pytest` style fixtures and assertions.
+
