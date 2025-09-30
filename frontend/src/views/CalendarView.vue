@@ -110,8 +110,9 @@ const calendarOptions: CalendarOptions = {
   dayMaxEvents: true,
   weekends: true,
   // NO events here - passed separately to prevent re-renders
-  eventClick: handleEventClick,
-  datesSet: handleDatesSet,
+  // Use arrow functions to ensure callbacks have proper scope binding
+  eventClick: (clickInfo) => handleEventClick(clickInfo),
+  datesSet: (dateInfo) => handleDatesSet(dateInfo),
   eventTimeFormat: {
     hour: '2-digit',
     minute: '2-digit',
@@ -129,6 +130,7 @@ const calendarOptions: CalendarOptions = {
  * This callback fires on initial render AND whenever the date range changes
  */
 function handleDatesSet(dateInfo: { start: Date; end: Date }) {
+  console.log('datesSet callback fired!', dateInfo)
   currentDateRange.value = {
     start: dateInfo.start,
     end: dateInfo.end,
