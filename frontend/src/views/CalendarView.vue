@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useAppointmentsStore } from '@/stores/appointments'
 import FullCalendar from '@fullcalendar/vue3'
-import type { CalendarOptions, EventInput, EventClickArg } from '@fullcalendar/core'
+import type {
+  CalendarOptions,
+  EventInput,
+  EventClickArg,
+  Calendar,
+} from '@fullcalendar/core'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
@@ -32,6 +37,7 @@ type AppointmentListItem = AppointmentResponse['items'][0]
 
 const appointmentsStore = useAppointmentsStore()
 const calendarRef = ref<InstanceType<typeof FullCalendar>>()
+const calendarApi = ref<Calendar | null>(null)
 const currentView = ref<'timeGridWeek' | 'timeGridDay' | 'dayGridMonth'>('timeGridWeek')
 const currentDateRange = ref<{ start: Date; end: Date }>({
   start: new Date(),
@@ -138,6 +144,11 @@ function handleDatesSet(dateInfo: { start: Date; end: Date }) {
   }
 
   // Update last fetched range before making the API call
+  // Guard: Ensure dates are defined
+  if (!startDate || !endDate) {
+    console.warn('Date range contains undefined values:', { startDate, endDate })
+    return
+  }
   lastFetchedRange.value = { start: startDate, end: endDate }
 
   console.log('Fetching appointments for date range:', { startDate, endDate })
@@ -150,9 +161,18 @@ function handleDatesSet(dateInfo: { start: Date; end: Date }) {
  * Note: We don't need to fetch appointments here because FullCalendar's
  * datesSet callback will fire immediately after initialization and handle
  * the initial fetch. This prevents duplicate API calls.
+ *
+ * We store a reference to the Calendar API for use in navigation handlers.
  */
-onMounted(() => {
-  console.log('CalendarView mounted - waiting for FullCalendar datesSet callback')
+onMounted(async () => {
+  // Store calendar API reference for navigation
+  // Use nextTick to ensure FullCalendar is fully mounted and rendered
+  await nextTick()
+  if (calendarRef.value) {
+    calendarApi.value = calendarRef.value.getApi()
+  } else {
+    console.error('Calendar ref is undefined - navigation buttons will not work')
+  }
 })
 
 /**
@@ -179,21 +199,33 @@ function closeAppointmentModal() {
  * Navigation: Go to previous period
  */
 function handlePrev() {
-  calendarRef.value?.getApi().prev()
+  if (calendarApi.value) {
+    calendarApi.value.prev()
+  } else {
+    console.warn('Calendar API not initialized yet')
+  }
 }
 
 /**
  * Navigation: Go to next period
  */
 function handleNext() {
-  calendarRef.value?.getApi().next()
+  if (calendarApi.value) {
+    calendarApi.value.next()
+  } else {
+    console.warn('Calendar API not initialized yet')
+  }
 }
 
 /**
  * Navigation: Go to today
  */
 function handleToday() {
-  calendarRef.value?.getApi().today()
+  if (calendarApi.value) {
+    calendarApi.value.today()
+  } else {
+    console.warn('Calendar API not initialized yet')
+  }
 }
 
 /**
@@ -201,7 +233,11 @@ function handleToday() {
  */
 function changeView(view: 'timeGridWeek' | 'timeGridDay' | 'dayGridMonth') {
   currentView.value = view
-  calendarRef.value?.getApi().changeView(view)
+  if (calendarApi.value) {
+    calendarApi.value.changeView(view)
+  } else {
+    console.warn('Calendar API not initialized yet')
+  }
 }
 
 /**

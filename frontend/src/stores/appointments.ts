@@ -71,12 +71,12 @@ export const useAppointmentsStore = defineStore('appointments', () => {
         } else if (axiosError.response?.data?.detail) {
           error.value = axiosError.response.data.detail
         } else if ('message' in err) {
-          error.value = (err as Error).message
+          error.value = String((err as { message: unknown }).message)
         } else {
           error.value = 'Failed to fetch appointments'
         }
       } else if (err && typeof err === 'object' && 'message' in err) {
-        error.value = (err as Error).message
+        error.value = String((err as { message: unknown }).message)
       } else {
         error.value = 'Failed to fetch appointments'
       }
