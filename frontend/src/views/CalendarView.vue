@@ -88,11 +88,15 @@ function getStatusColor(status: string): string {
 }
 
 /**
- * FullCalendar configuration
+ * FullCalendar configuration (static options only)
+ *
+ * IMPORTANT: This is a non-reactive configuration object.
+ * Events are passed separately as a prop to prevent unnecessary re-renders.
+ * When events change, only the events array updates, not the entire calendar config.
  */
-const calendarOptions = computed<CalendarOptions>(() => ({
+const calendarOptions: CalendarOptions = {
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin],
-  initialView: currentView.value,
+  initialView: 'timeGridWeek',
   headerToolbar: false, // Custom header toolbar
   height: 'auto',
   slotMinTime: '08:00:00',
@@ -105,7 +109,7 @@ const calendarOptions = computed<CalendarOptions>(() => ({
   selectMirror: true,
   dayMaxEvents: true,
   weekends: true,
-  events: calendarEvents.value,
+  // NO events here - passed separately to prevent re-renders
   eventClick: handleEventClick,
   datesSet: handleDatesSet,
   eventTimeFormat: {
@@ -118,7 +122,7 @@ const calendarOptions = computed<CalendarOptions>(() => ({
     minute: '2-digit',
     meridiem: 'short',
   },
-}))
+}
 
 /**
  * Handle date range changes (when user navigates)
@@ -195,8 +199,10 @@ function closeAppointmentModal() {
  * Navigation: Go to previous period
  */
 function handlePrev() {
+  console.log('handlePrev called, calendarApi:', calendarApi.value)
   if (calendarApi.value) {
     calendarApi.value.prev()
+    console.log('Called prev() on calendar API')
   } else {
     console.warn('Calendar API not initialized yet')
   }
@@ -206,8 +212,10 @@ function handlePrev() {
  * Navigation: Go to next period
  */
 function handleNext() {
+  console.log('handleNext called, calendarApi:', calendarApi.value)
   if (calendarApi.value) {
     calendarApi.value.next()
+    console.log('Called next() on calendar API')
   } else {
     console.warn('Calendar API not initialized yet')
   }
@@ -228,9 +236,11 @@ function handleToday() {
  * Change calendar view
  */
 function changeView(view: 'timeGridWeek' | 'timeGridDay' | 'dayGridMonth') {
-  currentView.value = view
+  console.log('changeView called with view:', view, 'calendarApi:', calendarApi.value)
   if (calendarApi.value) {
+    currentView.value = view
     calendarApi.value.changeView(view)
+    console.log('Called changeView() on calendar API')
   } else {
     console.warn('Calendar API not initialized yet')
   }
@@ -408,7 +418,7 @@ function getStatusBadgeClass(status: string): string {
 
       <!-- FullCalendar Component -->
       <div class="p-4">
-        <FullCalendar ref="calendarRef" :options="calendarOptions" />
+        <FullCalendar ref="calendarRef" :options="calendarOptions" :events="calendarEvents" />
 
         <!-- Empty State Overlay -->
         <div
