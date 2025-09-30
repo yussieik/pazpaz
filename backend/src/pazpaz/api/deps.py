@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-import logging
 import uuid
 
 from fastapi import Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pazpaz.core.logging import get_logger
 from pazpaz.db.base import get_db
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 async def get_current_workspace_id(
@@ -51,7 +51,7 @@ async def get_current_workspace_id(
         ```
     """
     if not x_workspace_id:
-        logger.warning("Authentication failed: Missing X-Workspace-ID header")
+        logger.warning("authentication_failed", reason="missing_workspace_id_header")
         raise HTTPException(
             status_code=401,
             detail="Authentication required",
@@ -59,11 +59,13 @@ async def get_current_workspace_id(
 
     try:
         workspace_uuid = uuid.UUID(x_workspace_id)
-        logger.debug(f"Workspace authenticated: {workspace_uuid}")
+        logger.debug("workspace_authenticated", workspace_id=str(workspace_uuid))
         return workspace_uuid
     except ValueError as e:
         logger.warning(
-            f"Authentication failed: Invalid workspace ID format: {x_workspace_id}"
+            "authentication_failed",
+            reason="invalid_workspace_id_format",
+            workspace_id=x_workspace_id,
         )
         raise HTTPException(
             status_code=401,
@@ -117,10 +119,10 @@ async def get_or_404(
     if not resource:
         # Log detailed reason server-side for debugging
         logger.info(
-            f"Resource not found or access denied: "
-            f"model={model_class.__name__}, "
-            f"resource_id={resource_id}, "
-            f"workspace_id={workspace_id}"
+            "resource_not_found_or_access_denied",
+            model=model_class.__name__,
+            resource_id=str(resource_id),
+            workspace_id=str(workspace_id),
         )
         # Return generic error to client (don't reveal existence)
         raise HTTPException(

@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-import logging
 import math
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.api.deps import get_current_workspace_id, get_db, get_or_404
+from pazpaz.core.logging import get_logger
 from pazpaz.models.client import Client
 from pazpaz.schemas.client import (
     ClientCreate,
@@ -20,7 +20,7 @@ from pazpaz.schemas.client import (
 )
 
 router = APIRouter(prefix="/clients", tags=["clients"])
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @router.post("", response_model=ClientResponse, status_code=201)
@@ -48,7 +48,7 @@ async def create_client(
     Raises:
         HTTPException: 401 if not authenticated, 422 if validation fails
     """
-    logger.info(f"Creating client in workspace {workspace_id}")
+    logger.info("client_create_started", workspace_id=str(workspace_id))
 
     # Create new client instance with injected workspace_id
     client = Client(
@@ -67,7 +67,11 @@ async def create_client(
     await db.commit()
     await db.refresh(client)
 
-    logger.info(f"Created client {client.id} in workspace {workspace_id}")
+    logger.info(
+        "client_created",
+        client_id=str(client.id),
+        workspace_id=str(workspace_id),
+    )
     return client
 
 
@@ -98,7 +102,12 @@ async def list_clients(
     Raises:
         HTTPException: 401 if not authenticated
     """
-    logger.debug(f"Listing clients for workspace {workspace_id}, page {page}")
+    logger.debug(
+        "client_list_started",
+        workspace_id=str(workspace_id),
+        page=page,
+        page_size=page_size,
+    )
 
     # Calculate offset
     offset = (page - 1) * page_size
@@ -123,7 +132,12 @@ async def list_clients(
     # Calculate total pages
     total_pages = math.ceil(total / page_size) if total > 0 else 0
 
-    logger.debug(f"Found {total} clients in workspace {workspace_id}")
+    logger.debug(
+        "client_list_completed",
+        workspace_id=str(workspace_id),
+        total_clients=total,
+        page=page,
+    )
 
     return ClientListResponse(
         items=clients,
@@ -203,7 +217,12 @@ async def update_client(
     await db.commit()
     await db.refresh(client)
 
-    logger.info(f"Updated client {client_id} in workspace {workspace_id}")
+    logger.info(
+        "client_updated",
+        client_id=str(client_id),
+        workspace_id=str(workspace_id),
+        updated_fields=list(update_data.keys()),
+    )
     return client
 
 
@@ -238,4 +257,8 @@ async def delete_client(
     await db.delete(client)
     await db.commit()
 
-    logger.info(f"Deleted client {client_id} from workspace {workspace_id}")
+    logger.info(
+        "client_deleted",
+        client_id=str(client_id),
+        workspace_id=str(workspace_id),
+    )

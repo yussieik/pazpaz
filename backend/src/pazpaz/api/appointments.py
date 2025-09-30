@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import math
 import uuid
 from datetime import datetime
@@ -13,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from pazpaz.api.deps import get_current_workspace_id, get_db, get_or_404
+from pazpaz.core.logging import get_logger
 from pazpaz.models.appointment import Appointment, AppointmentStatus
 from pazpaz.models.client import Client
 from pazpaz.schemas.appointment import (
@@ -25,7 +25,7 @@ from pazpaz.schemas.appointment import (
 )
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 async def check_conflicts(
@@ -126,7 +126,7 @@ async def create_appointment(
         HTTPException: 401 if not authenticated, 404 if client not found,
             409 if conflict exists, 422 if validation fails
     """
-    logger.info(f"Creating appointment in workspace {workspace_id}")
+    logger.info("appointment_create_started", workspace_id=str(workspace_id))
 
     # Verify client exists and belongs to workspace
     await verify_client_in_workspace(
@@ -145,8 +145,9 @@ async def create_appointment(
 
     if conflicts:
         logger.info(
-            f"Appointment conflict detected in workspace {workspace_id}: "
-            f"{len(conflicts)} conflicts"
+            "appointment_conflict_detected",
+            workspace_id=str(workspace_id),
+            conflict_count=len(conflicts),
         )
         raise HTTPException(
             status_code=409,
@@ -199,7 +200,12 @@ async def create_appointment(
             full_name=appointment_with_client.client.full_name,
         )
 
-    logger.info(f"Created appointment {appointment.id} in workspace {workspace_id}")
+    logger.info(
+        "appointment_created",
+        appointment_id=str(appointment.id),
+        workspace_id=str(workspace_id),
+        client_id=str(appointment_data.client_id),
+    )
     return response_data
 
 
@@ -242,7 +248,18 @@ async def list_appointments(
     Raises:
         HTTPException: 401 if not authenticated
     """
-    logger.debug(f"Listing appointments for workspace {workspace_id}, page {page}")
+    logger.debug(
+        "appointment_list_started",
+        workspace_id=str(workspace_id),
+        page=page,
+        page_size=page_size,
+        filters={
+            "start_date": start_date.isoformat() if start_date else None,
+            "end_date": end_date.isoformat() if end_date else None,
+            "client_id": str(client_id) if client_id else None,
+            "status": status.value if status else None,
+        },
+    )
 
     # Calculate offset
     offset = (page - 1) * page_size
@@ -343,7 +360,15 @@ async def check_appointment_conflicts(
             detail="scheduled_end must be after scheduled_start",
         )
 
-    logger.debug(f"Checking conflicts in workspace {workspace_id}")
+    logger.debug(
+        "conflict_check_started",
+        workspace_id=str(workspace_id),
+        scheduled_start=scheduled_start.isoformat(),
+        scheduled_end=scheduled_end.isoformat(),
+        exclude_appointment_id=str(exclude_appointment_id)
+        if exclude_appointment_id
+        else None,
+    )
 
     # Check for conflicts
     conflicts = await check_conflicts(
@@ -589,4 +614,8 @@ async def delete_appointment(
     await db.delete(appointment)
     await db.commit()
 
-    logger.info(f"Deleted appointment {appointment_id} from workspace {workspace_id}")
+    logger.info(
+        "appointment_deleted",
+        appointment_id=str(appointment_id),
+        workspace_id=str(workspace_id),
+    )
