@@ -63,7 +63,9 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     } catch (err: unknown) {
       // Handle Axios errors with detailed error messages
       if (err && typeof err === 'object' && 'response' in err) {
-        const axiosError = err as { response?: { status: number; data?: { detail?: string } } }
+        const axiosError = err as {
+          response?: { status: number; data?: { detail?: string } }
+        }
         if (axiosError.response?.status === 401) {
           error.value = 'Authentication required. Please log in.'
         } else if (axiosError.response?.data?.detail) {

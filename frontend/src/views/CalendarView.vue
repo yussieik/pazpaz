@@ -38,6 +38,9 @@ const currentDateRange = ref<{ start: Date; end: Date }>({
   end: new Date(),
 })
 
+// Track last fetched date range to prevent duplicate fetches
+const lastFetchedRange = ref<{ start: string; end: string } | null>(null)
+
 // Selected appointment for detail modal
 const selectedAppointment = ref<AppointmentListItem | null>(null)
 const showAppointmentModal = ref(false)
@@ -113,6 +116,7 @@ const calendarOptions = computed<CalendarOptions>(() => ({
 
 /**
  * Handle date range changes (when user navigates)
+ * This callback fires on initial render AND whenever the date range changes
  */
 function handleDatesSet(dateInfo: { start: Date; end: Date }) {
   currentDateRange.value = {
@@ -123,25 +127,32 @@ function handleDatesSet(dateInfo: { start: Date; end: Date }) {
   // Fetch appointments for the new date range
   const startDate = dateInfo.start.toISOString().split('T')[0]
   const endDate = dateInfo.end.toISOString().split('T')[0]
+
+  // Guard: Only fetch if date range has changed
+  if (
+    lastFetchedRange.value?.start === startDate &&
+    lastFetchedRange.value?.end === endDate
+  ) {
+    console.log('Skipping duplicate fetch for same date range:', { startDate, endDate })
+    return
+  }
+
+  // Update last fetched range before making the API call
+  lastFetchedRange.value = { start: startDate, end: endDate }
+
+  console.log('Fetching appointments for date range:', { startDate, endDate })
   appointmentsStore.fetchAppointments(startDate, endDate)
 }
 
 /**
  * Initialize calendar on component mount
+ *
+ * Note: We don't need to fetch appointments here because FullCalendar's
+ * datesSet callback will fire immediately after initialization and handle
+ * the initial fetch. This prevents duplicate API calls.
  */
 onMounted(() => {
-  // Fetch appointments for the initial view (current week)
-  const today = new Date()
-  const startOfWeek = new Date(today)
-  startOfWeek.setDate(today.getDate() - today.getDay()) // Sunday
-  const endOfWeek = new Date(startOfWeek)
-  endOfWeek.setDate(startOfWeek.getDate() + 6) // Saturday
-
-  const startDate = startOfWeek.toISOString().split('T')[0]
-  const endDate = endOfWeek.toISOString().split('T')[0]
-
-  console.log('CalendarView mounted - fetching appointments:', { startDate, endDate })
-  appointmentsStore.fetchAppointments(startDate, endDate)
+  console.log('CalendarView mounted - waiting for FullCalendar datesSet callback')
 })
 
 /**
