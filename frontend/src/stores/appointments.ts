@@ -50,14 +50,30 @@ export const useAppointmentsStore = defineStore('appointments', () => {
       if (startDate) params.start_date = startDate
       if (endDate) params.end_date = endDate
 
+      console.log('Fetching appointments with params:', params)
+
       const response = await apiClient.get<AppointmentResponse>('/appointments', {
         params,
       })
 
+      console.log('Appointments fetched successfully:', response.data)
+
       appointments.value = response.data.items
       total.value = response.data.total
-    } catch (err) {
-      if (err && typeof err === 'object' && 'message' in err) {
+    } catch (err: unknown) {
+      // Handle Axios errors with detailed error messages
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { status: number; data?: { detail?: string } } }
+        if (axiosError.response?.status === 401) {
+          error.value = 'Authentication required. Please log in.'
+        } else if (axiosError.response?.data?.detail) {
+          error.value = axiosError.response.data.detail
+        } else if ('message' in err) {
+          error.value = (err as Error).message
+        } else {
+          error.value = 'Failed to fetch appointments'
+        }
+      } else if (err && typeof err === 'object' && 'message' in err) {
         error.value = (err as Error).message
       } else {
         error.value = 'Failed to fetch appointments'

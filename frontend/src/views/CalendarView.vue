@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAppointmentsStore } from '@/stores/appointments'
 import FullCalendar from '@fullcalendar/vue3'
 import type { CalendarOptions, EventInput, EventClickArg } from '@fullcalendar/core'
@@ -125,6 +125,24 @@ function handleDatesSet(dateInfo: { start: Date; end: Date }) {
   const endDate = dateInfo.end.toISOString().split('T')[0]
   appointmentsStore.fetchAppointments(startDate, endDate)
 }
+
+/**
+ * Initialize calendar on component mount
+ */
+onMounted(() => {
+  // Fetch appointments for the initial view (current week)
+  const today = new Date()
+  const startOfWeek = new Date(today)
+  startOfWeek.setDate(today.getDate() - today.getDay()) // Sunday
+  const endOfWeek = new Date(startOfWeek)
+  endOfWeek.setDate(startOfWeek.getDate() + 6) // Saturday
+
+  const startDate = startOfWeek.toISOString().split('T')[0]
+  const endDate = endOfWeek.toISOString().split('T')[0]
+
+  console.log('CalendarView mounted - fetching appointments:', { startDate, endDate })
+  appointmentsStore.fetchAppointments(startDate, endDate)
+})
 
 /**
  * Handle event click - show appointment details
