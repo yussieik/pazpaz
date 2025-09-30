@@ -2,6 +2,169 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Agent Routing System
+
+**CRITICAL**: Before implementing any task that involves backend, frontend, database, security, or QA work, you MUST check if a specialized agent exists and delegate to them. This ensures expert-level implementation and quality.
+
+### Decision Tree for Task Routing
+
+```
+User Request → Analyze Task Type → Check for Specialized Agent → Delegate or Implement
+
+Task Categories:
+├── Database/Schema Design → database-architect
+├── Backend API/Features → fullstack-backend-specialist
+├── Frontend UI/Components → fullstack-frontend-specialist
+├── Security/Auth Review → security-auditor
+└── Backend Code Review → backend-qa-specialist
+```
+
+### Agent Routing Rules
+
+#### 1. **database-architect** - USE WHEN:
+- Designing or modifying database schemas
+- Creating database migrations (Alembic)
+- Optimizing slow queries or adding indexes
+- Designing data models for new features
+- Planning relationships between entities
+- Performance issues with database queries
+
+**Examples:**
+- "Add a new table for treatment plans"
+- "The appointment queries are slow"
+- "Design the schema for session notes"
+- "Create a migration to add workspace_id"
+
+#### 2. **fullstack-backend-specialist** - USE WHEN:
+- Implementing API endpoints (REST/GraphQL)
+- Adding backend features or business logic
+- Integrating frontend with backend
+- Implementing authentication/authorization
+- Working with backend services or utilities
+- Refactoring backend code
+
+**Examples:**
+- "Create CRUD endpoints for clients"
+- "Implement magic link authentication"
+- "Add conflict detection for appointments"
+- "Build the reminder email service"
+
+#### 3. **fullstack-frontend-specialist** - USE WHEN:
+- Building Vue components or pages
+- Implementing frontend features
+- Setting up frontend architecture/tooling
+- Creating API client integrations
+- Working with state management (Pinia)
+- Frontend routing or navigation
+
+**Examples:**
+- "Create the calendar view component"
+- "Build the client management UI"
+- "Add autosave for SOAP notes"
+- "Implement drag-and-drop scheduling"
+
+#### 4. **security-auditor** - USE WHEN:
+- Reviewing authentication/authorization code
+- Implementing security-sensitive features
+- Handling PII/PHI data
+- File upload functionality
+- Database queries with user input
+- After implementing auth, payment, or sensitive data features
+
+**Examples:**
+- "Review the magic link implementation"
+- "Check if workspace isolation is secure"
+- "Audit the session notes encryption"
+- "Is this file upload safe?"
+
+#### 5. **backend-qa-specialist** - USE WHEN:
+- Reviewing backend code quality
+- After implementing backend features
+- Before merging backend pull requests
+- Checking test coverage
+- Validating performance requirements
+- Ensuring production readiness
+
+**Examples:**
+- "Review the appointment API I just built"
+- "Check if my migration is safe"
+- "Validate the workspace isolation implementation"
+- "Is this backend code production-ready?"
+
+### Routing Priority
+
+**ALWAYS delegate in this order:**
+
+1. **Implementation Phase:**
+   - Database design → `database-architect`
+   - Backend implementation → `fullstack-backend-specialist`
+   - Frontend implementation → `fullstack-frontend-specialist`
+
+2. **Quality Assurance Phase:**
+   - Backend QA → `backend-qa-specialist`
+   - Security review → `security-auditor` (if auth/sensitive data involved)
+
+3. **Full-Stack Features:**
+   - When task spans frontend + backend, use BOTH agents
+   - Example: "Build client CRUD feature" = `fullstack-backend-specialist` + `fullstack-frontend-specialist`
+
+### Self-Implementation Guidelines
+
+**Only implement yourself when:**
+- No specialized agent exists for the task
+- Task is trivial configuration or documentation
+- Task is exploratory/research (searching codebase)
+- User explicitly requests you handle it directly
+
+**Never implement yourself when:**
+- Task involves database schema changes
+- Task creates/modifies API endpoints
+- Task builds/modifies Vue components
+- Task involves security-sensitive code
+- Task requires backend code review
+
+### Validation Checklist
+
+Before starting any implementation, ask yourself:
+
+- [ ] Does this involve database design? → `database-architect`
+- [ ] Does this create/modify backend code? → `fullstack-backend-specialist`
+- [ ] Does this create/modify frontend code? → `fullstack-frontend-specialist`
+- [ ] Does this involve auth/security/PII? → Consider `security-auditor` after implementation
+- [ ] Should this be reviewed for quality? → Consider `backend-qa-specialist` after backend work
+
+### Example Routing Scenarios
+
+**Scenario 1:** "Add a Plan of Care feature"
+```
+1. database-architect → Design PlanOfCare schema
+2. fullstack-backend-specialist → Implement PlanOfCare API
+3. fullstack-frontend-specialist → Build PlanOfCare UI
+4. backend-qa-specialist → Review backend implementation
+5. security-auditor → Audit if PHI is involved
+```
+
+**Scenario 2:** "The appointment endpoint is slow"
+```
+1. database-architect → Analyze queries and add indexes
+2. fullstack-backend-specialist → Optimize endpoint logic if needed
+3. backend-qa-specialist → Validate p95 <150ms target met
+```
+
+**Scenario 3:** "Build client search functionality"
+```
+1. fullstack-backend-specialist → Implement search API endpoint
+2. fullstack-frontend-specialist → Build search UI component
+3. backend-qa-specialist → Review backend search implementation
+```
+
+**Scenario 4:** "Review magic link auth for security"
+```
+1. security-auditor → Audit authentication implementation
+2. fullstack-backend-specialist → Implement recommended fixes
+3. backend-qa-specialist → Validate fixes meet quality standards
+```
+
 ## Project Context
 
 **IMPORTANT**: Always read [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) before planning or implementing features.
