@@ -88,11 +88,12 @@ function getStatusColor(status: string): string {
 }
 
 /**
- * FullCalendar configuration (static options only)
+ * FullCalendar configuration
  *
- * IMPORTANT: This is a non-reactive configuration object.
- * Events are passed separately as a prop to prevent unnecessary re-renders.
- * When events change, only the events array updates, not the entire calendar config.
+ * IMPORTANT: Events are provided as a function instead of array.
+ * This allows FullCalendar to control when events are fetched,
+ * keeping the calendar's internal state machine intact.
+ * When FullCalendar navigates, it calls this function automatically.
  */
 const calendarOptions: CalendarOptions = {
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin],
@@ -109,7 +110,10 @@ const calendarOptions: CalendarOptions = {
   selectMirror: true,
   dayMaxEvents: true,
   weekends: true,
-  // NO events here - passed separately to prevent re-renders
+  // Events as function - FullCalendar calls this when it needs events
+  events: (_fetchInfo, successCallback, _failureCallback) => {
+    successCallback(calendarEvents.value)
+  },
   // Use arrow functions to ensure callbacks have proper scope binding
   eventClick: (clickInfo) => handleEventClick(clickInfo),
   datesSet: (dateInfo) => handleDatesSet(dateInfo),
@@ -174,6 +178,20 @@ watchEffect(() => {
   if (calendarRef.value && !calendarApi.value) {
     calendarApi.value = calendarRef.value.getApi()
     console.log('Calendar API initialized successfully')
+  }
+})
+
+/**
+ * Refetch events when calendarEvents changes
+ *
+ * When new appointment data arrives from the API, we need to tell FullCalendar
+ * to refetch its events. Since events is a function that returns calendarEvents.value,
+ * calling refetchEvents() will invoke that function with the updated data.
+ */
+watchEffect(() => {
+  if (calendarApi.value && calendarEvents.value) {
+    calendarApi.value.refetchEvents()
+    console.log('Refetched events after data change')
   }
 })
 
@@ -420,7 +438,7 @@ function getStatusBadgeClass(status: string): string {
 
       <!-- FullCalendar Component -->
       <div class="p-4">
-        <FullCalendar ref="calendarRef" :options="calendarOptions" :events="calendarEvents" />
+        <FullCalendar ref="calendarRef" :options="calendarOptions" />
 
         <!-- Empty State Overlay -->
         <div
