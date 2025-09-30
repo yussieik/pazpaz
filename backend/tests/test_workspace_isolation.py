@@ -289,10 +289,12 @@ class TestAppointmentWorkspaceIsolation:
         sample_client_ws1: Client,
     ):
         """
-        SECURITY CRITICAL: Cannot create appointment with client from different workspace.
+        SECURITY CRITICAL: Cannot create appointment with client from
+        different workspace.
 
-        Create client in workspace 1, try to create appointment in workspace 2
-        referencing that client. Must return 404 (client not found in workspace 2).
+        Create client in workspace 1, try to create appointment in
+        workspace 2 referencing that client. Must return 404 (client
+        not found in workspace 2).
         """
         # Try to create appointment in workspace 2 with workspace 1's client
         headers = get_auth_headers(workspace_2.id)

@@ -22,7 +22,7 @@ class LocationBase(BaseModel):
     )
     details: str | None = Field(
         None,
-        description="Additional details (room number, video link, parking instructions)",
+        description="Additional details (room, video link, parking)",
     )
     is_active: bool = Field(
         default=True, description="Active locations appear in scheduling UI"

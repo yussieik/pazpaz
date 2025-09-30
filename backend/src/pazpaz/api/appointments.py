@@ -438,7 +438,8 @@ async def get_appointment(
             404 if not found or wrong workspace
     """
     # Fetch with workspace scoping using generic helper
-    appointment = await get_or_404(db, Appointment, appointment_id, workspace_id)
+    # (Validates existence and workspace access)
+    await get_or_404(db, Appointment, appointment_id, workspace_id)
 
     # Load client relationship for response
     query = (

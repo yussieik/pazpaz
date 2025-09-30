@@ -53,18 +53,24 @@ async def create_location(
     logger.info("location_create_started", workspace_id=str(workspace_id))
 
     # Validate: address is required for clinic or home locations
-    if location_data.location_type in [LocationType.CLINIC, LocationType.HOME]:
-        if not location_data.address or not location_data.address.strip():
-            logger.info(
-                "location_create_validation_failed",
-                workspace_id=str(workspace_id),
-                location_type=location_data.location_type.value,
-                reason="address_required",
-            )
-            raise HTTPException(
-                status_code=422,
-                detail=f"Address is required for {location_data.location_type.value} locations",
-            )
+    requires_address = location_data.location_type in [
+        LocationType.CLINIC,
+        LocationType.HOME,
+    ]
+    if requires_address and (
+        not location_data.address or not location_data.address.strip()
+    ):
+        logger.info(
+            "location_create_validation_failed",
+            workspace_id=str(workspace_id),
+            location_type=location_data.location_type.value,
+            reason="address_required",
+        )
+        location_type = location_data.location_type.value
+        raise HTTPException(
+            status_code=422,
+            detail=f"Address is required for {location_type} locations",
+        )
 
     # Check if location name already exists in workspace (unique constraint)
     existing_query = select(Location).where(
@@ -80,9 +86,10 @@ async def create_location(
             workspace_id=str(workspace_id),
             location_name=location_data.name,
         )
+        location_name = location_data.name
         raise HTTPException(
             status_code=409,
-            detail=f"Location with name '{location_data.name}' already exists in this workspace",
+            detail=f"Location with name '{location_name}' already exists",
         )
 
     # Create new location instance with injected workspace_id
@@ -207,8 +214,8 @@ async def get_location(
 
     Retrieves a location by ID, ensuring it belongs to the authenticated workspace.
 
-    SECURITY: Returns 404 for both non-existent locations and locations in other workspaces
-    to prevent information leakage.
+    SECURITY: Returns 404 for non-existent locations and locations in
+    other workspaces to prevent information leakage.
 
     Args:
         location_id: UUID of the location
@@ -265,19 +272,23 @@ async def update_location(
     final_address = update_data.get("address", location.address)
 
     # Validate: address is required for clinic or home locations
-    if final_location_type in [LocationType.CLINIC, LocationType.HOME]:
-        if not final_address or not final_address.strip():
-            logger.info(
-                "location_update_validation_failed",
-                location_id=str(location_id),
-                workspace_id=str(workspace_id),
-                location_type=final_location_type.value,
-                reason="address_required",
-            )
-            raise HTTPException(
-                status_code=422,
-                detail=f"Address is required for {final_location_type.value} locations",
-            )
+    requires_address = final_location_type in [
+        LocationType.CLINIC,
+        LocationType.HOME,
+    ]
+    if requires_address and (not final_address or not final_address.strip()):
+        logger.info(
+            "location_update_validation_failed",
+            location_id=str(location_id),
+            workspace_id=str(workspace_id),
+            location_type=final_location_type.value,
+            reason="address_required",
+        )
+        location_type = final_location_type.value
+        raise HTTPException(
+            status_code=422,
+            detail=f"Address is required for {location_type} locations",
+        )
 
     # Check for name conflicts if name is being updated
     if "name" in update_data and update_data["name"] != location.name:
@@ -296,9 +307,10 @@ async def update_location(
                 workspace_id=str(workspace_id),
                 location_name=update_data["name"],
             )
+            location_name = update_data["name"]
             raise HTTPException(
                 status_code=409,
-                detail=f"Location with name '{update_data['name']}' already exists in this workspace",
+                detail=f"Location with name '{location_name}' already exists",
             )
 
     for field, value in update_data.items():
@@ -325,7 +337,8 @@ async def delete_location(
     """
     Delete a location.
 
-    Soft deletes a location by setting is_active=False if it's referenced by appointments.
+    Soft deletes a location by setting is_active=False if referenced by
+    appointments.
     Hard deletes if no appointments reference it.
     Location must belong to the authenticated workspace.
 

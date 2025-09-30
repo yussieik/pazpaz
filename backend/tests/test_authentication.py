@@ -158,9 +158,7 @@ class TestValidAuthentication:
         assert response.status_code == 200
         assert "items" in response.json()
 
-    async def test_nonexistent_workspace_id_format_valid(
-        self, client: AsyncClient
-    ):
+    async def test_nonexistent_workspace_id_format_valid(self, client: AsyncClient):
         """
         Non-existent but valid UUID should authenticate but return no data.
 

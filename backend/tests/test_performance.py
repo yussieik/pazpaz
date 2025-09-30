@@ -11,7 +11,6 @@ from __future__ import annotations
 import asyncio
 import statistics
 import time
-import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -332,7 +331,9 @@ class TestAppointmentListPerformance:
         headers = get_auth_headers(workspace.id)
 
         # Test weekly calendar view (7 days)
-        start_date = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        start_date = datetime.now(UTC).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         end_date = start_date + timedelta(days=7)
 
         url = (
@@ -341,9 +342,7 @@ class TestAppointmentListPerformance:
             f"end_date={end_date.isoformat()}"
         )
 
-        response_times = await measure_endpoint_performance(
-            client, "get", url, headers
-        )
+        response_times = await measure_endpoint_performance(client, "get", url, headers)
 
         stats = calculate_stats(response_times)
         print(format_stats(stats, f"Calendar View - {dataset['size']} dataset"))
@@ -384,9 +383,7 @@ class TestAppointmentListPerformance:
 
         url = f"/api/v1/appointments?client_id={test_client.id}"
 
-        response_times = await measure_endpoint_performance(
-            client, "get", url, headers
-        )
+        response_times = await measure_endpoint_performance(client, "get", url, headers)
 
         stats = calculate_stats(response_times)
         print(format_stats(stats, f"Client Timeline - {dataset['size']} dataset"))
@@ -422,9 +419,7 @@ class TestAppointmentListPerformance:
 
         url = "/api/v1/appointments?page=1&page_size=50"
 
-        response_times = await measure_endpoint_performance(
-            client, "get", url, headers
-        )
+        response_times = await measure_endpoint_performance(client, "get", url, headers)
 
         stats = calculate_stats(response_times)
         print(format_stats(stats, f"Paginated List - {dataset['size']} dataset"))
@@ -474,9 +469,7 @@ class TestConflictDetectionPerformance:
             f"scheduled_end={(check_time + timedelta(hours=1)).isoformat()}"
         )
 
-        response_times = await measure_endpoint_performance(
-            client, "get", url, headers
-        )
+        response_times = await measure_endpoint_performance(client, "get", url, headers)
 
         stats = calculate_stats(response_times)
         print(format_stats(stats, f"Conflict Detection - {dataset['size']} dataset"))
@@ -583,7 +576,9 @@ class TestConcurrentRequestPerformance:
         workspace = large_dataset["workspace"]
         headers = get_auth_headers(workspace.id)
 
-        start_date = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        start_date = datetime.now(UTC).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         end_date = start_date + timedelta(days=7)
 
         url = (
@@ -599,6 +594,7 @@ class TestConcurrentRequestPerformance:
         for _ in range(10):  # 10 batches of concurrent requests
             tasks = []
             for _ in range(num_concurrent):
+
                 async def make_request():
                     start = time.perf_counter()
                     response = await client.get(url, headers=headers)
@@ -667,11 +663,13 @@ class TestPerformanceSummary:
             )
             stats = calculate_stats(response_times)
 
-            results.append({
-                "dataset": name,
-                "endpoint": "Calendar View (7 days)",
-                "stats": stats,
-            })
+            results.append(
+                {
+                    "dataset": name,
+                    "endpoint": "Calendar View (7 days)",
+                    "stats": stats,
+                }
+            )
 
         # Print summary
         print("\n" + "=" * 80)

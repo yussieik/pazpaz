@@ -508,7 +508,7 @@ class TestUpdateAppointment:
         ) + timedelta(days=1)
 
         # First appointment: 10:00-11:00
-        response1 = await client.post(
+        await client.post(
             "/api/v1/appointments",
             headers=headers,
             json={
@@ -518,7 +518,6 @@ class TestUpdateAppointment:
                 "location_type": "clinic",
             },
         )
-        appointment1_id = response1.json()["id"]
 
         # Second appointment: 14:00-15:00
         afternoon = tomorrow.replace(hour=14)
@@ -540,7 +539,9 @@ class TestUpdateAppointment:
             headers=headers,
             json={
                 "scheduled_start": (tomorrow + timedelta(minutes=30)).isoformat(),
-                "scheduled_end": (tomorrow + timedelta(hours=1, minutes=30)).isoformat(),
+                "scheduled_end": (
+                    tomorrow + timedelta(hours=1, minutes=30)
+                ).isoformat(),
             },
         )
 

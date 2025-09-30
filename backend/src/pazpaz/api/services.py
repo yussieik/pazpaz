@@ -66,9 +66,10 @@ async def create_service(
             workspace_id=str(workspace_id),
             service_name=service_data.name,
         )
+        service_name = service_data.name
         raise HTTPException(
             status_code=409,
-            detail=f"Service with name '{service_data.name}' already exists in this workspace",
+            detail=f"Service with name '{service_name}' already exists",
         )
 
     # Create new service instance with injected workspace_id
@@ -182,8 +183,8 @@ async def get_service(
 
     Retrieves a service by ID, ensuring it belongs to the authenticated workspace.
 
-    SECURITY: Returns 404 for both non-existent services and services in other workspaces
-    to prevent information leakage.
+    SECURITY: Returns 404 for non-existent services and services in
+    other workspaces to prevent information leakage.
 
     Args:
         service_id: UUID of the service
@@ -252,9 +253,10 @@ async def update_service(
                 workspace_id=str(workspace_id),
                 service_name=update_data["name"],
             )
+            service_name = update_data["name"]
             raise HTTPException(
                 status_code=409,
-                detail=f"Service with name '{update_data['name']}' already exists in this workspace",
+                detail=f"Service with name '{service_name}' already exists",
             )
 
     for field, value in update_data.items():
@@ -281,7 +283,8 @@ async def delete_service(
     """
     Delete a service.
 
-    Soft deletes a service by setting is_active=False if it's referenced by appointments.
+    Soft deletes a service by setting is_active=False if referenced by
+    appointments.
     Hard deletes if no appointments reference it.
     Service must belong to the authenticated workspace.
 

@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
-from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -18,7 +17,6 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from pazpaz.core.config import settings
 from pazpaz.db.base import Base, get_db
 from pazpaz.main import app
 from pazpaz.models.appointment import Appointment, AppointmentStatus, LocationType
@@ -70,7 +68,7 @@ async def test_db_engine():
 
 
 @pytest_asyncio.fixture(scope="function")
-async def db_session(test_db_engine) -> AsyncGenerator[AsyncSession, None]:
+async def db_session(test_db_engine) -> AsyncGenerator[AsyncSession]:
     """
     Create a database session for testing.
 
@@ -89,7 +87,7 @@ async def db_session(test_db_engine) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     """
     Create a test HTTP client.
 
@@ -143,9 +141,7 @@ async def workspace_2(db_session: AsyncSession) -> Workspace:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def sample_client_ws1(
-    db_session: AsyncSession, workspace_1: Workspace
-) -> Client:
+async def sample_client_ws1(db_session: AsyncSession, workspace_1: Workspace) -> Client:
     """
     Create a sample client in workspace 1.
 
@@ -168,9 +164,7 @@ async def sample_client_ws1(
 
 
 @pytest_asyncio.fixture(scope="function")
-async def sample_client_ws2(
-    db_session: AsyncSession, workspace_2: Workspace
-) -> Client:
+async def sample_client_ws2(db_session: AsyncSession, workspace_2: Workspace) -> Client:
     """
     Create a sample client in workspace 2.
 
