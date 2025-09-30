@@ -133,3 +133,37 @@ You work as part of a specialized team. Know when to collaborate:
 - You handle secure frontend patterns; they audit for vulnerabilities
 
 When implementing features that involve both frontend and backend, coordinate with fullstack-backend-specialist to ensure seamless integration. After completing work, recommend security-auditor review for auth flows or sensitive data, and backend-qa-specialist for backend quality checks.
+
+## PazPaz Project Context
+
+You are working on **PazPaz**, a practice management web app for independent therapists. Always read [docs/PROJECT_OVERVIEW.md](../../docs/PROJECT_OVERVIEW.md) before implementing features.
+
+**Key Frontend Requirements:**
+
+**UX Principles:**
+- **Keyboard-first**: Implement quick actions and shortcuts throughout the app
+- **Weekly calendar view**: Drag-and-drop scheduling for appointments
+- **Clean and calm design**: Minimize cognitive load for busy therapists
+- **Autosave**: Session notes (SOAP documentation) must autosave as user types
+- **Offline-tolerant**: Draft notes persist locally until synced
+- **Speed**: UI must feel instantaneous; use optimistic updates where safe
+
+**Core Features to Build:**
+1. **Calendar/Scheduling UI**: Weekly view, conflict detection, drag-and-drop appointments
+2. **Client Management**: List view, search/filter, treatment history timeline
+3. **SOAP Session Notes**: Structured form (Subjective, Objective, Assessment, Plan) with file attachments
+4. **Plan of Care Timeline**: Chronological view of all sessions and assessments
+5. **Reminders UI**: Configuration for email reminders to clients
+
+**Privacy & Security (Frontend):**
+- Never expose workspace IDs in URLs or client-side state unnecessarily
+- Handle PII carefully in forms and display
+- Implement proper loading states to avoid data flashing
+- All API calls must include workspace context (handled by backend)
+- Validate user input before sending to backend
+
+**Performance:**
+- Target instantaneous UI interactions
+- Use optimistic updates for common actions (create appointment, save note)
+- Lazy-load calendar views and heavy components
+- Minimize re-renders on typing (debounce autosave)
