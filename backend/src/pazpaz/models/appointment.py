@@ -14,6 +14,8 @@ from pazpaz.db.base import Base
 
 if TYPE_CHECKING:
     from pazpaz.models.client import Client
+    from pazpaz.models.location import Location
+    from pazpaz.models.service import Service
     from pazpaz.models.workspace import Workspace
 
 
@@ -59,6 +61,18 @@ class Appointment(Base):
         ForeignKey("clients.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
+    )
+    service_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("services.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Optional reference to predefined service type",
+    )
+    location_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("locations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Optional reference to saved location (overrides embedded fields)",
     )
     scheduled_start: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -108,6 +122,14 @@ class Appointment(Base):
     )
     client: Mapped[Client] = relationship(
         "Client",
+        back_populates="appointments",
+    )
+    service: Mapped[Service | None] = relationship(
+        "Service",
+        back_populates="appointments",
+    )
+    location: Mapped[Location | None] = relationship(
+        "Location",
         back_populates="appointments",
     )
 

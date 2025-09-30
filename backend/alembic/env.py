@@ -13,7 +13,14 @@ from pazpaz.core.config import settings
 from pazpaz.db.base import Base
 
 # Import all models to ensure they're registered with Base.metadata
-from pazpaz.models import Appointment, Client, User, Workspace  # noqa: F401
+from pazpaz.models import (  # noqa: F401
+    Appointment,
+    Client,
+    Location,
+    Service,
+    User,
+    Workspace,
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
