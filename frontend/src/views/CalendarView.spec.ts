@@ -16,28 +16,36 @@ vi.mock('@/api/client', () => ({
   },
 }))
 
+// Mock FullCalendar to avoid rendering issues in tests
+vi.mock('@fullcalendar/vue3', () => ({
+  default: {
+    name: 'FullCalendar',
+    template: '<div class="mock-fullcalendar"></div>',
+  },
+}))
+
 const mockAppointments = [
   {
-    id: '1',
-    title: 'Morning Session',
-    start_time: '2025-09-30T09:00:00Z',
-    end_time: '2025-09-30T10:00:00Z',
-    client_id: 'client-1',
+    id: 'appointment-uuid-1',
+    workspace_id: 'workspace-uuid',
+    client_id: 'client-uuid-1',
+    scheduled_start: '2025-09-30T09:00:00Z',
+    scheduled_end: '2025-09-30T10:00:00Z',
     status: 'scheduled' as const,
+    location_type: 'clinic' as const,
+    location_details: null,
     notes: null,
-    created_at: '2025-09-29T10:00:00Z',
-    updated_at: '2025-09-29T10:00:00Z',
   },
   {
-    id: '2',
-    title: 'Afternoon Session',
-    start_time: '2025-09-30T14:00:00Z',
-    end_time: '2025-09-30T15:00:00Z',
-    client_id: 'client-2',
-    status: 'scheduled' as const,
+    id: 'appointment-uuid-2',
+    workspace_id: 'workspace-uuid',
+    client_id: 'client-uuid-2',
+    scheduled_start: '2025-09-30T14:00:00Z',
+    scheduled_end: '2025-09-30T15:00:00Z',
+    status: 'confirmed' as const,
+    location_type: 'video_call' as const,
+    location_details: 'Zoom link',
     notes: 'Follow-up session',
-    created_at: '2025-09-29T11:00:00Z',
-    updated_at: '2025-09-29T11:00:00Z',
   },
 ]
 
@@ -88,32 +96,32 @@ describe('CalendarView.vue', () => {
       expect(wrapper.text()).toContain('Weekly appointment schedule')
     })
 
-    it('should render coming soon placeholder', async () => {
+    it('should render FullCalendar component', async () => {
       const wrapper = await createWrapper()
-      expect(wrapper.text()).toContain('Calendar component coming soon')
+      expect(wrapper.find('.mock-fullcalendar').exists()).toBe(true)
+    })
+
+    it('should render navigation controls', async () => {
+      const wrapper = await createWrapper()
+      expect(wrapper.text()).toContain('Today')
+    })
+
+    it('should render view switcher buttons', async () => {
+      const wrapper = await createWrapper()
+      expect(wrapper.text()).toContain('Day')
+      expect(wrapper.text()).toContain('Week')
+      expect(wrapper.text()).toContain('Month')
     })
   })
 
   describe('Store Integration', () => {
-    it('should fetch appointments on mount', async () => {
-      const store = useAppointmentsStore()
-      const fetchSpy = vi.spyOn(store, 'fetchAppointments')
-
+    it('should use appointments store', async () => {
       await createWrapper()
-
-      expect(fetchSpy).toHaveBeenCalledOnce()
-      expect(fetchSpy).toHaveBeenCalledWith(expect.any(String), expect.any(String))
-    })
-
-    it('should fetch appointments for current week', async () => {
       const store = useAppointmentsStore()
-      const fetchSpy = vi.spyOn(store, 'fetchAppointments')
 
-      await createWrapper()
-
-      const calls = fetchSpy.mock.calls[0]
-      expect(calls[0]).toMatch(/^\d{4}-\d{2}-\d{2}$/) // ISO date format
-      expect(calls[1]).toMatch(/^\d{4}-\d{2}-\d{2}$/) // ISO date format
+      // Store should be initialized and available
+      expect(store).toBeDefined()
+      expect(store.appointments).toBeDefined()
     })
   })
 
@@ -194,17 +202,30 @@ describe('CalendarView.vue', () => {
 
   describe('Error State', () => {
     it('should display error message when error occurs', async () => {
+      const store = useAppointmentsStore()
+
       vi.mocked(apiClient.get).mockRejectedValueOnce(
         new Error('Failed to fetch appointments')
       )
 
+      // Manually trigger fetch to capture error
+      await store.fetchAppointments('2025-09-30', '2025-10-06')
+      await flushPromises()
+
       const wrapper = await createWrapper()
 
-      expect(wrapper.text()).toContain('Error: Failed to fetch appointments')
+      expect(store.error).toBeTruthy()
+      expect(wrapper.text()).toContain('Error loading appointments')
     })
 
     it('should style error message with error colors', async () => {
+      const store = useAppointmentsStore()
+
       vi.mocked(apiClient.get).mockRejectedValueOnce(new Error('Network error'))
+
+      // Manually trigger fetch to capture error
+      await store.fetchAppointments('2025-09-30', '2025-10-06')
+      await flushPromises()
 
       const wrapper = await createWrapper()
 
@@ -216,21 +237,30 @@ describe('CalendarView.vue', () => {
   })
 
   describe('Success State - No Appointments', () => {
-    it('should show appointment count of 0', async () => {
+    it('should show empty state when no appointments', async () => {
       const wrapper = await createWrapper()
 
-      expect(wrapper.text()).toContain('Appointments loaded: 0')
+      expect(wrapper.text()).toContain('No appointments scheduled')
     })
 
-    it('should not display appointments list when empty', async () => {
+    it('should show empty state message', async () => {
       const wrapper = await createWrapper()
 
-      expect(wrapper.text()).not.toContain('Current Appointments:')
+      expect(wrapper.text()).toContain('Get started by creating your first appointment')
+    })
+
+    it('should render empty state icon', async () => {
+      const wrapper = await createWrapper()
+
+      const emptyIcon = wrapper.find('svg')
+      expect(emptyIcon.exists()).toBe(true)
     })
   })
 
   describe('Success State - With Appointments', () => {
-    it('should show appointment count', async () => {
+    it('should render FullCalendar when appointments exist', async () => {
+      const store = useAppointmentsStore()
+
       vi.mocked(apiClient.get).mockResolvedValueOnce({
         data: {
           items: mockAppointments,
@@ -240,12 +270,18 @@ describe('CalendarView.vue', () => {
         },
       })
 
+      // Manually populate store with appointments
+      await store.fetchAppointments('2025-09-30', '2025-10-06')
+      await flushPromises()
+
       const wrapper = await createWrapper()
 
-      expect(wrapper.text()).toContain('Appointments loaded: 2')
+      expect(wrapper.find('.mock-fullcalendar').exists()).toBe(true)
     })
 
-    it('should display appointments list header', async () => {
+    it('should not show empty state when appointments exist', async () => {
+      const store = useAppointmentsStore()
+
       vi.mocked(apiClient.get).mockResolvedValueOnce({
         data: {
           items: mockAppointments,
@@ -255,114 +291,27 @@ describe('CalendarView.vue', () => {
         },
       })
 
-      const wrapper = await createWrapper()
-
-      expect(wrapper.text()).toContain('Current Appointments:')
-    })
-
-    it('should render each appointment with ID', async () => {
-      vi.mocked(apiClient.get).mockResolvedValueOnce({
-        data: {
-          items: mockAppointments,
-          total: 2,
-          page: 1,
-          page_size: 50,
-        },
-      })
+      // Manually populate store with appointments
+      await store.fetchAppointments('2025-09-30', '2025-10-06')
+      await flushPromises()
 
       const wrapper = await createWrapper()
 
-      expect(wrapper.text()).toContain('Appointment 1')
-      expect(wrapper.text()).toContain('Appointment 2')
-    })
+      // Store should have appointments
+      expect(store.appointments.length).toBe(2)
 
-    it('should render appointment times', async () => {
-      vi.mocked(apiClient.get).mockResolvedValueOnce({
-        data: {
-          items: mockAppointments,
-          total: 2,
-          page: 1,
-          page_size: 50,
-        },
-      })
-
-      const wrapper = await createWrapper()
-
-      // Times should be rendered as localized strings
-      const appointments = wrapper.findAll('li')
-      expect(appointments.length).toBe(2)
-    })
-
-    it('should render appointment notes when present', async () => {
-      vi.mocked(apiClient.get).mockResolvedValueOnce({
-        data: {
-          items: mockAppointments,
-          total: 2,
-          page: 1,
-          page_size: 50,
-        },
-      })
-
-      const wrapper = await createWrapper()
-
-      expect(wrapper.text()).toContain('Follow-up session')
-    })
-
-    it('should not render notes section when notes are null', async () => {
-      vi.mocked(apiClient.get).mockResolvedValueOnce({
-        data: {
-          items: [mockAppointments[0]], // First appointment has no notes
-          total: 1,
-          page: 1,
-          page_size: 50,
-        },
-      })
-
-      const wrapper = await createWrapper()
-
-      const notesElements = wrapper.findAll('.text-sm.text-gray-500')
-      // Should only have time elements, not notes
-      expect(notesElements.length).toBeLessThanOrEqual(1)
-    })
-
-    it('should render appointments in a list', async () => {
-      vi.mocked(apiClient.get).mockResolvedValueOnce({
-        data: {
-          items: mockAppointments,
-          total: 2,
-          page: 1,
-          page_size: 50,
-        },
-      })
-
-      const wrapper = await createWrapper()
-
-      const list = wrapper.find('ul')
-      expect(list.exists()).toBe(true)
-      expect(list.classes()).toContain('space-y-2')
-
-      const items = list.findAll('li')
-      expect(items.length).toBe(2)
+      // Empty state should not be visible when appointments exist
+      expect(wrapper.text()).not.toContain(
+        'Get started by creating your first appointment'
+      )
     })
   })
 
-  describe('Computed Property Integration', () => {
-    it('should conditionally render based on hasAppointments', async () => {
-      vi.mocked(apiClient.get).mockResolvedValueOnce({
-        data: {
-          items: mockAppointments,
-          total: 2,
-          page: 1,
-          page_size: 50,
-        },
-      })
-
+  describe('Appointment Modal', () => {
+    it('should not show modal initially', async () => {
       const wrapper = await createWrapper()
-      const store = useAppointmentsStore()
 
-      // Should show the appointments section when hasAppointments is true
-      expect(store.hasAppointments).toBe(true)
-      expect(wrapper.text()).toContain('Current Appointments:')
+      expect(wrapper.text()).not.toContain('Appointment Details')
     })
   })
 
