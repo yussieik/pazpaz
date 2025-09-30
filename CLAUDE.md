@@ -2,9 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Setup
+## Architecture
 
-This is a Python 3.13.5 project managed exclusively with `uv`.
+Full-stack application with:
+- **Backend**: FastAPI (Python 3.13.5) serving REST API + WebSockets
+- **Frontend**: Vue 3 (Composition API) + TypeScript + Tailwind CSS
+- **Deployment**: Single-origin architecture (reverse proxy `/api` and `/ws` to backend)
+
+## Project Setup
 
 ### Python Version and Environment
 - CPython version: `3.13.5`
@@ -68,6 +73,62 @@ Format: `<type>(<scope>)!: <subject>`
 - Breaking changes: append `!` after scope and/or add `BREAKING CHANGE:` footer
 - Reference issues: `Closes #123`, `Fixes #123`, or `Refs #123`
 - Atomic commits: one logical change per commit
+
+## Backend (FastAPI)
+
+### API Design
+- Version endpoints under `/api/v1/...`
+- REST for CRUD operations; WebSockets/SSE for realtime updates
+- Define request/response models with Pydantic; maintain OpenAPI docs
+- Error responses: RFC 7807 problem details format
+- Pagination: `?page`, `?page_size` params; include `total` in response
+- Structured JSON logs for requests/errors
+
+### Authentication & Security
+- HttpOnly cookies with SameSite=Lax
+- CSRF protection on state-changing requests
+- No CORS in production (same-origin); enable only in dev if needed
+
+### OpenAPI Contract
+- Treat OpenAPI spec as source of truth
+- Generate TypeScript client for frontend from OpenAPI
+- Regenerate client in CI when backend API changes
+
+## Frontend (Vue 3 + TypeScript + Tailwind)
+
+### Development Commands
+- Format: `prettier --write .`
+- Lint: `eslint . --ext .vue,.ts,.tsx,.js,.jsx --fix`
+
+### Vue 3 Conventions
+- Use Composition API with `<script setup lang="ts">`
+- TypeScript-first in components and composables
+- Reusable logic in `/src/composables`; global state in Pinia stores (`/src/stores`)
+- Define props/emits with TypeScript types; use `withDefaults` for validation
+- Co-locate tests: `Component.spec.ts` (Vue Test Utils + Vitest)
+- Import alias: `@` for `src/`
+
+### API Integration
+- Use generated TypeScript client from OpenAPI spec for all HTTP calls
+- Wrap API calls in composables (e.g., `useUsersApi`)
+- Send `credentials: 'include'` for authenticated requests
+- Vite dev proxy: configure `/api` → `http://localhost:8000` and `/ws` → `ws://localhost:8000`
+
+### Tailwind CSS
+- Formatter: Prettier with `prettier-plugin-tailwindcss` (auto-sorts classes)
+- JIT mode (default in v3); keep `content` paths accurate
+- Centralize design tokens in `tailwind.config.ts` theme extensions
+- Extract repeated patterns to `@apply` or components; avoid long one-off chains
+- Responsive/state variants: use sparingly in logical order
+- Accessibility: ensure focus-visible styles, respect reduced-motion
+
+### Component Guidelines
+- Keep templates simple and declarative
+- Split large components; one root component per file
+- Scope styles with `<style scoped>` or CSS Modules
+- Use slots for content projection
+- Lazy-load routes and heavy components via dynamic imports
+- Manage focus and ARIA for accessibility
 
 ## ByteRover MCP Tools
 

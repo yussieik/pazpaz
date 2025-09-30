@@ -1,0 +1,98 @@
+---
+globs: *.vue,*.ts,*.tsx,*.js,*.jsx
+description: Vue 3 frontend best practices; ESLint for linting, Prettier as single formatter
+---
+
+# Vue 3 Frontend Best Practices
+
+Applies to Vue Single File Components and related TS/JS files.
+
+## Tooling
+- Linter: ESLint with `eslint-plugin-vue` and `@typescript-eslint`.
+- Formatter: Prettier as the only formatter.
+- Enforce via scripts (example):
+  - `eslint . --ext .vue,.ts,.tsx,.js,.jsx --fix`
+  - `prettier --write .`
+
+## API consumption
+- Use the generated TypeScript client from the backend OpenAPI spec for all HTTP calls.
+- Send `credentials: 'include'` when auth cookies are required.
+- Prefer composables to wrap API interactions (e.g., `useUsersApi`).
+- Handle errors with a consistent problem-details parser and user-friendly toasts.
+
+## Dev proxy
+- Configure Vite to proxy `/api` and `/ws` to the backend in dev to avoid CORS.
+
+## Project conventions
+- Use Vue 3 Composition API (`<script setup>`) by default.
+- TypeScript-first in components and composables.
+- Co-locate unit tests next to components (`Component.spec.ts`).
+- Use alias `@` for `src/` in imports.
+
+## SFC structure
+- Prefer `<script setup lang="ts">`.
+- Keep template simple and declarative; avoid complex logic in templates.
+- Only one root component per file; split large components.
+
+## State management
+- Prefer composables (`/src/composables`) for reusable state and logic.
+- If a global store is needed, use Pinia. Define stores in `/src/stores`.
+
+## Props, emits, and typing
+- Define `defineProps`/`defineEmits` with TS types or interfaces.
+- Validate and default props using `withDefaults`.
+
+## Reusability and composition
+- Extract reusable logic to composables; avoid massive components.
+- Use slots for content projection; prefer named slots for clarity.
+
+## Styling
+- Scope component styles with `<style scoped>` or CSS Modules.
+- Use design tokens/variables; avoid hard-coded magic values.
+
+## Accessibility
+- Provide accessible labels/roles; ensure keyboard navigation.
+- Manage focus and ARIA attributes for interactive components.
+
+## Performance
+- Use `v-memo`, `v-once`, `defineExpose` judiciously.
+- Lazy-load routes and heavy components via dynamic imports.
+
+## Testing
+- Unit test components with Vue Test Utils + Vitest.
+- Test composables in isolation; mock dependencies.
+
+## Example ESLint config (excerpt)
+
+```json
+{
+  "root": true,
+  "env": { "browser": true, "es2022": true },
+  "extends": [
+    "plugin:vue/vue3-recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:prettier/recommended"
+  ],
+  "parser": "vue-eslint-parser",
+  "parserOptions": {
+    "parser": "@typescript-eslint/parser",
+    "ecmaVersion": 2022,
+    "sourceType": "module",
+    "extraFileExtensions": [".vue"]
+  },
+  "rules": {
+    "vue/multi-word-component-names": "off"
+  }
+}
+```
+
+## Example Prettier config (excerpt)
+
+```json
+{
+  "printWidth": 100,
+  "singleQuote": true,
+  "trailingComma": "all"
+}
+```
+

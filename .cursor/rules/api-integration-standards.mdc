@@ -1,0 +1,69 @@
+---
+alwaysApply: true
+description: API standards and frontend-backend integration (FastAPI REST+WebSockets, OpenAPI, auth, proxy)
+---
+
+# API and Integration Standards
+
+These rules define how the Python backend (FastAPI) and the Vue+Tailwind frontend connect and interact.
+
+## API style
+- Use REST over HTTPS for CRUD and actions.
+- Use WebSockets (or SSE) for realtime updates.
+- Version endpoints under `/api/v1/...`.
+- Consistent error shape; prefer RFC 7807 problem details.
+
+## Backend (FastAPI)
+- Define request/response models with Pydantic; enable OpenAPI docs.
+- Auth via HttpOnly SameSite=Lax cookies; CSRF on state-changing requests.
+- Apply CORS only in dev; avoid in prod by using same-origin.
+- Pagination: use `?page`, `?page_size`; include `total` in response.
+- Filtering/sorting: stable param names (`sort`, `order`, `q`, field filters).
+- Logging: structured JSON logs for requests/errors.
+
+## OpenAPI-driven contracts
+- Treat OpenAPI as the source of truth.
+- Generate a typed client for the frontend from OpenAPI.
+- Regenerate client on backend API changes in CI.
+
+## Frontend (Vue)
+- Use a generated TypeScript API client in composables/stores.
+- Use Vite dev proxy to target backend at `/api` to avoid CORS in dev.
+- Handle auth via cookies; send `credentials: 'include'` for stateful calls.
+- For realtime, use a WebSocket client and integrate with Pinia.
+
+## Deployment topology
+- Single origin. Serve the SPA and reverse-proxy `/api` and `/ws` to FastAPI.
+- TLS termination at the reverse proxy; disable CORS.
+
+## Example Vite proxy (excerpt)
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/ws': {
+        target: 'ws://localhost:8000',
+        ws: true
+      }
+    }
+  }
+})
+```
+
+## Example fetch options
+
+```ts
+const res = await fetch('/api/v1/items', {
+  method: 'GET',
+  credentials: 'include',
+  headers: { 'accept': 'application/json' }
+})
+```
+

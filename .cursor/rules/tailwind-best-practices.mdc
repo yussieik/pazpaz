@@ -1,0 +1,70 @@
+---
+globs: *.vue,*.ts,*.tsx,*.js,*.jsx,*.css,*.scss,*.postcss
+description: Tailwind CSS best practices; Prettier plugin tailwindcss for class sorting
+---
+
+# Tailwind CSS Best Practices
+
+Applies to Vue SFCs and related TS/JS and style files.
+
+## Tooling
+- Formatter: Prettier with `prettier-plugin-tailwindcss` to sort utility classes.
+- Linter: ESLint can validate class usage patterns with custom rules when needed.
+
+## Configuration
+- Enable Tailwind's JIT (default in v3). Keep `content` paths accurate to SFCs and JS/TS.
+- Centralize design tokens in `tailwind.config.{js,ts}` theme extensions.
+- Use `@tailwind base; @tailwind components; @tailwind utilities;` once in the global stylesheet.
+
+## Class usage
+- Prefer semantic, layered utilities over long one-off chains; extract to `@apply` or components when repeated.
+- Use responsive and state variants (`sm:`, `md:`, `lg:`, `hover:`, `focus:`) sparingly and in logical order.
+- Avoid arbitrary values unless prototyping; promote stable values to theme config.
+
+## Composition
+- Factor repeated patterns into component classes or Vue components.
+- Use `@apply` for small, stable patterns; keep it minimal to avoid divergence from utilities.
+
+## Accessibility
+- Ensure focus-visible styles; include high-contrast outlines or rings.
+- Respect reduced-motion preferences for animations/transitions.
+
+## Performance
+- Keep `content` globs tight to reduce CSS size.
+- Favor `container` and spacing scales over ad-hoc max-width/margins.
+
+## Example tailwind.config excerpt
+
+```ts
+import type { Config } from 'tailwindcss'
+
+export default {
+  content: [
+    './index.html',
+    './src/**/*.{vue,js,ts,jsx,tsx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        brand: {
+          DEFAULT: '#2563eb',
+          50: '#eff6ff',
+          600: '#2563eb',
+          700: '#1d4ed8'
+        }
+      }
+    }
+  },
+  plugins: [],
+} satisfies Config
+```
+
+## Example Prettier config snippet
+
+```json
+{
+  "plugins": ["prettier-plugin-tailwindcss"],
+  "printWidth": 100
+}
+```
+
