@@ -62,10 +62,10 @@ onMounted(async () => {
               :key="appointment.id"
               class="rounded border border-gray-200 p-3"
             >
-              <div class="font-medium">{{ appointment.title }}</div>
+              <div class="font-medium">Appointment {{ appointment.id.slice(0, 8) }}</div>
               <div class="text-sm text-gray-600">
-                {{ new Date(appointment.start_time).toLocaleString() }} -
-                {{ new Date(appointment.end_time).toLocaleString() }}
+                {{ new Date(appointment.scheduled_start).toLocaleString() }} -
+                {{ new Date(appointment.scheduled_end).toLocaleString() }}
               </div>
               <div v-if="appointment.notes" class="mt-1 text-sm text-gray-500">
                 {{ appointment.notes }}

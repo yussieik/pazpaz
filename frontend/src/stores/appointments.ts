@@ -57,7 +57,11 @@ export const useAppointmentsStore = defineStore('appointments', () => {
       appointments.value = response.data.items
       total.value = response.data.total
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to fetch appointments'
+      if (err && typeof err === 'object' && 'message' in err) {
+        error.value = (err as Error).message
+      } else {
+        error.value = 'Failed to fetch appointments'
+      }
       console.error('Error fetching appointments:', err)
     } finally {
       loading.value = false
@@ -82,7 +86,11 @@ export const useAppointmentsStore = defineStore('appointments', () => {
 
       return response.data
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to create appointment'
+      if (err && typeof err === 'object' && 'message' in err) {
+        error.value = (err as Error).message
+      } else {
+        error.value = 'Failed to create appointment'
+      }
       console.error('Error creating appointment:', err)
       throw err
     } finally {
@@ -114,7 +122,11 @@ export const useAppointmentsStore = defineStore('appointments', () => {
 
       return response.data
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to update appointment'
+      if (err && typeof err === 'object' && 'message' in err) {
+        error.value = (err as Error).message
+      } else {
+        error.value = 'Failed to update appointment'
+      }
       console.error('Error updating appointment:', err)
       throw err
     } finally {
@@ -135,7 +147,11 @@ export const useAppointmentsStore = defineStore('appointments', () => {
       // Remove from local state
       appointments.value = appointments.value.filter((a) => a.id !== appointmentId)
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to delete appointment'
+      if (err && typeof err === 'object' && 'message' in err) {
+        error.value = (err as Error).message
+      } else {
+        error.value = 'Failed to delete appointment'
+      }
       console.error('Error deleting appointment:', err)
       throw err
     } finally {

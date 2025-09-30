@@ -1,3 +1,41 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+/**
+ * Tailwind CSS v4 Theme Configuration
+ *
+ * Using @theme directive for design tokens aligned with PazPaz UX principles:
+ * - Clean and calm color palette
+ * - Consistent spacing for reduced cognitive load
+ * - Typography optimized for readability
+ */
+@theme {
+  /* Primary brand colors - calm and professional */
+  --color-primary: #3b82f6; /* blue-500 */
+  --color-primary-dark: #2563eb; /* blue-600 */
+  --color-primary-light: #60a5fa; /* blue-400 */
+
+  /* Neutral colors - maintain existing gray scale */
+  --color-neutral-50: #f9fafb;
+  --color-neutral-100: #f3f4f6;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-600: #4b5563;
+  --color-neutral-900: #111827;
+
+  /* Semantic colors */
+  --color-success: #10b981; /* green-500 */
+  --color-warning: #f59e0b; /* amber-500 */
+  --color-error: #ef4444; /* red-500 */
+
+  /* Border radius for consistent UI */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+
+  /* Typography - optimized for therapist workflow */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    sans-serif;
+
+  /* Container constraints */
+  --container-max-width: 1280px;
+}

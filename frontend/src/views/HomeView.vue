@@ -12,7 +12,9 @@ import { RouterLink } from 'vue-router'
   <div class="container mx-auto px-4 py-8">
     <header class="mb-8">
       <h1 class="mb-2 text-4xl font-bold text-gray-900">PazPaz</h1>
-      <p class="text-lg text-gray-600">Practice management for independent therapists</p>
+      <p class="text-lg text-gray-600">
+        Practice management for independent therapists
+      </p>
     </header>
 
     <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
