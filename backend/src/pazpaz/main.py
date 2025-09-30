@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from pazpaz.api import api_router
 from pazpaz.core.config import settings
 
 app = FastAPI(
@@ -20,6 +21,9 @@ if settings.debug:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+# Include API routes
+app.include_router(api_router, prefix=settings.api_v1_prefix)
 
 
 @app.get("/health")
