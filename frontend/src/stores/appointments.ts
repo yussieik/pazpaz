@@ -50,13 +50,9 @@ export const useAppointmentsStore = defineStore('appointments', () => {
       if (startDate) params.start_date = startDate
       if (endDate) params.end_date = endDate
 
-      console.log('Fetching appointments with params:', params)
-
       const response = await apiClient.get<AppointmentResponse>('/appointments', {
         params,
       })
-
-      console.log('Appointments fetched successfully:', response.data)
 
       appointments.value = response.data.items
       total.value = response.data.total

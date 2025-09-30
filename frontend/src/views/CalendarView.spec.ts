@@ -21,6 +21,18 @@ vi.mock('@fullcalendar/vue3', () => ({
   default: {
     name: 'FullCalendar',
     template: '<div class="mock-fullcalendar"></div>',
+    methods: {
+      getApi() {
+        return {
+          next: vi.fn(),
+          prev: vi.fn(),
+          today: vi.fn(),
+          changeView: vi.fn(),
+          gotoDate: vi.fn(),
+          getDate: vi.fn(() => new Date()),
+        }
+      },
+    },
   },
 }))
 

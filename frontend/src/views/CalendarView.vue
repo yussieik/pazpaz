@@ -39,6 +39,7 @@ const appointmentsStore = useAppointmentsStore()
 const calendarRef = ref<InstanceType<typeof FullCalendar>>()
 const calendarApi = ref<Calendar | null>(null)
 const currentView = ref<'timeGridWeek' | 'timeGridDay' | 'dayGridMonth'>('timeGridWeek')
+const currentDate = ref<Date>(new Date())
 const currentDateRange = ref<{ start: Date; end: Date }>({
   start: new Date(),
   end: new Date(),
@@ -50,6 +51,30 @@ const lastFetchedRange = ref<{ start: string; end: string } | null>(null)
 // Selected appointment for detail modal
 const selectedAppointment = ref<AppointmentListItem | null>(null)
 const showAppointmentModal = ref(false)
+
+/**
+ * Debounced loading state for smooth UX
+ * Only show loading indicator if request takes longer than 300ms
+ */
+const showLoadingSpinner = ref(false)
+let loadingDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+// Watch loading state and debounce the loading indicator
+watchEffect(() => {
+  if (appointmentsStore.loading) {
+    // Start debounce timer - only show spinner after 300ms
+    loadingDebounceTimer = setTimeout(() => {
+      showLoadingSpinner.value = true
+    }, 300)
+  } else {
+    // Clear timer if loading finishes before 300ms
+    if (loadingDebounceTimer) {
+      clearTimeout(loadingDebounceTimer)
+      loadingDebounceTimer = null
+    }
+    showLoadingSpinner.value = false
+  }
+})
 
 /**
  * Transform appointments from store to FullCalendar events
@@ -88,16 +113,15 @@ function getStatusColor(status: string): string {
 }
 
 /**
- * FullCalendar configuration
+ * FullCalendar configuration as computed property
  *
- * IMPORTANT: Events are provided as a function instead of array.
- * This allows FullCalendar to control when events are fetched,
- * keeping the calendar's internal state machine intact.
- * When FullCalendar navigates, it calls this function automatically.
+ * CRITICAL: Make this computed so it updates when currentDate or currentView change.
+ * This forces FullCalendar to re-render with the new date/view.
  */
-const calendarOptions: CalendarOptions = {
+const calendarOptions = computed<CalendarOptions>(() => ({
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin],
-  initialView: 'timeGridWeek',
+  initialView: currentView.value,
+  initialDate: currentDate.value,
   headerToolbar: false, // Custom header toolbar
   height: 'auto',
   slotMinTime: '08:00:00',
@@ -110,10 +134,7 @@ const calendarOptions: CalendarOptions = {
   selectMirror: true,
   dayMaxEvents: true,
   weekends: true,
-  // Events as function - FullCalendar calls this when it needs events
-  events: (_fetchInfo, successCallback, _failureCallback) => {
-    successCallback(calendarEvents.value)
-  },
+  events: calendarEvents.value,
   // Use arrow functions to ensure callbacks have proper scope binding
   eventClick: (clickInfo) => handleEventClick(clickInfo),
   datesSet: (dateInfo) => handleDatesSet(dateInfo),
@@ -127,14 +148,13 @@ const calendarOptions: CalendarOptions = {
     minute: '2-digit',
     meridiem: 'short',
   },
-}
+}))
 
 /**
  * Handle date range changes (when user navigates)
  * This callback fires on initial render AND whenever the date range changes
  */
 function handleDatesSet(dateInfo: { start: Date; end: Date }) {
-  console.log('datesSet callback fired!', dateInfo)
   currentDateRange.value = {
     start: dateInfo.start,
     end: dateInfo.end,
@@ -149,19 +169,16 @@ function handleDatesSet(dateInfo: { start: Date; end: Date }) {
     lastFetchedRange.value?.start === startDate &&
     lastFetchedRange.value?.end === endDate
   ) {
-    console.log('Skipping duplicate fetch for same date range:', { startDate, endDate })
     return
   }
 
   // Update last fetched range before making the API call
   // Guard: Ensure dates are defined
   if (!startDate || !endDate) {
-    console.warn('Date range contains undefined values:', { startDate, endDate })
     return
   }
   lastFetchedRange.value = { start: startDate, end: endDate }
 
-  console.log('Fetching appointments for date range:', { startDate, endDate })
   appointmentsStore.fetchAppointments(startDate, endDate)
 }
 
@@ -177,21 +194,6 @@ function handleDatesSet(dateInfo: { start: Date; end: Date }) {
 watchEffect(() => {
   if (calendarRef.value && !calendarApi.value) {
     calendarApi.value = calendarRef.value.getApi()
-    console.log('Calendar API initialized successfully')
-  }
-})
-
-/**
- * Refetch events when calendarEvents changes
- *
- * When new appointment data arrives from the API, we need to tell FullCalendar
- * to refetch its events. Since events is a function that returns calendarEvents.value,
- * calling refetchEvents() will invoke that function with the updated data.
- */
-watchEffect(() => {
-  if (calendarApi.value && calendarEvents.value) {
-    calendarApi.value.refetchEvents()
-    console.log('Refetched events after data change')
   }
 })
 
@@ -217,53 +219,54 @@ function closeAppointmentModal() {
 
 /**
  * Navigation: Go to previous period
+ * Update the reactive currentDate, which triggers calendar re-render via computed options
  */
 function handlePrev() {
-  console.log('handlePrev called, calendarApi:', calendarApi.value)
-  if (calendarApi.value) {
-    calendarApi.value.prev()
-    console.log('Called prev() on calendar API')
+  const date = new Date(currentDate.value)
+
+  if (currentView.value === 'timeGridDay') {
+    date.setDate(date.getDate() - 1)
+  } else if (currentView.value === 'timeGridWeek') {
+    date.setDate(date.getDate() - 7)
   } else {
-    console.warn('Calendar API not initialized yet')
+    date.setMonth(date.getMonth() - 1)
   }
+
+  currentDate.value = date
 }
 
 /**
  * Navigation: Go to next period
+ * Update the reactive currentDate, which triggers calendar re-render via computed options
  */
 function handleNext() {
-  console.log('handleNext called, calendarApi:', calendarApi.value)
-  if (calendarApi.value) {
-    calendarApi.value.next()
-    console.log('Called next() on calendar API')
+  const date = new Date(currentDate.value)
+
+  if (currentView.value === 'timeGridDay') {
+    date.setDate(date.getDate() + 1)
+  } else if (currentView.value === 'timeGridWeek') {
+    date.setDate(date.getDate() + 7)
   } else {
-    console.warn('Calendar API not initialized yet')
+    date.setMonth(date.getMonth() + 1)
   }
+
+  currentDate.value = date
 }
 
 /**
  * Navigation: Go to today
+ * Reset currentDate to now, which triggers calendar re-render via computed options
  */
 function handleToday() {
-  if (calendarApi.value) {
-    calendarApi.value.today()
-  } else {
-    console.warn('Calendar API not initialized yet')
-  }
+  currentDate.value = new Date()
 }
 
 /**
  * Change calendar view
+ * Update the reactive currentView, which triggers calendar re-render via computed options
  */
 function changeView(view: 'timeGridWeek' | 'timeGridDay' | 'dayGridMonth') {
-  console.log('changeView called with view:', view, 'calendarApi:', calendarApi.value)
-  if (calendarApi.value) {
-    currentView.value = view
-    calendarApi.value.changeView(view)
-    console.log('Called changeView() on calendar API')
-  } else {
-    console.warn('Calendar API not initialized yet')
-  }
+  currentView.value = view
 }
 
 /**
@@ -317,9 +320,9 @@ function getStatusBadgeClass(status: string): string {
       <p class="text-gray-600">Weekly appointment schedule</p>
     </header>
 
-    <!-- Loading State -->
+    <!-- Loading State (Only show for initial load with no appointments) -->
     <div
-      v-if="appointmentsStore.loading && appointmentsStore.appointments.length === 0"
+      v-if="showLoadingSpinner && appointmentsStore.appointments.length === 0"
       class="flex h-96 items-center justify-center rounded-lg border border-gray-200 bg-white shadow-sm"
     >
       <div class="text-center">
@@ -340,12 +343,18 @@ function getStatusBadgeClass(status: string): string {
     </div>
 
     <!-- Calendar View -->
-    <div v-else class="rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div v-else class="calendar-card-wrapper relative rounded-lg border border-gray-200 bg-white shadow-sm">
       <!-- Custom Toolbar -->
       <div class="border-b border-gray-200 p-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <!-- Date Navigation -->
           <div class="flex items-center gap-2">
+            <!-- Subtle loading indicator for navigation -->
+            <div
+              v-if="appointmentsStore.loading && appointmentsStore.appointments.length > 0"
+              class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-solid border-blue-600 border-r-transparent"
+              aria-label="Loading"
+            ></div>
             <button
               @click="handleToday"
               class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -436,30 +445,46 @@ function getStatusBadgeClass(status: string): string {
         </div>
       </div>
 
-      <!-- FullCalendar Component -->
-      <div class="p-4">
-        <FullCalendar ref="calendarRef" :options="calendarOptions" />
-
-        <!-- Empty State Overlay -->
-        <div
-          v-if="
-            !appointmentsStore.loading && appointmentsStore.appointments.length === 0
-          "
-          class="mt-8 py-12 text-center"
-        >
-          <svg
-            class="mx-auto h-12 w-12 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+      <!-- Calendar Content Area (Fixed Height Container) -->
+      <div class="calendar-content-area">
+        <!-- FullCalendar Component with Transition -->
+        <div class="calendar-container relative p-4">
+          <Transition name="calendar-fade" mode="out-in">
+            <FullCalendar
+              ref="calendarRef"
+              :key="`${currentView}-${currentDate.getTime()}`"
+              :options="calendarOptions"
             />
-          </svg>
+          </Transition>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State Container - Fixed height to prevent jumps -->
+    <div class="empty-state-container relative mt-6 text-center" style="min-height: 120px;">
+      <!-- Static Icon - Always visible when no appointments -->
+      <svg
+        v-if="!appointmentsStore.loading && appointmentsStore.appointments.length === 0"
+        class="mx-auto h-12 w-12 text-gray-400"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+        />
+      </svg>
+
+      <!-- Fading Text Content with absolute positioning to prevent layout shift -->
+      <Transition name="empty-state-fade">
+        <div
+          v-if="!appointmentsStore.loading && appointmentsStore.appointments.length === 0"
+          class="absolute inset-x-0 top-12"
+          key="empty-state-text"
+        >
           <h3 class="mt-4 text-lg font-medium text-gray-900">
             No appointments scheduled
           </h3>
@@ -467,7 +492,7 @@ function getStatusBadgeClass(status: string): string {
             Get started by creating your first appointment.
           </p>
         </div>
-      </div>
+      </Transition>
     </div>
 
     <!-- Appointment Detail Modal -->
@@ -597,6 +622,64 @@ function getStatusBadgeClass(status: string): string {
 </template>
 
 <style>
+/* Calendar Transition Animations */
+.calendar-fade-enter-active,
+.calendar-fade-leave-active {
+  transition: opacity 150ms ease-in-out;
+}
+
+.calendar-fade-enter-from {
+  opacity: 0;
+}
+
+.calendar-fade-leave-to {
+  opacity: 0;
+}
+
+/* Empty State Transition Animations */
+.empty-state-fade-enter-active,
+.empty-state-fade-leave-active {
+  transition: opacity 150ms ease-in-out;
+}
+
+.empty-state-fade-enter-from,
+.empty-state-fade-leave-to {
+  opacity: 0;
+}
+
+/* Respect user's motion preferences for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .calendar-fade-enter-active,
+  .calendar-fade-leave-active,
+  .empty-state-fade-enter-active,
+  .empty-state-fade-leave-active {
+    transition: none;
+  }
+}
+
+/**
+ * Fixed Layout System for Calendar Transitions
+ *
+ * Architecture:
+ * 1. calendar-content-area: Fixed height container (700px) - consistent across all views
+ * 2. calendar-container: Positioned relatively within content area
+ *
+ * This ensures smooth transitions between calendar views without layout shifts.
+ * The fixed height prevents the container from resizing when switching between Day/Week/Month views.
+ */
+
+/* Main content area with consistent fixed height for all views */
+.calendar-content-area {
+  position: relative;
+  height: 700px; /* Fixed height - no resizing between views */
+}
+
+/* Calendar container */
+.calendar-container {
+  position: relative;
+  z-index: 1;
+}
+
 /* FullCalendar custom styling to match PazPaz design */
 :root {
   --fc-border-color: #e5e7eb;

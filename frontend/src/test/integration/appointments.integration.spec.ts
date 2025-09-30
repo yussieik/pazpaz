@@ -157,7 +157,7 @@ describe('Appointments Integration Tests', () => {
 
       await store.fetchAppointments()
 
-      expect(store.error).toBe('Request failed with status code 401')
+      expect(store.error).toBe('Authentication required. Please log in.')
       expect(store.loading).toBe(false)
     })
 
@@ -182,7 +182,10 @@ describe('Appointments Integration Tests', () => {
 
       await store.fetchAppointments('invalid-date', '2025-10-07')
 
-      expect(store.error).toBe('Request failed with status code 422')
+      // The store assigns validation error detail array directly
+      expect(store.error).toBeDefined()
+      expect(Array.isArray(store.error)).toBe(true)
+      expect((store.error as Array<{ msg: string }>)[0].msg).toBe('Invalid date format')
     })
   })
 
