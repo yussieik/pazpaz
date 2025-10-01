@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAppointmentsStore } from '@/stores/appointments'
 import FullCalendar from '@fullcalendar/vue3'
 import type { AppointmentListItem } from '@/types/calendar'
@@ -10,6 +11,7 @@ import { useCalendarLoading } from '@/composables/useCalendarLoading'
 import CalendarToolbar from '@/components/calendar/CalendarToolbar.vue'
 import AppointmentDetailsModal from '@/components/calendar/AppointmentDetailsModal.vue'
 import CalendarLoadingState from '@/components/calendar/CalendarLoadingState.vue'
+import KeyboardShortcutsHelp from '@/components/calendar/KeyboardShortcutsHelp.vue'
 
 /**
  * Calendar View - appointment scheduling with weekly/day/month views
@@ -19,9 +21,11 @@ import CalendarLoadingState from '@/components/calendar/CalendarLoadingState.vue
  * TODO: Add conflict detection
  */
 
+const router = useRouter()
 const appointmentsStore = useAppointmentsStore()
 const calendarRef = ref<InstanceType<typeof FullCalendar>>()
 const toolbarRef = ref<InstanceType<typeof CalendarToolbar>>()
+const showKeyboardHelp = ref(false)
 
 // Calendar state and navigation
 const {
@@ -87,38 +91,65 @@ const appointmentSummary = computed(() => {
   // const conflicts = detectConflicts(appointments)
   // if (conflicts > 0) parts.push(`${conflicts} conflict${conflicts === 1 ? '' : 's'}`)
 
+  // TODO (M4): Add session notes status
+  // const needsNotes = appointments.filter(a => a.status === 'completed' && !a.has_notes).length
+  // if (needsNotes > 0) parts.push(`${needsNotes} session${needsNotes === 1 ? '' : 's'} need notes`)
+
   return parts.join(' · ') || null
 })
 
 /**
- * Placeholder action handlers
+ * Action handlers for appointment modal
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function viewClientDetails(_clientId: string) {
-  // TODO: Navigate to client profile
+function viewClientDetails(clientId: string) {
+  selectedAppointment.value = null // Close modal
+  router.push(`/clients/${clientId}`) // Navigate to client detail page
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function editAppointment(_appointment: AppointmentListItem) {
-  // TODO: Open edit modal
-  selectedAppointment.value = null
+function editAppointment(appointment: AppointmentListItem) {
+  selectedAppointment.value = null // Close modal
+  // TODO (M3): Open edit appointment modal
+  console.log('Edit appointment:', appointment.id)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function startSessionNotes(_appointment: AppointmentListItem) {
-  // TODO: Navigate to session notes
-  selectedAppointment.value = null
+function startSessionNotes(appointment: AppointmentListItem) {
+  selectedAppointment.value = null // Close modal
+  // TODO (M4): Open session notes drawer
+  console.log('Start session notes for appointment:', appointment.id)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function cancelAppointment(_appointment: AppointmentListItem) {
-  // TODO: Show confirmation dialog
-  selectedAppointment.value = null
+function cancelAppointment(appointment: AppointmentListItem) {
+  selectedAppointment.value = null // Close modal
+  // TODO (M3): Show confirmation dialog
+  console.log('Cancel appointment:', appointment.id)
 }
 
 function createNewAppointment() {
-  // TODO: Open create appointment modal
+  // TODO (M3): Open create appointment modal
+  console.log('Create new appointment')
 }
+
+/**
+ * Keyboard shortcut help modal
+ */
+function handleHelpKey(e: KeyboardEvent) {
+  if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+    // Only trigger if not typing in input field
+    const target = e.target as HTMLElement
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+
+    e.preventDefault()
+    showKeyboardHelp.value = true
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleHelpKey)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleHelpKey)
+})
 </script>
 
 <template>
@@ -210,6 +241,12 @@ function createNewAppointment() {
       @start-session-notes="startSessionNotes"
       @cancel="cancelAppointment"
       @view-client="viewClientDetails"
+    />
+
+    <!-- Keyboard Shortcuts Help Modal -->
+    <KeyboardShortcutsHelp
+      :visible="showKeyboardHelp"
+      @update:visible="showKeyboardHelp = $event"
     />
   </div>
 </template>

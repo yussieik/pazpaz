@@ -355,4 +355,68 @@ describe('CalendarView.vue', () => {
       expect(card.exists()).toBe(true)
     })
   })
+
+  describe('Keyboard Shortcuts Help', () => {
+    it('should not show help modal initially', async () => {
+      const wrapper = await createWrapper()
+      expect(wrapper.text()).not.toContain('Keyboard Shortcuts')
+    })
+
+    it('should show help modal when ? key is pressed', async () => {
+      const wrapper = await createWrapper()
+
+      // Simulate '?' key press
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '?' }))
+      await wrapper.vm.$nextTick()
+      await flushPromises()
+
+      // Help modal should be visible (check document body since modal is teleported)
+      // Wait a bit for the transition to complete
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      // Check if the modal exists in the document
+      expect(document.body.textContent).toContain('Keyboard Shortcuts')
+    })
+
+    it('should not open help modal when typing in input field', async () => {
+      const wrapper = await createWrapper()
+
+      // Create a mock input element
+      const input = document.createElement('input')
+      document.body.appendChild(input)
+      input.focus()
+
+      // Simulate '?' key press on input
+      const event = new KeyboardEvent('keydown', { key: '?', bubbles: true })
+      Object.defineProperty(event, 'target', { value: input, enumerable: true })
+      window.dispatchEvent(event)
+
+      await wrapper.vm.$nextTick()
+
+      // Help modal should NOT be visible
+      expect(wrapper.text()).not.toContain('Keyboard Shortcuts')
+
+      // Cleanup
+      document.body.removeChild(input)
+    })
+
+    it('should not open help modal when ? is pressed with modifier keys', async () => {
+      const wrapper = await createWrapper()
+
+      // Test with Cmd key
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', metaKey: true }))
+      await wrapper.vm.$nextTick()
+      expect(wrapper.text()).not.toContain('Keyboard Shortcuts')
+
+      // Test with Ctrl key
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', ctrlKey: true }))
+      await wrapper.vm.$nextTick()
+      expect(wrapper.text()).not.toContain('Keyboard Shortcuts')
+
+      // Test with Shift key
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', shiftKey: true }))
+      await wrapper.vm.$nextTick()
+      expect(wrapper.text()).not.toContain('Keyboard Shortcuts')
+    })
+  })
 })

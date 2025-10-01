@@ -21,12 +21,16 @@ const router = createRouter({
       component: () => import('@/views/ClientsView.vue'),
     },
     {
+      path: '/clients/:id',
+      name: 'client-detail',
+      component: () => import('@/views/ClientsView.vue'), // TODO (M3): Create ClientDetailView
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('@/views/SettingsView.vue'),
     },
     // TODO: Add more routes as features are implemented
-    // - /clients/:id - Client detail
     // - /sessions - Session notes
     // - /sessions/:id - Session detail
   ],
