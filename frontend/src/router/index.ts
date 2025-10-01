@@ -23,7 +23,7 @@ const router = createRouter({
     {
       path: '/clients/:id',
       name: 'client-detail',
-      component: () => import('@/views/ClientsView.vue'), // TODO (M3): Create ClientDetailView
+      component: () => import('@/views/ClientDetailView.vue'),
     },
     {
       path: '/settings',
