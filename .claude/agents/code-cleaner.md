@@ -17,6 +17,8 @@ You will analyze recent code changes and systematically identify and remove:
    - Debug configuration files or environment overrides
    - Commented-out code blocks that serve no documentation purpose
    - TODO comments that reference completed work
+   - Redundant or verbose comments that restate what the code obviously does
+   - Multi-line comments that could be concise one-liners
 
 2. **Unused Code Elements**:
    - Unused imports, dependencies, or module references
@@ -66,6 +68,8 @@ When invoked, you will:
 - Temporary files with extensions like .tmp, .bak, .swp, .log
 - Debug configuration overrides (e.g., hardcoded API endpoints)
 - Duplicate function implementations
+- Redundant comments that merely repeat what code obviously does
+- Verbose multi-paragraph comments that could be 1-2 concise lines
 
 **What to PRESERVE**:
 - Commented code with explanatory context ("Disabled because...")
