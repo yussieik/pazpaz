@@ -12,7 +12,10 @@ This document ensures proper delegation of tasks to specialized agents in the Pa
 | Backend API endpoints | `fullstack-backend-specialist` | - | Never |
 | Backend business logic | `fullstack-backend-specialist` | - | Never |
 | Authentication/Auth | `fullstack-backend-specialist` | `security-auditor` (review) | Never |
-| Frontend components | `fullstack-frontend-specialist` | - | Never |
+| UX/UI design | `ux-design-consultant` | `fullstack-frontend-specialist` | Never |
+| Design review | `ux-design-consultant` | - | Never |
+| User flow design | `ux-design-consultant` | - | Never |
+| Frontend components | `fullstack-frontend-specialist` | `ux-design-consultant` (review) | Never |
 | Frontend state management | `fullstack-frontend-specialist` | - | Never |
 | API client integration | `fullstack-frontend-specialist` | `fullstack-backend-specialist` | Never |
 | Security review | `security-auditor` | - | Never |
@@ -29,25 +32,35 @@ def route_task(task_description: str) -> Agent:
     if involves_database_schema(task):
         return "database-architect"
 
-    # Step 2: Check implementation type
+    # Step 2: Check if design/UX work needed
+    if involves_ui_design(task) or involves_user_flow(task):
+        return "ux-design-consultant"
+
+    # Step 3: Check implementation type
     if involves_backend_code(task):
         return "fullstack-backend-specialist"
 
     if involves_frontend_code(task):
+        # Check if design review needed first
+        if is_new_feature(task) and not has_design_specs(task):
+            return "ux-design-consultant"  # Design first
         return "fullstack-frontend-specialist"
 
-    # Step 3: Check if review/audit needed
+    # Step 4: Check if review/audit needed
+    if is_design_review(task):
+        return "ux-design-consultant"
+
     if is_security_review(task) or handles_sensitive_data(task):
         return "security-auditor"
 
     if is_backend_review(task):
         return "backend-qa-specialist"
 
-    # Step 4: Self-implement only if trivial/exploratory
+    # Step 5: Self-implement only if trivial/exploratory
     if is_trivial_config(task) or is_documentation(task) or is_exploration(task):
         return "self"
 
-    # Step 5: If unsure, ask user for clarification
+    # Step 6: If unsure, ask user for clarification
     return "ask_user_for_clarification"
 ```
 
@@ -117,16 +130,32 @@ def route_task(task_description: str) -> Agent:
 - "check the test coverage"
 - "validate performance requirements"
 
+### UX-Design-Consultant Triggers
+**Positive patterns:**
+- "design", "UX", "UI", "user experience", "user interface"
+- "layout", "visual", "interaction", "flow", "wireframe"
+- "form design", "modal", "empty state", "error message"
+- "feedback", "animation", "transition", "accessibility"
+
+**Example phrases:**
+- "design the intake form"
+- "how should we visualize..."
+- "review the calendar design"
+- "improve the autosave experience"
+- "what's the best way to show..."
+
 ## Multi-Agent Workflows
 
 ### Feature Implementation Flow
 ```
 1. Requirements → Self (analyze and plan)
-2. Database → database-architect
-3. Backend → fullstack-backend-specialist
-4. Frontend → fullstack-frontend-specialist
-5. Backend QA → backend-qa-specialist
-6. Security Audit → security-auditor (if sensitive)
+2. UX Design → ux-design-consultant (design interface and flows)
+3. Database → database-architect
+4. Backend → fullstack-backend-specialist
+5. Frontend → fullstack-frontend-specialist
+6. Design Review → ux-design-consultant (review implementation)
+7. Backend QA → backend-qa-specialist
+8. Security Audit → security-auditor (if sensitive)
 ```
 
 ### Bug Fix Flow
@@ -166,6 +195,9 @@ def route_task(task_description: str) -> Agent:
 
 Before responding to any user request, check:
 
+- [ ] **Is this a UX/UI design decision?**
+  - If YES → Route to `ux-design-consultant`
+
 - [ ] **Is this a database change?**
   - If YES → Route to `database-architect`
 
@@ -173,7 +205,12 @@ Before responding to any user request, check:
   - If YES → Route to `fullstack-backend-specialist`
 
 - [ ] **Is this frontend implementation?**
-  - If YES → Route to `fullstack-frontend-specialist`
+  - If YES → Check if design exists first
+    - If NO design → Route to `ux-design-consultant` first
+    - If design exists → Route to `fullstack-frontend-specialist`
+
+- [ ] **Is this a design review?**
+  - If YES → Route to `ux-design-consultant`
 
 - [ ] **Does this involve security/auth/PII?**
   - If YES → Route to `security-auditor` (after implementation)
@@ -247,6 +284,29 @@ Before responding to any user request, check:
 - Database-level problem
 
 **Routing:** `database-architect` → Analyze and optimize query
+
+---
+
+### Example 7: "Design the client intake form"
+**Analysis:**
+- UI/UX design task
+- Needs user flow and form design
+- Should be done before implementation
+
+**Routing:** `ux-design-consultant` → Design form layout, fields, validation patterns
+
+---
+
+### Example 8: "Build the client intake form"
+**Analysis:**
+- Frontend implementation task
+- Requires design specifications first
+- Multi-step process
+
+**Routing:**
+1. `ux-design-consultant` → Design the form (if not already done)
+2. `fullstack-frontend-specialist` → Implement the designed form
+3. `ux-design-consultant` → Review implementation
 
 ---
 

@@ -15,6 +15,7 @@ Task Categories:
 ├── Database/Schema Design → database-architect
 ├── Backend API/Features → fullstack-backend-specialist
 ├── Frontend UI/Components → fullstack-frontend-specialist
+├── UX/UI Design & Patterns → ux-design-consultant
 ├── Security/Auth Review → security-auditor
 └── Backend Code Review → backend-qa-specialist
 ```
@@ -91,22 +92,40 @@ Task Categories:
 - "Validate the workspace isolation implementation"
 - "Is this backend code production-ready?"
 
+#### 6. **ux-design-consultant** - USE WHEN:
+- Designing user interfaces or user flows
+- Making design decisions for new features
+- Evaluating UX patterns and interaction design
+- Ensuring visual consistency and design system adherence
+- Reviewing frontend implementations for UX quality
+- Planning feature design before implementation
+
+**Examples:**
+- "Design the client intake form"
+- "Review the calendar component design"
+- "How should we visualize the treatment timeline?"
+- "The SOAP notes autosave feels clunky, how can we improve it?"
+
 ### Routing Priority
 
 **ALWAYS delegate in this order:**
 
-1. **Implementation Phase:**
+1. **Planning Phase:**
+   - UX/UI design → `ux-design-consultant` (before implementation)
    - Database design → `database-architect`
+
+2. **Implementation Phase:**
    - Backend implementation → `fullstack-backend-specialist`
    - Frontend implementation → `fullstack-frontend-specialist`
 
-2. **Quality Assurance Phase:**
+3. **Quality Assurance Phase:**
+   - UX review → `ux-design-consultant` (review implemented designs)
    - Backend QA → `backend-qa-specialist`
    - Security review → `security-auditor` (if auth/sensitive data involved)
 
-3. **Full-Stack Features:**
-   - When task spans frontend + backend, use BOTH agents
-   - Example: "Build client CRUD feature" = `fullstack-backend-specialist` + `fullstack-frontend-specialist`
+4. **Full-Stack Features:**
+   - When task spans frontend + backend, use MULTIPLE agents in sequence
+   - Example: "Build client CRUD feature" = `ux-design-consultant` → `fullstack-backend-specialist` + `fullstack-frontend-specialist` → `ux-design-consultant` (review)
 
 ### Self-Implementation Guidelines
 

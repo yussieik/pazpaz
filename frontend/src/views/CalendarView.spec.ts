@@ -249,23 +249,21 @@ describe('CalendarView.vue', () => {
   })
 
   describe('Success State - No Appointments', () => {
-    it('should show empty state when no appointments', async () => {
+    it('should render calendar even with no appointments', async () => {
       const wrapper = await createWrapper()
 
-      expect(wrapper.text()).toContain('No appointments scheduled')
+      // Calendar should be visible even with no appointments
+      expect(wrapper.find('.mock-fullcalendar').exists()).toBe(true)
     })
 
-    it('should show empty state message', async () => {
+    it('should show toolbar controls when no appointments', async () => {
       const wrapper = await createWrapper()
 
-      expect(wrapper.text()).toContain('Get started by creating your first appointment')
-    })
-
-    it('should render empty state icon', async () => {
-      const wrapper = await createWrapper()
-
-      const emptyIcon = wrapper.find('svg')
-      expect(emptyIcon.exists()).toBe(true)
+      // Toolbar should still be present
+      expect(wrapper.text()).toContain('Today')
+      expect(wrapper.text()).toContain('Week')
+      expect(wrapper.text()).toContain('Day')
+      expect(wrapper.text()).toContain('Month')
     })
   })
 
@@ -291,7 +289,7 @@ describe('CalendarView.vue', () => {
       expect(wrapper.find('.mock-fullcalendar').exists()).toBe(true)
     })
 
-    it('should not show empty state when appointments exist', async () => {
+    it('should render calendar with appointments', async () => {
       const store = useAppointmentsStore()
 
       vi.mocked(apiClient.get).mockResolvedValueOnce({
@@ -312,10 +310,8 @@ describe('CalendarView.vue', () => {
       // Store should have appointments
       expect(store.appointments.length).toBe(2)
 
-      // Empty state should not be visible when appointments exist
-      expect(wrapper.text()).not.toContain(
-        'Get started by creating your first appointment'
-      )
+      // Calendar should be visible
+      expect(wrapper.find('.mock-fullcalendar').exists()).toBe(true)
     })
   })
 
