@@ -3,22 +3,28 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppointmentsStore } from '@/stores/appointments'
 import FullCalendar from '@fullcalendar/vue3'
-import type { AppointmentListItem } from '@/types/calendar'
+import type { AppointmentListItem, AppointmentFormData } from '@/types/calendar'
 import { useCalendar } from '@/composables/useCalendar'
 import { useCalendarEvents } from '@/composables/useCalendarEvents'
 import { useCalendarKeyboardShortcuts } from '@/composables/useCalendarKeyboardShortcuts'
 import { useCalendarLoading } from '@/composables/useCalendarLoading'
 import CalendarToolbar from '@/components/calendar/CalendarToolbar.vue'
 import AppointmentDetailsModal from '@/components/calendar/AppointmentDetailsModal.vue'
+import AppointmentFormModal from '@/components/calendar/AppointmentFormModal.vue'
+import CancelAppointmentDialog from '@/components/calendar/CancelAppointmentDialog.vue'
 import CalendarLoadingState from '@/components/calendar/CalendarLoadingState.vue'
 import KeyboardShortcutsHelp from '@/components/calendar/KeyboardShortcutsHelp.vue'
 
 /**
  * Calendar View - appointment scheduling with weekly/day/month views
  *
- * TODO: Add appointment creation/editing modal
- * TODO: Implement drag-and-drop rescheduling
- * TODO: Add conflict detection
+ * Implemented (M2):
+ * - Appointment creation/editing modals
+ * - Cancel appointment dialog
+ *
+ * TODO (M3): Implement drag-and-drop rescheduling
+ * TODO (M3): Add conflict detection
+ * TODO (M3): Wire up API calls for CRUD operations
  */
 
 const router = useRouter()
@@ -26,6 +32,13 @@ const appointmentsStore = useAppointmentsStore()
 const calendarRef = ref<InstanceType<typeof FullCalendar>>()
 const toolbarRef = ref<InstanceType<typeof CalendarToolbar>>()
 const showKeyboardHelp = ref(false)
+
+// Modal/dialog state
+const showCreateModal = ref(false)
+const showEditModal = ref(false)
+const showCancelDialog = ref(false)
+const appointmentToEdit = ref<AppointmentListItem | null>(null)
+const appointmentToCancel = ref<AppointmentListItem | null>(null)
 
 // Calendar state and navigation
 const {
@@ -107,9 +120,9 @@ function viewClientDetails(clientId: string) {
 }
 
 function editAppointment(appointment: AppointmentListItem) {
-  selectedAppointment.value = null // Close modal
-  // TODO (M3): Open edit appointment modal
-  console.log('Edit appointment:', appointment.id)
+  selectedAppointment.value = null // Close detail modal
+  appointmentToEdit.value = appointment
+  showEditModal.value = true
 }
 
 function startSessionNotes(appointment: AppointmentListItem) {
@@ -119,14 +132,36 @@ function startSessionNotes(appointment: AppointmentListItem) {
 }
 
 function cancelAppointment(appointment: AppointmentListItem) {
-  selectedAppointment.value = null // Close modal
-  // TODO (M3): Show confirmation dialog
-  console.log('Cancel appointment:', appointment.id)
+  selectedAppointment.value = null // Close detail modal
+  appointmentToCancel.value = appointment
+  showCancelDialog.value = true
 }
 
 function createNewAppointment() {
-  // TODO (M3): Open create appointment modal
-  console.log('Create new appointment')
+  showCreateModal.value = true
+}
+
+/**
+ * Form submission handlers
+ */
+async function handleCreateAppointment(data: AppointmentFormData) {
+  // TODO (M3): Call API to create appointment
+  console.log('Create appointment:', data)
+  showCreateModal.value = false
+}
+
+async function handleEditAppointment(data: AppointmentFormData) {
+  // TODO (M3): Call API to update appointment
+  console.log('Edit appointment:', appointmentToEdit.value?.id, data)
+  showEditModal.value = false
+  appointmentToEdit.value = null
+}
+
+async function handleConfirmCancel() {
+  // TODO (M3): Call API to delete appointment
+  console.log('Delete appointment:', appointmentToCancel.value?.id)
+  showCancelDialog.value = false
+  appointmentToCancel.value = null
 }
 
 /**
@@ -247,6 +282,31 @@ onUnmounted(() => {
     <KeyboardShortcutsHelp
       :visible="showKeyboardHelp"
       @update:visible="showKeyboardHelp = $event"
+    />
+
+    <!-- Create Appointment Modal -->
+    <AppointmentFormModal
+      :visible="showCreateModal"
+      mode="create"
+      @update:visible="showCreateModal = $event"
+      @submit="handleCreateAppointment"
+    />
+
+    <!-- Edit Appointment Modal -->
+    <AppointmentFormModal
+      :visible="showEditModal"
+      :appointment="appointmentToEdit"
+      mode="edit"
+      @update:visible="showEditModal = $event"
+      @submit="handleEditAppointment"
+    />
+
+    <!-- Cancel Appointment Dialog -->
+    <CancelAppointmentDialog
+      :visible="showCancelDialog"
+      :appointment="appointmentToCancel"
+      @update:visible="showCancelDialog = $event"
+      @confirm="handleConfirmCancel"
     />
   </div>
 </template>

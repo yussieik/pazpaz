@@ -26,3 +26,16 @@ export interface DateRange {
   start: string
   end: string
 }
+
+/**
+ * Appointment form data for create/edit operations
+ * Note: This matches the backend schema (AppointmentCreate/AppointmentUpdate)
+ */
+export interface AppointmentFormData {
+  client_id: string
+  scheduled_start: string
+  scheduled_end: string
+  location_type: 'clinic' | 'home' | 'online'
+  location_details?: string
+  notes?: string
+}
