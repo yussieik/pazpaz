@@ -128,7 +128,6 @@ function editAppointment(appointment: AppointmentListItem) {
 function startSessionNotes(appointment: AppointmentListItem) {
   selectedAppointment.value = null // Close modal
   // TODO (M4): Open session notes drawer
-  console.log('Start session notes for appointment:', appointment.id)
 }
 
 function cancelAppointment(appointment: AppointmentListItem) {
@@ -146,20 +145,30 @@ function createNewAppointment() {
  */
 async function handleCreateAppointment(data: AppointmentFormData) {
   // TODO (M3): Call API to create appointment
-  console.log('Create appointment:', data)
   showCreateModal.value = false
 }
 
 async function handleEditAppointment(data: AppointmentFormData) {
-  // TODO (M3): Call API to update appointment
-  console.log('Edit appointment:', appointmentToEdit.value?.id, data)
-  showEditModal.value = false
-  appointmentToEdit.value = null
+  if (!appointmentToEdit.value) return
+
+  try {
+    // Update appointment in store (calls API and updates local state)
+    await appointmentsStore.updateAppointment(appointmentToEdit.value.id, data)
+
+    // Close modal and clear edit state
+    showEditModal.value = false
+    appointmentToEdit.value = null
+
+    // TODO (M3): Add success toast notification
+  } catch (error) {
+    console.error('Failed to update appointment:', error)
+    // TODO (M3): Add error toast notification
+    // Keep modal open on error so user can retry
+  }
 }
 
 async function handleConfirmCancel() {
   // TODO (M3): Call API to delete appointment
-  console.log('Delete appointment:', appointmentToCancel.value?.id)
   showCancelDialog.value = false
   appointmentToCancel.value = null
 }

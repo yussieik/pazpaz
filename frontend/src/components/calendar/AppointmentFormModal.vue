@@ -104,7 +104,8 @@ function handleSubmit() {
   if (!validate()) return
 
   emit('submit', formData.value)
-  closeModal()
+  // Note: Parent component (CalendarView) handles closing the modal
+  // This prevents race conditions and allows parent to show errors if needed
 }
 
 function closeModal() {

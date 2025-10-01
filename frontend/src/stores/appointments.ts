@@ -123,7 +123,7 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     error.value = null
 
     try {
-      const response = await apiClient.patch<AppointmentListItem>(
+      const response = await apiClient.put<AppointmentListItem>(
         `/appointments/${appointmentId}`,
         updates
       )
