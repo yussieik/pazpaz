@@ -21,6 +21,7 @@ import CalendarLoadingState from '@/components/calendar/CalendarLoadingState.vue
 
 const appointmentsStore = useAppointmentsStore()
 const calendarRef = ref<InstanceType<typeof FullCalendar>>()
+const toolbarRef = ref<InstanceType<typeof CalendarToolbar>>()
 
 // Calendar state and navigation
 const {
@@ -40,7 +41,17 @@ const { selectedAppointment, calendarEvents, handleEventClick } = useCalendarEve
 // Debounced loading state
 const { showLoadingSpinner } = useCalendarLoading()
 
-// Keyboard shortcuts
+// Button refs for keyboard shortcut visual feedback
+const toolbarButtonRefs = computed(() => ({
+  todayButton: toolbarRef.value?.todayButtonRef,
+  previousButton: toolbarRef.value?.previousButtonRef,
+  nextButton: toolbarRef.value?.nextButtonRef,
+  weekButton: toolbarRef.value?.weekButtonRef,
+  dayButton: toolbarRef.value?.dayButtonRef,
+  monthButton: toolbarRef.value?.monthButtonRef,
+}))
+
+// Keyboard shortcuts with button visual feedback
 useCalendarKeyboardShortcuts({
   onToday: handleToday,
   onPrevious: handlePrev,
@@ -48,6 +59,7 @@ useCalendarKeyboardShortcuts({
   onChangeView: changeView,
   onCreateAppointment: createNewAppointment,
   selectedAppointment,
+  buttonRefs: toolbarButtonRefs,
 })
 
 // Build calendar options with events and handlers
@@ -55,23 +67,50 @@ const calendarOptions = computed(() =>
   buildCalendarOptions(calendarEvents.value, handleEventClick)
 )
 
+// Appointment summary for contextual header metadata
+const appointmentSummary = computed(() => {
+  const appointments = appointmentsStore.appointments
+
+  if (appointments.length === 0) {
+    return null // Don't show metadata if no appointments
+  }
+
+  // Count appointments in current view
+  const appointmentCount = appointments.length
+
+  const parts = []
+  if (appointmentCount > 0) {
+    parts.push(`${appointmentCount} appointment${appointmentCount === 1 ? '' : 's'}`)
+  }
+
+  // TODO: Add conflict detection logic when implemented
+  // const conflicts = detectConflicts(appointments)
+  // if (conflicts > 0) parts.push(`${conflicts} conflict${conflicts === 1 ? '' : 's'}`)
+
+  return parts.join(' · ') || null
+})
+
 /**
  * Placeholder action handlers
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function viewClientDetails(_clientId: string) {
   // TODO: Navigate to client profile
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function editAppointment(_appointment: AppointmentListItem) {
   // TODO: Open edit modal
   selectedAppointment.value = null
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function startSessionNotes(_appointment: AppointmentListItem) {
   // TODO: Navigate to session notes
   selectedAppointment.value = null
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function cancelAppointment(_appointment: AppointmentListItem) {
   // TODO: Show confirmation dialog
   selectedAppointment.value = null
@@ -85,9 +124,36 @@ function createNewAppointment() {
 <template>
   <div class="container mx-auto px-4 py-8">
     <!-- Header -->
-    <header class="mb-6">
-      <h1 class="mb-2 text-3xl font-bold text-gray-900">Calendar</h1>
-      <p class="text-gray-600">Weekly appointment schedule</p>
+    <header
+      class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <!-- Title and metadata (inline on desktop, wraps on mobile) -->
+      <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        <h1 class="text-2xl font-semibold text-slate-900">Calendar</h1>
+        <span
+          v-if="appointmentSummary"
+          class="flex items-baseline gap-2.5 text-sm font-medium text-slate-600"
+        >
+          <span class="text-slate-400" aria-hidden="true">·</span>
+          <span>{{ appointmentSummary }}</span>
+        </span>
+      </div>
+
+      <!-- Primary action button -->
+      <button
+        @click="createNewAppointment"
+        class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none"
+      >
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 4v16m8-8H4"
+          />
+        </svg>
+        <span>New Appointment</span>
+      </button>
     </header>
 
     <!-- Loading State (Only show for initial load with no appointments) -->
@@ -111,13 +177,13 @@ function createNewAppointment() {
     >
       <!-- Toolbar -->
       <CalendarToolbar
+        ref="toolbarRef"
         :current-view="currentView"
         :formatted-date-range="formattedDateRange"
         @update:view="changeView"
         @previous="handlePrev"
         @next="handleNext"
         @today="handleToday"
-        @create-appointment="createNewAppointment"
       />
 
       <!-- Calendar Content Area (Fixed Height Container) -->

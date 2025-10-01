@@ -30,8 +30,8 @@ frontend/
 │   ├── views/
 │   │   ├── CalendarView.vue
 │   │   ├── CalendarView.spec.ts    # Component tests
-│   │   ├── HomeView.vue
-│   │   └── HomeView.spec.ts
+│   │   ├── ClientsView.vue
+│   │   └── SettingsView.vue
 │   ├── test/
 │   │   ├── setup.ts                # Global test setup
 │   │   └── integration/

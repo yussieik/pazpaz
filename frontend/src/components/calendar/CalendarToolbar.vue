@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import type { ViewType } from '@/types/calendar'
 
 interface Props {
@@ -12,7 +13,6 @@ interface Emits {
   (e: 'previous'): void
   (e: 'next'): void
   (e: 'today'): void
-  (e: 'createAppointment'): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -20,6 +20,24 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emits>()
+
+// Template refs for button elements (for keyboard shortcut visual feedback)
+const todayButtonRef = ref<HTMLButtonElement>()
+const previousButtonRef = ref<HTMLButtonElement>()
+const nextButtonRef = ref<HTMLButtonElement>()
+const weekButtonRef = ref<HTMLButtonElement>()
+const dayButtonRef = ref<HTMLButtonElement>()
+const monthButtonRef = ref<HTMLButtonElement>()
+
+// Expose refs for parent component to access
+defineExpose({
+  todayButtonRef,
+  previousButtonRef,
+  nextButtonRef,
+  weekButtonRef,
+  dayButtonRef,
+  monthButtonRef,
+})
 </script>
 
 <template>
@@ -39,6 +57,7 @@ const emit = defineEmits<Emits>()
         :class="{ 'pointer-events-none opacity-50': props.loading }"
       >
         <button
+          ref="todayButtonRef"
           @click="emit('today')"
           class="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
@@ -47,6 +66,7 @@ const emit = defineEmits<Emits>()
 
         <div class="flex items-center gap-0.5">
           <button
+            ref="previousButtonRef"
             @click="emit('previous')"
             class="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none"
             aria-label="Previous period"
@@ -61,6 +81,7 @@ const emit = defineEmits<Emits>()
             </svg>
           </button>
           <button
+            ref="nextButtonRef"
             @click="emit('next')"
             class="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none"
             aria-label="Next period"
@@ -83,7 +104,7 @@ const emit = defineEmits<Emits>()
         </h2>
       </div>
 
-      <!-- Right: View Switcher and Primary Action -->
+      <!-- Right: View Switcher -->
       <div class="flex items-center gap-3">
         <div
           class="inline-flex gap-0.5 rounded-lg bg-slate-100 p-0.5"
@@ -91,6 +112,7 @@ const emit = defineEmits<Emits>()
           aria-label="Calendar view switcher"
         >
           <button
+            ref="weekButtonRef"
             @click="emit('update:view', 'timeGridWeek')"
             :class="[
               'rounded-md px-3.5 py-1.5 text-sm font-medium transition-all duration-150 ease-in-out focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
@@ -103,6 +125,7 @@ const emit = defineEmits<Emits>()
             Week
           </button>
           <button
+            ref="dayButtonRef"
             @click="emit('update:view', 'timeGridDay')"
             :class="[
               'rounded-md px-3.5 py-1.5 text-sm font-medium transition-all duration-150 ease-in-out focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
@@ -115,6 +138,7 @@ const emit = defineEmits<Emits>()
             Day
           </button>
           <button
+            ref="monthButtonRef"
             @click="emit('update:view', 'dayGridMonth')"
             :class="[
               'rounded-md px-3.5 py-1.5 text-sm font-medium transition-all duration-150 ease-in-out focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
@@ -127,21 +151,6 @@ const emit = defineEmits<Emits>()
             Month
           </button>
         </div>
-
-        <button
-          @click="emit('createAppointment')"
-          class="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none"
-        >
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          New Appointment
-        </button>
       </div>
     </div>
   </div>

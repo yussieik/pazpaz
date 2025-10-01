@@ -4,6 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router'
  * Vue Router Configuration
  *
  * Defines application routes and navigation.
+ * Calendar is the landing page (root).
  */
 
 const router = createRouter({
@@ -11,16 +12,20 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: () => import('@/views/HomeView.vue'),
-    },
-    {
-      path: '/calendar',
       name: 'calendar',
       component: () => import('@/views/CalendarView.vue'),
     },
+    {
+      path: '/clients',
+      name: 'clients',
+      component: () => import('@/views/ClientsView.vue'),
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: () => import('@/views/SettingsView.vue'),
+    },
     // TODO: Add more routes as features are implemented
-    // - /clients - Client management
     // - /clients/:id - Client detail
     // - /sessions - Session notes
     // - /sessions/:id - Session detail

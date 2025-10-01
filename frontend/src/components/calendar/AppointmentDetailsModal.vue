@@ -190,13 +190,14 @@ function closeModal() {
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
                   <div
-                    class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 font-medium text-slate-600"
+                    class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 font-medium text-emerald-700"
                   >
-                    C
+                    {{ appointment.client?.first_name?.[0] || 'C'
+                    }}{{ appointment.client?.last_name?.[0] || '' }}
                   </div>
                   <div>
                     <div class="font-medium text-slate-900">
-                      Client ID: {{ appointment.client_id.slice(0, 8) }}...
+                      {{ appointment.client?.full_name || 'Unknown Client' }}
                     </div>
                     <div class="text-sm text-slate-500">View client details →</div>
                   </div>

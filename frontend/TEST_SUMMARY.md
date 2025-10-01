@@ -83,18 +83,13 @@ Root application component tests:
 - ✅ Container has correct Tailwind classes (min-h-screen, bg-gray-50)
 - ✅ RouterView renders route content properly
 
-#### `/src/views/HomeView.spec.ts` (8 tests)
+#### `/src/views/ClientsView.vue` and `/src/views/SettingsView.vue`
 
-Home page component tests:
+Placeholder views for future features:
 
-- ✅ Renders page title "PazPaz"
-- ✅ Renders page description
-- ✅ Calendar navigation link functional
-- ✅ Clients placeholder card (coming soon)
-- ✅ Session Notes placeholder card (coming soon)
-- ✅ Responsive grid layout (md:grid-cols-2, lg:grid-cols-3)
-- ✅ Coming soon cards styled differently (opacity, background)
-- ✅ Calendar card has hover effect
+- ✅ ClientsView renders placeholder content for M3
+- ✅ SettingsView renders placeholder content for M3
+- Note: No test files yet - to be added when implementing M3 features
 
 #### `/src/views/CalendarView.spec.ts` (21 tests)
 
@@ -159,7 +154,8 @@ End-to-end integration tests validating frontend-backend connectivity:
 | **src/api/client.ts**          | 40.38%     | 100%     | 100%      | 40.38% | 38-39, 48-49, 52-79     |
 | **src/stores/appointments.ts** | 95.12%     | 85.29%   | 100%      | 95.12% | 92-93, 128-129, 153-154 |
 | **src/views/CalendarView.vue** | 100%       | 100%     | 100%      | 100%   | -                       |
-| **src/views/HomeView.vue**     | 100%       | 100%     | 100%      | 100%   | -                       |
+| **src/views/ClientsView.vue**  | N/A        | N/A      | N/A       | N/A    | Placeholder (M3)        |
+| **src/views/SettingsView.vue** | N/A        | N/A      | N/A       | N/A    | Placeholder (M3)        |
 
 ### Coverage Notes
 

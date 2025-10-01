@@ -24,7 +24,8 @@ export function useCalendarEvents() {
   const calendarEvents = computed<EventInput[]>(() => {
     return appointmentsStore.appointments.map((appointment) => ({
       id: appointment.id,
-      title: `Client: ${appointment.client_id.slice(0, 8)}`,
+      title:
+        appointment.client?.full_name || `Client ${appointment.client_id.slice(0, 8)}`,
       start: appointment.scheduled_start,
       end: appointment.scheduled_end,
       backgroundColor: getStatusColor(appointment.status),

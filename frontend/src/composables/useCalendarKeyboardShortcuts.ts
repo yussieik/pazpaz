@@ -1,6 +1,15 @@
 import { onMounted, onUnmounted, type Ref } from 'vue'
 import type { ViewType, AppointmentListItem } from '@/types/calendar'
 
+export interface ToolbarButtonRefs {
+  todayButton?: HTMLButtonElement
+  previousButton?: HTMLButtonElement
+  nextButton?: HTMLButtonElement
+  weekButton?: HTMLButtonElement
+  dayButton?: HTMLButtonElement
+  monthButton?: HTMLButtonElement
+}
+
 export interface KeyboardShortcutHandlers {
   onToday: () => void
   onPrevious: () => void
@@ -8,6 +17,7 @@ export interface KeyboardShortcutHandlers {
   onChangeView: (view: ViewType) => void
   onCreateAppointment?: () => void
   selectedAppointment: Ref<AppointmentListItem | null>
+  buttonRefs?: Ref<ToolbarButtonRefs>
 }
 
 /**
@@ -25,6 +35,15 @@ export interface KeyboardShortcutHandlers {
  */
 export function useCalendarKeyboardShortcuts(handlers: KeyboardShortcutHandlers) {
   /**
+   * Triggers visual feedback by briefly focusing the button
+   */
+  function triggerButtonFeedback(button?: HTMLButtonElement) {
+    if (!button) return
+    button.focus()
+    setTimeout(() => button.blur(), 150)
+  }
+
+  /**
    * Keyboard shortcuts handler
    */
   function handleKeyboardShortcuts(event: KeyboardEvent) {
@@ -36,25 +55,31 @@ export function useCalendarKeyboardShortcuts(handlers: KeyboardShortcutHandlers)
       return
     }
 
+    const buttonRefs = handlers.buttonRefs?.value
+
     switch (event.key) {
       case 't':
         if (!event.metaKey && !event.ctrlKey) {
           handlers.onToday()
+          triggerButtonFeedback(buttonRefs?.todayButton)
         }
         break
       case 'w':
         if (!event.metaKey && !event.ctrlKey) {
           handlers.onChangeView('timeGridWeek')
+          triggerButtonFeedback(buttonRefs?.weekButton)
         }
         break
       case 'd':
         if (!event.metaKey && !event.ctrlKey) {
           handlers.onChangeView('timeGridDay')
+          triggerButtonFeedback(buttonRefs?.dayButton)
         }
         break
       case 'm':
         if (!event.metaKey && !event.ctrlKey) {
           handlers.onChangeView('dayGridMonth')
+          triggerButtonFeedback(buttonRefs?.monthButton)
         }
         break
       case 'n':
@@ -66,11 +91,13 @@ export function useCalendarKeyboardShortcuts(handlers: KeyboardShortcutHandlers)
       case 'ArrowLeft':
         if (!event.metaKey && !event.ctrlKey) {
           handlers.onPrevious()
+          triggerButtonFeedback(buttonRefs?.previousButton)
         }
         break
       case 'ArrowRight':
         if (!event.metaKey && !event.ctrlKey) {
           handlers.onNext()
+          triggerButtonFeedback(buttonRefs?.nextButton)
         }
         break
       case 'Escape':

@@ -134,8 +134,8 @@ export default {
     navigateNext() {
       const api = this.$refs.fullCalendar.getApi()
       api.next()
-    }
-  }
+    },
+  },
 }
 </script>
 
@@ -186,6 +186,7 @@ export default {
 ### Expected Console Output
 
 Normal operation (no errors expected):
+
 - No "Calendar API not initialized yet" warnings
 - No "Calendar ref is undefined" errors
 - Date range fetch logs should appear once per navigation

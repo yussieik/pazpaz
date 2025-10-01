@@ -41,6 +41,12 @@ const mockAppointments = [
     id: 'appointment-uuid-1',
     workspace_id: 'workspace-uuid',
     client_id: 'client-uuid-1',
+    client: {
+      id: 'client-uuid-1',
+      first_name: 'John',
+      last_name: 'Doe',
+      full_name: 'John Doe',
+    },
     scheduled_start: '2025-09-30T09:00:00Z',
     scheduled_end: '2025-09-30T10:00:00Z',
     status: 'scheduled' as const,
@@ -52,6 +58,12 @@ const mockAppointments = [
     id: 'appointment-uuid-2',
     workspace_id: 'workspace-uuid',
     client_id: 'client-uuid-2',
+    client: {
+      id: 'client-uuid-2',
+      first_name: 'Jane',
+      last_name: 'Smith',
+      full_name: 'Jane Smith',
+    },
     scheduled_start: '2025-09-30T14:00:00Z',
     scheduled_end: '2025-09-30T15:00:00Z',
     status: 'confirmed' as const,
@@ -103,9 +115,11 @@ describe('CalendarView.vue', () => {
       expect(wrapper.find('h1').text()).toBe('Calendar')
     })
 
-    it('should render the page description', async () => {
+    it('should render the new appointment button in header', async () => {
       const wrapper = await createWrapper()
-      expect(wrapper.text()).toContain('Weekly appointment schedule')
+      const newAppointmentButton = wrapper.find('header button')
+      expect(newAppointmentButton.exists()).toBe(true)
+      expect(newAppointmentButton.text()).toContain('New Appointment')
     })
 
     it('should render FullCalendar component', async () => {
