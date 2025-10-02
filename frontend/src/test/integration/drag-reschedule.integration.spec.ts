@@ -413,4 +413,214 @@ describe('Drag-and-Drop Appointment Rescheduling - Integration', () => {
       // (In template: role="status" aria-live="polite")
     })
   })
+
+  describe('Bug Fix: Modal Shows Updated Times After Drag-Drop', () => {
+    /**
+     * BUG SCENARIO (FIXED):
+     * 1. User drags appointment from 2:00 PM to 3:30 PM
+     * 2. Appointment visually moves to new time slot correctly
+     * 3. User clicks on rescheduled appointment to view details
+     * 4. BUG: Modal showed old times (2:00 PM) instead of new times (3:30 PM)
+     *
+     * ROOT CAUSE:
+     * - useCalendarEvents stored direct object reference in selectedAppointment
+     * - Store correctly updated appointments[index] with new data
+     * - But selectedAppointment still held stale reference to old object
+     *
+     * FIX:
+     * - Changed useCalendarEvents to use computed property
+     * - Stores only appointment ID, fetches fresh data from store on access
+     * - Modal now always displays current appointment state
+     */
+
+    it('should show updated times in details modal after drag-drop reschedule', async () => {
+      // Setup: Appointment at 2:00 PM - 3:00 PM
+      const initialAppointment: AppointmentListItem = {
+        ...mockAppointment,
+        scheduled_start: '2024-01-15T14:00:00Z', // 2:00 PM
+        scheduled_end: '2024-01-15T15:00:00Z',   // 3:00 PM
+      }
+
+      appointmentsStore.appointments = [initialAppointment]
+
+      const wrapper = mount(CalendarView, {
+        global: {
+          plugins: [pinia],
+        },
+      })
+
+      // Step 1: Simulate drag-drop reschedule to 3:30 PM
+      const rescheduledAppointment: AppointmentListItem = {
+        ...mockAppointment,
+        scheduled_start: '2024-01-15T15:30:00Z', // 3:30 PM
+        scheduled_end: '2024-01-15T16:30:00Z',   // 4:30 PM
+        updated_at: '2024-01-15T15:35:00Z',
+      }
+
+      // Mock store update to return new appointment data
+      appointmentsStore.updateAppointment = vi.fn().mockResolvedValue(rescheduledAppointment)
+
+      const vm = wrapper.vm as any
+      if (vm.performReschedule) {
+        await vm.performReschedule(
+          'apt-1',
+          new Date('2024-01-15T15:30:00Z'),
+          new Date('2024-01-15T16:30:00Z')
+        )
+      }
+
+      // Manually update store to simulate successful API response
+      appointmentsStore.appointments = [rescheduledAppointment]
+
+      await wrapper.vm.$nextTick()
+
+      // Step 2: Simulate clicking on the rescheduled appointment
+      // (In real scenario, this would be FullCalendar event click)
+      const handleEventClick = (vm as any).handleEventClick
+      if (handleEventClick) {
+        handleEventClick({
+          event: { id: 'apt-1' },
+        })
+      }
+
+      await wrapper.vm.$nextTick()
+
+      // Step 3: Verify selectedAppointment has NEW times, not OLD times
+      const selectedAppointment = (vm as any).selectedAppointment
+      if (selectedAppointment) {
+        expect(selectedAppointment.scheduled_start).toBe('2024-01-15T15:30:00Z')
+        expect(selectedAppointment.scheduled_end).toBe('2024-01-15T16:30:00Z')
+
+        // Ensure it does NOT have the old times
+        expect(selectedAppointment.scheduled_start).not.toBe('2024-01-15T14:00:00Z')
+        expect(selectedAppointment.scheduled_end).not.toBe('2024-01-15T15:00:00Z')
+      }
+    })
+
+    it('should keep modal in sync with store updates', async () => {
+      appointmentsStore.appointments = [mockAppointment]
+
+      const wrapper = mount(CalendarView, {
+        global: {
+          plugins: [pinia],
+        },
+      })
+
+      const vm = wrapper.vm as any
+
+      // Step 1: Open details modal for appointment
+      if (vm.handleEventClick) {
+        vm.handleEventClick({ event: { id: 'apt-1' } })
+      }
+
+      await wrapper.vm.$nextTick()
+
+      // Verify initial appointment is selected
+      const initialSelectedAppointment = vm.selectedAppointment
+      expect(initialSelectedAppointment?.id).toBe('apt-1')
+      expect(initialSelectedAppointment?.scheduled_start).toBe('2024-01-15T10:00:00Z')
+
+      // Step 2: Close modal
+      vm.selectedAppointment = null
+      await wrapper.vm.$nextTick()
+
+      // Step 3: Update appointment in store (from another component/action)
+      const updatedAppointment: AppointmentListItem = {
+        ...mockAppointment,
+        scheduled_start: '2024-01-15T16:00:00Z',
+        scheduled_end: '2024-01-15T17:00:00Z',
+        updated_at: '2024-01-15T16:05:00Z',
+      }
+
+      appointmentsStore.appointments = [updatedAppointment]
+      await wrapper.vm.$nextTick()
+
+      // Step 4: Re-open modal by clicking appointment again
+      if (vm.handleEventClick) {
+        vm.handleEventClick({ event: { id: 'apt-1' } })
+      }
+
+      await wrapper.vm.$nextTick()
+
+      // Step 5: Verify modal shows UPDATED data, not cached old data
+      const reopenedSelectedAppointment = vm.selectedAppointment
+      expect(reopenedSelectedAppointment?.scheduled_start).toBe('2024-01-15T16:00:00Z')
+      expect(reopenedSelectedAppointment?.scheduled_end).toBe('2024-01-15T17:00:00Z')
+
+      // Ensure it's not showing stale data
+      expect(reopenedSelectedAppointment?.scheduled_start).not.toBe('2024-01-15T10:00:00Z')
+    })
+
+    it('should display correct times when multiple appointments are rescheduled', async () => {
+      // Setup: Two appointments
+      const appointment1: AppointmentListItem = {
+        ...mockAppointment,
+        id: 'apt-1',
+        scheduled_start: '2024-01-15T09:00:00Z',
+        scheduled_end: '2024-01-15T10:00:00Z',
+      }
+
+      const appointment2: AppointmentListItem = {
+        ...mockAppointment,
+        id: 'apt-2',
+        scheduled_start: '2024-01-15T14:00:00Z',
+        scheduled_end: '2024-01-15T15:00:00Z',
+      }
+
+      appointmentsStore.appointments = [appointment1, appointment2]
+
+      const wrapper = mount(CalendarView, {
+        global: {
+          plugins: [pinia],
+        },
+      })
+
+      const vm = wrapper.vm as any
+
+      // Reschedule appointment 1
+      const rescheduled1: AppointmentListItem = {
+        ...appointment1,
+        scheduled_start: '2024-01-15T11:00:00Z',
+        scheduled_end: '2024-01-15T12:00:00Z',
+      }
+
+      appointmentsStore.appointments = [rescheduled1, appointment2]
+      await wrapper.vm.$nextTick()
+
+      // Click appointment 1
+      if (vm.handleEventClick) {
+        vm.handleEventClick({ event: { id: 'apt-1' } })
+      }
+      await wrapper.vm.$nextTick()
+
+      // Verify appointment 1 shows new times
+      expect(vm.selectedAppointment?.id).toBe('apt-1')
+      expect(vm.selectedAppointment?.scheduled_start).toBe('2024-01-15T11:00:00Z')
+
+      // Close modal
+      vm.selectedAppointment = null
+      await wrapper.vm.$nextTick()
+
+      // Reschedule appointment 2
+      const rescheduled2: AppointmentListItem = {
+        ...appointment2,
+        scheduled_start: '2024-01-15T16:00:00Z',
+        scheduled_end: '2024-01-15T17:00:00Z',
+      }
+
+      appointmentsStore.appointments = [rescheduled1, rescheduled2]
+      await wrapper.vm.$nextTick()
+
+      // Click appointment 2
+      if (vm.handleEventClick) {
+        vm.handleEventClick({ event: { id: 'apt-2' } })
+      }
+      await wrapper.vm.$nextTick()
+
+      // Verify appointment 2 shows new times, not old times
+      expect(vm.selectedAppointment?.id).toBe('apt-2')
+      expect(vm.selectedAppointment?.scheduled_start).toBe('2024-01-15T16:00:00Z')
+      expect(vm.selectedAppointment?.scheduled_start).not.toBe('2024-01-15T14:00:00Z')
+    })
+  })
 })

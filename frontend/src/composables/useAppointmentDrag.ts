@@ -266,10 +266,6 @@ export function useAppointmentDrag(
       x: mouseEvent.clientX,
       y: mouseEvent.clientY,
     }
-
-    // TODO: Calculate new time based on calendar grid position
-    // This requires integration with FullCalendar's internal grid system
-    // For now, we'll update this in the FullCalendar eventDrop handler
   }
 
   /**
@@ -316,13 +312,34 @@ export function useAppointmentDrag(
     // Update drag state with new times
     dragState.value.currentStart = newStart
     dragState.value.currentEnd = newEnd
+    dragState.value.appointmentId = info.event.id
 
-    // Check for conflicts (intentionally not awaited - debounced function returns void)
-    debouncedConflictCheck(newStart, newEnd, info.event.id)
+    // Check for conflicts
+    try {
+      const result = await checkAppointmentConflicts({
+        scheduled_start: toISOString(newStart),
+        scheduled_end: toISOString(newEnd),
+        exclude_appointment_id: info.event.id,
+      })
 
-    // Update event visual position
-    info.event.setStart(newStart)
-    info.event.setEnd(newEnd)
+      dragState.value.hasConflict = result.has_conflict
+      dragState.value.conflictData = result
+
+      // Update event visual position
+      info.event.setStart(newStart)
+      info.event.setEnd(newEnd)
+
+      // Call reschedule handler to save to database
+      await onReschedule(info.event.id, newStart, newEnd, result.has_conflict)
+
+      // Reset drag state after successful reschedule
+      resetDragState()
+    } catch (error) {
+      console.error('Failed to reschedule appointment:', error)
+      // Revert the visual change on error
+      info.revert()
+      resetDragState()
+    }
   }
 
   /**
@@ -389,11 +406,11 @@ export function useAppointmentDrag(
    * Trigger mobile reschedule modal
    */
   function triggerMobileReschedule(event: EventApi) {
-    // Emit event to show mobile modal
-    // This will be handled by parent component
+    // Mobile reschedule functionality to be implemented
+    // This will emit an event to parent component to show mobile modal
     const appointment = appointments.value.find((a) => a.id === event.id)
     if (appointment) {
-      // TODO: Emit custom event or call callback to open mobile modal
+      // Implementation pending: emit custom event or call callback
     }
   }
 

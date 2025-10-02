@@ -10,14 +10,31 @@ import { getStatusColor } from '@/utils/calendar/appointmentHelpers'
  * Handles:
  * - Transforming appointments to FullCalendar events
  * - Event click handling
- * - Selected appointment state
+ * - Selected appointment state (reactive to store updates)
  * - Conflict detection for calendar display
  */
 export function useCalendarEvents() {
   const appointmentsStore = useAppointmentsStore()
 
-  // Selected appointment for detail modal
-  const selectedAppointment = ref<AppointmentListItem | null>(null)
+  // Store only the selected appointment ID, not the object reference
+  // This ensures we always get fresh data from the store
+  const selectedAppointmentId = ref<string | null>(null)
+
+  // Computed property that always fetches the latest appointment from the store
+  // This ensures the modal displays updated times after drag-and-drop reschedule
+  const selectedAppointment = computed<AppointmentListItem | null>({
+    get: () => {
+      if (!selectedAppointmentId.value) return null
+
+      // Always fetch fresh data from store to avoid stale references
+      return appointmentsStore.appointments.find(
+        (a) => a.id === selectedAppointmentId.value
+      ) || null
+    },
+    set: (value: AppointmentListItem | null) => {
+      selectedAppointmentId.value = value ? value.id : null
+    }
+  })
 
   /**
    * Check if an appointment has conflicts with other appointments
@@ -83,6 +100,8 @@ export function useCalendarEvents() {
 
   /**
    * Handle event click - show appointment details
+   * Sets the selected appointment ID, which triggers the computed property
+   * to fetch the latest data from the store
    */
   function handleEventClick(clickInfo: EventClickArg) {
     const appointmentId = clickInfo.event.id
@@ -90,6 +109,7 @@ export function useCalendarEvents() {
       (a) => a.id === appointmentId
     )
     if (appointment) {
+      // This will trigger the computed setter, which stores only the ID
       selectedAppointment.value = appointment
     }
   }
