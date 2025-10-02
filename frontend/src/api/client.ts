@@ -85,4 +85,53 @@ export type ApiClient = AxiosInstance
 // Export typed paths for type-safe API calls
 export type ApiPaths = paths
 
+/**
+ * Conflict detection API
+ */
+export interface ConflictCheckParams {
+  scheduled_start: string
+  scheduled_end: string
+  exclude_appointment_id?: string
+}
+
+export interface ConflictingAppointment {
+  id: string
+  scheduled_start: string
+  scheduled_end: string
+  client_initials: string
+  location_type: 'clinic' | 'home' | 'online'
+  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
+}
+
+export interface ConflictCheckResponse {
+  has_conflict: boolean
+  conflicting_appointments: ConflictingAppointment[]
+}
+
+/**
+ * Check for appointment conflicts in a time range
+ *
+ * @param params - Conflict check parameters
+ * @returns Promise<ConflictCheckResponse>
+ * @throws Error if API call fails
+ */
+export const checkAppointmentConflicts = async (
+  params: ConflictCheckParams
+): Promise<ConflictCheckResponse> => {
+  const queryParams = new URLSearchParams({
+    scheduled_start: params.scheduled_start,
+    scheduled_end: params.scheduled_end,
+  })
+
+  if (params.exclude_appointment_id) {
+    queryParams.append('exclude_appointment_id', params.exclude_appointment_id)
+  }
+
+  const response = await apiClient.get<ConflictCheckResponse>(
+    `/appointments/conflicts?${queryParams.toString()}`
+  )
+
+  return response.data
+}
+
 export default apiClient

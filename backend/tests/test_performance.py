@@ -31,6 +31,10 @@ P99_TARGET_MS = 300  # reasonable p99 target
 MEAN_TARGET_MS = 100  # reasonable mean target
 NUM_ITERATIONS = 100  # number of requests to measure
 
+# Conflict detection specific targets (stricter for real-time UX)
+CONFLICT_P95_TARGET_MS = 100  # p95 < 100ms for conflict checks (UX requirement)
+CONFLICT_MEAN_TARGET_MS = 50  # mean < 50ms for conflict checks
+
 
 def percentile(data: list[float], p: float) -> float:
     """
@@ -474,18 +478,14 @@ class TestConflictDetectionPerformance:
         stats = calculate_stats(response_times)
         print(format_stats(stats, f"Conflict Detection - {dataset['size']} dataset"))
 
-        # Conflict detection is critical for UX - should be very fast
-        assert stats["p95"] < P95_TARGET_MS, (
-            f"p95 ({stats['p95']:.2f}ms) exceeds target ({P95_TARGET_MS}ms) "
-            f"for {dataset['size']} dataset"
+        # Conflict detection is critical for real-time UX - stricter targets
+        assert stats["p95"] < CONFLICT_P95_TARGET_MS, (
+            f"p95 ({stats['p95']:.2f}ms) exceeds target ({CONFLICT_P95_TARGET_MS}ms) "
+            f"for {dataset['size']} dataset. Conflict detection requires <100ms p95 for real-time UX."
         )
-        assert stats["p99"] < P99_TARGET_MS, (
-            f"p99 ({stats['p99']:.2f}ms) exceeds target ({P99_TARGET_MS}ms) "
-            f"for {dataset['size']} dataset"
-        )
-        assert stats["mean"] < MEAN_TARGET_MS, (
-            f"Mean ({stats['mean']:.2f}ms) exceeds target ({MEAN_TARGET_MS}ms) "
-            f"for {dataset['size']} dataset"
+        assert stats["mean"] < CONFLICT_MEAN_TARGET_MS, (
+            f"Mean ({stats['mean']:.2f}ms) exceeds target ({CONFLICT_MEAN_TARGET_MS}ms) "
+            f"for {dataset['size']} dataset. Conflict detection requires <50ms mean for real-time UX."
         )
 
 

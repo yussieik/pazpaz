@@ -39,3 +39,20 @@ export interface AppointmentFormData {
   location_details?: string
   notes?: string
 }
+
+/**
+ * Conflict detection types
+ */
+export interface ConflictingAppointment {
+  id: string
+  scheduled_start: string
+  scheduled_end: string
+  client_initials: string
+  location_type: 'clinic' | 'home' | 'online'
+  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
+}
+
+export interface ConflictCheckResponse {
+  has_conflict: boolean
+  conflicting_appointments: ConflictingAppointment[]
+}

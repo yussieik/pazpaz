@@ -22,6 +22,7 @@ from pazpaz.schemas.appointment import (
     AppointmentUpdate,
     ClientSummary,
     ConflictCheckResponse,
+    ConflictingAppointmentDetail,
 )
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
@@ -38,8 +39,15 @@ async def check_conflicts(
     """
     Check for conflicting appointments in the given time range.
 
-    Conflict exists if appointments overlap:
-    scheduled_start < requested_end AND scheduled_end > requested_start
+    Conflict exists if appointments overlap, but NOT if they are exactly back-to-back.
+
+    Overlap logic:
+    - Conflicts: scheduled_start < requested_end AND scheduled_end > requested_start
+    - Exclude back-to-back: NOT (scheduled_end == requested_start OR
+        scheduled_start == requested_end)
+
+    Only SCHEDULED and COMPLETED appointments cause conflicts.
+    CANCELLED and NO_SHOW appointments are ignored.
 
     Args:
         db: Database session
@@ -57,9 +65,9 @@ async def check_conflicts(
         Appointment.workspace_id == workspace_id,
         Appointment.scheduled_start < scheduled_end,
         Appointment.scheduled_end > scheduled_start,
-        # Exclude CANCELLED and NO_SHOW from conflict check
-        Appointment.status.not_in(
-            [AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW]
+        # Only SCHEDULED and COMPLETED appointments cause conflicts
+        Appointment.status.in_(
+            [AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED]
         ),
     )
 
@@ -69,9 +77,47 @@ async def check_conflicts(
 
     # Execute query
     result = await db.execute(query)
-    conflicts = result.scalars().all()
+    potential_conflicts = result.scalars().all()
 
-    return list(conflicts)
+    # Filter out back-to-back appointments (exact adjacency is OK)
+    conflicts = [
+        appt
+        for appt in potential_conflicts
+        if not (
+            appt.scheduled_end == scheduled_start
+            or appt.scheduled_start == scheduled_end
+        )
+    ]
+
+    return conflicts
+
+
+def get_client_initials(client: Client) -> str:
+    """
+    Generate privacy-preserving initials from client name.
+
+    Examples:
+        'John Doe' -> 'J.D.'
+        'Alice' -> 'A.'
+        '' -> '?'
+
+    Args:
+        client: Client instance with first_name and last_name
+
+    Returns:
+        Initials string (e.g., 'J.D.')
+    """
+    first = client.first_name[0].upper() if client.first_name else ""
+    last = client.last_name[0].upper() if client.last_name else ""
+
+    if first and last:
+        return f"{first}.{last}."
+    elif first:
+        return f"{first}."
+    elif last:
+        return f"{last}."
+    else:
+        return "?"
 
 
 async def verify_client_in_workspace(
@@ -379,7 +425,7 @@ async def check_appointment_conflicts(
         exclude_appointment_id=exclude_appointment_id,
     )
 
-    # Load client relationships for conflicts
+    # Load client relationships for conflicts and build privacy-preserving response
     if conflicts:
         conflict_ids = [c.id for c in conflicts]
         query = (
@@ -390,18 +436,21 @@ async def check_appointment_conflicts(
         result = await db.execute(query)
         conflicts_with_clients = result.scalars().all()
 
-        # Build response items
+        # Build response items with client initials (privacy-preserving)
         conflict_responses = []
         for appointment in conflicts_with_clients:
-            response_data = AppointmentResponse.model_validate(appointment)
-            if appointment.client:
-                response_data.client = ClientSummary(
-                    id=appointment.client.id,
-                    first_name=appointment.client.first_name,
-                    last_name=appointment.client.last_name,
-                    full_name=appointment.client.full_name,
-                )
-            conflict_responses.append(response_data)
+            client_initials = (
+                get_client_initials(appointment.client) if appointment.client else "?"
+            )
+            conflict_detail = ConflictingAppointmentDetail(
+                id=appointment.id,
+                scheduled_start=appointment.scheduled_start,
+                scheduled_end=appointment.scheduled_end,
+                client_initials=client_initials,
+                location_type=appointment.location_type,
+                status=appointment.status,
+            )
+            conflict_responses.append(conflict_detail)
     else:
         conflict_responses = []
 

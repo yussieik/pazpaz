@@ -142,7 +142,7 @@ const appointmentSummary = computed(() => {
 
   // Filter appointments by visible date range
   const { start, end } = getVisibleDateRange(currentView.value, currentDate.value)
-  const visibleAppointments = appointments.filter((apt) =>
+  const visibleAppointments = appointments.filter((apt: AppointmentListItem) =>
     isAppointmentInRange(apt, start, end)
   )
 
@@ -255,7 +255,7 @@ watch(
   (appointmentId) => {
     if (appointmentId && typeof appointmentId === 'string') {
       const appointment = appointmentsStore.appointments.find(
-        (a) => a.id === appointmentId
+        (a: AppointmentListItem) => a.id === appointmentId
       )
       if (appointment) {
         selectedAppointment.value = appointment
@@ -548,5 +548,56 @@ watch(
     padding: 2px 4px; /* Tighter padding on mobile */
     font-size: 0.8125rem; /* 13px */
   }
+}
+
+/* Conflict Detection Visual Indicators */
+
+/* Striped pattern and border for conflicting appointments */
+.fc-event.has-conflict {
+  border: 2px solid #f59e0b !important; /* amber-500 */
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(251, 191, 36, 0.15) 10px,
+    rgba(251, 191, 36, 0.15) 20px
+  ) !important;
+  position: relative;
+}
+
+/* Warning icon badge in top-right corner */
+.fc-event.has-conflict::after {
+  content: '⚠️';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border: 1.5px solid #f59e0b;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Ensure conflict indicators work in month view */
+.fc-daygrid-event.has-conflict::after {
+  top: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  font-size: 8px;
+}
+
+/* Hover state for conflicting appointments */
+.fc-event.has-conflict:hover {
+  opacity: 1;
+  border-color: #d97706; /* amber-600 for stronger visual on hover */
 }
 </style>

@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import type { AppointmentListItem, AppointmentFormData } from '@/types/calendar'
+import { useDebounceFn } from '@vueuse/core'
+import type {
+  AppointmentListItem,
+  AppointmentFormData,
+  ConflictingAppointment,
+} from '@/types/calendar'
+import { checkAppointmentConflicts } from '@/api/client'
+import ConflictAlert from './ConflictAlert.vue'
 
 interface Props {
   visible: boolean
@@ -28,6 +35,10 @@ const formData = ref<AppointmentFormData>({
 
 // Validation
 const errors = ref<Record<string, string>>({})
+
+// Conflict detection state
+const conflicts = ref<ConflictingAppointment[]>([])
+const isCheckingConflicts = ref(false)
 
 // Watch for appointment changes (edit mode)
 watch(
@@ -73,6 +84,8 @@ function resetForm() {
     notes: '',
   }
   errors.value = {}
+  conflicts.value = []
+  isCheckingConflicts.value = false
 }
 
 function validate(): boolean {
@@ -128,12 +141,59 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
 })
 
+// Debounced conflict check (500ms)
+const checkConflicts = useDebounceFn(async () => {
+  // Only check if both start and end times are set
+  if (!formData.value.scheduled_start || !formData.value.scheduled_end) {
+    conflicts.value = []
+    return
+  }
+
+  // Convert datetime-local format to ISO 8601
+  const startISO = new Date(formData.value.scheduled_start).toISOString()
+  const endISO = new Date(formData.value.scheduled_end).toISOString()
+
+  isCheckingConflicts.value = true
+  try {
+    const response = await checkAppointmentConflicts({
+      scheduled_start: startISO,
+      scheduled_end: endISO,
+      exclude_appointment_id: props.mode === 'edit' ? props.appointment?.id : undefined,
+    })
+
+    conflicts.value = response.has_conflict ? response.conflicting_appointments : []
+  } catch (error) {
+    console.error('Conflict check failed:', error)
+    // Don't block user on error, just clear conflicts
+    conflicts.value = []
+  } finally {
+    isCheckingConflicts.value = false
+  }
+}, 500)
+
+// Watch time fields for changes
+watch(
+  () => [formData.value.scheduled_start, formData.value.scheduled_end],
+  () => {
+    checkConflicts()
+  }
+)
+
+// Computed properties
+const hasConflicts = computed(() => conflicts.value.length > 0)
+
 const modalTitle = computed(() =>
   props.mode === 'create' ? 'New Appointment' : 'Edit Appointment'
 )
+
 const submitButtonText = computed(() =>
   props.mode === 'create' ? 'Create' : 'Save Changes'
 )
+
+function handleViewConflict(appointmentId: string) {
+  console.log('View conflict:', appointmentId)
+  // TODO: Navigate to conflicting appointment or open in modal
+}
 </script>
 
 <template>
@@ -268,6 +328,41 @@ const submitButtonText = computed(() =>
               </div>
             </div>
 
+            <!-- Conflict Alert (appears below time fields when conflicts exist) -->
+            <ConflictAlert
+              v-if="hasConflicts"
+              :conflicts="conflicts"
+              @view-conflict="handleViewConflict"
+            />
+
+            <!-- Loading Indicator (during conflict check) -->
+            <div
+              v-else-if="isCheckingConflicts"
+              class="mt-3 flex items-center gap-2 text-sm text-slate-600"
+            >
+              <svg
+                class="h-4 w-4 animate-spin text-slate-400"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              <span>Checking for conflicts...</span>
+            </div>
+
             <!-- Location Type -->
             <div>
               <label
@@ -333,9 +428,15 @@ const submitButtonText = computed(() =>
             <button
               @click="handleSubmit"
               type="submit"
-              class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+              :class="[
+                'rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors',
+                hasConflicts
+                  ? 'bg-amber-600 hover:bg-amber-700'
+                  : 'bg-emerald-600 hover:bg-emerald-700',
+              ]"
             >
-              {{ submitButtonText }}
+              <span v-if="hasConflicts">⚠️ {{ submitButtonText }} Anyway</span>
+              <span v-else>{{ submitButtonText }}</span>
             </button>
           </div>
         </div>

@@ -147,7 +147,6 @@ describe('ClientDetailView - Smart Back Navigation', () => {
 
     // Should show contextual banner
     expect(wrapper.html()).toContain('Viewing from appointment')
-    expect(wrapper.html()).toContain('Return to appointment details')
     expect(wrapper.html()).toContain('Mar 15') // Contains date
     expect(wrapper.html()).toContain('PM') // Contains time (exact time depends on timezone)
   })
@@ -339,10 +338,10 @@ describe('ClientDetailView - Smart Back Navigation', () => {
   })
 
   /**
-   * Test Case 7: Dismiss Banner
-   * Clicking dismiss button removes banner and changes back button
+   * Test Case 7: Appointment Banner (Dismiss button removed)
+   * Banner shows appointment context with Back to Appointment button
    */
-  it('dismisses appointment banner when clicking dismiss button', async () => {
+  it('shows appointment banner without dismiss button', async () => {
     const appointmentData: AppointmentListItem = {
       id: 'apt-123',
       workspace_id: 'workspace-123',
@@ -386,30 +385,24 @@ describe('ClientDetailView - Smart Back Navigation', () => {
     // Banner should be visible
     expect(wrapper.html()).toContain('Viewing from appointment')
 
-    // Find and click dismiss button (aria-label="Dismiss")
+    // Dismiss button should NOT exist (removed in favor of Back button only)
     const dismissButtons = wrapper.findAll('button')
     const dismissButton = dismissButtons.find(
       (btn) => btn.attributes('aria-label') === 'Dismiss'
     )
-    expect(dismissButton).toBeDefined()
+    expect(dismissButton).toBeUndefined()
 
-    await dismissButton!.trigger('click')
-    await flushPromises()
-
-    // Banner should be gone
-    expect(wrapper.html()).not.toContain('Viewing from appointment')
-
-    // Back button should now show default (Back to Calendar)
+    // Back button should show "Back to Appointment"
     const backButtons = wrapper.findAll('button')
     const backButton = backButtons.find((btn) => btn.text().includes('Back to'))
-    expect(backButton?.text()).toContain('Back to Calendar')
+    expect(backButton?.text()).toContain('Back to Appointment')
   })
 
   /**
-   * Test Case 8: Return to Appointment Link in Banner
-   * Clicking "Return to appointment details" link navigates to appointment
+   * Test Case 8: Back to Appointment Navigation
+   * Clicking "Back to Appointment" button navigates to appointment
    */
-  it('navigates to appointment when clicking banner link', async () => {
+  it('navigates to appointment when clicking Back to Appointment button', async () => {
     const appointmentData: AppointmentListItem = {
       id: 'apt-123',
       workspace_id: 'workspace-123',
@@ -448,14 +441,14 @@ describe('ClientDetailView - Smart Back Navigation', () => {
 
     await flushPromises()
 
-    // Find the "Return to appointment details" button
+    // Find the "Back to Appointment" button
     const bannerButtons = wrapper.findAll('button')
-    const returnButton = bannerButtons.find((btn) =>
-      btn.text().includes('Return to appointment details')
+    const backButton = bannerButtons.find((btn) =>
+      btn.text().includes('Back to Appointment')
     )
-    expect(returnButton).toBeDefined()
+    expect(backButton).toBeDefined()
 
-    await returnButton!.trigger('click')
+    await backButton!.trigger('click')
     await flushPromises()
 
     // Should navigate to calendar with appointment query

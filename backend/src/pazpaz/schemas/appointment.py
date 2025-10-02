@@ -144,11 +144,26 @@ class ConflictCheckRequest(BaseModel):
         return end
 
 
+class ConflictingAppointmentDetail(BaseModel):
+    """Privacy-preserving details of a conflicting appointment."""
+
+    id: uuid.UUID = Field(..., description="Appointment ID")
+    scheduled_start: datetime = Field(..., description="Start time")
+    scheduled_end: datetime = Field(..., description="End time")
+    client_initials: str = Field(
+        ..., description="Client initials for privacy (e.g., 'J.D.')"
+    )
+    location_type: LocationType = Field(..., description="Location type")
+    status: AppointmentStatus = Field(..., description="Appointment status")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ConflictCheckResponse(BaseModel):
     """Schema for conflict check response."""
 
     has_conflict: bool = Field(..., description="Whether a conflict exists")
-    conflicting_appointments: list[AppointmentResponse] = Field(
+    conflicting_appointments: list[ConflictingAppointmentDetail] = Field(
         default_factory=list,
-        description="List of conflicting appointments",
+        description="List of conflicting appointments with privacy-preserving details",
     )

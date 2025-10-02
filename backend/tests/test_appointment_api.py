@@ -763,3 +763,141 @@ class TestConflictCheck:
         )
 
         assert response.status_code == 422
+
+    async def test_conflict_check_allows_back_to_back(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+    ):
+        """Back-to-back appointments (end time = next start time) should NOT conflict."""
+        headers = get_auth_headers(workspace_1.id)
+        tomorrow = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=1)
+
+        # Create first appointment: 10:00-11:00
+        await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": tomorrow.isoformat(),
+                "scheduled_end": (tomorrow + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+
+        # Check for conflict with back-to-back appointment: 11:00-12:00
+        back_to_back_start = tomorrow + timedelta(hours=1)
+        back_to_back_end = tomorrow + timedelta(hours=2)
+
+        response = await client.get(
+            "/api/v1/appointments/conflicts",
+            headers=headers,
+            params={
+                "scheduled_start": back_to_back_start.isoformat(),
+                "scheduled_end": back_to_back_end.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        # Back-to-back appointments should NOT cause conflicts
+        assert data["has_conflict"] is False
+        assert data["conflicting_appointments"] == []
+
+    async def test_conflict_check_returns_client_initials(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+    ):
+        """Conflict check returns privacy-preserving client initials, not full names."""
+        headers = get_auth_headers(workspace_1.id)
+        tomorrow = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=1)
+
+        # Create appointment for John Doe
+        await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": tomorrow.isoformat(),
+                "scheduled_end": (tomorrow + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+
+        # Check overlapping time
+        response = await client.get(
+            "/api/v1/appointments/conflicts",
+            headers=headers,
+            params={
+                "scheduled_start": (tomorrow + timedelta(minutes=30)).isoformat(),
+                "scheduled_end": (tomorrow + timedelta(hours=1, minutes=30)).isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["has_conflict"] is True
+        assert len(data["conflicting_appointments"]) == 1
+
+        # Verify client initials are returned (J.D. for John Doe)
+        conflict = data["conflicting_appointments"][0]
+        assert "client_initials" in conflict
+        assert conflict["client_initials"] == "J.D."
+        # Ensure full name is NOT exposed
+        assert "first_name" not in conflict
+        assert "last_name" not in conflict
+        assert "full_name" not in conflict
+
+    async def test_conflict_check_ignores_completed_appointments(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+    ):
+        """Completed appointments in the past should still cause conflicts if scheduled times overlap."""
+        headers = get_auth_headers(workspace_1.id)
+        tomorrow = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=1)
+
+        # Create and complete an appointment
+        create_response = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": tomorrow.isoformat(),
+                "scheduled_end": (tomorrow + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+        appointment_id = create_response.json()["id"]
+
+        # Mark as completed
+        await client.put(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={"status": "completed"},
+        )
+
+        # Check overlapping time
+        response = await client.get(
+            "/api/v1/appointments/conflicts",
+            headers=headers,
+            params={
+                "scheduled_start": (tomorrow + timedelta(minutes=30)).isoformat(),
+                "scheduled_end": (tomorrow + timedelta(hours=1, minutes=30)).isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        # Completed appointments should still cause conflicts
+        assert data["has_conflict"] is True
