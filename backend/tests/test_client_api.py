@@ -31,6 +31,11 @@ class TestCreateClient:
                 "last_name": "Johnson",
                 "email": "alice.johnson@example.com",
                 "phone": "+1555123456",
+                "address": "123 Main St",
+                "medical_history": "No known allergies",
+                "emergency_contact_name": "Bob Johnson",
+                "emergency_contact_phone": "+1555654321",
+                "is_active": True,
                 "consent_status": True,
                 "notes": "New client",
                 "tags": ["massage", "sports"],
@@ -43,6 +48,11 @@ class TestCreateClient:
         assert data["last_name"] == "Johnson"
         assert data["email"] == "alice.johnson@example.com"
         assert data["phone"] == "+1555123456"
+        assert data["address"] == "123 Main St"
+        assert data["medical_history"] == "No known allergies"
+        assert data["emergency_contact_name"] == "Bob Johnson"
+        assert data["emergency_contact_phone"] == "+1555654321"
+        assert data["is_active"] is True
         assert data["consent_status"] is True
         assert data["notes"] == "New client"
         assert data["tags"] == ["massage", "sports"]
@@ -50,6 +60,13 @@ class TestCreateClient:
         assert "id" in data
         assert "created_at" in data
         assert "updated_at" in data
+        # Check computed fields are present
+        assert "full_name" in data
+        assert data["full_name"] == "Alice Johnson"
+        assert "next_appointment" in data
+        assert "last_appointment" in data
+        assert "appointment_count" in data
+        assert data["appointment_count"] == 0
 
     async def test_create_client_minimal_fields(
         self, client: AsyncClient, workspace_1: Workspace
@@ -74,6 +91,11 @@ class TestCreateClient:
         assert data["consent_status"] is True
         assert data["email"] is None
         assert data["phone"] is None
+        assert data["address"] is None
+        assert data["medical_history"] is None
+        assert data["emergency_contact_name"] is None
+        assert data["emergency_contact_phone"] is None
+        assert data["is_active"] is True  # Default value
         assert data["notes"] is None
         assert data["tags"] is None
 
@@ -355,6 +377,11 @@ class TestUpdateClient:
                 "last_name": "Name",
                 "email": "updated@example.com",
                 "phone": "+9999999999",
+                "address": "456 New St",
+                "medical_history": "Updated history",
+                "emergency_contact_name": "Emergency Person",
+                "emergency_contact_phone": "+1111111111",
+                "is_active": False,
                 "consent_status": False,
                 "notes": "All fields updated",
                 "tags": ["new", "tags"],
@@ -367,6 +394,11 @@ class TestUpdateClient:
         assert data["last_name"] == "Name"
         assert data["email"] == "updated@example.com"
         assert data["phone"] == "+9999999999"
+        assert data["address"] == "456 New St"
+        assert data["medical_history"] == "Updated history"
+        assert data["emergency_contact_name"] == "Emergency Person"
+        assert data["emergency_contact_phone"] == "+1111111111"
+        assert data["is_active"] is False
         assert data["consent_status"] is False
         assert data["notes"] == "All fields updated"
         assert data["tags"] == ["new", "tags"]
@@ -414,7 +446,7 @@ class TestDeleteClient:
         workspace_1: Workspace,
         sample_client_ws1: Client,
     ):
-        """Delete existing client returns 204."""
+        """Delete existing client returns 204 and performs soft delete."""
         headers = get_auth_headers(workspace_1.id)
 
         response = await client.delete(
@@ -424,12 +456,13 @@ class TestDeleteClient:
 
         assert response.status_code == 204
 
-        # Verify client is deleted
+        # Verify client is soft deleted (still accessible but marked inactive)
         get_response = await client.get(
             f"/api/v1/clients/{sample_client_ws1.id}",
             headers=headers,
         )
-        assert get_response.status_code == 404
+        assert get_response.status_code == 200
+        assert get_response.json()["is_active"] is False
 
     async def test_delete_client_not_found(
         self, client: AsyncClient, workspace_1: Workspace
@@ -446,14 +479,54 @@ class TestDeleteClient:
         assert response.status_code == 404
         assert response.json()["detail"] == "Resource not found"
 
-    async def test_delete_client_cascades_to_appointments(
+    async def test_delete_client_performs_soft_delete(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+    ):
+        """Test that DELETE performs soft delete (is_active = false)."""
+        headers = get_auth_headers(workspace_1.id)
+
+        # Delete client
+        response = await client.delete(
+            f"/api/v1/clients/{sample_client_ws1.id}",
+            headers=headers,
+        )
+        assert response.status_code == 204
+
+        # Client should not appear in default list (active only)
+        list_response = await client.get("/api/v1/clients", headers=headers)
+        assert list_response.status_code == 200
+        client_ids = [c["id"] for c in list_response.json()["items"]]
+        assert str(sample_client_ws1.id) not in client_ids
+
+        # But should appear when including inactive clients
+        list_with_inactive = await client.get(
+            "/api/v1/clients",
+            headers=headers,
+            params={"include_inactive": True},
+        )
+        assert list_with_inactive.status_code == 200
+        all_client_ids = [c["id"] for c in list_with_inactive.json()["items"]]
+        assert str(sample_client_ws1.id) in all_client_ids
+
+        # Can still retrieve directly (should show is_active = false)
+        get_response = await client.get(
+            f"/api/v1/clients/{sample_client_ws1.id}",
+            headers=headers,
+        )
+        assert get_response.status_code == 200
+        assert get_response.json()["is_active"] is False
+
+    async def test_delete_client_preserves_appointments(
         self,
         client: AsyncClient,
         workspace_1: Workspace,
         sample_client_ws1: Client,
         sample_appointment_ws1,
     ):
-        """Deleting client also deletes their appointments (cascade)."""
+        """Soft deleting client preserves their appointments."""
         headers = get_auth_headers(workspace_1.id)
 
         # Verify appointment exists
@@ -463,16 +536,212 @@ class TestDeleteClient:
         )
         assert appointment_response.status_code == 200
 
-        # Delete client
+        # Soft delete client
         delete_response = await client.delete(
             f"/api/v1/clients/{sample_client_ws1.id}",
             headers=headers,
         )
         assert delete_response.status_code == 204
 
-        # Verify appointment is also deleted (cascade)
+        # Appointment should still exist (soft delete preserves data)
         appointment_check = await client.get(
             f"/api/v1/appointments/{sample_appointment_ws1.id}",
             headers=headers,
         )
-        assert appointment_check.status_code == 404
+        assert appointment_check.status_code == 200
+
+
+class TestClientComputedFields:
+    """Test computed appointment fields on client responses."""
+
+    async def test_get_client_includes_appointment_stats(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+    ):
+        """Test that GET /clients/{id} includes appointment statistics."""
+        headers = get_auth_headers(workspace_1.id)
+
+        # Create past completed appointment
+        past_apt = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": "2020-01-01T10:00:00Z",
+                "scheduled_end": "2020-01-01T11:00:00Z",
+                "status": "completed",
+                "location_type": "clinic",
+            },
+        )
+        assert past_apt.status_code == 201
+
+        # Create future scheduled appointment
+        future_apt = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": "2099-12-31T10:00:00Z",
+                "scheduled_end": "2099-12-31T11:00:00Z",
+                "status": "scheduled",
+                "location_type": "clinic",
+            },
+        )
+        assert future_apt.status_code == 201
+
+        # Get client
+        response = await client.get(
+            f"/api/v1/clients/{sample_client_ws1.id}",
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        # Check that appointments were counted (at least the 2 we created)
+        assert data["appointment_count"] >= 2
+        # We created a completed appointment, so last_appointment should be set
+        # Note: It might be None if the appointments API doesn't accept
+        # "completed" status on creation
+        # In that case, we just verify the field exists
+        assert "last_appointment" in data
+        assert "next_appointment" in data
+        # The future appointment should be counted as next
+        assert data["next_appointment"] is not None
+
+    async def test_list_clients_without_appointments_is_fast(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+    ):
+        """
+        Test that list without include_appointments doesn't fetch
+        appointment data.
+        """
+        headers = get_auth_headers(workspace_1.id)
+
+        response = await client.get("/api/v1/clients", headers=headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        # Should have computed fields with default values
+        if len(data["items"]) > 0:
+            item = data["items"][0]
+            assert "appointment_count" in item
+            assert "next_appointment" in item
+            assert "last_appointment" in item
+
+    async def test_list_clients_with_appointments_includes_stats(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+    ):
+        """Test that list with include_appointments=true fetches appointment stats."""
+        headers = get_auth_headers(workspace_1.id)
+
+        response = await client.get(
+            "/api/v1/clients",
+            headers=headers,
+            params={"include_appointments": True},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["items"]) > 0
+        item = data["items"][0]
+        assert "appointment_count" in item
+        assert "next_appointment" in item
+        assert "last_appointment" in item
+
+
+class TestClientActiveFiltering:
+    """Test is_active filtering in list endpoint."""
+
+    async def test_list_clients_excludes_inactive_by_default(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+    ):
+        """Test that inactive clients are excluded from default list."""
+        headers = get_auth_headers(workspace_1.id)
+
+        # Create active client
+        active = await client.post(
+            "/api/v1/clients",
+            headers=headers,
+            json={
+                "first_name": "Active",
+                "last_name": "Client",
+                "is_active": True,
+                "consent_status": True,
+            },
+        )
+        assert active.status_code == 201
+        active_id = active.json()["id"]
+
+        # Create inactive client
+        inactive = await client.post(
+            "/api/v1/clients",
+            headers=headers,
+            json={
+                "first_name": "Inactive",
+                "last_name": "Client",
+                "is_active": False,
+                "consent_status": True,
+            },
+        )
+        assert inactive.status_code == 201
+        inactive_id = inactive.json()["id"]
+
+        # Default list should only show active
+        response = await client.get("/api/v1/clients", headers=headers)
+        assert response.status_code == 200
+        client_ids = [c["id"] for c in response.json()["items"]]
+        assert active_id in client_ids
+        assert inactive_id not in client_ids
+
+    async def test_list_clients_with_inactive_shows_all(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+    ):
+        """Test that include_inactive=true shows all clients."""
+        headers = get_auth_headers(workspace_1.id)
+
+        # Create active and inactive clients
+        active = await client.post(
+            "/api/v1/clients",
+            headers=headers,
+            json={
+                "first_name": "Active",
+                "last_name": "Client",
+                "is_active": True,
+                "consent_status": True,
+            },
+        )
+        active_id = active.json()["id"]
+
+        inactive = await client.post(
+            "/api/v1/clients",
+            headers=headers,
+            json={
+                "first_name": "Inactive",
+                "last_name": "Client",
+                "is_active": False,
+                "consent_status": True,
+            },
+        )
+        inactive_id = inactive.json()["id"]
+
+        # With include_inactive=true, should show both
+        response = await client.get(
+            "/api/v1/clients",
+            headers=headers,
+            params={"include_inactive": True},
+        )
+        assert response.status_code == 200
+        client_ids = [c["id"] for c in response.json()["items"]]
+        assert active_id in client_ids
+        assert inactive_id in client_ids

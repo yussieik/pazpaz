@@ -125,7 +125,7 @@ function editAppointment(appointment: AppointmentListItem) {
   showEditModal.value = true
 }
 
-function startSessionNotes(appointment: AppointmentListItem) {
+function startSessionNotes(_appointment: AppointmentListItem) {
   selectedAppointment.value = null // Close modal
   // TODO (M4): Open session notes drawer
 }
@@ -143,7 +143,7 @@ function createNewAppointment() {
 /**
  * Form submission handlers
  */
-async function handleCreateAppointment(data: AppointmentFormData) {
+async function handleCreateAppointment(_data: AppointmentFormData) {
   // TODO (M3): Call API to create appointment
   showCreateModal.value = false
 }

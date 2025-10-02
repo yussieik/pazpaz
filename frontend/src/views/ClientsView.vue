@@ -1,22 +1,21 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import type { ClientListItem } from '@/types/client'
+import { useClientsStore } from '@/stores/clients'
+import { ref } from 'vue'
 
 const router = useRouter()
+const clientsStore = useClientsStore()
 
-// State
-const clients = ref<ClientListItem[]>([])
-const loading = ref(false)
-const error = ref<string | null>(null)
+// Local state for search
 const searchQuery = ref('')
 
 // Filtered clients based on search
 const filteredClients = computed(() => {
-  if (!searchQuery.value) return clients.value
+  if (!searchQuery.value) return clientsStore.clients
 
   const query = searchQuery.value.toLowerCase()
-  return clients.value.filter((client) => {
+  return clientsStore.clients.filter((client) => {
     return (
       client.full_name.toLowerCase().includes(query) ||
       client.email?.toLowerCase().includes(query) ||
@@ -24,26 +23,6 @@ const filteredClients = computed(() => {
     )
   })
 })
-
-// Fetch clients (TODO: Replace with API call)
-async function fetchClients() {
-  loading.value = true
-  error.value = null
-
-  try {
-    // TODO (M3): Call API
-    // const response = await apiClient.get('/api/v1/clients')
-    // clients.value = response.data.items
-
-    // Placeholder: Empty list for now
-    clients.value = []
-  } catch (err) {
-    error.value = 'Failed to load clients'
-    console.error('Error fetching clients:', err)
-  } finally {
-    loading.value = false
-  }
-}
 
 // Navigate to client detail
 function viewClient(clientId: string) {
@@ -53,11 +32,10 @@ function viewClient(clientId: string) {
 // Navigate to new client form
 function createNewClient() {
   // TODO (M3): Open create client modal
-  console.log('Create new client')
 }
 
 onMounted(() => {
-  fetchClients()
+  clientsStore.fetchClients()
 })
 </script>
 
@@ -69,7 +47,10 @@ onMounted(() => {
     >
       <div>
         <h1 class="text-2xl font-semibold text-slate-900">Clients</h1>
-        <p v-if="!loading && clients.length > 0" class="mt-1.5 text-sm text-slate-600">
+        <p
+          v-if="!clientsStore.loading && clientsStore.clients.length > 0"
+          class="mt-1.5 text-sm text-slate-600"
+        >
           {{ filteredClients.length }} client{{
             filteredClients.length === 1 ? '' : 's'
           }}
@@ -93,7 +74,7 @@ onMounted(() => {
     </header>
 
     <!-- Search Bar -->
-    <div v-if="!loading && !error" class="mb-6">
+    <div v-if="!clientsStore.loading && !clientsStore.error" class="mb-6">
       <div class="relative">
         <div
           class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
@@ -123,7 +104,7 @@ onMounted(() => {
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center py-12">
+    <div v-if="clientsStore.loading" class="flex items-center justify-center py-12">
       <div class="text-center">
         <div
           class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-emerald-600 border-r-transparent"
@@ -134,15 +115,18 @@ onMounted(() => {
 
     <!-- Error State -->
     <div
-      v-else-if="error"
+      v-else-if="clientsStore.error"
       class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"
     >
       <p class="font-semibold">Error loading clients</p>
-      <p class="mt-1 text-sm">{{ error }}</p>
+      <p class="mt-1 text-sm">{{ clientsStore.error }}</p>
     </div>
 
     <!-- Empty State (No Clients) -->
-    <div v-else-if="clients.length === 0" class="mx-auto max-w-2xl py-12 text-center">
+    <div
+      v-else-if="clientsStore.clients.length === 0"
+      class="mx-auto max-w-2xl py-12 text-center"
+    >
       <div class="mb-4 flex justify-center">
         <svg
           class="h-16 w-16 text-gray-400"

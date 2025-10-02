@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field
 
 
 class ClientBase(BaseModel):
@@ -20,6 +20,19 @@ class ClientBase(BaseModel):
     email: EmailStr | None = Field(None, description="Client's email address")
     phone: str | None = Field(None, max_length=50, description="Client's phone number")
     date_of_birth: date | None = Field(None, description="Client's date of birth")
+    address: str | None = Field(None, description="Client's physical address")
+    medical_history: str | None = Field(
+        None, description="Relevant medical history and conditions (PHI)"
+    )
+    emergency_contact_name: str | None = Field(
+        None, max_length=255, description="Emergency contact person's name"
+    )
+    emergency_contact_phone: str | None = Field(
+        None, max_length=50, description="Emergency contact phone number"
+    )
+    is_active: bool = Field(
+        default=True, description="Active status (false = archived/soft deleted)"
+    )
     consent_status: bool = Field(
         default=False, description="Client consent to store and process data"
     )
@@ -49,6 +62,11 @@ class ClientUpdate(BaseModel):
     email: EmailStr | None = Field(None)
     phone: str | None = Field(None, max_length=50)
     date_of_birth: date | None = Field(None)
+    address: str | None = Field(None)
+    medical_history: str | None = Field(None)
+    emergency_contact_name: str | None = Field(None, max_length=255)
+    emergency_contact_phone: str | None = Field(None, max_length=50)
+    is_active: bool | None = Field(None)
     consent_status: bool | None = Field(None)
     notes: str | None = Field(None)
     tags: list[str] | None = Field(None)
@@ -61,6 +79,23 @@ class ClientResponse(ClientBase):
     workspace_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+
+    # Computed appointment fields (populated by API endpoint)
+    next_appointment: datetime | None = Field(
+        None, description="Next scheduled appointment after now"
+    )
+    last_appointment: datetime | None = Field(
+        None, description="Most recent completed appointment"
+    )
+    appointment_count: int = Field(
+        default=0, description="Total number of appointments"
+    )
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def full_name(self) -> str:
+        """Full name of the client."""
+        return f"{self.first_name} {self.last_name}"
 
     model_config = ConfigDict(from_attributes=True)
 

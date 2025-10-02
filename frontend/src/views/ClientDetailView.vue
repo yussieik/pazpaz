@@ -1,38 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { Client } from '@/types/client'
+import { useClientsStore } from '@/stores/clients'
 
 const route = useRoute()
 const router = useRouter()
+const clientsStore = useClientsStore()
 
-// State
-const client = ref<Client | null>(null)
-const loading = ref(false)
-const error = ref<string | null>(null)
+// Local state
 const activeTab = ref<'overview' | 'history' | 'plan-of-care' | 'files'>('overview')
 
 const clientId = computed(() => route.params.id as string)
-
-// Fetch client data
-async function fetchClient() {
-  loading.value = true
-  error.value = null
-
-  try {
-    // TODO (M3): Call API
-    // const response = await apiClient.get(`/api/v1/clients/${clientId.value}`)
-    // client.value = response.data
-
-    // Placeholder
-    throw new Error('Client API not yet implemented')
-  } catch (err) {
-    error.value = 'Failed to load client'
-    console.error('Error fetching client:', err)
-  } finally {
-    loading.value = false
-  }
-}
+const client = computed(() => clientsStore.currentClient)
 
 function goBack() {
   router.push('/clients')
@@ -40,7 +19,6 @@ function goBack() {
 
 function editClient() {
   // TODO (M3): Open edit client modal
-  console.log('Edit client:', clientId.value)
 }
 
 function scheduleAppointment() {
@@ -49,7 +27,7 @@ function scheduleAppointment() {
 }
 
 onMounted(() => {
-  fetchClient()
+  clientsStore.fetchClient(clientId.value)
 })
 </script>
 
@@ -72,7 +50,7 @@ onMounted(() => {
     </button>
 
     <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center py-12">
+    <div v-if="clientsStore.loading" class="flex items-center justify-center py-12">
       <div class="text-center">
         <div
           class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-emerald-600 border-r-transparent"
@@ -83,11 +61,11 @@ onMounted(() => {
 
     <!-- Error State -->
     <div
-      v-else-if="error"
+      v-else-if="clientsStore.error"
       class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"
     >
       <p class="font-semibold">Error loading client</p>
-      <p class="mt-1 text-sm">{{ error }}</p>
+      <p class="mt-1 text-sm">{{ clientsStore.error }}</p>
     </div>
 
     <!-- Client Profile -->

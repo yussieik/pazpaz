@@ -6,6 +6,7 @@ import uuid
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
+import sqlalchemy as sa
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -58,11 +59,37 @@ class Client(Base):
         Date,
         nullable=True,
     )
+    address: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Client's physical address (PII - encrypt at rest)",
+    )
+    medical_history: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Relevant medical history and conditions (PHI - encrypt at rest)",
+    )
+    emergency_contact_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Name of emergency contact person",
+    )
+    emergency_contact_phone: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Phone number of emergency contact",
+    )
     consent_status: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
         nullable=False,
         comment="Client consent to store and process data",
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+        comment="Active status (soft delete flag)",
     )
     notes: Mapped[str | None] = mapped_column(
         Text,
@@ -117,6 +144,13 @@ class Client(Base):
             "ix_clients_workspace_updated",
             "workspace_id",
             "updated_at",
+        ),
+        # Partial index for active clients (most common query pattern)
+        Index(
+            "ix_clients_workspace_active",
+            "workspace_id",
+            "is_active",
+            postgresql_where=sa.text("is_active = true"),
         ),
         {"comment": "Clients with PII/PHI - encryption at rest required"},
     )
