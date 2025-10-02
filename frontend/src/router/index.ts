@@ -36,4 +36,10 @@ const router = createRouter({
   ],
 })
 
+// Track previous route for smart back navigation
+// Store the previous route path in the destination route's meta
+router.beforeEach((to, from) => {
+  to.meta.from = from.path
+})
+
 export default router

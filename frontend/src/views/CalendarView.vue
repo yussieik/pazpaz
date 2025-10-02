@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppointmentsStore } from '@/stores/appointments'
 import FullCalendar from '@fullcalendar/vue3'
@@ -13,7 +13,6 @@ import AppointmentDetailsModal from '@/components/calendar/AppointmentDetailsMod
 import AppointmentFormModal from '@/components/calendar/AppointmentFormModal.vue'
 import CancelAppointmentDialog from '@/components/calendar/CancelAppointmentDialog.vue'
 import CalendarLoadingState from '@/components/calendar/CalendarLoadingState.vue'
-import KeyboardShortcutsHelp from '@/components/calendar/KeyboardShortcutsHelp.vue'
 
 /**
  * Calendar View - appointment scheduling with weekly/day/month views
@@ -32,7 +31,6 @@ const router = useRouter()
 const appointmentsStore = useAppointmentsStore()
 const calendarRef = ref<InstanceType<typeof FullCalendar>>()
 const toolbarRef = ref<InstanceType<typeof CalendarToolbar>>()
-const showKeyboardHelp = ref(false)
 
 // Modal/dialog state
 const showCreateModal = ref(false)
@@ -117,13 +115,27 @@ const appointmentSummary = computed(() => {
  */
 function viewClientDetails(clientId: string) {
   const appointmentData = selectedAppointment.value
-  selectedAppointment.value = null // Close modal
-  // Pass appointment context via route state for contextual navigation
+
+  // Store in sessionStorage for reliable state passing across navigation
+  if (appointmentData) {
+    sessionStorage.setItem(
+      'navigationContext',
+      JSON.stringify({
+        type: 'appointment',
+        appointment: appointmentData,
+        timestamp: Date.now(),
+      })
+    )
+  }
+
+  // Navigate to client detail (will pick up appointment from sessionStorage)
   router.push({
     name: 'client-detail',
     params: { id: clientId },
-    state: { appointment: appointmentData },
   })
+
+  // Close modal after navigation starts
+  selectedAppointment.value = null
 }
 
 function editAppointment(appointment: AppointmentListItem) {
@@ -180,26 +192,14 @@ async function handleConfirmCancel() {
   appointmentToCancel.value = null
 }
 
-/**
- * Keyboard shortcut help modal
- */
-function handleHelpKey(e: KeyboardEvent) {
-  if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
-    // Only trigger if not typing in input field
-    const target = e.target as HTMLElement
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
-
-    e.preventDefault()
-    showKeyboardHelp.value = true
-  }
-}
-
 // Open appointment from query param (for "return to appointment" flow)
 watch(
   () => route.query.appointment,
   (appointmentId) => {
     if (appointmentId && typeof appointmentId === 'string') {
-      const appointment = appointmentsStore.appointments.find((a) => a.id === appointmentId)
+      const appointment = appointmentsStore.appointments.find(
+        (a) => a.id === appointmentId
+      )
       if (appointment) {
         selectedAppointment.value = appointment
       }
@@ -209,14 +209,6 @@ watch(
   },
   { immediate: true }
 )
-
-onMounted(() => {
-  window.addEventListener('keydown', handleHelpKey)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleHelpKey)
-})
 </script>
 
 <template>
@@ -308,12 +300,6 @@ onUnmounted(() => {
       @start-session-notes="startSessionNotes"
       @cancel="cancelAppointment"
       @view-client="viewClientDetails"
-    />
-
-    <!-- Keyboard Shortcuts Help Modal -->
-    <KeyboardShortcutsHelp
-      :visible="showKeyboardHelp"
-      @update:visible="showKeyboardHelp = $event"
     />
 
     <!-- Create Appointment Modal -->

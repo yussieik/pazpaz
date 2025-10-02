@@ -62,24 +62,34 @@ onUnmounted(() => {
             <RouterLink
               to="/"
               :class="[
-                'rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
+                'group relative rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
                 isActive('/')
                   ? 'border-b-2 border-emerald-600 text-emerald-600'
                   : 'text-gray-600 hover:text-gray-900',
               ]"
             >
-              Calendar
+              <span>Calendar</span>
+              <kbd
+                class="absolute top-1/2 right-1 -translate-y-1/2 rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity delay-500 group-hover:opacity-100"
+              >
+                g c
+              </kbd>
             </RouterLink>
             <RouterLink
               to="/clients"
               :class="[
-                'rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
+                'group relative rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
                 isActive('/clients')
                   ? 'border-b-2 border-emerald-600 text-emerald-600'
                   : 'text-gray-600 hover:text-gray-900',
               ]"
             >
-              Clients
+              <span>Clients</span>
+              <kbd
+                class="absolute top-1/2 right-1 -translate-y-1/2 rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity delay-500 group-hover:opacity-100"
+              >
+                g l
+              </kbd>
             </RouterLink>
             <RouterLink
               to="/settings"

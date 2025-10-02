@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useClientsStore } from '@/stores/clients'
 import { formatDate } from '@/utils/calendar/dateFormatters'
 import type { AppointmentListItem } from '@/types/calendar'
+import { onKeyStroke } from '@vueuse/core'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,16 +14,83 @@ const clientsStore = useClientsStore()
 const activeTab = ref<'overview' | 'history' | 'plan-of-care' | 'files'>('overview')
 
 // Appointment context from navigation state (H1: Contextual Banner)
-const sourceAppointment = ref<AppointmentListItem | null>(
-  (history.state.appointment as AppointmentListItem) || null
+// Try multiple sources for reliable state passing across different scenarios
+const getAppointmentFromState = (): AppointmentListItem | null => {
+  // Priority 1: Check history.state (works in browser)
+  if (history.state?.appointment) {
+    return history.state.appointment as AppointmentListItem
+  }
+
+  // Priority 2: Check router state (works in tests)
+  const routerState = router.currentRoute.value.state as
+    | { appointment?: AppointmentListItem }
+    | undefined
+  if (routerState?.appointment) {
+    return routerState.appointment
+  }
+
+  // Priority 3: Check sessionStorage with extended timeout (5 minutes instead of 5 seconds)
+  const contextStr = sessionStorage.getItem('navigationContext')
+  if (contextStr) {
+    try {
+      const context = JSON.parse(contextStr)
+      // Extend timeout to 5 minutes (300000ms) for page refresh scenarios
+      if (context.type === 'appointment' && Date.now() - context.timestamp < 300000) {
+        // Don't clear on read - let it expire naturally
+        return context.appointment as AppointmentListItem
+      }
+    } catch {
+      // Invalid JSON in sessionStorage - ignore silently
+    }
+  }
+
+  return null
+}
+
+const sourceAppointment = ref<AppointmentListItem | null>(null)
+
+// Watch for route changes to pick up appointment state
+// Run immediately to capture state on component mount
+watch(
+  () => router.currentRoute.value.state,
+  () => {
+    const appointment = getAppointmentFromState()
+    // Only update if we found an appointment (don't clear existing value)
+    if (appointment) {
+      sourceAppointment.value = appointment
+    }
+  },
+  { immediate: true, deep: true }
 )
+
+// Also check in onMounted (timing issue - history.state might not be ready immediately)
+onMounted(() => {
+  // Try to get appointment from state
+  const appointment = getAppointmentFromState()
+  if (appointment) {
+    sourceAppointment.value = appointment
+  }
+
+  // Focus the back button when coming from appointment modal (P0-1: Focus Management)
+  if (sourceAppointment.value) {
+    nextTick(() => {
+      const backButton = document.querySelector(
+        '[data-focus-target="back-button"]'
+      ) as HTMLElement
+      backButton?.focus()
+    })
+  }
+
+  // Fetch client data
+  clientsStore.fetchClient(clientId.value)
+})
 
 const clientId = computed(() => route.params.id as string)
 const client = computed(() => clientsStore.currentClient)
 
 // H6: Smart back navigation
 const backDestination = computed(() => {
-  // Check if we have appointment context in history.state
+  // Priority 1: Check if we have appointment context in history.state
   if (sourceAppointment.value) {
     return {
       label: 'Back to Appointment',
@@ -34,33 +102,35 @@ const backDestination = computed(() => {
     }
   }
 
-  // Check referrer for calendar
-  const referrer = document.referrer
-  if (referrer.includes('/') && !referrer.includes('/clients')) {
+  // Priority 2: Check if we came from clients list (using router meta)
+  const previousRoute = route.meta.from as string | undefined
+
+  if (previousRoute === '/clients') {
     return {
-      label: 'Back to Calendar',
-      action: () => router.push('/'),
+      label: 'Back to Clients',
+      action: () => router.push('/clients'),
     }
   }
 
-  // Default
+  // Priority 3: Default to calendar (therapist's main view)
   return {
-    label: 'Back to Clients',
-    action: () => router.push('/clients'),
+    label: 'Back to Calendar',
+    action: () => router.push('/'),
   }
+})
+
+// P1-5: Add Escape key shortcut for back navigation
+onKeyStroke('Escape', (e) => {
+  // Only trigger if not typing in input field
+  const target = e.target as HTMLElement
+  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+
+  e.preventDefault()
+  backDestination.value.action()
 })
 
 function dismissBanner() {
   sourceAppointment.value = null
-}
-
-function returnToAppointment() {
-  if (sourceAppointment.value) {
-    router.push({
-      path: '/',
-      query: { appointment: sourceAppointment.value.id },
-    })
-  }
 }
 
 function editClient() {
@@ -71,18 +141,15 @@ function scheduleAppointment() {
   // TODO (M3): Open appointment modal with client pre-selected
   router.push('/')
 }
-
-onMounted(() => {
-  clientsStore.fetchClient(clientId.value)
-})
 </script>
 
 <template>
   <div class="container mx-auto px-4 py-8">
-    <!-- Back Button (H6: Smart Navigation) -->
+    <!-- Back Button (H6: Smart Navigation + P1-5: Escape Key Hint) -->
     <button
       @click="backDestination.action"
-      class="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+      data-focus-target="back-button"
+      class="group mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
     >
       <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -93,55 +160,60 @@ onMounted(() => {
         />
       </svg>
       <span>{{ backDestination.label }}</span>
+      <kbd
+        class="ml-2 rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity group-hover:opacity-100"
+      >
+        Esc
+      </kbd>
     </button>
 
-    <!-- H1: Contextual Appointment Banner -->
+    <!-- H1: Contextual Appointment Banner (P1-2: Enhanced Visual Hierarchy) -->
     <div
       v-if="sourceAppointment"
-      class="mb-4 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-4"
+      class="mb-6 rounded-lg border-l-4 border-blue-500 bg-gradient-to-r from-blue-50 to-transparent p-4 shadow-sm"
+      role="status"
+      aria-live="polite"
     >
-      <div class="flex items-start gap-3">
-        <svg
-          class="mt-0.5 h-5 w-5 text-blue-600"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <div>
-          <p class="text-sm font-medium text-blue-900">
-            Viewing from appointment:
-            {{ formatDate(sourceAppointment.scheduled_start, 'EEEE, MMM d') }} at
-            {{ formatDate(sourceAppointment.scheduled_start, 'h:mm a') }}
-          </p>
-          <button
-            @click="returnToAppointment"
-            class="mt-1 text-sm font-medium text-blue-600 underline hover:text-blue-700"
-          >
-            Return to appointment details
-          </button>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
+            <svg
+              class="h-5 w-5 text-blue-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-blue-900">Viewing from appointment</p>
+            <p class="mt-0.5 text-sm text-blue-700">
+              {{ formatDate(sourceAppointment.scheduled_start, 'EEEE, MMM d') }} at
+              {{ formatDate(sourceAppointment.scheduled_start, 'h:mm a') }}
+            </p>
+          </div>
         </div>
+        <button
+          @click="dismissBanner"
+          class="rounded-lg p-1.5 text-blue-400 transition-colors hover:bg-blue-100 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          aria-label="Dismiss appointment context"
+        >
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
       </div>
-      <button
-        @click="dismissBanner"
-        class="text-blue-400 hover:text-blue-600"
-        aria-label="Dismiss"
-      >
-        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
-      </button>
     </div>
 
     <!-- Loading State -->
@@ -165,6 +237,65 @@ onMounted(() => {
 
     <!-- Client Profile -->
     <div v-else-if="client">
+      <!-- P0-3: Emergency Contact Card (Safety Critical) -->
+      <div
+        v-if="
+          client && (client.emergency_contact_name || client.emergency_contact_phone)
+        "
+        class="mb-4 rounded-lg border-2 border-red-300 bg-red-50 p-4"
+        role="region"
+        aria-label="Emergency contact information"
+        id="emergency-contact-card"
+      >
+        <div class="flex items-start gap-3">
+          <div
+            class="flex h-10 w-10 items-center justify-center rounded-full bg-red-600"
+          >
+            <svg
+              class="h-6 w-6 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+              />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-semibold tracking-wide text-red-800 uppercase">
+              Emergency Contact
+            </p>
+            <p class="mt-1 text-lg font-semibold text-red-900">
+              {{ client.emergency_contact_name }}
+            </p>
+            <a
+              v-if="client.emergency_contact_phone"
+              :href="`tel:${client.emergency_contact_phone}`"
+              class="mt-1 inline-flex items-center gap-2 text-lg font-bold text-red-700 hover:text-red-800 focus:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+            >
+              <svg
+                class="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                />
+              </svg>
+              {{ client.emergency_contact_phone }}
+            </a>
+          </div>
+        </div>
+      </div>
+
       <!-- Hero Header -->
       <header class="mb-6 rounded-lg border border-slate-200 bg-white p-6">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -182,45 +313,6 @@ onMounted(() => {
               <div class="mt-1 space-y-0.5 text-sm text-slate-600">
                 <p v-if="client.email">{{ client.email }}</p>
                 <p v-if="client.phone">{{ client.phone }}</p>
-              </div>
-
-              <!-- H4: Emergency Contact Quick Access -->
-              <div
-                v-if="client.emergency_contact_name || client.emergency_contact_phone"
-                class="mt-4 border-t border-slate-200 pt-4"
-              >
-                <div class="flex items-center gap-3">
-                  <div
-                    class="flex h-8 w-8 items-center justify-center rounded-full bg-red-100"
-                  >
-                    <svg
-                      class="h-4 w-4 text-red-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                      />
-                    </svg>
-                  </div>
-                  <div class="text-sm">
-                    <span class="font-semibold text-slate-900">Emergency Contact:</span>
-                    <span class="ml-2 text-slate-700">{{
-                      client.emergency_contact_name
-                    }}</span>
-                    <a
-                      v-if="client.emergency_contact_phone"
-                      :href="`tel:${client.emergency_contact_phone}`"
-                      class="ml-2 font-medium text-red-600 hover:text-red-700"
-                    >
-                      {{ client.emergency_contact_phone }}
-                    </a>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

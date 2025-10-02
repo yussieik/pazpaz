@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { KEYBOARD_SHORTCUTS, type ShortcutConfig } from '@/config/keyboardShortcuts'
+
 interface Props {
   visible: boolean
 }
@@ -9,6 +12,19 @@ interface Emits {
 
 defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+// Group shortcuts by category
+const navigationShortcuts = computed<ShortcutConfig[]>(() =>
+  KEYBOARD_SHORTCUTS.filter((s) => s.category === 'navigation')
+)
+
+const calendarShortcuts = computed<ShortcutConfig[]>(() =>
+  KEYBOARD_SHORTCUTS.filter((s) => s.category === 'calendar')
+)
+
+const clientShortcuts = computed<ShortcutConfig[]>(() =>
+  KEYBOARD_SHORTCUTS.filter((s) => s.category === 'client')
+)
 
 function closeModal() {
   emit('update:visible', false)
@@ -84,104 +100,70 @@ function closeModal() {
           <!-- Body -->
           <div class="space-y-6 px-6 py-6">
             <!-- Navigation Section -->
-            <div>
+            <div v-if="navigationShortcuts.length > 0">
               <h3
                 class="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase"
               >
                 Navigation
               </h3>
               <div class="space-y-2">
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-700">Go to today</span>
+                <div
+                  v-for="shortcut in navigationShortcuts"
+                  :key="shortcut.keys"
+                  class="flex items-center justify-between"
+                >
+                  <span class="text-slate-700">{{ shortcut.description }}</span>
                   <kbd
                     class="rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-900"
-                    >T</kbd
                   >
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-700">Previous period</span>
-                  <kbd
-                    class="rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-900"
-                    >←</kbd
-                  >
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-700">Next period</span>
-                  <kbd
-                    class="rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-900"
-                    >→</kbd
-                  >
+                    {{ shortcut.keys }}
+                  </kbd>
                 </div>
               </div>
             </div>
 
-            <!-- Views Section -->
-            <div>
+            <!-- Calendar Section -->
+            <div v-if="calendarShortcuts.length > 0">
               <h3
                 class="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase"
               >
-                Calendar Views
+                Calendar
               </h3>
               <div class="space-y-2">
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-700">Week view</span>
+                <div
+                  v-for="shortcut in calendarShortcuts"
+                  :key="shortcut.keys"
+                  class="flex items-center justify-between"
+                >
+                  <span class="text-slate-700">{{ shortcut.description }}</span>
                   <kbd
                     class="rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-900"
-                    >W</kbd
                   >
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-700">Day view</span>
-                  <kbd
-                    class="rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-900"
-                    >D</kbd
-                  >
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-700">Month view</span>
-                  <kbd
-                    class="rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-900"
-                    >M</kbd
-                  >
+                    {{ shortcut.keys }}
+                  </kbd>
                 </div>
               </div>
             </div>
 
-            <!-- Actions Section -->
-            <div>
+            <!-- Client Section -->
+            <div v-if="clientShortcuts.length > 0">
               <h3
                 class="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase"
               >
-                Actions
+                Client Detail
               </h3>
               <div class="space-y-2">
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-700">New appointment</span>
-                  <div class="flex items-center gap-1">
-                    <kbd
-                      class="rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-900"
-                      >⌘</kbd
-                    >
-                    <span class="text-slate-400">+</span>
-                    <kbd
-                      class="rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-900"
-                      >N</kbd
-                    >
-                  </div>
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-700">Close modal</span>
+                <div
+                  v-for="shortcut in clientShortcuts"
+                  :key="shortcut.keys"
+                  class="flex items-center justify-between"
+                >
+                  <span class="text-slate-700">{{ shortcut.description }}</span>
                   <kbd
                     class="rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-900"
-                    >Esc</kbd
                   >
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-700">Show shortcuts</span>
-                  <kbd
-                    class="rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-900"
-                    >?</kbd
-                  >
+                    {{ shortcut.keys }}
+                  </kbd>
                 </div>
               </div>
             </div>

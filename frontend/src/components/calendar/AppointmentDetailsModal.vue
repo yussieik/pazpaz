@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
 import { useFocusTrap } from '@vueuse/integrations/useFocusTrap'
+import { useScrollLock } from '@vueuse/core'
 import type { AppointmentListItem } from '@/types/calendar'
 import { formatDate, calculateDuration } from '@/utils/calendar/dateFormatters'
 import { getStatusBadgeClass } from '@/utils/calendar/appointmentHelpers'
@@ -31,10 +32,15 @@ const { activate, deactivate } = useFocusTrap(modalRef, {
   allowOutsideClick: true,
 })
 
-// Activate/deactivate focus trap based on visibility
+// P1-1: Scroll lock to prevent background scrolling
+const isLocked = useScrollLock(document.body)
+
+// Activate/deactivate focus trap and scroll lock based on visibility
 watch(
   () => props.visible,
   (isVisible) => {
+    isLocked.value = isVisible // Lock scroll when modal opens
+
     if (isVisible && modalRef.value) {
       nextTick(() => activate())
     } else {
@@ -209,13 +215,16 @@ function closeModal() {
               </div>
             </div>
 
-            <!-- Client Information -->
-            <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <!-- P1-3: Client Information (Entire Card is Clickable) -->
+            <button
+              @click="emit('viewClient', appointment.client_id)"
+              class="group w-full rounded-lg border border-slate-200 bg-slate-50 p-4 text-left transition-all hover:border-slate-300 hover:bg-white hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+            >
               <div class="mb-2 text-sm font-medium text-slate-500">Client</div>
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
                   <div
-                    class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 font-medium text-emerald-700"
+                    class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 font-medium text-emerald-700 transition-colors group-hover:bg-emerald-200"
                   >
                     {{ appointment.client?.first_name?.[0] || 'C'
                     }}{{ appointment.client?.last_name?.[0] || '' }}
@@ -224,17 +233,28 @@ function closeModal() {
                     <div class="font-medium text-slate-900">
                       {{ appointment.client?.full_name || 'Unknown Client' }}
                     </div>
-                    <div class="text-sm text-slate-500">View client details →</div>
+                    <div
+                      class="flex items-center gap-1.5 text-sm font-medium text-emerald-600 group-hover:text-emerald-700"
+                    >
+                      View full profile
+                      <svg
+                        class="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </div>
                   </div>
                 </div>
-                <button
-                  class="text-sm font-medium text-emerald-600 hover:text-emerald-700"
-                  @click="emit('viewClient', appointment.client_id)"
-                >
-                  View Profile
-                </button>
               </div>
-            </div>
+            </button>
 
             <!-- Notes (if exist) -->
             <div
