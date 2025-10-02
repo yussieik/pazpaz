@@ -5,6 +5,7 @@ import type { ViewType } from '@/types/calendar'
 interface Props {
   currentView: ViewType
   formattedDateRange: string
+  appointmentSummary?: string | null
   loading?: boolean
 }
 
@@ -99,8 +100,19 @@ defineExpose({
 
         <div class="h-6 w-px bg-slate-300" aria-hidden="true"></div>
 
-        <h2 class="text-lg font-semibold text-slate-900">
-          {{ formattedDateRange }}
+        <h2
+          class="flex flex-col gap-1 text-lg font-semibold text-slate-900 sm:flex-row sm:items-baseline sm:gap-2"
+        >
+          <span>{{ formattedDateRange }}</span>
+          <span
+            v-if="appointmentSummary"
+            class="text-sm font-medium text-slate-600"
+            aria-live="polite"
+            :aria-label="`${appointmentSummary} in this period`"
+          >
+            <span class="hidden text-slate-400 sm:inline" aria-hidden="true">·</span>
+            {{ appointmentSummary }}
+          </span>
         </h2>
       </div>
 

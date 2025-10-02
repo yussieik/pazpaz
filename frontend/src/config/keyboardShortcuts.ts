@@ -31,6 +31,11 @@ export const KEYBOARD_SHORTCUTS: ShortcutConfig[] = [
 
   // Calendar shortcuts (from existing implementation)
   {
+    keys: '⌘N',
+    description: 'New appointment',
+    category: 'calendar',
+  },
+  {
     keys: 't',
     description: 'Go to today',
     category: 'calendar',

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { AppointmentListItem, AppointmentFormData } from '@/types/calendar'
 
 interface Props {
@@ -113,10 +113,20 @@ function closeModal() {
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape') {
+  if (e.key === 'Escape' && props.visible) {
+    e.preventDefault()
     closeModal()
   }
 }
+
+// Mount global escape handler for modal
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+})
 
 const modalTitle = computed(() =>
   props.mode === 'create' ? 'New Appointment' : 'Edit Appointment'
@@ -159,7 +169,6 @@ const submitButtonText = computed(() =>
         role="dialog"
         aria-modal="true"
         :aria-labelledby="`appointment-form-modal-title`"
-        @keydown="handleKeydown"
       >
         <div
           class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-xl"

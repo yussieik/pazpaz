@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useClientsStore } from '@/stores/clients'
 import { ref } from 'vue'
+import PageHeader from '@/components/common/PageHeader.vue'
 
 const router = useRouter()
 const clientsStore = useClientsStore()
@@ -42,66 +43,61 @@ onMounted(() => {
 <template>
   <div class="container mx-auto px-4 py-8">
     <!-- Header -->
-    <header
-      class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+    <PageHeader
+      title="Clients"
+      :metadata="
+        !clientsStore.loading && clientsStore.clients.length > 0
+          ? `${filteredClients.length} client${filteredClients.length === 1 ? '' : 's'}`
+          : undefined
+      "
+      :loading="clientsStore.loading"
     >
-      <div>
-        <h1 class="text-2xl font-semibold text-slate-900">Clients</h1>
-        <p
-          v-if="!clientsStore.loading && clientsStore.clients.length > 0"
-          class="mt-1.5 text-sm text-slate-600"
+      <template #actions>
+        <button
+          @click="createNewClient"
+          class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto sm:justify-start"
         >
-          {{ filteredClients.length }} client{{
-            filteredClients.length === 1 ? '' : 's'
-          }}
-        </p>
-      </div>
-
-      <button
-        @click="createNewClient"
-        class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none"
-      >
-        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
-        <span>New Client</span>
-      </button>
-    </header>
-
-    <!-- Search Bar -->
-    <div v-if="!clientsStore.loading && !clientsStore.error" class="mb-6">
-      <div class="relative">
-        <div
-          class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
-        >
-          <svg
-            class="h-5 w-5 text-slate-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              d="M12 4v16m8-8H4"
             />
           </svg>
+          <span>New Client</span>
+        </button>
+      </template>
+
+      <template #search v-if="!clientsStore.loading && !clientsStore.error">
+        <div class="relative">
+          <div
+            class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
+          >
+            <svg
+              class="h-5 w-5 text-slate-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+          <input
+            v-model="searchQuery"
+            type="search"
+            placeholder="Search clients by name, email, or phone..."
+            autofocus
+            class="block w-full rounded-lg border border-slate-300 bg-white py-3 pr-3 pl-10 text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+          />
         </div>
-        <input
-          v-model="searchQuery"
-          type="search"
-          placeholder="Search clients by name, email, or phone..."
-          autofocus
-          class="block w-full rounded-lg border border-slate-300 bg-white py-3 pr-3 pl-10 text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-        />
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- Loading State -->
     <div v-if="clientsStore.loading" class="flex items-center justify-center py-12">

@@ -22,9 +22,8 @@ const getAppointmentFromState = (): AppointmentListItem | null => {
   }
 
   // Priority 2: Check router state (works in tests)
-  const routerState = router.currentRoute.value.state as
-    | { appointment?: AppointmentListItem }
-    | undefined
+  // TypeScript safe access to state property
+  const routerState = (router.currentRoute.value as unknown as { state?: { appointment?: AppointmentListItem } }).state
   if (routerState?.appointment) {
     return routerState.appointment
   }
@@ -52,7 +51,7 @@ const sourceAppointment = ref<AppointmentListItem | null>(null)
 // Watch for route changes to pick up appointment state
 // Run immediately to capture state on component mount
 watch(
-  () => router.currentRoute.value.state,
+  () => (router.currentRoute.value as unknown as { state?: unknown }).state,
   () => {
     const appointment = getAppointmentFromState()
     // Only update if we found an appointment (don't clear existing value)
@@ -307,7 +306,7 @@ function scheduleAppointment() {
               {{ client.first_name[0] }}{{ client.last_name[0] }}
             </div>
             <div class="flex-1">
-              <h1 class="text-2xl font-semibold text-slate-900">
+              <h1 class="text-3xl font-bold tracking-tight text-slate-900">
                 {{ client.full_name }}
               </h1>
               <div class="mt-1 space-y-0.5 text-sm text-slate-600">

@@ -8,6 +8,7 @@ import { useCalendar } from '@/composables/useCalendar'
 import { useCalendarEvents } from '@/composables/useCalendarEvents'
 import { useCalendarKeyboardShortcuts } from '@/composables/useCalendarKeyboardShortcuts'
 import { useCalendarLoading } from '@/composables/useCalendarLoading'
+import PageHeader from '@/components/common/PageHeader.vue'
 import CalendarToolbar from '@/components/calendar/CalendarToolbar.vue'
 import AppointmentDetailsModal from '@/components/calendar/AppointmentDetailsModal.vue'
 import AppointmentFormModal from '@/components/calendar/AppointmentFormModal.vue'
@@ -83,28 +84,84 @@ const calendarOptions = computed(() =>
   buildCalendarOptions(calendarEvents.value, handleEventClick)
 )
 
-// Appointment summary for contextual header metadata
+/**
+ * Helper function to get visible date range based on current view
+ */
+function getVisibleDateRange(view: string, date: Date): { start: Date; end: Date } {
+  const start = new Date(date)
+  const end = new Date(date)
+
+  switch (view) {
+    case 'timeGridWeek':
+      // Get Sunday of current week
+      start.setDate(date.getDate() - date.getDay())
+      start.setHours(0, 0, 0, 0)
+      // Get Saturday of current week
+      end.setDate(start.getDate() + 6)
+      end.setHours(23, 59, 59, 999)
+      break
+    case 'timeGridDay':
+      start.setHours(0, 0, 0, 0)
+      end.setHours(23, 59, 59, 999)
+      break
+    case 'dayGridMonth':
+      // First day of month
+      start.setDate(1)
+      start.setHours(0, 0, 0, 0)
+      // Last day of month
+      end.setMonth(date.getMonth() + 1, 0)
+      end.setHours(23, 59, 59, 999)
+      break
+  }
+
+  return { start, end }
+}
+
+/**
+ * Helper function to check if appointment is within date range
+ */
+function isAppointmentInRange(
+  appointment: AppointmentListItem,
+  start: Date,
+  end: Date
+): boolean {
+  const aptDate = new Date(appointment.scheduled_start)
+  return aptDate >= start && aptDate <= end
+}
+
+/**
+ * Appointment summary filtered by visible date range
+ * Shows appointment count for currently visible calendar period (week/day/month)
+ */
 const appointmentSummary = computed(() => {
   const appointments = appointmentsStore.appointments
 
   if (appointments.length === 0) {
-    return null // Don't show metadata if no appointments
+    return null
   }
 
-  // Count appointments in current view
-  const appointmentCount = appointments.length
+  // Filter appointments by visible date range
+  const { start, end } = getVisibleDateRange(currentView.value, currentDate.value)
+  const visibleAppointments = appointments.filter((apt) =>
+    isAppointmentInRange(apt, start, end)
+  )
+
+  const appointmentCount = visibleAppointments.length
+
+  // Don't show metadata if no appointments in visible range
+  if (appointmentCount === 0) {
+    return null
+  }
 
   const parts = []
-  if (appointmentCount > 0) {
-    parts.push(`${appointmentCount} appointment${appointmentCount === 1 ? '' : 's'}`)
-  }
+  parts.push(`${appointmentCount} appointment${appointmentCount === 1 ? '' : 's'}`)
 
   // TODO: Add conflict detection logic when implemented
-  // const conflicts = detectConflicts(appointments)
+  // const conflicts = detectConflicts(visibleAppointments)
   // if (conflicts > 0) parts.push(`${conflicts} conflict${conflicts === 1 ? '' : 's'}`)
 
   // TODO (M4): Add session notes status
-  // const needsNotes = appointments.filter(a => a.status === 'completed' && !a.has_notes).length
+  // const needsNotes = visibleAppointments.filter(a => a.status === 'completed' && !a.has_notes).length
   // if (needsNotes > 0) parts.push(`${needsNotes} session${needsNotes === 1 ? '' : 's'} need notes`)
 
   return parts.join(' · ') || null
@@ -214,37 +271,24 @@ watch(
 <template>
   <div class="container mx-auto px-4 py-8">
     <!-- Header -->
-    <header
-      class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-    >
-      <!-- Title and metadata (inline on desktop, wraps on mobile) -->
-      <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-        <h1 class="text-2xl font-semibold text-slate-900">Calendar</h1>
-        <span
-          v-if="appointmentSummary"
-          class="flex items-baseline gap-2.5 text-sm font-medium text-slate-600"
+    <PageHeader title="Calendar">
+      <template #actions>
+        <button
+          @click="createNewAppointment"
+          class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto sm:justify-start"
         >
-          <span class="text-slate-400" aria-hidden="true">·</span>
-          <span>{{ appointmentSummary }}</span>
-        </span>
-      </div>
-
-      <!-- Primary action button -->
-      <button
-        @click="createNewAppointment"
-        class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none"
-      >
-        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
-        <span>New Appointment</span>
-      </button>
-    </header>
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          <span>New Appointment</span>
+        </button>
+      </template>
+    </PageHeader>
 
     <!-- Loading State (Only show for initial load with no appointments) -->
     <CalendarLoadingState
@@ -270,6 +314,7 @@ watch(
         ref="toolbarRef"
         :current-view="currentView"
         :formatted-date-range="formattedDateRange"
+        :appointment-summary="appointmentSummary"
         @update:view="changeView"
         @previous="handlePrev"
         @next="handleNext"
@@ -353,20 +398,25 @@ watch(
 }
 
 /**
- * Fixed Layout System for Calendar Transitions
+ * Flexible Layout System for Calendar Transitions
  *
  * Architecture:
- * 1. calendar-content-area: Fixed height container (700px) - consistent across all views
+ * 1. calendar-content-area: Auto-height container - adapts to FullCalendar's natural height
  * 2. calendar-container: Positioned relatively within content area
  *
  * This ensures smooth transitions between calendar views without layout shifts.
- * The fixed height prevents the container from resizing when switching between Day/Week/Month views.
+ * FullCalendar's height: 'auto' configuration (in calendarConfig.ts) allows it to size
+ * itself based on content (16 hours × 72px = 1,152px + internal structure).
+ *
+ * The container uses min-height to prevent collapsing and allows natural page scroll
+ * instead of container-level scrolling for better UX.
  */
 
-/* Main content area with consistent fixed height for all views */
+/* Main content area with auto height - adapts to FullCalendar's natural size */
 .calendar-content-area {
   position: relative;
-  height: 700px; /* Fixed height - no resizing between views */
+  min-height: 600px; /* Prevent collapsing on initial load */
+  overflow: visible; /* Allow natural page scroll */
 }
 
 /* Calendar container */
@@ -409,19 +459,31 @@ watch(
   color: #6b7280;
 }
 
+/* PHASE 1: Increased slot height for better appointment readability */
 .fc-timegrid-slot {
-  height: 3rem;
+  height: 4.5rem; /* 72px per hour - allows 3 lines of text in appointments (was 3rem/48px) */
 }
 
+/* Business hours background (8 AM - 6 PM) */
+.fc-non-business {
+  background-color: #fafafa; /* Light gray for early/late hours (6-8 AM, 6-10 PM) */
+}
+
+/* PHASE 2: Improved time labels styling */
 .fc-timegrid-slot-label {
-  color: #6b7280;
+  color: #374151; /* gray-700 - stronger contrast than default gray-500 */
   font-size: 0.875rem;
+  font-weight: 500; /* Medium weight for better scannability */
+  font-variant-numeric: tabular-nums; /* Align digits vertically */
+  vertical-align: top;
+  padding-top: 0.25rem;
 }
 
 .fc-event {
   border-radius: 0.375rem;
-  padding: 2px 4px;
+  padding: 4px 6px; /* Increased from 2px 4px for better spacing */
   font-size: 0.875rem;
+  line-height: 1.3; /* Tighter line height for multi-line content */
   cursor: pointer;
   transition: opacity 0.2s;
 }
@@ -438,7 +500,29 @@ watch(
   white-space: normal;
 }
 
-/* Responsive adjustments */
+/* PHASE 2: Current time indicator - emerald to match PazPaz brand */
+.fc-timegrid-now-indicator-line {
+  border-color: #10b981; /* emerald-500 */
+  border-width: 2px;
+  opacity: 0.7;
+}
+
+.fc-timegrid-now-indicator-arrow {
+  border-top-color: #10b981;
+  border-bottom-color: #10b981;
+  border-width: 6px;
+}
+
+/* PHASE 2: Responsive adjustments */
+
+/* Tablet-specific adjustments (641px - 1024px) */
+@media (max-width: 1024px) and (min-width: 641px) {
+  .fc-timegrid-slot {
+    height: 4rem; /* 64px on tablet - balanced readability */
+  }
+}
+
+/* Mobile adjustments (≤640px) */
 @media (max-width: 640px) {
   .fc-header-toolbar {
     flex-direction: column;
@@ -449,6 +533,20 @@ watch(
     width: 100%;
     display: flex;
     justify-content: center;
+  }
+
+  /* Reduce slot height on mobile for better viewport usage */
+  .fc-timegrid-slot {
+    height: 3.5rem; /* 56px on mobile - still readable */
+  }
+
+  .fc-timegrid-slot-label {
+    font-size: 0.75rem; /* 12px on mobile */
+  }
+
+  .fc-event {
+    padding: 2px 4px; /* Tighter padding on mobile */
+    font-size: 0.8125rem; /* 13px */
   }
 }
 </style>
