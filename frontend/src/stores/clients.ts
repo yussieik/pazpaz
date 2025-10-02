@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import apiClient from '@/api/client'
 import type { paths } from '@/api/schema'
-import type { ClientCreate, ClientUpdate } from '@/types/client'
+import type { Client, ClientListItem, ClientCreate, ClientUpdate } from '@/types/client'
 
 /**
  * Clients Store
@@ -14,14 +14,11 @@ import type { ClientCreate, ClientUpdate } from '@/types/client'
 // Type definitions from OpenAPI schema
 type ClientResponse =
   paths['/api/v1/clients']['get']['responses']['200']['content']['application/json']
-type ClientListItem = ClientResponse['items'][0]
-type ClientDetailResponse =
-  paths['/api/v1/clients/{client_id}']['get']['responses']['200']['content']['application/json']
 
 export const useClientsStore = defineStore('clients', () => {
   // State
   const clients = ref<ClientListItem[]>([])
-  const currentClient = ref<ClientDetailResponse | null>(null)
+  const currentClient = ref<Client | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
   const total = ref(0)
@@ -48,7 +45,7 @@ export const useClientsStore = defineStore('clients', () => {
         params,
       })
 
-      clients.value = response.data.items
+      clients.value = response.data.items as unknown as ClientListItem[]
       total.value = response.data.total
     } catch (err: unknown) {
       // Handle Axios errors with detailed error messages
@@ -84,7 +81,7 @@ export const useClientsStore = defineStore('clients', () => {
     error.value = null
 
     try {
-      const response = await apiClient.get<ClientDetailResponse>(`/clients/${clientId}`)
+      const response = await apiClient.get<Client>(`/clients/${clientId}`)
 
       currentClient.value = response.data
       return response.data
@@ -125,14 +122,10 @@ export const useClientsStore = defineStore('clients', () => {
     error.value = null
 
     try {
-      const response = await apiClient.post<ClientDetailResponse>(
-        '/clients',
-        clientData
-      )
+      const response = await apiClient.post<Client>('/clients', clientData)
 
       // Add new client to local state (optimistic update)
-      // Cast to ClientListItem since it has the same structure
-      clients.value.push(response.data as unknown as ClientListItem)
+      clients.value.push(response.data)
 
       return response.data
     } catch (err) {
@@ -156,15 +149,12 @@ export const useClientsStore = defineStore('clients', () => {
     error.value = null
 
     try {
-      const response = await apiClient.put<ClientDetailResponse>(
-        `/clients/${clientId}`,
-        updates
-      )
+      const response = await apiClient.put<Client>(`/clients/${clientId}`, updates)
 
       // Update local state
       const index = clients.value.findIndex((c) => c.id === clientId)
       if (index !== -1) {
-        clients.value[index] = response.data as unknown as ClientListItem
+        clients.value[index] = response.data
       }
 
       // Update current client if it's the one being edited

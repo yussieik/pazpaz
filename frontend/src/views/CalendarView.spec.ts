@@ -6,6 +6,14 @@ import CalendarView from './CalendarView.vue'
 import { useAppointmentsStore } from '@/stores/appointments'
 import apiClient from '@/api/client'
 
+// Mock VueUse integrations
+vi.mock('@vueuse/integrations/useFocusTrap', () => ({
+  useFocusTrap: vi.fn(() => ({
+    activate: vi.fn(),
+    deactivate: vi.fn(),
+  })),
+}))
+
 // Mock the API client
 vi.mock('@/api/client', () => ({
   default: {

@@ -21,8 +21,11 @@
     "@fullcalendar/interaction": "^6.1.19",
     "@fullcalendar/timegrid": "^6.1.19",
     "@fullcalendar/vue3": "^6.1.19",
+    "@vueuse/core": "^13.9.0",
+    "@vueuse/integrations": "^13.9.0",
     "axios": "^1.12.2",
     "date-fns": "^4.1.0",
+    "focus-trap": "^7.6.5",
     "pinia": "^3.0.3",
     "vue": "^3.5.21",
     "vue-router": "^4.5.1"

@@ -16,6 +16,7 @@ vi.mock('@/api/client', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
     patch: vi.fn(),
     delete: vi.fn(),
   },
@@ -305,7 +306,7 @@ describe('Appointments Integration Tests', () => {
         },
       }
 
-      vi.mocked(apiClient.patch).mockResolvedValueOnce(backendResponse)
+      vi.mocked(apiClient.put).mockResolvedValueOnce(backendResponse)
 
       const result = await store.updateAppointment('appointment-1', updates)
 
@@ -323,7 +324,7 @@ describe('Appointments Integration Tests', () => {
         message: 'Not found',
       } as AxiosError
 
-      vi.mocked(apiClient.patch).mockRejectedValueOnce(notFoundError)
+      vi.mocked(apiClient.put).mockRejectedValueOnce(notFoundError)
 
       await expect(
         store.updateAppointment('non-existent', { title: 'Test' })

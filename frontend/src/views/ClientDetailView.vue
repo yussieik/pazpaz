@@ -2,6 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useClientsStore } from '@/stores/clients'
+import { formatDate } from '@/utils/calendar/dateFormatters'
+import type { AppointmentListItem } from '@/types/calendar'
 
 const route = useRoute()
 const router = useRouter()
@@ -10,11 +12,55 @@ const clientsStore = useClientsStore()
 // Local state
 const activeTab = ref<'overview' | 'history' | 'plan-of-care' | 'files'>('overview')
 
+// Appointment context from navigation state (H1: Contextual Banner)
+const sourceAppointment = ref<AppointmentListItem | null>(
+  (history.state.appointment as AppointmentListItem) || null
+)
+
 const clientId = computed(() => route.params.id as string)
 const client = computed(() => clientsStore.currentClient)
 
-function goBack() {
-  router.push('/clients')
+// H6: Smart back navigation
+const backDestination = computed(() => {
+  // Check if we have appointment context in history.state
+  if (sourceAppointment.value) {
+    return {
+      label: 'Back to Appointment',
+      action: () =>
+        router.push({
+          path: '/',
+          query: { appointment: sourceAppointment.value!.id },
+        }),
+    }
+  }
+
+  // Check referrer for calendar
+  const referrer = document.referrer
+  if (referrer.includes('/') && !referrer.includes('/clients')) {
+    return {
+      label: 'Back to Calendar',
+      action: () => router.push('/'),
+    }
+  }
+
+  // Default
+  return {
+    label: 'Back to Clients',
+    action: () => router.push('/clients'),
+  }
+})
+
+function dismissBanner() {
+  sourceAppointment.value = null
+}
+
+function returnToAppointment() {
+  if (sourceAppointment.value) {
+    router.push({
+      path: '/',
+      query: { appointment: sourceAppointment.value.id },
+    })
+  }
 }
 
 function editClient() {
@@ -33,9 +79,9 @@ onMounted(() => {
 
 <template>
   <div class="container mx-auto px-4 py-8">
-    <!-- Back Button -->
+    <!-- Back Button (H6: Smart Navigation) -->
     <button
-      @click="goBack"
+      @click="backDestination.action"
       class="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
     >
       <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -46,8 +92,57 @@ onMounted(() => {
           d="M15 19l-7-7 7-7"
         />
       </svg>
-      <span>Back to Clients</span>
+      <span>{{ backDestination.label }}</span>
     </button>
+
+    <!-- H1: Contextual Appointment Banner -->
+    <div
+      v-if="sourceAppointment"
+      class="mb-4 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-4"
+    >
+      <div class="flex items-start gap-3">
+        <svg
+          class="mt-0.5 h-5 w-5 text-blue-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <div>
+          <p class="text-sm font-medium text-blue-900">
+            Viewing from appointment:
+            {{ formatDate(sourceAppointment.scheduled_start, 'EEEE, MMM d') }} at
+            {{ formatDate(sourceAppointment.scheduled_start, 'h:mm a') }}
+          </p>
+          <button
+            @click="returnToAppointment"
+            class="mt-1 text-sm font-medium text-blue-600 underline hover:text-blue-700"
+          >
+            Return to appointment details
+          </button>
+        </div>
+      </div>
+      <button
+        @click="dismissBanner"
+        class="text-blue-400 hover:text-blue-600"
+        aria-label="Dismiss"
+      >
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+    </div>
 
     <!-- Loading State -->
     <div v-if="clientsStore.loading" class="flex items-center justify-center py-12">
@@ -80,13 +175,52 @@ onMounted(() => {
             >
               {{ client.first_name[0] }}{{ client.last_name[0] }}
             </div>
-            <div>
+            <div class="flex-1">
               <h1 class="text-2xl font-semibold text-slate-900">
                 {{ client.full_name }}
               </h1>
               <div class="mt-1 space-y-0.5 text-sm text-slate-600">
                 <p v-if="client.email">{{ client.email }}</p>
                 <p v-if="client.phone">{{ client.phone }}</p>
+              </div>
+
+              <!-- H4: Emergency Contact Quick Access -->
+              <div
+                v-if="client.emergency_contact_name || client.emergency_contact_phone"
+                class="mt-4 border-t border-slate-200 pt-4"
+              >
+                <div class="flex items-center gap-3">
+                  <div
+                    class="flex h-8 w-8 items-center justify-center rounded-full bg-red-100"
+                  >
+                    <svg
+                      class="h-4 w-4 text-red-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                  </div>
+                  <div class="text-sm">
+                    <span class="font-semibold text-slate-900">Emergency Contact:</span>
+                    <span class="ml-2 text-slate-700">{{
+                      client.emergency_contact_name
+                    }}</span>
+                    <a
+                      v-if="client.emergency_contact_phone"
+                      :href="`tel:${client.emergency_contact_phone}`"
+                      class="ml-2 font-medium text-red-600 hover:text-red-700"
+                    >
+                      {{ client.emergency_contact_phone }}
+                    </a>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

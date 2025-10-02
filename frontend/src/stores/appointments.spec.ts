@@ -8,6 +8,7 @@ vi.mock('@/api/client', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
     patch: vi.fn(),
     delete: vi.fn(),
   },
@@ -303,13 +304,13 @@ describe('Appointments Store', () => {
         updated_at: '2025-09-30T12:00:00Z',
       }
 
-      vi.mocked(apiClient.patch).mockResolvedValueOnce({
+      vi.mocked(apiClient.put).mockResolvedValueOnce({
         data: updatedAppointment,
       })
 
       const result = await store.updateAppointment('1', updates)
 
-      expect(apiClient.patch).toHaveBeenCalledWith('/appointments/1', updates)
+      expect(apiClient.put).toHaveBeenCalledWith('/appointments/1', updates)
       expect(result).toEqual(updatedAppointment)
       expect(store.appointments[0]).toEqual(updatedAppointment)
       expect(store.loading).toBe(false)
@@ -323,7 +324,7 @@ describe('Appointments Store', () => {
         updated_at: '2025-09-30T12:00:00Z',
       }
 
-      vi.mocked(apiClient.patch).mockResolvedValueOnce({
+      vi.mocked(apiClient.put).mockResolvedValueOnce({
         data: updatedAppointment,
       })
 
@@ -341,7 +342,7 @@ describe('Appointments Store', () => {
         ...updates,
       }
 
-      vi.mocked(apiClient.patch).mockResolvedValueOnce({
+      vi.mocked(apiClient.put).mockResolvedValueOnce({
         data: updatedAppointment,
       })
 
@@ -353,7 +354,7 @@ describe('Appointments Store', () => {
 
     it('should handle update errors', async () => {
       const errorMessage = 'Update failed'
-      vi.mocked(apiClient.patch).mockRejectedValueOnce(new Error(errorMessage))
+      vi.mocked(apiClient.put).mockRejectedValueOnce(new Error(errorMessage))
 
       await expect(store.updateAppointment('1', updates)).rejects.toThrow()
 

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref, watch, nextTick } from 'vue'
+import { useFocusTrap } from '@vueuse/integrations/useFocusTrap'
 import type { AppointmentListItem } from '@/types/calendar'
 import { formatDate, calculateDuration } from '@/utils/calendar/dateFormatters'
 import { getStatusBadgeClass } from '@/utils/calendar/appointmentHelpers'
@@ -16,8 +18,30 @@ interface Emits {
   (e: 'viewClient', clientId: string): void
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+const modalRef = ref<HTMLElement>()
+
+// H9: Focus trap for accessibility (WCAG 2.1 AA compliance)
+const { activate, deactivate } = useFocusTrap(modalRef, {
+  immediate: false,
+  escapeDeactivates: true,
+  clickOutsideDeactivates: true,
+  allowOutsideClick: true,
+})
+
+// Activate/deactivate focus trap based on visibility
+watch(
+  () => props.visible,
+  (isVisible) => {
+    if (isVisible && modalRef.value) {
+      nextTick(() => activate())
+    } else {
+      deactivate()
+    }
+  }
+)
 
 function closeModal() {
   emit('update:visible', false)
@@ -54,10 +78,11 @@ function closeModal() {
     >
       <div
         v-if="visible && appointment"
+        ref="modalRef"
         class="fixed inset-0 z-50 flex items-center justify-center p-4"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="appointment-modal-title"
+        :aria-labelledby="`appointment-details-modal-title-${appointment.id}`"
       >
         <div
           class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-xl"
@@ -69,7 +94,7 @@ function closeModal() {
           >
             <div>
               <h2
-                id="appointment-modal-title"
+                :id="`appointment-details-modal-title-${appointment.id}`"
                 class="text-xl font-semibold text-slate-900"
               >
                 Appointment Details

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAppointmentsStore } from '@/stores/appointments'
 import FullCalendar from '@fullcalendar/vue3'
 import type { AppointmentListItem, AppointmentFormData } from '@/types/calendar'
@@ -27,6 +27,7 @@ import KeyboardShortcutsHelp from '@/components/calendar/KeyboardShortcutsHelp.v
  * TODO (M3): Wire up API calls for CRUD operations
  */
 
+const route = useRoute()
 const router = useRouter()
 const appointmentsStore = useAppointmentsStore()
 const calendarRef = ref<InstanceType<typeof FullCalendar>>()
@@ -115,8 +116,14 @@ const appointmentSummary = computed(() => {
  * Action handlers for appointment modal
  */
 function viewClientDetails(clientId: string) {
+  const appointmentData = selectedAppointment.value
   selectedAppointment.value = null // Close modal
-  router.push(`/clients/${clientId}`) // Navigate to client detail page
+  // Pass appointment context via route state for contextual navigation
+  router.push({
+    name: 'client-detail',
+    params: { id: clientId },
+    state: { appointment: appointmentData },
+  })
 }
 
 function editAppointment(appointment: AppointmentListItem) {
@@ -186,6 +193,22 @@ function handleHelpKey(e: KeyboardEvent) {
     showKeyboardHelp.value = true
   }
 }
+
+// Open appointment from query param (for "return to appointment" flow)
+watch(
+  () => route.query.appointment,
+  (appointmentId) => {
+    if (appointmentId && typeof appointmentId === 'string') {
+      const appointment = appointmentsStore.appointments.find((a) => a.id === appointmentId)
+      if (appointment) {
+        selectedAppointment.value = appointment
+      }
+      // Clear query param
+      router.replace({ query: {} })
+    }
+  },
+  { immediate: true }
+)
 
 onMounted(() => {
   window.addEventListener('keydown', handleHelpKey)
