@@ -22,7 +22,8 @@ const showKeyboardHelp = ref(false)
  * Handle global '?' key to show keyboard shortcuts help
  */
 function handleHelpKey(e: KeyboardEvent) {
-  if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+  // Note: '?' typically requires Shift key, so we allow shiftKey
+  if (e.key === '?' && !e.metaKey && !e.ctrlKey) {
     // Only trigger if not typing in input field
     const target = e.target as HTMLElement
     if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return

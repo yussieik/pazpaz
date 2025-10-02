@@ -36,12 +36,12 @@ export const KEYBOARD_SHORTCUTS: ShortcutConfig[] = [
     category: 'calendar',
   },
   {
-    keys: 'j or ←',
+    keys: '←',
     description: 'Previous period',
     category: 'calendar',
   },
   {
-    keys: 'k or →',
+    keys: '→',
     description: 'Next period',
     category: 'calendar',
   },

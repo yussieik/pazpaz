@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { KEYBOARD_SHORTCUTS, type ShortcutConfig } from '@/config/keyboardShortcuts'
 
 interface Props {
@@ -10,7 +10,7 @@ interface Emits {
   (e: 'update:visible', value: boolean): void
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 // Group shortcuts by category
@@ -29,6 +29,22 @@ const clientShortcuts = computed<ShortcutConfig[]>(() =>
 function closeModal() {
   emit('update:visible', false)
 }
+
+// Handle Escape key to close modal
+function handleEscapeKey(e: KeyboardEvent) {
+  if (e.key === 'Escape' && props.visible) {
+    e.preventDefault()
+    closeModal()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleEscapeKey)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscapeKey)
+})
 </script>
 
 <template>
