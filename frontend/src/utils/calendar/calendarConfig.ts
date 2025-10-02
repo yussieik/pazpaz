@@ -61,11 +61,14 @@ export const BASE_CALENDAR_OPTIONS = {
   height: 'auto',
   allDaySlot: false,
   nowIndicator: true,
-  editable: false,
+  editable: true, // Enable drag-and-drop rescheduling
   selectable: false,
   selectMirror: true,
   dayMaxEvents: true,
   weekends: true,
+  eventDurationEditable: false, // Duration is preserved when dragging
+  eventStartEditable: true, // Allow changing start time
+  snapDuration: '00:15:00', // Snap to 15-minute increments
   ...TIME_SLOT_CONFIG,
   ...TIME_FORMAT_CONFIG,
   ...BUSINESS_HOURS_CONFIG,

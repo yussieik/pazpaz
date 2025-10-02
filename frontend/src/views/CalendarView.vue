@@ -1,19 +1,25 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppointmentsStore } from '@/stores/appointments'
 import FullCalendar from '@fullcalendar/vue3'
+import type { EventDropArg } from '@fullcalendar/core'
 import type { AppointmentListItem, AppointmentFormData } from '@/types/calendar'
 import { useCalendar } from '@/composables/useCalendar'
 import { useCalendarEvents } from '@/composables/useCalendarEvents'
 import { useCalendarKeyboardShortcuts } from '@/composables/useCalendarKeyboardShortcuts'
 import { useCalendarLoading } from '@/composables/useCalendarLoading'
+import { useAppointmentDrag } from '@/composables/useAppointmentDrag'
+import { toISOString } from '@/utils/dragHelpers'
+import type { ConflictingAppointment } from '@/api/client'
 import PageHeader from '@/components/common/PageHeader.vue'
 import CalendarToolbar from '@/components/calendar/CalendarToolbar.vue'
 import AppointmentDetailsModal from '@/components/calendar/AppointmentDetailsModal.vue'
 import AppointmentFormModal from '@/components/calendar/AppointmentFormModal.vue'
 import CancelAppointmentDialog from '@/components/calendar/CancelAppointmentDialog.vue'
 import CalendarLoadingState from '@/components/calendar/CalendarLoadingState.vue'
+import DragConflictModal from '@/components/calendar/DragConflictModal.vue'
+import MobileRescheduleModal from '@/components/calendar/MobileRescheduleModal.vue'
 
 /**
  * Calendar View - appointment scheduling with weekly/day/month views
@@ -21,10 +27,11 @@ import CalendarLoadingState from '@/components/calendar/CalendarLoadingState.vue
  * Implemented (M2):
  * - Appointment creation/editing modals
  * - Cancel appointment dialog
- *
- * TODO (M3): Implement drag-and-drop rescheduling
- * TODO (M3): Add conflict detection
- * TODO (M3): Wire up API calls for CRUD operations
+ * - Conflict detection with soft warning
+ * - Drag-and-drop rescheduling (desktop)
+ * - Keyboard navigation for rescheduling
+ * - Mobile time picker modal
+ * - Optimistic updates with undo
  */
 
 const route = useRoute()
@@ -39,6 +46,24 @@ const showEditModal = ref(false)
 const showCancelDialog = ref(false)
 const appointmentToEdit = ref<AppointmentListItem | null>(null)
 const appointmentToCancel = ref<AppointmentListItem | null>(null)
+
+// Drag-and-drop state
+const showDragConflictModal = ref(false)
+const showMobileRescheduleModal = ref(false)
+const dragConflictData = ref<{
+  appointmentId: string
+  newStart: Date
+  newEnd: Date
+  conflicts: ConflictingAppointment[]
+} | null>(null)
+const mobileRescheduleAppointment = ref<AppointmentListItem | null>(null)
+const undoTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
+const showUndoToast = ref(false)
+const undoData = ref<{
+  appointmentId: string
+  originalStart: string
+  originalEnd: string
+} | null>(null)
 
 // Calendar state and navigation
 const {
@@ -57,6 +82,25 @@ const { selectedAppointment, calendarEvents, handleEventClick } = useCalendarEve
 
 // Debounced loading state
 const { showLoadingSpinner } = useCalendarLoading()
+
+// Drag-and-drop rescheduling
+const {
+  isDragging,
+  isKeyboardRescheduleActive,
+  ghostTimeRange,
+  ghostDateTimePreview,
+  keyboardTimeRange,
+  dragState,
+  handleEventDrop,
+  activateKeyboardReschedule,
+  handleKeyboardNavigation,
+  confirmKeyboardReschedule,
+  cancelKeyboardReschedule,
+  cleanup: cleanupDrag,
+} = useAppointmentDrag(
+  computed(() => appointmentsStore.appointments),
+  handleAppointmentReschedule
+)
 
 // Button refs for keyboard shortcut visual feedback
 const toolbarButtonRefs = computed(() => ({
@@ -80,9 +124,141 @@ useCalendarKeyboardShortcuts({
 })
 
 // Build calendar options with events and handlers
-const calendarOptions = computed(() =>
-  buildCalendarOptions(calendarEvents.value, handleEventClick)
-)
+const calendarOptions = computed(() => ({
+  ...buildCalendarOptions(calendarEvents.value, handleEventClick),
+  eventDrop: handleEventDrop as (arg: EventDropArg) => void,
+}))
+
+/**
+ * Handle appointment reschedule (from drag-and-drop or mobile modal)
+ */
+async function handleAppointmentReschedule(
+  appointmentId: string,
+  newStart: Date,
+  newEnd: Date,
+  hasConflict: boolean
+) {
+  // If has conflict, show conflict modal
+  if (hasConflict && dragState.value.conflictData) {
+    dragConflictData.value = {
+      appointmentId,
+      newStart,
+      newEnd,
+      conflicts: dragState.value.conflictData.conflicting_appointments as ConflictingAppointment[],
+    }
+    showDragConflictModal.value = true
+    return
+  }
+
+  // No conflict, proceed with reschedule
+  await performReschedule(appointmentId, newStart, newEnd)
+}
+
+/**
+ * Perform the actual reschedule with optimistic update
+ */
+async function performReschedule(appointmentId: string, newStart: Date, newEnd: Date) {
+  const appointment = appointmentsStore.appointments.find(
+    (a: AppointmentListItem) => a.id === appointmentId
+  )
+  if (!appointment) return
+
+  // Store original times for undo
+  const originalStart = appointment.scheduled_start
+  const originalEnd = appointment.scheduled_end
+
+  // Optimistic update
+  try {
+    await appointmentsStore.updateAppointment(appointmentId, {
+      scheduled_start: toISOString(newStart),
+      scheduled_end: toISOString(newEnd),
+    })
+
+    // Show success toast with undo button
+    undoData.value = {
+      appointmentId,
+      originalStart,
+      originalEnd,
+    }
+    showUndoToast.value = true
+
+    // Set 5-second undo timeout
+    if (undoTimeout.value) {
+      clearTimeout(undoTimeout.value)
+    }
+    undoTimeout.value = setTimeout(() => {
+      showUndoToast.value = false
+      undoData.value = null
+    }, 5000)
+  } catch (error) {
+    console.error('Failed to reschedule appointment:', error)
+    // TODO: Show error toast
+  }
+}
+
+/**
+ * Undo reschedule
+ */
+async function handleUndoReschedule() {
+  if (!undoData.value) return
+
+  const { appointmentId, originalStart, originalEnd } = undoData.value
+
+  try {
+    await appointmentsStore.updateAppointment(appointmentId, {
+      scheduled_start: originalStart,
+      scheduled_end: originalEnd,
+    })
+
+    // Clear undo state
+    if (undoTimeout.value) {
+      clearTimeout(undoTimeout.value)
+    }
+    showUndoToast.value = false
+    undoData.value = null
+  } catch (error) {
+    console.error('Failed to undo reschedule:', error)
+  }
+}
+
+/**
+ * Confirm reschedule with conflict
+ */
+async function handleConfirmConflictReschedule() {
+  if (!dragConflictData.value) return
+
+  const { appointmentId, newStart, newEnd } = dragConflictData.value
+  await performReschedule(appointmentId, newStart, newEnd)
+
+  // Close conflict modal
+  showDragConflictModal.value = false
+  dragConflictData.value = null
+}
+
+/**
+ * Cancel conflict reschedule (snap back)
+ */
+function handleCancelConflictReschedule() {
+  // Just close the modal - appointment is already back in original position
+  showDragConflictModal.value = false
+  dragConflictData.value = null
+}
+
+/**
+ * Handle mobile reschedule
+ */
+async function handleMobileReschedule(data: { newStart: Date; newEnd: Date }) {
+  if (!mobileRescheduleAppointment.value) return
+
+  await performReschedule(
+    mobileRescheduleAppointment.value.id,
+    data.newStart,
+    data.newEnd
+  )
+
+  showMobileRescheduleModal.value = false
+  mobileRescheduleAppointment.value = null
+}
 
 /**
  * Helper function to get visible date range based on current view
@@ -266,6 +442,54 @@ watch(
   },
   { immediate: true }
 )
+
+// Keyboard shortcuts for reschedule mode
+onMounted(() => {
+  document.addEventListener('keydown', handleGlobalKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleGlobalKeydown)
+  cleanupDrag()
+  if (undoTimeout.value) {
+    clearTimeout(undoTimeout.value)
+  }
+})
+
+/**
+ * Global keydown handler for reschedule mode
+ */
+function handleGlobalKeydown(event: KeyboardEvent) {
+  // Activate reschedule mode with 'R' key (when appointment is selected)
+  if (event.key === 'r' || event.key === 'R') {
+    if (selectedAppointment.value && !isKeyboardRescheduleActive.value) {
+      event.preventDefault()
+      activateKeyboardReschedule(selectedAppointment.value.id)
+      selectedAppointment.value = null // Close detail modal
+      return
+    }
+  }
+
+  // Handle keyboard navigation in reschedule mode
+  if (isKeyboardRescheduleActive.value) {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+      event.preventDefault()
+      handleKeyboardNavigation(event.key)
+    } else if (event.key === 'Enter') {
+      event.preventDefault()
+      confirmKeyboardReschedule()
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      cancelKeyboardReschedule()
+    }
+  }
+
+  // Undo with Ctrl+Z or Cmd+Z
+  if ((event.ctrlKey || event.metaKey) && event.key === 'z' && showUndoToast.value) {
+    event.preventDefault()
+    handleUndoReschedule()
+  }
+}
 </script>
 
 <template>
@@ -371,6 +595,150 @@ watch(
       @update:visible="showCancelDialog = $event"
       @confirm="handleConfirmCancel"
     />
+
+    <!-- Drag Conflict Modal -->
+    <DragConflictModal
+      :visible="showDragConflictModal"
+      :conflicts="dragConflictData?.conflicts || []"
+      :new-time-range="
+        dragConflictData
+          ? { start: dragConflictData.newStart, end: dragConflictData.newEnd }
+          : null
+      "
+      :position="dragState.ghostPosition"
+      @confirm="handleConfirmConflictReschedule"
+      @cancel="handleCancelConflictReschedule"
+      @update:visible="showDragConflictModal = $event"
+    />
+
+    <!-- Mobile Reschedule Modal -->
+    <MobileRescheduleModal
+      :visible="showMobileRescheduleModal"
+      :appointment="mobileRescheduleAppointment"
+      @update:visible="showMobileRescheduleModal = $event"
+      @reschedule="handleMobileReschedule"
+    />
+
+    <!-- Undo Toast -->
+    <Transition name="toast-slide">
+      <div
+        v-if="showUndoToast"
+        class="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg bg-gray-900 px-4 py-3 text-white shadow-2xl"
+        role="status"
+        aria-live="polite"
+      >
+        <svg class="h-5 w-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          />
+        </svg>
+        <span class="text-sm font-medium">Appointment rescheduled</span>
+        <button
+          type="button"
+          class="ml-2 rounded-md bg-white/10 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+          @click="handleUndoReschedule"
+        >
+          Undo
+        </button>
+        <button
+          type="button"
+          class="ml-1 rounded-lg p-1 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          @click="showUndoToast = false"
+          aria-label="Dismiss"
+        >
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+    </Transition>
+
+    <!-- Keyboard Reschedule Mode Indicator -->
+    <Transition name="fade">
+      <div
+        v-if="isKeyboardRescheduleActive"
+        class="fixed bottom-6 right-6 z-50 rounded-lg bg-blue-600 px-4 py-3 text-white shadow-2xl"
+        role="status"
+        aria-live="polite"
+      >
+        <div class="flex items-start gap-3">
+          <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+            />
+          </svg>
+          <div>
+            <p class="text-sm font-semibold">Reschedule Mode</p>
+            <p class="mt-1 text-xs opacity-90">{{ keyboardTimeRange }}</p>
+            <p class="mt-2 text-xs opacity-75">
+              <kbd class="rounded bg-white/20 px-1 py-0.5">↑↓</kbd> 15 min •
+              <kbd class="rounded bg-white/20 px-1 py-0.5">←→</kbd> 1 day •
+              <kbd class="rounded bg-white/20 px-1 py-0.5">Enter</kbd> confirm •
+              <kbd class="rounded bg-white/20 px-1 py-0.5">Esc</kbd> cancel
+            </p>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Drag Ghost Element -->
+    <Transition name="ghost-fade">
+      <div
+        v-if="isDragging && dragState.ghostPosition"
+        class="pointer-events-none fixed z-50 animate-ghost-float"
+        :style="{
+          left: `${dragState.ghostPosition.x + 10}px`,
+          top: `${dragState.ghostPosition.y + 10}px`,
+        }"
+      >
+        <div
+          class="rotate-2 rounded-lg border-2 border-blue-400 bg-white px-4 py-3 opacity-95 shadow-2xl ring-2 ring-blue-400/20"
+        >
+          <div class="flex items-center gap-2">
+            <svg
+              class="h-5 w-5 text-blue-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span class="text-sm font-semibold text-gray-900">{{ ghostTimeRange }}</span>
+          </div>
+          <p class="mt-1 text-xs text-gray-600">{{ ghostDateTimePreview }}</p>
+          <div
+            v-if="dragState.hasConflict"
+            class="mt-2 flex items-center gap-1 text-xs font-medium text-amber-600"
+          >
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            Conflict detected
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -599,5 +967,110 @@ watch(
 .fc-event.has-conflict:hover {
   opacity: 1;
   border-color: #d97706; /* amber-600 for stronger visual on hover */
+}
+
+/* Drag-and-Drop Visual States */
+
+/* Event hover state - indicate draggable */
+.fc-event:not(.fc-event-past) {
+  cursor: grab;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fc-event:not(.fc-event-past):hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Event being dragged - placeholder state */
+.fc-event.fc-event-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+/* Valid drop zone - pulse effect */
+.fc-timegrid-col:hover {
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+/* Toast slide-up transition */
+.toast-slide-enter-active,
+.toast-slide-leave-active {
+  transition: all 0.3s ease;
+}
+
+.toast-slide-enter-from {
+  transform: translate(-50%, 100px);
+  opacity: 0;
+}
+
+.toast-slide-leave-to {
+  transform: translate(-50%, 20px);
+  opacity: 0;
+}
+
+/* Fade transition for indicators */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Ghost element fade transition */
+.ghost-fade-enter-active,
+.ghost-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.ghost-fade-enter-from,
+.ghost-fade-leave-to {
+  opacity: 0;
+}
+
+/* Keyboard reschedule mode - highlight selected appointment */
+.fc-event.keyboard-reschedule-active {
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.5);
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+/* Respect reduced motion preference for all new animations */
+@media (prefers-reduced-motion: reduce) {
+  .fc-event:not(.fc-event-past):hover {
+    transform: none;
+  }
+
+  .fc-timegrid-col:hover {
+    animation: none;
+  }
+
+  .toast-slide-enter-active,
+  .toast-slide-leave-active,
+  .fade-enter-active,
+  .fade-leave-active,
+  .ghost-fade-enter-active,
+  .ghost-fade-leave-active {
+    transition: none;
+  }
+
+  .fc-event.keyboard-reschedule-active {
+    animation: none;
+  }
+}
+
+/* Screen reader only class */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 </style>

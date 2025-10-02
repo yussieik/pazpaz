@@ -190,8 +190,7 @@ const submitButtonText = computed(() =>
   props.mode === 'create' ? 'Create' : 'Save Changes'
 )
 
-function handleViewConflict(appointmentId: string) {
-  console.log('View conflict:', appointmentId)
+function handleViewConflict(_appointmentId: string) {
   // TODO: Navigate to conflicting appointment or open in modal
 }
 </script>
