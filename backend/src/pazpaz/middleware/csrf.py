@@ -71,7 +71,10 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             )
 
         # Tokens must match
-        if csrf_cookie != csrf_header:
+        # Use constant-time comparison to prevent timing attacks
+        # secrets.compare_digest() prevents attackers from brute-forcing tokens
+        # by measuring response times (timing side-channel attack)
+        if not secrets.compare_digest(csrf_cookie, csrf_header):
             logger.warning(
                 "csrf_validation_failed_token_mismatch",
                 path=request.url.path,

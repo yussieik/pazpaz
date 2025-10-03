@@ -8,6 +8,7 @@ import redis.asyncio as redis
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pazpaz.core.config import settings
 from pazpaz.core.logging import get_logger
 from pazpaz.core.redis import get_redis
 from pazpaz.db.base import get_db
@@ -133,26 +134,27 @@ async def verify_magic_link_endpoint(
         redis_client=redis_client,
     )
 
-    # Set JWT as HttpOnly cookie
+    # Set JWT as HttpOnly cookie (XSS protection)
     # SameSite=Lax for CSRF protection while allowing navigation
-    # Secure=True in production (HTTPS only)
+    # Secure flag auto-enabled in production (settings.debug=False)
     response.set_cookie(
         key="access_token",
         value=jwt_token,
         httponly=True,
         samesite="lax",
-        secure=False,  # Set to True in production with HTTPS
+        secure=not settings.debug,  # Auto-enable in production
         max_age=60 * 60 * 24 * 7,  # 7 days
     )
 
-    # Set CSRF token as cookie (not HttpOnly, so JS can read it)
+    # Set CSRF token as cookie (not HttpOnly, JS needs to read)
     # SameSite=Strict for additional CSRF protection
+    # Secure flag auto-enabled in production (settings.debug=False)
     response.set_cookie(
         key="csrf_token",
         value=csrf_token,
         httponly=False,  # Allow JS to read for X-CSRF-Token header
         samesite="strict",  # Stricter than JWT cookie for CSRF prevention
-        secure=False,  # Set to True in production with HTTPS
+        secure=not settings.debug,  # Auto-enable in production
         max_age=60 * 60 * 24 * 7,  # 7 days (match JWT)
     )
 

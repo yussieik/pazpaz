@@ -30,6 +30,27 @@ async def lifespan(app: FastAPI):
     # Startup
     configure_logging(debug=settings.debug)
     logger = get_logger(__name__)
+
+    # Validate SECRET_KEY configuration
+    if settings.secret_key == "change-me-in-production":
+        if not settings.debug:
+            # Production mode: REJECT default key
+            raise ValueError(
+                "CRITICAL SECURITY ERROR: SECRET_KEY must be changed in production!\n"
+                "Generate a strong key with: openssl rand -base64 64\n"
+                "Set SECRET_KEY in environment or .env file."
+            )
+        else:
+            # Development mode: WARN but allow
+            logger.warning(
+                "🚨 SECURITY WARNING: Using default SECRET_KEY",
+                extra={
+                    "message": "This is acceptable ONLY in development mode",
+                    "action_required": "Set SECRET_KEY in .env for production",
+                    "generate_key": "openssl rand -base64 64",
+                },
+            )
+
     logger.info(
         "application_startup",
         app_name=settings.app_name,

@@ -8,8 +8,9 @@ import pytest
 from httpx import AsyncClient
 
 from pazpaz.models.client import Client
+from pazpaz.models.user import User
 from pazpaz.models.workspace import Workspace
-from tests.conftest import get_auth_headers
+from tests.conftest import add_csrf_to_client, get_auth_headers
 
 pytestmark = pytest.mark.asyncio
 
@@ -18,10 +19,18 @@ class TestCreateClient:
     """Test client creation endpoint."""
 
     async def test_create_client_success(
-        self, client: AsyncClient, workspace_1: Workspace
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Happy path: Create a client with valid data."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         response = await client.post(
             "/api/v1/clients",
@@ -69,10 +78,18 @@ class TestCreateClient:
         assert data["appointment_count"] == 0
 
     async def test_create_client_minimal_fields(
-        self, client: AsyncClient, workspace_1: Workspace
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Create client with only required fields."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         response = await client.post(
             "/api/v1/clients",
@@ -100,10 +117,18 @@ class TestCreateClient:
         assert data["tags"] is None
 
     async def test_create_client_validates_email(
-        self, client: AsyncClient, workspace_1: Workspace
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Invalid email format should return 422."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         response = await client.post(
             "/api/v1/clients",
@@ -119,10 +144,18 @@ class TestCreateClient:
         assert response.status_code == 422
 
     async def test_create_client_requires_first_name(
-        self, client: AsyncClient, workspace_1: Workspace
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Missing first_name should return 422."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         response = await client.post(
             "/api/v1/clients",
@@ -136,10 +169,18 @@ class TestCreateClient:
         assert response.status_code == 422
 
     async def test_create_client_requires_last_name(
-        self, client: AsyncClient, workspace_1: Workspace
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Missing last_name should return 422."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         response = await client.post(
             "/api/v1/clients",
@@ -153,10 +194,18 @@ class TestCreateClient:
         assert response.status_code == 422
 
     async def test_create_client_default_consent_false(
-        self, client: AsyncClient, workspace_1: Workspace
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Consent status defaults to False if not provided."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         response = await client.post(
             "/api/v1/clients",
@@ -250,10 +299,18 @@ class TestListClients:
         assert data["items"][0]["id"] == str(sample_client_ws1.id)
 
     async def test_list_clients_pagination(
-        self, client: AsyncClient, workspace_1: Workspace
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Test pagination parameters."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         # Create multiple clients
         for i in range(5):
@@ -295,10 +352,18 @@ class TestListClients:
         assert data["page"] == 2
 
     async def test_list_clients_sorted_by_name(
-        self, client: AsyncClient, workspace_1: Workspace
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Clients should be sorted by last name, first name."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         # Create clients in non-alphabetical order
         await client.post(
@@ -340,9 +405,15 @@ class TestUpdateClient:
         client: AsyncClient,
         workspace_1: Workspace,
         sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Partial update of client fields works correctly."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         response = await client.put(
             f"/api/v1/clients/{sample_client_ws1.id}",
@@ -365,9 +436,15 @@ class TestUpdateClient:
         client: AsyncClient,
         workspace_1: Workspace,
         sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Update all client fields."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         response = await client.put(
             f"/api/v1/clients/{sample_client_ws1.id}",
@@ -404,10 +481,18 @@ class TestUpdateClient:
         assert data["tags"] == ["new", "tags"]
 
     async def test_update_client_not_found(
-        self, client: AsyncClient, workspace_1: Workspace
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Update non-existent client returns 404."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
         nonexistent_id = uuid.uuid4()
 
         response = await client.put(
@@ -424,9 +509,15 @@ class TestUpdateClient:
         client: AsyncClient,
         workspace_1: Workspace,
         sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Invalid email in update returns 422."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         response = await client.put(
             f"/api/v1/clients/{sample_client_ws1.id}",
@@ -445,9 +536,15 @@ class TestDeleteClient:
         client: AsyncClient,
         workspace_1: Workspace,
         sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Delete existing client returns 204 and performs soft delete."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         response = await client.delete(
             f"/api/v1/clients/{sample_client_ws1.id}",
@@ -465,10 +562,18 @@ class TestDeleteClient:
         assert get_response.json()["is_active"] is False
 
     async def test_delete_client_not_found(
-        self, client: AsyncClient, workspace_1: Workspace
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Delete non-existent client returns 404."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
         nonexistent_id = uuid.uuid4()
 
         response = await client.delete(
@@ -484,9 +589,15 @@ class TestDeleteClient:
         client: AsyncClient,
         workspace_1: Workspace,
         sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Test that DELETE performs soft delete (is_active = false)."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         # Delete client
         response = await client.delete(
@@ -525,9 +636,15 @@ class TestDeleteClient:
         workspace_1: Workspace,
         sample_client_ws1: Client,
         sample_appointment_ws1,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Soft deleting client preserves their appointments."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         # Verify appointment exists
         appointment_response = await client.get(
@@ -559,9 +676,15 @@ class TestClientComputedFields:
         client: AsyncClient,
         workspace_1: Workspace,
         sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Test that GET /clients/{id} includes appointment statistics."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         # Create past completed appointment
         past_apt = await client.post(
@@ -663,9 +786,15 @@ class TestClientActiveFiltering:
         self,
         client: AsyncClient,
         workspace_1: Workspace,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Test that inactive clients are excluded from default list."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         # Create active client
         active = await client.post(
@@ -706,9 +835,15 @@ class TestClientActiveFiltering:
         self,
         client: AsyncClient,
         workspace_1: Workspace,
+        test_user_ws1: User,
+        redis_client,
     ):
         """Test that include_inactive=true shows all clients."""
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace_1.id)
+        headers.update(csrf_headers)
 
         # Create active and inactive clients
         active = await client.post(

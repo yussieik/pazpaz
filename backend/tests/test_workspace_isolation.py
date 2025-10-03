@@ -17,8 +17,9 @@ from httpx import AsyncClient
 
 from pazpaz.models.appointment import Appointment
 from pazpaz.models.client import Client
+from pazpaz.models.user import User
 from pazpaz.models.workspace import Workspace
-from tests.conftest import get_auth_headers
+from tests.conftest import add_csrf_to_client, get_auth_headers
 
 pytestmark = pytest.mark.asyncio
 
@@ -92,6 +93,8 @@ class TestClientWorkspaceIsolation:
         workspace_1: Workspace,
         workspace_2: Workspace,
         sample_client_ws1: Client,
+        test_user_ws2: User,
+        redis_client,
     ):
         """
         SECURITY CRITICAL: Cannot update client from different workspace.
@@ -99,8 +102,14 @@ class TestClientWorkspaceIsolation:
         Create client in workspace 1, try to update with workspace 2 header.
         Must return 404.
         """
+        # Add CSRF token for workspace 2
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_2.id, test_user_ws2.id, redis_client
+        )
+
         # Try to update workspace 1's client with workspace 2 credentials
         headers = get_auth_headers(workspace_2.id)
+        headers.update(csrf_headers)
         response = await client.put(
             f"/api/v1/clients/{sample_client_ws1.id}",
             headers=headers,
@@ -126,6 +135,8 @@ class TestClientWorkspaceIsolation:
         workspace_1: Workspace,
         workspace_2: Workspace,
         sample_client_ws1: Client,
+        test_user_ws2: User,
+        redis_client,
     ):
         """
         SECURITY CRITICAL: Cannot delete client from different workspace.
@@ -133,8 +144,14 @@ class TestClientWorkspaceIsolation:
         Create client in workspace 1, try to delete with workspace 2 header.
         Must return 404 and not delete.
         """
+        # Add CSRF token for workspace 2
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_2.id, test_user_ws2.id, redis_client
+        )
+
         # Try to delete workspace 1's client with workspace 2 credentials
         headers = get_auth_headers(workspace_2.id)
+        headers.update(csrf_headers)
         response = await client.delete(
             f"/api/v1/clients/{sample_client_ws1.id}",
             headers=headers,
@@ -221,6 +238,8 @@ class TestAppointmentWorkspaceIsolation:
         workspace_1: Workspace,
         workspace_2: Workspace,
         sample_appointment_ws1: Appointment,
+        test_user_ws2: User,
+        redis_client,
     ):
         """
         SECURITY CRITICAL: Cannot update appointment from different workspace.
@@ -228,8 +247,14 @@ class TestAppointmentWorkspaceIsolation:
         Create appointment in workspace 1, try to update with workspace 2 header.
         Must return 404.
         """
+        # Add CSRF token for workspace 2
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_2.id, test_user_ws2.id, redis_client
+        )
+
         # Try to update workspace 1's appointment with workspace 2 credentials
         headers = get_auth_headers(workspace_2.id)
+        headers.update(csrf_headers)
         response = await client.put(
             f"/api/v1/appointments/{sample_appointment_ws1.id}",
             headers=headers,
@@ -255,6 +280,8 @@ class TestAppointmentWorkspaceIsolation:
         workspace_1: Workspace,
         workspace_2: Workspace,
         sample_appointment_ws1: Appointment,
+        test_user_ws2: User,
+        redis_client,
     ):
         """
         SECURITY CRITICAL: Cannot delete appointment from different workspace.
@@ -262,8 +289,14 @@ class TestAppointmentWorkspaceIsolation:
         Create appointment in workspace 1, try to delete with workspace 2 header.
         Must return 404 and not delete.
         """
+        # Add CSRF token for workspace 2
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_2.id, test_user_ws2.id, redis_client
+        )
+
         # Try to delete workspace 1's appointment with workspace 2 credentials
         headers = get_auth_headers(workspace_2.id)
+        headers.update(csrf_headers)
         response = await client.delete(
             f"/api/v1/appointments/{sample_appointment_ws1.id}",
             headers=headers,
@@ -287,6 +320,8 @@ class TestAppointmentWorkspaceIsolation:
         workspace_1: Workspace,
         workspace_2: Workspace,
         sample_client_ws1: Client,
+        test_user_ws2: User,
+        redis_client,
     ):
         """
         SECURITY CRITICAL: Cannot create appointment with client from
@@ -296,8 +331,14 @@ class TestAppointmentWorkspaceIsolation:
         workspace 2 referencing that client. Must return 404 (client
         not found in workspace 2).
         """
+        # Add CSRF token for workspace 2
+        csrf_headers = await add_csrf_to_client(
+            client, workspace_2.id, test_user_ws2.id, redis_client
+        )
+
         # Try to create appointment in workspace 2 with workspace 1's client
         headers = get_auth_headers(workspace_2.id)
+        headers.update(csrf_headers)
         tomorrow = datetime.now(UTC).replace(
             hour=10, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)

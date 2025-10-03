@@ -20,8 +20,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.models.appointment import Appointment, AppointmentStatus, LocationType
 from pazpaz.models.client import Client
+from pazpaz.models.user import User
 from pazpaz.models.workspace import Workspace
-from tests.conftest import get_auth_headers
+from tests.conftest import add_csrf_to_client, get_auth_headers
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.performance]
 
@@ -342,8 +343,8 @@ class TestAppointmentListPerformance:
 
         url = (
             f"/api/v1/appointments?"
-            f"start_date={start_date.isoformat()}&"
-            f"end_date={end_date.isoformat()}"
+            f"start_date={start_date.isoformat().replace('+00:00', 'Z')}&"
+            f"end_date={end_date.isoformat().replace('+00:00', 'Z')}"
         )
 
         response_times = await measure_endpoint_performance(client, "get", url, headers)
@@ -467,10 +468,13 @@ class TestConflictDetectionPerformance:
             hour=14, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
 
+        end_time = (check_time + timedelta(hours=1)).isoformat().replace(
+            "+00:00", "Z"
+        )
         url = (
             f"/api/v1/appointments/conflicts?"
-            f"scheduled_start={check_time.isoformat()}&"
-            f"scheduled_end={(check_time + timedelta(hours=1)).isoformat()}"
+            f"scheduled_start={check_time.isoformat().replace('+00:00', 'Z')}&"
+            f"scheduled_end={end_time}"
         )
 
         response_times = await measure_endpoint_performance(client, "get", url, headers)
@@ -503,6 +507,8 @@ class TestAppointmentCreatePerformance:
         client: AsyncClient,
         dataset_fixture: str,
         request: pytest.FixtureRequest,
+        test_user_ws1: User,
+        redis_client,
     ):
         """
         Test POST /appointments endpoint performance.
@@ -513,7 +519,11 @@ class TestAppointmentCreatePerformance:
         dataset = request.getfixturevalue(dataset_fixture)
         workspace = dataset["workspace"]
         test_client = dataset["clients"][0]
+        csrf_headers = await add_csrf_to_client(
+            client, workspace.id, test_user_ws1.id, redis_client
+        )
         headers = get_auth_headers(workspace.id)
+        headers.update(csrf_headers)
 
         response_times = []
         base_time = datetime.now(UTC).replace(
@@ -585,8 +595,8 @@ class TestConcurrentRequestPerformance:
 
         url = (
             f"/api/v1/appointments?"
-            f"start_date={start_date.isoformat()}&"
-            f"end_date={end_date.isoformat()}"
+            f"start_date={start_date.isoformat().replace('+00:00', 'Z')}&"
+            f"end_date={end_date.isoformat().replace('+00:00', 'Z')}"
         )
 
         # Simulate 10 concurrent requests
@@ -656,8 +666,8 @@ class TestPerformanceSummary:
             end_date = start_date + timedelta(days=7)
             url = (
                 f"/api/v1/appointments?"
-                f"start_date={start_date.isoformat()}&"
-                f"end_date={end_date.isoformat()}"
+                f"start_date={start_date.isoformat().replace('+00:00', 'Z')}&"
+                f"end_date={end_date.isoformat().replace('+00:00', 'Z')}"
             )
 
             response_times = await measure_endpoint_performance(

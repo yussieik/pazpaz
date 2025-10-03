@@ -23,6 +23,7 @@ from pazpaz.db.base import Base, get_db
 from pazpaz.main import app
 from pazpaz.models.appointment import Appointment, AppointmentStatus, LocationType
 from pazpaz.models.client import Client
+from pazpaz.models.user import User, UserRole
 from pazpaz.models.workspace import Workspace
 
 # Test database URL - use separate test database
@@ -168,6 +169,45 @@ async def client(
 
 
 @pytest_asyncio.fixture(scope="function")
+async def client_with_csrf(
+    db_session: AsyncSession,
+    redis_client: redis.Redis,
+    workspace_1: Workspace,
+    test_user_ws1: User,
+) -> AsyncGenerator[AsyncClient]:
+    """
+    Create a test HTTP client pre-configured with CSRF token for workspace_1.
+
+    This fixture is a convenience wrapper that automatically adds CSRF token
+    to the client, making it suitable for tests that make POST/PUT/DELETE
+    requests without needing to manually add CSRF headers to each request.
+
+    Usage:
+        async def test_create_something(client_with_csrf, ...):
+            # CSRF already configured
+            headers = get_auth_headers(workspace_1.id)
+            response = await client_with_csrf.post(..., headers=headers)
+    """
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_redis():
+        return redis_client
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_redis] = override_get_redis
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        # Add CSRF token to client
+        await add_csrf_to_client(ac, workspace_1.id, test_user_ws1.id, redis_client)
+        yield ac
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="function")
 async def workspace_1(db_session: AsyncSession) -> Workspace:
     """
     Create a test workspace (workspace 1).
@@ -185,6 +225,28 @@ async def workspace_1(db_session: AsyncSession) -> Workspace:
 
 
 @pytest_asyncio.fixture(scope="function")
+async def test_user_ws1(db_session: AsyncSession, workspace_1: Workspace) -> User:
+    """
+    Create a test user in workspace 1.
+
+    This user is used for CSRF token generation in tests.
+    Uses a consistent UUID for easy reference in tests.
+    """
+    user = User(
+        id=uuid.UUID("10000000-0000-0000-0000-000000000001"),
+        workspace_id=workspace_1.id,
+        email="test-user-ws1@example.com",
+        full_name="Test User Workspace 1",
+        role=UserRole.OWNER,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture(scope="function")
 async def workspace_2(db_session: AsyncSession) -> Workspace:
     """
     Create a second test workspace (workspace 2).
@@ -199,6 +261,28 @@ async def workspace_2(db_session: AsyncSession) -> Workspace:
     await db_session.commit()
     await db_session.refresh(workspace)
     return workspace
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_user_ws2(db_session: AsyncSession, workspace_2: Workspace) -> User:
+    """
+    Create a test user in workspace 2.
+
+    This user is used for CSRF token generation in tests for workspace 2.
+    Uses a consistent UUID for easy reference in tests.
+    """
+    user = User(
+        id=uuid.UUID("10000000-0000-0000-0000-000000000002"),
+        workspace_id=workspace_2.id,
+        email="test-user-ws2@example.com",
+        full_name="Test User Workspace 2",
+        role=UserRole.OWNER,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -345,3 +429,48 @@ def get_auth_headers(workspace_id: uuid.UUID) -> dict[str, str]:
         Dictionary with X-Workspace-ID header
     """
     return {"X-Workspace-ID": str(workspace_id)}
+
+
+async def add_csrf_to_client(
+    client: AsyncClient,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+    redis_client: redis.Redis,
+) -> dict[str, str]:
+    """
+    Add CSRF token to test client for state-changing requests.
+
+    This helper generates a CSRF token, stores it in Redis, sets it as a cookie
+    on the test client, and returns headers to merge into request headers.
+
+    Args:
+        client: Test client to add CSRF token to
+        workspace_id: Workspace ID for token scoping
+        user_id: User ID for token scoping
+        redis_client: Redis client for token storage
+
+    Returns:
+        Headers dict with X-CSRF-Token to merge into request headers
+
+    Example:
+        csrf_headers = await add_csrf_to_client(
+            client, workspace.id, user.id, redis_client
+        )
+        headers = get_auth_headers(workspace.id)
+        headers.update(csrf_headers)
+        response = await client.post("/api/v1/clients", headers=headers, json=data)
+    """
+    from pazpaz.middleware.csrf import generate_csrf_token
+
+    # Generate CSRF token
+    csrf_token = await generate_csrf_token(
+        user_id=user_id,
+        workspace_id=workspace_id,
+        redis_client=redis_client,
+    )
+
+    # Set cookie on client
+    client.cookies.set("csrf_token", csrf_token)
+
+    # Return headers dict to merge
+    return {"X-CSRF-Token": csrf_token}
