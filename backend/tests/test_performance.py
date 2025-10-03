@@ -273,6 +273,61 @@ async def large_dataset(
     }
 
 
+@pytest.fixture
+async def performance_dataset(
+    request: pytest.FixtureRequest,
+    db_session: AsyncSession,
+    workspace_1: Workspace,
+) -> dict[str, Any]:
+    """
+    Parametrized fixture that provides dataset based on test parameter.
+
+    This fixture eliminates the need for request.getfixturevalue() which
+    causes event loop issues with pytest-asyncio.
+
+    Usage:
+        @pytest.mark.parametrize("performance_dataset", ["small", "medium", "large"], indirect=True)
+        async def test_something(performance_dataset):
+            dataset = performance_dataset
+            # ... use dataset
+    """
+    size = request.param
+
+    if size == "small":
+        clients = await create_test_clients(db_session, workspace_1, 10)
+        start_date = datetime.now(UTC).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ) - timedelta(days=15)
+        appointments = await create_test_appointments(
+            db_session, workspace_1, clients, 50, start_date
+        )
+    elif size == "medium":
+        clients = await create_test_clients(db_session, workspace_1, 50)
+        start_date = datetime.now(UTC).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ) - timedelta(days=90)
+        appointments = await create_test_appointments(
+            db_session, workspace_1, clients, 500, start_date
+        )
+    elif size == "large":
+        clients = await create_test_clients(db_session, workspace_1, 100)
+        start_date = datetime.now(UTC).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ) - timedelta(days=180)
+        appointments = await create_test_appointments(
+            db_session, workspace_1, clients, 1000, start_date
+        )
+    else:
+        raise ValueError(f"Unknown dataset size: {size}")
+
+    return {
+        "workspace": workspace_1,
+        "clients": clients,
+        "appointments": appointments,
+        "size": size,
+    }
+
+
 async def measure_endpoint_performance(
     client: AsyncClient,
     method: str,
@@ -317,21 +372,21 @@ class TestAppointmentListPerformance:
     """Test performance of appointment list endpoint (calendar view)."""
 
     @pytest.mark.parametrize(
-        "dataset_fixture",
-        ["small_dataset", "medium_dataset", "large_dataset"],
+        "performance_dataset",
+        ["small", "medium", "large"],
+        indirect=True,
     )
     async def test_calendar_view_performance(
         self,
         client: AsyncClient,
-        dataset_fixture: str,
-        request: pytest.FixtureRequest,
+        performance_dataset: dict[str, Any],
     ):
         """
         Test GET /appointments with date range (calendar view).
 
         Simulates therapist viewing their weekly or monthly calendar.
         """
-        dataset = request.getfixturevalue(dataset_fixture)
+        dataset = performance_dataset
         workspace = dataset["workspace"]
         headers = get_auth_headers(workspace.id)
 
@@ -367,21 +422,21 @@ class TestAppointmentListPerformance:
         )
 
     @pytest.mark.parametrize(
-        "dataset_fixture",
-        ["small_dataset", "medium_dataset", "large_dataset"],
+        "performance_dataset",
+        ["small", "medium", "large"],
+        indirect=True,
     )
     async def test_client_timeline_performance(
         self,
         client: AsyncClient,
-        dataset_fixture: str,
-        request: pytest.FixtureRequest,
+        performance_dataset: dict[str, Any],
     ):
         """
         Test GET /appointments filtered by client_id.
 
         Simulates viewing all appointments for a specific client.
         """
-        dataset = request.getfixturevalue(dataset_fixture)
+        dataset = performance_dataset
         workspace = dataset["workspace"]
         test_client = dataset["clients"][0]
         headers = get_auth_headers(workspace.id)
@@ -404,21 +459,21 @@ class TestAppointmentListPerformance:
         )
 
     @pytest.mark.parametrize(
-        "dataset_fixture",
-        ["small_dataset", "medium_dataset", "large_dataset"],
+        "performance_dataset",
+        ["small", "medium", "large"],
+        indirect=True,
     )
     async def test_paginated_list_performance(
         self,
         client: AsyncClient,
-        dataset_fixture: str,
-        request: pytest.FixtureRequest,
+        performance_dataset: dict[str, Any],
     ):
         """
         Test GET /appointments with pagination.
 
         Simulates browsing through appointment history.
         """
-        dataset = request.getfixturevalue(dataset_fixture)
+        dataset = performance_dataset
         workspace = dataset["workspace"]
         headers = get_auth_headers(workspace.id)
 
@@ -444,14 +499,14 @@ class TestConflictDetectionPerformance:
     """Test performance of conflict detection endpoint."""
 
     @pytest.mark.parametrize(
-        "dataset_fixture",
-        ["small_dataset", "medium_dataset", "large_dataset"],
+        "performance_dataset",
+        ["small", "medium", "large"],
+        indirect=True,
     )
     async def test_conflict_check_performance(
         self,
         client: AsyncClient,
-        dataset_fixture: str,
-        request: pytest.FixtureRequest,
+        performance_dataset: dict[str, Any],
     ):
         """
         Test GET /appointments/conflicts endpoint.
@@ -459,7 +514,7 @@ class TestConflictDetectionPerformance:
         Simulates real-time conflict checking as therapist drags appointments
         in the calendar UI.
         """
-        dataset = request.getfixturevalue(dataset_fixture)
+        dataset = performance_dataset
         workspace = dataset["workspace"]
         headers = get_auth_headers(workspace.id)
 
@@ -499,14 +554,14 @@ class TestAppointmentCreatePerformance:
     """Test performance of appointment creation endpoint."""
 
     @pytest.mark.parametrize(
-        "dataset_fixture",
-        ["small_dataset", "medium_dataset", "large_dataset"],
+        "performance_dataset",
+        ["small", "medium", "large"],
+        indirect=True,
     )
     async def test_create_appointment_performance(
         self,
         client: AsyncClient,
-        dataset_fixture: str,
-        request: pytest.FixtureRequest,
+        performance_dataset: dict[str, Any],
         test_user_ws1: User,
         redis_client,
     ):
@@ -516,7 +571,7 @@ class TestAppointmentCreatePerformance:
         Simulates creating new appointments with conflict detection.
         Note: Each iteration creates a new appointment at different times.
         """
-        dataset = request.getfixturevalue(dataset_fixture)
+        dataset = performance_dataset
         workspace = dataset["workspace"]
         test_client = dataset["clients"][0]
         csrf_headers = await add_csrf_to_client(
