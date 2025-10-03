@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
+import redis.asyncio as redis
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -17,6 +18,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
+from pazpaz.core.redis import get_redis
 from pazpaz.db.base import Base, get_db
 from pazpaz.main import app
 from pazpaz.models.appointment import Appointment, AppointmentStatus, LocationType
@@ -25,6 +27,8 @@ from pazpaz.models.workspace import Workspace
 
 # Test database URL - use separate test database
 TEST_DATABASE_URL = "postgresql+asyncpg://pazpaz:pazpaz@localhost:5432/pazpaz_test"
+# Use database 1 for tests - password will be added from environment
+TEST_REDIS_URL = "redis://localhost:6379/1"
 
 
 @pytest.fixture(scope="session")
@@ -68,6 +72,25 @@ async def test_db_engine():
 
 
 @pytest_asyncio.fixture(scope="function")
+async def db(test_db_engine) -> AsyncGenerator[AsyncSession]:
+    """
+    Alias for db_session - provides database session for testing.
+
+    This fixture name matches the parameter name used in service functions,
+    making it easier to test service layer code directly.
+    """
+    async_session_maker = async_sessionmaker(
+        test_db_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    async with async_session_maker() as session:
+        yield session
+        await session.rollback()
+
+
+@pytest_asyncio.fixture(scope="function")
 async def db_session(test_db_engine) -> AsyncGenerator[AsyncSession]:
     """
     Create a database session for testing.
@@ -87,17 +110,55 @@ async def db_session(test_db_engine) -> AsyncGenerator[AsyncSession]:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
+async def redis_client() -> AsyncGenerator[redis.Redis]:
+    """
+    Create a Redis client for testing.
+
+    Uses a separate Redis database (database 1) to avoid conflicts with dev data.
+    Flushes the test database before and after each test.
+    """
+    from pazpaz.core.config import settings
+
+    # Use settings.redis_password which loads from .env file
+    # Replace database 0 with database 1 for testing
+    redis_url = f"redis://:{settings.redis_password}@localhost:6379/1"
+
+    client = redis.from_url(
+        redis_url,
+        encoding="utf-8",
+        decode_responses=True,
+    )
+
+    # Clear test database before test
+    await client.flushdb()
+
+    yield client
+
+    # Clear test database after test
+    await client.flushdb()
+    await (
+        client.aclose()
+    )  # Use aclose() instead of close() to avoid deprecation warning
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client(
+    db_session: AsyncSession, redis_client: redis.Redis
+) -> AsyncGenerator[AsyncClient]:
     """
     Create a test HTTP client.
 
-    Overrides the get_db dependency to use the test database session.
+    Overrides the get_db and get_redis dependencies to use test instances.
     """
 
     async def override_get_db():
         yield db_session
 
+    async def override_get_redis():
+        return redis_client
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_redis] = override_get_redis
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:

@@ -6,6 +6,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from pazpaz.api import api_router
@@ -16,6 +20,8 @@ from pazpaz.core.logging import (
     configure_logging,
     get_logger,
 )
+from pazpaz.core.redis import close_redis
+from pazpaz.middleware.csrf import CSRFProtectionMiddleware
 
 
 @asynccontextmanager
@@ -33,6 +39,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
     logger.info("application_shutdown", app_name=settings.app_name)
+    await close_redis()
 
 
 app = FastAPI(
@@ -41,6 +48,10 @@ app = FastAPI(
     openapi_url=f"{settings.api_v1_prefix}/openapi.json",
     lifespan=lifespan,
 )
+
+# Initialize rate limiter and attach to app state
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -109,6 +120,13 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
 # Add request logging middleware
 app.add_middleware(RequestLoggingMiddleware)
+
+# Add CSRF protection middleware
+app.add_middleware(CSRFProtectionMiddleware)
+
+# Add rate limiting middleware
+app.add_middleware(SlowAPIMiddleware)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure CORS for development
 if settings.debug:

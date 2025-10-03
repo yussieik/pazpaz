@@ -770,7 +770,7 @@ class TestConflictCheck:
         workspace_1: Workspace,
         sample_client_ws1: Client,
     ):
-        """Back-to-back appointments (end time = next start time) should NOT conflict."""
+        """Back-to-back appointments (end = next start) should NOT conflict."""
         headers = get_auth_headers(workspace_1.id)
         tomorrow = datetime.now(UTC).replace(
             hour=10, minute=0, second=0, microsecond=0
@@ -837,7 +837,9 @@ class TestConflictCheck:
             headers=headers,
             params={
                 "scheduled_start": (tomorrow + timedelta(minutes=30)).isoformat(),
-                "scheduled_end": (tomorrow + timedelta(hours=1, minutes=30)).isoformat(),
+                "scheduled_end": (
+                    tomorrow + timedelta(hours=1, minutes=30)
+                ).isoformat(),
             },
         )
 
@@ -861,7 +863,7 @@ class TestConflictCheck:
         workspace_1: Workspace,
         sample_client_ws1: Client,
     ):
-        """Completed appointments in the past should still cause conflicts if scheduled times overlap."""
+        """Completed appointments still cause conflicts if times overlap."""
         headers = get_auth_headers(workspace_1.id)
         tomorrow = datetime.now(UTC).replace(
             hour=10, minute=0, second=0, microsecond=0
@@ -893,7 +895,9 @@ class TestConflictCheck:
             headers=headers,
             params={
                 "scheduled_start": (tomorrow + timedelta(minutes=30)).isoformat(),
-                "scheduled_end": (tomorrow + timedelta(hours=1, minutes=30)).isoformat(),
+                "scheduled_end": (
+                    tomorrow + timedelta(hours=1, minutes=30)
+                ).isoformat(),
             },
         )
 

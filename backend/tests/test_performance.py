@@ -481,11 +481,13 @@ class TestConflictDetectionPerformance:
         # Conflict detection is critical for real-time UX - stricter targets
         assert stats["p95"] < CONFLICT_P95_TARGET_MS, (
             f"p95 ({stats['p95']:.2f}ms) exceeds target ({CONFLICT_P95_TARGET_MS}ms) "
-            f"for {dataset['size']} dataset. Conflict detection requires <100ms p95 for real-time UX."
+            f"for {dataset['size']} dataset. Conflict detection requires "
+            "<100ms p95 for real-time UX."
         )
         assert stats["mean"] < CONFLICT_MEAN_TARGET_MS, (
-            f"Mean ({stats['mean']:.2f}ms) exceeds target ({CONFLICT_MEAN_TARGET_MS}ms) "
-            f"for {dataset['size']} dataset. Conflict detection requires <50ms mean for real-time UX."
+            f"Mean ({stats['mean']:.2f}ms) exceeds "
+            f"target ({CONFLICT_MEAN_TARGET_MS}ms) for {dataset['size']} dataset. "
+            "Conflict detection requires <50ms mean for real-time UX."
         )
 
 

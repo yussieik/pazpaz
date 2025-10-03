@@ -1,6 +1,7 @@
 """Database models."""
 
 from pazpaz.models.appointment import Appointment, AppointmentStatus, LocationType
+from pazpaz.models.audit_event import AuditAction, AuditEvent, ResourceType
 from pazpaz.models.client import Client
 from pazpaz.models.location import Location
 from pazpaz.models.service import Service
@@ -17,4 +18,7 @@ __all__ = [
     "LocationType",
     "Service",
     "Location",
+    "AuditEvent",
+    "AuditAction",
+    "ResourceType",
 ]

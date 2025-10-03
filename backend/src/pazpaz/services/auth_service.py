@@ -1,0 +1,222 @@
+"""Authentication service for magic link and JWT management."""
+
+from __future__ import annotations
+
+import json
+import secrets
+import uuid
+
+import redis.asyncio as redis
+from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from pazpaz.core.logging import get_logger
+from pazpaz.core.security import create_access_token
+from pazpaz.models.user import User
+from pazpaz.services.email_service import send_magic_link_email
+
+logger = get_logger(__name__)
+
+# Magic link token expiry (10 minutes)
+MAGIC_LINK_EXPIRY_SECONDS = 60 * 10
+
+# Magic link rate limit per email (3 per hour)
+RATE_LIMIT_MAX_REQUESTS = 3
+RATE_LIMIT_WINDOW_SECONDS = 60 * 60
+
+
+async def request_magic_link(
+    email: str,
+    db: AsyncSession,
+    redis_client: redis.Redis,
+    request_ip: str,
+) -> None:
+    """
+    Generate and send magic link to user email.
+
+    Security features:
+    - Rate limiting: 3 requests per hour per IP
+    - Generic response to prevent email enumeration
+    - 256-bit entropy tokens
+    - 10-minute expiry
+
+    Args:
+        email: User email address
+        db: Database session
+        redis_client: Redis client
+        request_ip: Request IP address for rate limiting
+
+    Raises:
+        HTTPException: If rate limit exceeded
+    """
+    # Check rate limit by IP
+    rate_limit_key = f"magic_link_rate_limit:{request_ip}"
+    current_count = await redis_client.get(rate_limit_key)
+
+    if current_count and int(current_count) >= RATE_LIMIT_MAX_REQUESTS:
+        logger.warning(
+            "magic_link_rate_limit_exceeded",
+            ip=request_ip,
+            email=email,
+        )
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded. Please try again in an hour.",
+        )
+
+    # Look up user by email
+    query = select(User).where(User.email == email)
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        logger.info(
+            "magic_link_requested_nonexistent_email",
+            email=email,
+        )
+        # Return success to prevent email enumeration
+        return
+
+    if not user.is_active:
+        logger.warning(
+            "magic_link_requested_inactive_user",
+            email=email,
+            user_id=str(user.id),
+        )
+        # Return success to prevent user status enumeration
+        return
+
+    # Generate secure token (256-bit entropy)
+    token = secrets.token_urlsafe(32)
+
+    # Store token in Redis with user data
+    token_data = {
+        "user_id": str(user.id),
+        "workspace_id": str(user.workspace_id),
+        "email": user.email,
+    }
+
+    token_key = f"magic_link:{token}"
+    await redis_client.setex(
+        token_key,
+        MAGIC_LINK_EXPIRY_SECONDS,
+        json.dumps(token_data),
+    )
+
+    # Increment rate limit counter
+    if not current_count:
+        await redis_client.setex(rate_limit_key, RATE_LIMIT_WINDOW_SECONDS, 1)
+    else:
+        await redis_client.incr(rate_limit_key)
+
+    # Send magic link email
+    await send_magic_link_email(user.email, token)
+
+    logger.info(
+        "magic_link_generated",
+        email=email,
+        user_id=str(user.id),
+    )
+
+
+async def verify_magic_link_token(
+    token: str,
+    db: AsyncSession,
+    redis_client: redis.Redis,
+) -> tuple[User, str] | None:
+    """
+    Verify magic link token and generate JWT.
+
+    Args:
+        token: Magic link token
+        db: Database session
+        redis_client: Redis client
+
+    Returns:
+        Tuple of (User, JWT token) if valid, None if invalid/expired
+
+    Security:
+        - Token is single-use (deleted after verification)
+        - User existence is revalidated in database
+        - JWT contains workspace_id for workspace scoping
+    """
+    # Retrieve token data from Redis
+    token_key = f"magic_link:{token}"
+    token_data_str = await redis_client.get(token_key)
+
+    if not token_data_str:
+        logger.warning("magic_link_token_not_found_or_expired", token=token[:16])
+        return None
+
+    # Parse token data
+    try:
+        token_data = json.loads(token_data_str)
+        user_id = uuid.UUID(token_data["user_id"])
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        logger.error("magic_link_token_parse_error", error=str(e))
+        return None
+
+    # Validate user still exists and is active
+    query = select(User).where(User.id == user_id)
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+
+    if not user or not user.is_active:
+        logger.warning(
+            "magic_link_user_not_found_or_inactive",
+            user_id=str(user_id),
+        )
+        # Delete invalid token
+        await redis_client.delete(token_key)
+        return None
+
+    # Generate JWT
+    jwt_token = create_access_token(
+        user_id=user.id,
+        workspace_id=user.workspace_id,
+        email=user.email,
+    )
+
+    # Delete token from Redis (single-use)
+    await redis_client.delete(token_key)
+
+    logger.info(
+        "magic_link_verified",
+        user_id=str(user.id),
+        workspace_id=str(user.workspace_id),
+    )
+
+    return user, jwt_token
+
+
+async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
+    """
+    Get user by email address.
+
+    Args:
+        db: Database session
+        email: User email address
+
+    Returns:
+        User if found, None otherwise
+    """
+    query = select(User).where(User.email == email)
+    result = await db.execute(query)
+    return result.scalar_one_or_none()
+
+
+async def get_user_by_id(db: AsyncSession, user_id: uuid.UUID) -> User | None:
+    """
+    Get user by ID.
+
+    Args:
+        db: Database session
+        user_id: User UUID
+
+    Returns:
+        User if found, None otherwise
+    """
+    query = select(User).where(User.id == user_id)
+    result = await db.execute(query)
+    return result.scalar_one_or_none()

@@ -19,11 +19,18 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://pazpaz:pazpaz@localhost:5432/pazpaz"
 
     # Redis
-    redis_url: str = "redis://localhost:6379/0"
+    redis_password: str = "change-me-in-production"
+    redis_url: str = "redis://:change-me-in-production@localhost:6379/0"
 
     # Security
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
+
+    # CSRF Protection
+    csrf_token_expire_minutes: int = 60 * 24 * 7  # 7 days (match JWT expiry)
+
+    # Frontend
+    frontend_url: str = "http://localhost:5173"
 
     # Email
     smtp_host: str = "localhost"

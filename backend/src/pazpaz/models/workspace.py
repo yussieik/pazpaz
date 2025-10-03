@@ -13,6 +13,7 @@ from pazpaz.db.base import Base
 
 if TYPE_CHECKING:
     from pazpaz.models.appointment import Appointment
+    from pazpaz.models.audit_event import AuditEvent
     from pazpaz.models.client import Client
     from pazpaz.models.location import Location
     from pazpaz.models.service import Service
@@ -71,6 +72,11 @@ class Workspace(Base):
     )
     locations: Mapped[list[Location]] = relationship(
         "Location",
+        back_populates="workspace",
+        cascade="all, delete-orphan",
+    )
+    audit_events: Mapped[list[AuditEvent]] = relationship(
+        "AuditEvent",
         back_populates="workspace",
         cascade="all, delete-orphan",
     )

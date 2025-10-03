@@ -15,6 +15,7 @@ from pazpaz.db.base import Base
 # Import all models to ensure they're registered with Base.metadata
 from pazpaz.models import (  # noqa: F401
     Appointment,
+    AuditEvent,
     Client,
     Location,
     Service,

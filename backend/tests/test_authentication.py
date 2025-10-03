@@ -37,6 +37,10 @@ class TestAuthenticationRequired:
         self, client: AsyncClient, workspace_1: Workspace
     ):
         """Create client without X-Workspace-ID header should return 401."""
+        # Add CSRF token (required for POST requests)
+        csrf_token = "test-csrf-token"
+        client.cookies.set("csrf_token", csrf_token)
+
         response = await client.post(
             "/api/v1/clients",
             json={
@@ -44,6 +48,7 @@ class TestAuthenticationRequired:
                 "last_name": "User",
                 "consent_status": True,
             },
+            headers={"X-CSRF-Token": csrf_token},
         )
         assert response.status_code == 401
         assert "authentication required" in response.json()["detail"].lower()
@@ -52,10 +57,15 @@ class TestAuthenticationRequired:
         self, client: AsyncClient, workspace_1: Workspace
     ):
         """Update client without X-Workspace-ID header should return 401."""
+        # Add CSRF token (required for PUT requests)
+        csrf_token = "test-csrf-token-update"
+        client.cookies.set("csrf_token", csrf_token)
+
         client_id = uuid.uuid4()
         response = await client.put(
             f"/api/v1/clients/{client_id}",
             json={"first_name": "Updated"},
+            headers={"X-CSRF-Token": csrf_token},
         )
         assert response.status_code == 401
         assert "authentication required" in response.json()["detail"].lower()
@@ -64,8 +74,15 @@ class TestAuthenticationRequired:
         self, client: AsyncClient, workspace_1: Workspace
     ):
         """Delete client without X-Workspace-ID header should return 401."""
+        # Add CSRF token (required for DELETE requests)
+        csrf_token = "test-csrf-token-delete"
+        client.cookies.set("csrf_token", csrf_token)
+
         client_id = uuid.uuid4()
-        response = await client.delete(f"/api/v1/clients/{client_id}")
+        response = await client.delete(
+            f"/api/v1/clients/{client_id}",
+            headers={"X-CSRF-Token": csrf_token},
+        )
         assert response.status_code == 401
         assert "authentication required" in response.json()["detail"].lower()
 
@@ -81,6 +98,10 @@ class TestAuthenticationRequired:
         self, client: AsyncClient, workspace_1: Workspace
     ):
         """Create appointment without X-Workspace-ID header should return 401."""
+        # Add CSRF token (required for POST requests)
+        csrf_token = "test-csrf-token-appt"
+        client.cookies.set("csrf_token", csrf_token)
+
         response = await client.post(
             "/api/v1/appointments",
             json={
@@ -89,6 +110,7 @@ class TestAuthenticationRequired:
                 "scheduled_end": "2025-10-01T11:00:00Z",
                 "location_type": "clinic",
             },
+            headers={"X-CSRF-Token": csrf_token},
         )
         assert response.status_code == 401
         assert "authentication required" in response.json()["detail"].lower()

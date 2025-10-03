@@ -13,6 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pazpaz.db.base import Base
 
 if TYPE_CHECKING:
+    from pazpaz.models.audit_event import AuditEvent
     from pazpaz.models.workspace import Workspace
 
 
@@ -65,6 +66,10 @@ class User(Base):
     workspace: Mapped[Workspace] = relationship(
         "Workspace",
         back_populates="users",
+    )
+    audit_events: Mapped[list[AuditEvent]] = relationship(
+        "AuditEvent",
+        back_populates="user",
     )
 
     # Constraints
