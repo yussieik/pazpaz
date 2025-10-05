@@ -134,7 +134,7 @@ class TestInvalidWorkspaceID:
     """Test that invalid workspace IDs are rejected."""
 
     async def test_invalid_workspace_uuid_returns_401(
-        self, client: AsyncClient, workspace_1: Workspace
+        self, client: AsyncClient, workspace_1: Workspace, test_user_ws1: User
     ):
         """Invalid UUID format should return 401."""
         response = await client.get(
@@ -142,7 +142,7 @@ class TestInvalidWorkspaceID:
             headers={"X-Workspace-ID": "not-a-uuid"},
         )
         assert response.status_code == 401
-        assert "invalid" in response.json()["detail"].lower()
+        assert "authentication required" in response.json()["detail"].lower()
 
     async def test_empty_workspace_header_returns_401(
         self, client: AsyncClient, workspace_1: Workspace
@@ -156,7 +156,7 @@ class TestInvalidWorkspaceID:
         assert "authentication required" in response.json()["detail"].lower()
 
     async def test_malformed_uuid_returns_401(
-        self, client: AsyncClient, workspace_1: Workspace
+        self, client: AsyncClient, workspace_1: Workspace, test_user_ws1: User
     ):
         """Malformed UUID should return 401."""
         response = await client.get(
@@ -164,14 +164,14 @@ class TestInvalidWorkspaceID:
             headers={"X-Workspace-ID": "12345"},
         )
         assert response.status_code == 401
-        assert "invalid" in response.json()["detail"].lower()
+        assert "authentication required" in response.json()["detail"].lower()
 
 
 class TestValidAuthentication:
     """Test that valid authentication works correctly."""
 
     async def test_valid_workspace_id_allows_access(
-        self, client: AsyncClient, workspace_1: Workspace
+        self, client: AsyncClient, workspace_1: Workspace, test_user_ws1: User
     ):
         """Valid workspace ID should allow access to endpoints."""
         headers = get_auth_headers(workspace_1.id)
@@ -180,16 +180,37 @@ class TestValidAuthentication:
         assert response.status_code == 200
         assert "items" in response.json()
 
-    async def test_nonexistent_workspace_id_format_valid(self, client: AsyncClient):
+    async def test_nonexistent_workspace_id_format_valid(self, client: AsyncClient, db_session):
         """
         Non-existent but valid UUID should authenticate but return no data.
 
         This tests that authentication only validates format, not existence.
         The workspace validation happens at the data access layer.
         """
-        # Use a valid UUID that doesn't exist in the database
+        # Create a workspace and user for testing, but use a different workspace ID in the JWT
+        from pazpaz.models.workspace import Workspace
+        from pazpaz.models.user import User, UserRole
+
         nonexistent_workspace_id = uuid.UUID("99999999-9999-9999-9999-999999999999")
-        headers = get_auth_headers(nonexistent_workspace_id)
+        nonexistent_user_id = uuid.UUID("99999999-9999-9999-9999-999999999991")
+
+        # Create workspace and user with nonexistent IDs
+        ws = Workspace(id=nonexistent_workspace_id, name="Nonexistent Workspace")
+        db_session.add(ws)
+        await db_session.commit()
+
+        user = User(
+            id=nonexistent_user_id,
+            workspace_id=nonexistent_workspace_id,
+            email="nonexistent@example.com",
+            full_name="Nonexistent User",
+            role=UserRole.OWNER,
+            is_active=True,
+        )
+        db_session.add(user)
+        await db_session.commit()
+
+        headers = get_auth_headers(nonexistent_workspace_id, nonexistent_user_id, "nonexistent@example.com")
 
         response = await client.get("/api/v1/clients", headers=headers)
 

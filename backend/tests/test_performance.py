@@ -251,7 +251,7 @@ async def medium_dataset(
 
 @pytest.fixture
 async def large_dataset(
-    db_session: AsyncSession, workspace_1: Workspace
+    db_session: AsyncSession, workspace_1: Workspace, test_user_ws1: User
 ) -> dict[str, Any]:
     """
     Create large test dataset: 100 clients, 1000 appointments.
@@ -278,6 +278,7 @@ async def performance_dataset(
     request: pytest.FixtureRequest,
     db_session: AsyncSession,
     workspace_1: Workspace,
+    test_user_ws1: User,
 ) -> dict[str, Any]:
     """
     Parametrized fixture that provides dataset based on test parameter.
@@ -574,11 +575,11 @@ class TestAppointmentCreatePerformance:
         dataset = performance_dataset
         workspace = dataset["workspace"]
         test_client = dataset["clients"][0]
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
 
         response_times = []
         base_time = datetime.now(UTC).replace(

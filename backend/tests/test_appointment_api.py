@@ -29,11 +29,11 @@ class TestCreateAppointment:
         redis_client,
     ):
         """Happy path: Create an appointment with valid data."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         tomorrow = datetime.now(UTC).replace(
             hour=14, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
@@ -72,11 +72,11 @@ class TestCreateAppointment:
         redis_client,
     ):
         """Create appointment with only required fields."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         tomorrow = datetime.now(UTC).replace(
             hour=16, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
@@ -107,11 +107,11 @@ class TestCreateAppointment:
         redis_client,
     ):
         """Scheduled end before or equal to start returns 422."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         tomorrow = datetime.now(UTC).replace(
             hour=10, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
@@ -154,11 +154,11 @@ class TestCreateAppointment:
         redis_client,
     ):
         """Creating overlapping appointment returns 409 with conflict details."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
 
         # Try to create appointment that overlaps with existing one
         start = sample_appointment_ws1.scheduled_start
@@ -194,11 +194,11 @@ class TestCreateAppointment:
         redis_client,
     ):
         """Cancelled appointments don't block new appointments."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
 
         # Try to create appointment at the same time as cancelled one
         start = cancelled_appointment_ws1.scheduled_start
@@ -226,11 +226,11 @@ class TestCreateAppointment:
         redis_client,
     ):
         """Creating appointment with non-existent client returns 404."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         tomorrow = datetime.now(UTC).replace(
             hour=10, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
@@ -257,6 +257,7 @@ class TestGetAppointment:
         self,
         client: AsyncClient,
         workspace_1: Workspace,
+        test_user_ws1: User,
         sample_appointment_ws1: Appointment,
     ):
         """Get existing appointment returns 200 with correct data."""
@@ -276,7 +277,8 @@ class TestGetAppointment:
         assert data["client"]["first_name"] == "John"
 
     async def test_get_appointment_not_found(
-        self, client: AsyncClient, workspace_1: Workspace
+        self, client: AsyncClient, workspace_1: Workspace,
+        test_user_ws1: User,
     ):
         """Non-existent appointment UUID returns 404."""
         headers = get_auth_headers(workspace_1.id)
@@ -295,7 +297,8 @@ class TestListAppointments:
     """Test list appointments endpoint."""
 
     async def test_list_appointments_empty(
-        self, client: AsyncClient, workspace_1: Workspace
+        self, client: AsyncClient, workspace_1: Workspace,
+        test_user_ws1: User,
     ):
         """List appointments in empty workspace returns empty list."""
         headers = get_auth_headers(workspace_1.id)
@@ -314,6 +317,7 @@ class TestListAppointments:
         self,
         client: AsyncClient,
         workspace_1: Workspace,
+        test_user_ws1: User,
         sample_appointment_ws1: Appointment,
     ):
         """List appointments returns existing appointments."""
@@ -337,11 +341,11 @@ class TestListAppointments:
         redis_client,
     ):
         """Date range filtering works correctly."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
 
         # Create appointments on different days
         today = datetime.now(UTC).replace(hour=10, minute=0, second=0, microsecond=0)
@@ -409,11 +413,11 @@ class TestListAppointments:
         redis_client,
     ):
         """Client filtering works correctly."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
 
         # Create another client
         create_response = await client.post(
@@ -458,6 +462,7 @@ class TestListAppointments:
         self,
         client: AsyncClient,
         workspace_1: Workspace,
+        test_user_ws1: User,
         sample_appointment_ws1: Appointment,
         cancelled_appointment_ws1: Appointment,
     ):
@@ -501,11 +506,11 @@ class TestUpdateAppointment:
         redis_client,
     ):
         """Partial update of appointment fields works correctly."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
 
         response = await client.put(
             f"/api/v1/appointments/{sample_appointment_ws1.id}",
@@ -531,11 +536,11 @@ class TestUpdateAppointment:
         redis_client,
     ):
         """Update appointment time to non-conflicting slot."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
 
         # Move to a different day
         new_start = sample_appointment_ws1.scheduled_start + timedelta(days=7)
@@ -565,11 +570,11 @@ class TestUpdateAppointment:
         redis_client,
     ):
         """Updating time to conflicting slot returns 409."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
 
         # Create two appointments
         tomorrow = datetime.now(UTC).replace(
@@ -628,11 +633,11 @@ class TestUpdateAppointment:
         redis_client,
     ):
         """Update with end before start returns 422."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
 
         tomorrow = datetime.now(UTC).replace(
             hour=10, minute=0, second=0, microsecond=0
@@ -657,11 +662,11 @@ class TestUpdateAppointment:
         redis_client,
     ):
         """Update non-existent appointment returns 404."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         nonexistent_id = uuid.uuid4()
 
         response = await client.put(
@@ -686,11 +691,11 @@ class TestDeleteAppointment:
         redis_client,
     ):
         """Delete existing appointment returns 204."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
 
         response = await client.delete(
             f"/api/v1/appointments/{sample_appointment_ws1.id}",
@@ -714,11 +719,11 @@ class TestDeleteAppointment:
         redis_client,
     ):
         """Delete non-existent appointment returns 404."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         nonexistent_id = uuid.uuid4()
 
         response = await client.delete(
@@ -734,7 +739,8 @@ class TestConflictCheck:
     """Test conflict check endpoint."""
 
     async def test_conflict_check_no_conflict(
-        self, client: AsyncClient, workspace_1: Workspace
+        self, client: AsyncClient, workspace_1: Workspace,
+        test_user_ws1: User,
     ):
         """Conflict check with no conflicts returns has_conflict=False."""
         headers = get_auth_headers(workspace_1.id)
@@ -760,6 +766,7 @@ class TestConflictCheck:
         self,
         client: AsyncClient,
         workspace_1: Workspace,
+        test_user_ws1: User,
         sample_appointment_ws1: Appointment,
     ):
         """Conflict check with existing appointment returns has_conflict=True."""
@@ -790,6 +797,7 @@ class TestConflictCheck:
         self,
         client: AsyncClient,
         workspace_1: Workspace,
+        test_user_ws1: User,
         sample_appointment_ws1: Appointment,
     ):
         """Conflict check can exclude specific appointment (for updates)."""
@@ -818,6 +826,7 @@ class TestConflictCheck:
         self,
         client: AsyncClient,
         workspace_1: Workspace,
+        test_user_ws1: User,
         cancelled_appointment_ws1: Appointment,
     ):
         """Conflict check ignores cancelled appointments."""
@@ -841,7 +850,8 @@ class TestConflictCheck:
         assert data["has_conflict"] is False
 
     async def test_conflict_check_validates_time_range(
-        self, client: AsyncClient, workspace_1: Workspace
+        self, client: AsyncClient, workspace_1: Workspace,
+        test_user_ws1: User,
     ):
         """Conflict check validates that end is after start."""
         headers = get_auth_headers(workspace_1.id)
@@ -870,11 +880,11 @@ class TestConflictCheck:
         redis_client,
     ):
         """Back-to-back appointments (end = next start) should NOT conflict."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         tomorrow = datetime.now(UTC).replace(
             hour=10, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
@@ -919,11 +929,11 @@ class TestConflictCheck:
         redis_client,
     ):
         """Conflict check returns privacy-preserving client initials, not full names."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         tomorrow = datetime.now(UTC).replace(
             hour=10, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
@@ -975,11 +985,11 @@ class TestConflictCheck:
         redis_client,
     ):
         """Completed appointments still cause conflicts if times overlap."""
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         tomorrow = datetime.now(UTC).replace(
             hour=10, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)

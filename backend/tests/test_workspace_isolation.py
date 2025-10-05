@@ -232,7 +232,7 @@ class TestClientWorkspaceIsolation:
         Must return 404.
         """
         # Add CSRF token for workspace 2
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_2.id, test_user_ws2.id, redis_client
         )
 
@@ -245,7 +245,8 @@ class TestClientWorkspaceIsolation:
             email=test_user_ws2.email,
         )
         client.cookies.set("access_token", jwt_token)
-        headers = csrf_headers
+        headers = get_auth_headers(workspace_2.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         response = await client.put(
             f"/api/v1/clients/{sample_client_ws1.id}",
             headers=headers,
@@ -282,7 +283,7 @@ class TestClientWorkspaceIsolation:
         Must return 404 and not delete.
         """
         # Add CSRF token for workspace 2
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_2.id, test_user_ws2.id, redis_client
         )
 
@@ -295,7 +296,8 @@ class TestClientWorkspaceIsolation:
             email=test_user_ws2.email,
         )
         client.cookies.set("access_token", jwt_token)
-        headers = csrf_headers
+        headers = get_auth_headers(workspace_2.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         response = await client.delete(
             f"/api/v1/clients/{sample_client_ws1.id}",
             headers=headers,
@@ -397,7 +399,7 @@ class TestAppointmentWorkspaceIsolation:
         Must return 404.
         """
         # Add CSRF token for workspace 2
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_2.id, test_user_ws2.id, redis_client
         )
 
@@ -410,7 +412,8 @@ class TestAppointmentWorkspaceIsolation:
             email=test_user_ws2.email,
         )
         client.cookies.set("access_token", jwt_token)
-        headers = csrf_headers
+        headers = get_auth_headers(workspace_2.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         response = await client.put(
             f"/api/v1/appointments/{sample_appointment_ws1.id}",
             headers=headers,
@@ -447,7 +450,7 @@ class TestAppointmentWorkspaceIsolation:
         Must return 404 and not delete.
         """
         # Add CSRF token for workspace 2
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_2.id, test_user_ws2.id, redis_client
         )
 
@@ -460,7 +463,8 @@ class TestAppointmentWorkspaceIsolation:
             email=test_user_ws2.email,
         )
         client.cookies.set("access_token", jwt_token)
-        headers = csrf_headers
+        headers = get_auth_headers(workspace_2.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         response = await client.delete(
             f"/api/v1/appointments/{sample_appointment_ws1.id}",
             headers=headers,
@@ -497,7 +501,7 @@ class TestAppointmentWorkspaceIsolation:
         not found in workspace 2).
         """
         # Add CSRF token for workspace 2
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace_2.id, test_user_ws2.id, redis_client
         )
 
@@ -510,7 +514,8 @@ class TestAppointmentWorkspaceIsolation:
             email=test_user_ws2.email,
         )
         client.cookies.set("access_token", jwt_token)
-        headers = csrf_headers
+        headers = get_auth_headers(workspace_2.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         tomorrow = datetime.now(UTC).replace(
             hour=10, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)

@@ -509,7 +509,7 @@ async def cancelled_appointment_ws1(
 # Helper functions for tests
 
 
-def get_auth_headers(workspace_id: uuid.UUID, user_id: uuid.UUID | None = None, email: str = "test@example.com") -> dict[str, str]:
+def get_auth_headers(workspace_id: uuid.UUID, user_id: uuid.UUID | None = None, email: str = "test@example.com", csrf_cookie: str | None = None) -> dict[str, str]:
     """
     DEPRECATED: Use get_auth_cookies() instead for JWT authentication.
 
@@ -520,9 +520,10 @@ def get_auth_headers(workspace_id: uuid.UUID, user_id: uuid.UUID | None = None, 
         workspace_id: UUID of the workspace
         user_id: UUID of the user (defaults to predefined test user)
         email: Email of the user
+        csrf_cookie: Optional CSRF cookie value to merge with JWT cookie
 
     Returns:
-        Dictionary with cookies containing JWT token
+        Dictionary with cookies containing JWT token (and CSRF if provided)
     """
     from pazpaz.core.security import create_access_token
 
@@ -544,8 +545,13 @@ def get_auth_headers(workspace_id: uuid.UUID, user_id: uuid.UUID | None = None, 
         email=email,
     )
 
+    # Build cookie header (merge JWT and CSRF if provided)
+    cookie_parts = [f"access_token={jwt_token}"]
+    if csrf_cookie:
+        cookie_parts.append(f"csrf_token={csrf_cookie}")
+
     # Return cookie header format that httpx understands
-    return {"Cookie": f"access_token={jwt_token}"}
+    return {"Cookie": "; ".join(cookie_parts)}
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -654,28 +660,28 @@ async def add_csrf_to_client(
     workspace_id: uuid.UUID,
     user_id: uuid.UUID,
     redis_client: redis.Redis,
-) -> dict[str, str]:
+) -> str:
     """
     Add CSRF token to test client for state-changing requests.
 
-    This helper generates a CSRF token, stores it in Redis, sets it as a cookie
-    on the test client, and returns headers to merge into request headers.
+    This helper generates a CSRF token and stores it in Redis.
+    Returns the CSRF token value to be used with get_auth_headers().
 
     Args:
-        client: Test client to add CSRF token to
+        client: Test client (unused, kept for compatibility)
         workspace_id: Workspace ID for token scoping
         user_id: User ID for token scoping
         redis_client: Redis client for token storage
 
     Returns:
-        Headers dict with X-CSRF-Token to merge into request headers
+        CSRF token string
 
     Example:
-        csrf_headers = await add_csrf_to_client(
+        csrf_token = await add_csrf_to_client(
             client, workspace.id, user.id, redis_client
         )
-        headers = get_auth_headers(workspace.id)
-        headers.update(csrf_headers)
+        headers = get_auth_headers(workspace.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
         response = await client.post("/api/v1/clients", headers=headers, json=data)
     """
     from pazpaz.middleware.csrf import generate_csrf_token
@@ -687,8 +693,4 @@ async def add_csrf_to_client(
         redis_client=redis_client,
     )
 
-    # Set cookie on client
-    client.cookies.set("csrf_token", csrf_token)
-
-    # Return headers dict to merge
-    return {"X-CSRF-Token": csrf_token}
+    return csrf_token
