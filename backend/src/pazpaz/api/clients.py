@@ -10,10 +10,11 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pazpaz.api.deps import get_current_workspace_id, get_db, get_or_404
+from pazpaz.api.deps import get_current_user, get_db, get_or_404
 from pazpaz.core.logging import get_logger
 from pazpaz.models.appointment import Appointment, AppointmentStatus
 from pazpaz.models.client import Client
+from pazpaz.models.user import User
 from pazpaz.schemas.client import (
     ClientCreate,
     ClientListResponse,
@@ -95,8 +96,8 @@ async def enrich_client_response(
 @router.post("", response_model=ClientResponse, status_code=201)
 async def create_client(
     client_data: ClientCreate,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> Client:
     """
     Create a new client.
@@ -104,12 +105,12 @@ async def create_client(
     Creates a new client record in the authenticated workspace.
     All client data is scoped to the workspace.
 
-    SECURITY: workspace_id is injected from authentication, not from request body.
+    SECURITY: workspace_id is derived from authenticated user's JWT token (server-side).
 
     Args:
         client_data: Client creation data (without workspace_id)
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Created client with all fields
@@ -117,6 +118,7 @@ async def create_client(
     Raises:
         HTTPException: 401 if not authenticated, 422 if validation fails
     """
+    workspace_id = current_user.workspace_id
     logger.info("client_create_started", workspace_id=str(workspace_id))
 
     # Create new client instance with injected workspace_id
@@ -153,6 +155,8 @@ async def create_client(
 
 @router.get("", response_model=ClientListResponse)
 async def list_clients(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(50, ge=1, le=100, description="Items per page"),
     include_inactive: bool = Query(
@@ -161,8 +165,6 @@ async def list_clients(
     include_appointments: bool = Query(
         False, description="Include appointment stats (slower)"
     ),
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> ClientListResponse:
     """
     List all clients in the workspace.
@@ -173,16 +175,16 @@ async def list_clients(
     By default, only active clients are returned. Use include_inactive=true
     to see archived clients as well.
 
-    SECURITY: Only returns clients belonging to the authenticated workspace.
+    SECURITY: Only returns clients belonging to the authenticated user's workspace (from JWT).
 
     Args:
+        current_user: Authenticated user (from JWT token)
+        db: Database session
         page: Page number (1-indexed)
         page_size: Number of items per page (max 100)
         include_inactive: If True, include archived/inactive clients
         include_appointments: If True, include appointment stats
             (adds 3 queries per client)
-        db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Paginated list of clients with total count
@@ -190,6 +192,7 @@ async def list_clients(
     Raises:
         HTTPException: 401 if not authenticated
     """
+    workspace_id = current_user.workspace_id
     logger.debug(
         "client_list_started",
         workspace_id=str(workspace_id),
@@ -253,8 +256,8 @@ async def list_clients(
 async def get_client(
     client_id: uuid.UUID,
     request: Request,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> ClientResponse:
     """
     Get a single client by ID with computed appointment fields.
@@ -263,7 +266,7 @@ async def get_client(
     Includes computed fields: next_appointment, last_appointment, appointment_count.
 
     SECURITY: Returns 404 for both non-existent clients and clients in other workspaces
-    to prevent information leakage.
+    to prevent information leakage. workspace_id is derived from JWT token (server-side).
 
     PHI ACCESS: This endpoint accesses Protected Health Information (PHI).
     All access is automatically logged by AuditMiddleware for HIPAA compliance.
@@ -271,8 +274,8 @@ async def get_client(
     Args:
         client_id: UUID of the client
         request: FastAPI request object
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Client details with computed appointment fields
@@ -280,6 +283,7 @@ async def get_client(
     Raises:
         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
     """
+    workspace_id = current_user.workspace_id
     # Use helper function for workspace-scoped fetch with generic error
     client = await get_or_404(db, Client, client_id, workspace_id)
 
@@ -292,8 +296,8 @@ async def get_client(
 async def update_client(
     client_id: uuid.UUID,
     client_data: ClientUpdate,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> ClientResponse:
     """
     Update an existing client.
@@ -302,12 +306,13 @@ async def update_client(
     Client must belong to the authenticated workspace.
 
     SECURITY: Verifies workspace ownership before allowing updates.
+    workspace_id is derived from JWT token (server-side).
 
     Args:
         client_id: UUID of the client to update
         client_data: Fields to update
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Updated client with computed appointment fields
@@ -316,6 +321,7 @@ async def update_client(
         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
             422 if validation fails
     """
+    workspace_id = current_user.workspace_id
     # Fetch existing client with workspace scoping (raises 404 if not found)
     client = await get_or_404(db, Client, client_id, workspace_id)
 
@@ -341,8 +347,8 @@ async def update_client(
 @router.delete("/{client_id}", status_code=204)
 async def delete_client(
     client_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> None:
     """
     Soft delete a client by marking as inactive.
@@ -354,11 +360,12 @@ async def delete_client(
     appear in default list views but can be retrieved with include_inactive=true.
 
     SECURITY: Verifies workspace ownership before allowing deletion.
+    workspace_id is derived from JWT token (server-side).
 
     Args:
         client_id: UUID of the client to delete
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         No content (204) on success
@@ -366,6 +373,7 @@ async def delete_client(
     Raises:
         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
     """
+    workspace_id = current_user.workspace_id
     # Fetch existing client with workspace scoping (raises 404 if not found)
     client = await get_or_404(db, Client, client_id, workspace_id)
 

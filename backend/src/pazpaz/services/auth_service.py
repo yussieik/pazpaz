@@ -220,3 +220,112 @@ async def get_user_by_id(db: AsyncSession, user_id: uuid.UUID) -> User | None:
     query = select(User).where(User.id == user_id)
     result = await db.execute(query)
     return result.scalar_one_or_none()
+
+
+async def blacklist_token(redis_client: redis.Redis, token: str) -> None:
+    """
+    Add a JWT token to the blacklist.
+
+    Stores the token's JTI (JWT ID) in Redis with TTL equal to token expiry.
+    This prevents the token from being used after logout.
+
+    Args:
+        redis_client: Redis client instance
+        token: JWT token to blacklist
+
+    Raises:
+        ValueError: If token is invalid or missing JTI claim
+    """
+    from datetime import datetime
+
+    from jose import jwt
+
+    from pazpaz.core.config import settings
+
+    try:
+        # Decode token to extract JTI and expiration
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=["HS256"],
+            options={"verify_exp": False},  # Don't verify expiry for blacklisting
+        )
+
+        jti = payload.get("jti")
+        exp = payload.get("exp")
+
+        if not jti or not exp:
+            raise ValueError("Token missing JTI or exp claim")
+
+        # Calculate TTL (time until token expires)
+        now = datetime.now().timestamp()
+        ttl = int(exp - now)
+
+        if ttl <= 0:
+            # Token already expired, no need to blacklist
+            logger.debug("token_already_expired_skip_blacklist", jti=jti)
+            return
+
+        # Store JTI in Redis with TTL
+        blacklist_key = f"blacklist:jwt:{jti}"
+        await redis_client.setex(blacklist_key, ttl, "1")
+
+        logger.info("jwt_token_blacklisted", jti=jti, ttl=ttl)
+
+    except Exception as e:
+        logger.error(
+            "failed_to_blacklist_token",
+            error=str(e),
+            exc_info=True,
+        )
+        raise
+
+
+async def is_token_blacklisted(redis_client: redis.Redis, token: str) -> bool:
+    """
+    Check if a JWT token has been blacklisted.
+
+    Args:
+        redis_client: Redis client instance
+        token: JWT token to check
+
+    Returns:
+        True if token is blacklisted, False otherwise
+    """
+    from jose import jwt
+
+    from pazpaz.core.config import settings
+
+    try:
+        # Decode token to extract JTI
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=["HS256"],
+            options={"verify_exp": False},
+        )
+
+        jti = payload.get("jti")
+        if not jti:
+            # Old tokens without JTI should be rejected
+            logger.warning("token_missing_jti_treating_as_blacklisted")
+            return True
+
+        # Check if JTI exists in blacklist
+        blacklist_key = f"blacklist:jwt:{jti}"
+        result = await redis_client.get(blacklist_key)
+
+        is_blacklisted = result is not None
+        if is_blacklisted:
+            logger.info("token_is_blacklisted", jti=jti)
+
+        return is_blacklisted
+
+    except Exception as e:
+        logger.error(
+            "failed_to_check_blacklist",
+            error=str(e),
+            exc_info=True,
+        )
+        # Fail closed: if we can't check blacklist, reject token
+        return True

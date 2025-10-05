@@ -9,10 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pazpaz.api.deps import get_current_workspace_id, get_db, get_or_404
+from pazpaz.api.deps import get_current_user, get_db, get_or_404
 from pazpaz.core.logging import get_logger
 from pazpaz.models.appointment import Appointment, LocationType
 from pazpaz.models.location import Location
+from pazpaz.models.user import User
 from pazpaz.schemas.location import (
     LocationCreate,
     LocationListResponse,
@@ -27,8 +28,8 @@ logger = get_logger(__name__)
 @router.post("", response_model=LocationResponse, status_code=201)
 async def create_location(
     location_data: LocationCreate,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> Location:
     """
     Create a new location.
@@ -36,12 +37,12 @@ async def create_location(
     Creates a new location record in the authenticated workspace.
     All location data is scoped to the workspace.
 
-    SECURITY: workspace_id is injected from authentication, not from request body.
+    SECURITY: workspace_id is derived from authenticated user's JWT token (server-side).
 
     Args:
         location_data: Location creation data (without workspace_id)
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Created location with all fields
@@ -50,6 +51,7 @@ async def create_location(
         HTTPException: 401 if not authenticated, 422 if validation fails,
             409 if location name already exists in workspace
     """
+    workspace_id = current_user.workspace_id
     logger.info("location_create_started", workspace_id=str(workspace_id))
 
     # Validate: address is required for clinic or home locations
@@ -118,6 +120,8 @@ async def create_location(
 
 @router.get("", response_model=LocationListResponse)
 async def list_locations(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(50, ge=1, le=100, description="Items per page"),
     is_active: bool | None = Query(
@@ -126,8 +130,6 @@ async def list_locations(
     location_type: LocationType | None = Query(
         None, description="Filter by location type"
     ),
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> LocationListResponse:
     """
     List all locations in the workspace.
@@ -135,15 +137,15 @@ async def list_locations(
     Returns a paginated list of locations, ordered by name.
     All results are scoped to the authenticated workspace.
 
-    SECURITY: Only returns locations belonging to the authenticated workspace.
+    SECURITY: Only returns locations belonging to the authenticated user's workspace (from JWT).
 
     Args:
+        current_user: Authenticated user (from JWT token)
+        db: Database session
         page: Page number (1-indexed)
         page_size: Number of items per page (max 100)
         is_active: Filter by active status (default: true, None = all)
         location_type: Filter by location type (clinic, home, online)
-        db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Paginated list of locations with total count
@@ -151,6 +153,7 @@ async def list_locations(
     Raises:
         HTTPException: 401 if not authenticated
     """
+    workspace_id = current_user.workspace_id
     logger.debug(
         "location_list_started",
         workspace_id=str(workspace_id),
@@ -206,8 +209,8 @@ async def list_locations(
 @router.get("/{location_id}", response_model=LocationResponse)
 async def get_location(
     location_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> Location:
     """
     Get a single location by ID.
@@ -215,12 +218,12 @@ async def get_location(
     Retrieves a location by ID, ensuring it belongs to the authenticated workspace.
 
     SECURITY: Returns 404 for non-existent locations and locations in
-    other workspaces to prevent information leakage.
+    other workspaces to prevent information leakage. workspace_id is derived from JWT token.
 
     Args:
         location_id: UUID of the location
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Location details
@@ -228,6 +231,7 @@ async def get_location(
     Raises:
         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
     """
+    workspace_id = current_user.workspace_id
     # Use helper function for workspace-scoped fetch with generic error
     location = await get_or_404(db, Location, location_id, workspace_id)
     return location
@@ -237,8 +241,8 @@ async def get_location(
 async def update_location(
     location_id: uuid.UUID,
     location_data: LocationUpdate,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> Location:
     """
     Update an existing location.
@@ -247,12 +251,13 @@ async def update_location(
     Location must belong to the authenticated workspace.
 
     SECURITY: Verifies workspace ownership before allowing updates.
+    workspace_id is derived from JWT token (server-side).
 
     Args:
         location_id: UUID of the location to update
         location_data: Fields to update
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Updated location
@@ -261,6 +266,7 @@ async def update_location(
         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
             409 if name conflicts with existing location, 422 if validation fails
     """
+    workspace_id = current_user.workspace_id
     # Fetch existing location with workspace scoping (raises 404 if not found)
     location = await get_or_404(db, Location, location_id, workspace_id)
 
@@ -331,8 +337,8 @@ async def update_location(
 @router.delete("/{location_id}", status_code=204)
 async def delete_location(
     location_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> None:
     """
     Delete a location.
@@ -343,11 +349,12 @@ async def delete_location(
     Location must belong to the authenticated workspace.
 
     SECURITY: Verifies workspace ownership before allowing deletion.
+    workspace_id is derived from JWT token (server-side).
 
     Args:
         location_id: UUID of the location to delete
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         No content (204) on success
@@ -355,6 +362,7 @@ async def delete_location(
     Raises:
         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
     """
+    workspace_id = current_user.workspace_id
     # Fetch existing location with workspace scoping (raises 404 if not found)
     location = await get_or_404(db, Location, location_id, workspace_id)
 

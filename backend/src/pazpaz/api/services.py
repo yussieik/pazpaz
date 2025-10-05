@@ -9,10 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pazpaz.api.deps import get_current_workspace_id, get_db, get_or_404
+from pazpaz.api.deps import get_current_user, get_db, get_or_404
 from pazpaz.core.logging import get_logger
 from pazpaz.models.appointment import Appointment
 from pazpaz.models.service import Service
+from pazpaz.models.user import User
 from pazpaz.schemas.service import (
     ServiceCreate,
     ServiceListResponse,
@@ -27,8 +28,8 @@ logger = get_logger(__name__)
 @router.post("", response_model=ServiceResponse, status_code=201)
 async def create_service(
     service_data: ServiceCreate,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> Service:
     """
     Create a new service.
@@ -36,12 +37,12 @@ async def create_service(
     Creates a new service record in the authenticated workspace.
     All service data is scoped to the workspace.
 
-    SECURITY: workspace_id is injected from authentication, not from request body.
+    SECURITY: workspace_id is derived from authenticated user's JWT token (server-side).
 
     Args:
         service_data: Service creation data (without workspace_id)
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Created service with all fields
@@ -50,6 +51,7 @@ async def create_service(
         HTTPException: 401 if not authenticated, 422 if validation fails,
             409 if service name already exists in workspace
     """
+    workspace_id = current_user.workspace_id
     logger.info("service_create_started", workspace_id=str(workspace_id))
 
     # Check if service name already exists in workspace (unique constraint)
@@ -96,13 +98,13 @@ async def create_service(
 
 @router.get("", response_model=ServiceListResponse)
 async def list_services(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(50, ge=1, le=100, description="Items per page"),
     is_active: bool | None = Query(
         True, description="Filter by active status (default: true)"
     ),
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> ServiceListResponse:
     """
     List all services in the workspace.
@@ -110,14 +112,14 @@ async def list_services(
     Returns a paginated list of services, ordered by name.
     All results are scoped to the authenticated workspace.
 
-    SECURITY: Only returns services belonging to the authenticated workspace.
+    SECURITY: Only returns services belonging to the authenticated user's workspace (from JWT).
 
     Args:
+        current_user: Authenticated user (from JWT token)
+        db: Database session
         page: Page number (1-indexed)
         page_size: Number of items per page (max 100)
         is_active: Filter by active status (default: true, None = all)
-        db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Paginated list of services with total count
@@ -125,6 +127,7 @@ async def list_services(
     Raises:
         HTTPException: 401 if not authenticated
     """
+    workspace_id = current_user.workspace_id
     logger.debug(
         "service_list_started",
         workspace_id=str(workspace_id),
@@ -175,8 +178,8 @@ async def list_services(
 @router.get("/{service_id}", response_model=ServiceResponse)
 async def get_service(
     service_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> Service:
     """
     Get a single service by ID.
@@ -184,12 +187,12 @@ async def get_service(
     Retrieves a service by ID, ensuring it belongs to the authenticated workspace.
 
     SECURITY: Returns 404 for non-existent services and services in
-    other workspaces to prevent information leakage.
+    other workspaces to prevent information leakage. workspace_id is derived from JWT token.
 
     Args:
         service_id: UUID of the service
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Service details
@@ -197,6 +200,7 @@ async def get_service(
     Raises:
         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
     """
+    workspace_id = current_user.workspace_id
     # Use helper function for workspace-scoped fetch with generic error
     service = await get_or_404(db, Service, service_id, workspace_id)
     return service
@@ -206,8 +210,8 @@ async def get_service(
 async def update_service(
     service_id: uuid.UUID,
     service_data: ServiceUpdate,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> Service:
     """
     Update an existing service.
@@ -216,12 +220,13 @@ async def update_service(
     Service must belong to the authenticated workspace.
 
     SECURITY: Verifies workspace ownership before allowing updates.
+    workspace_id is derived from JWT token (server-side).
 
     Args:
         service_id: UUID of the service to update
         service_data: Fields to update
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Updated service
@@ -230,6 +235,7 @@ async def update_service(
         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
             409 if name conflicts with existing service, 422 if validation fails
     """
+    workspace_id = current_user.workspace_id
     # Fetch existing service with workspace scoping (raises 404 if not found)
     service = await get_or_404(db, Service, service_id, workspace_id)
 
@@ -277,8 +283,8 @@ async def update_service(
 @router.delete("/{service_id}", status_code=204)
 async def delete_service(
     service_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> None:
     """
     Delete a service.
@@ -289,11 +295,12 @@ async def delete_service(
     Service must belong to the authenticated workspace.
 
     SECURITY: Verifies workspace ownership before allowing deletion.
+    workspace_id is derived from JWT token (server-side).
 
     Args:
         service_id: UUID of the service to delete
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         No content (204) on success
@@ -301,6 +308,7 @@ async def delete_service(
     Raises:
         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
     """
+    workspace_id = current_user.workspace_id
     # Fetch existing service with workspace scoping (raises 404 if not found)
     service = await get_or_404(db, Service, service_id, workspace_id)
 

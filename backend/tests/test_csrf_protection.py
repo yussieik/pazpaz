@@ -359,6 +359,35 @@ class TestCSRFAuthenticationFlow:
         stored_token = await redis_client.get(redis_key)
         assert stored_token == csrf_cookie
 
+    async def test_logout_requires_csrf_token(
+        self,
+        client: AsyncClient,
+    ):
+        """Verify logout endpoint requires CSRF token (not exempt)."""
+        # Set valid CSRF cookie but NO header
+        csrf_token = "test-csrf-token-value"
+        client.cookies.set("csrf_token", csrf_token)
+        client.cookies.set("access_token", "fake-jwt-token")
+
+        # Try to logout without CSRF header
+        try:
+            response = await client.post("/api/v1/auth/logout")
+            # Should be rejected by CSRF middleware
+            assert response.status_code == 403
+            assert "CSRF token missing" in response.json()["detail"]
+        except Exception as e:
+            # Middleware might raise exception instead of returning response
+            assert "CSRF token missing" in str(e)
+
+        # Now try with valid CSRF token in header
+        response = await client.post(
+            "/api/v1/auth/logout",
+            headers={"X-CSRF-Token": csrf_token},
+        )
+
+        # Should succeed
+        assert response.status_code == 200
+
     async def test_csrf_token_cleared_on_logout(
         self,
         client: AsyncClient,

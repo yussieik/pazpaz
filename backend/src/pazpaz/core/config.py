@@ -1,9 +1,10 @@
 """Application configuration."""
 
 import base64
+import os
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from pazpaz.core.logging import get_logger
@@ -117,6 +118,53 @@ class Settings(BaseSettings):
 
     # CSRF Protection
     csrf_token_expire_minutes: int = 60 * 24 * 7  # 7 days (match JWT expiry)
+
+    @field_validator("secret_key")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        """
+        Validate SECRET_KEY meets security requirements.
+
+        Requirements:
+        - Minimum 32 characters (256 bits if random)
+        - Not the default value in production
+        - Contains variety of characters (not all same character)
+
+        Args:
+            v: SECRET_KEY value
+
+        Returns:
+            Validated secret key
+
+        Raises:
+            ValueError: If key doesn't meet requirements
+        """
+        # Check minimum length (32 chars = 256 bits if random)
+        if len(v) < 32:
+            raise ValueError(
+                f"SECRET_KEY must be at least 32 characters, got {len(v)}. "
+                "Generate a secure key with: openssl rand -hex 32"
+            )
+
+        # Check not default value (only in production/staging)
+        environment = os.getenv("ENVIRONMENT", "local")
+        if environment in ("production", "staging"):
+            if "change-me" in v.lower():
+                raise ValueError(
+                    "SECRET_KEY cannot be default value in production. "
+                    "Set a secure random key in environment variables. "
+                    "Generate with: openssl rand -hex 32"
+                )
+
+        # Check for weak patterns (all same character)
+        if len(set(v)) < 10:
+            raise ValueError(
+                "SECRET_KEY appears to be weak (insufficient entropy). "
+                "Use a cryptographically random key. "
+                "Generate with: openssl rand -hex 32"
+            )
+
+        return v
 
     # Encryption (local/development only - use AWS Secrets Manager in production)
     encryption_master_key: str | None = Field(

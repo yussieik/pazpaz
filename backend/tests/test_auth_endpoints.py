@@ -361,7 +361,7 @@ class TestJWTAuthentication:
         db.add(user)
         await db.commit()
 
-        # Generate JWT
+        # Generate JWT with JTI (required for blacklist check)
         token = jwt.encode(
             {
                 "sub": str(user.id),
@@ -370,6 +370,7 @@ class TestJWTAuthentication:
                 "email": user.email,
                 "exp": datetime.now(UTC) + timedelta(days=1),
                 "iat": datetime.now(UTC),
+                "jti": str(uuid.uuid4()),  # Required for blacklist functionality
             },
             settings.secret_key,
             algorithm="HS256",
@@ -454,3 +455,135 @@ class TestJWTAuthentication:
 
         # This will be testable once endpoints migrate to get_current_user
         pass
+
+
+class TestJWTBlacklist:
+    """Test JWT blacklist functionality (logout and revocation)."""
+
+    async def test_logout_blacklists_jwt_token(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        db: AsyncSession,
+        redis_client,
+    ):
+        """Verify logout adds JWT to blacklist."""
+        # Create a test user
+        user = User(
+            id=uuid.uuid4(),
+            workspace_id=workspace_1.id,
+            email="blacklist-test@example.com",
+            full_name="Blacklist Test",
+            role=UserRole.OWNER,
+            is_active=True,
+        )
+        db.add(user)
+        await db.commit()
+
+        # Create magic link token in Redis
+        import json
+        import secrets
+
+        magic_token = secrets.token_urlsafe(32)
+        token_data = {
+            "user_id": str(user.id),
+            "workspace_id": str(user.workspace_id),
+            "email": user.email,
+        }
+        await redis_client.setex(
+            f"magic_link:{magic_token}",
+            600,  # 10 minutes
+            json.dumps(token_data),
+        )
+
+        # Verify magic link to get JWT
+        response = await client.get(f"/api/v1/auth/verify?token={magic_token}")
+        assert response.status_code == 200
+
+        # Extract JWT from cookies
+        jwt_token = response.cookies.get("access_token")
+        csrf_token = response.cookies.get("csrf_token")
+        assert jwt_token is not None
+        assert csrf_token is not None
+
+        # Decode JWT to get JTI
+        payload = jwt.decode(jwt_token, settings.secret_key, algorithms=["HS256"])
+        jti = payload["jti"]
+
+        # Logout (should blacklist token)
+        client.cookies.set("access_token", jwt_token)
+        client.cookies.set("csrf_token", csrf_token)
+        response = await client.post(
+            "/api/v1/auth/logout",
+            headers={"X-CSRF-Token": csrf_token},
+        )
+        assert response.status_code == 200
+
+        # Verify token is blacklisted in Redis
+        blacklist_key = f"blacklist:jwt:{jti}"
+        result = await redis_client.get(blacklist_key)
+        assert result is not None  # Token should be in blacklist
+
+    async def test_blacklisted_token_cannot_be_used(
+        self,
+        authenticated_client: AsyncClient,
+        workspace_1: Workspace,
+        db: AsyncSession,
+        redis_client,
+    ):
+        """Verify blacklisted JWT cannot access protected endpoints."""
+        # authenticated_client already has JWT token set
+        jwt_token = authenticated_client.cookies.get("access_token")
+        csrf_token = authenticated_client.cookies.get("csrf_token")
+
+        # Verify token works before logout
+        response = await authenticated_client.get("/api/v1/clients")
+        assert response.status_code == 200
+
+        # Logout (blacklists token)
+        response = await authenticated_client.post(
+            "/api/v1/auth/logout",
+            headers={"X-CSRF-Token": csrf_token},
+        )
+        assert response.status_code == 200
+
+        # Try to use blacklisted token on protected endpoint
+        # Need to manually set cookies again since logout cleared them
+        authenticated_client.cookies.set("access_token", jwt_token)
+        response = await authenticated_client.get("/api/v1/clients")
+
+        assert response.status_code == 401
+        detail = response.json()["detail"].lower()
+        assert "revoked" in detail or "blacklisted" in detail
+
+    async def test_token_without_jti_is_rejected(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        db: AsyncSession,
+        test_user_ws1: User,
+    ):
+        """Verify tokens without JTI claim are rejected (old tokens)."""
+        # Generate JWT without JTI (simulating old token format)
+        old_token = jwt.encode(
+            {
+                "sub": str(test_user_ws1.id),
+                "user_id": str(test_user_ws1.id),
+                "workspace_id": str(workspace_1.id),
+                "email": test_user_ws1.email,
+                "exp": datetime.now(UTC) + timedelta(days=1),
+                "iat": datetime.now(UTC),
+                # NO JTI claim
+            },
+            settings.secret_key,
+            algorithm="HS256",
+        )
+
+        # Try to access protected endpoint with old token
+        client.cookies.set("access_token", old_token)
+        response = await client.get("/api/v1/clients")
+
+        # Should be rejected (treated as blacklisted)
+        assert response.status_code == 401
+        detail = response.json()["detail"].lower()
+        assert "revoked" in detail or "blacklisted" in detail or "invalid" in detail

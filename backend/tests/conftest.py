@@ -509,17 +509,43 @@ async def cancelled_appointment_ws1(
 # Helper functions for tests
 
 
-def get_auth_headers(workspace_id: uuid.UUID) -> dict[str, str]:
+def get_auth_headers(workspace_id: uuid.UUID, user_id: uuid.UUID | None = None, email: str = "test@example.com") -> dict[str, str]:
     """
-    Get authentication headers for a workspace.
+    DEPRECATED: Use get_auth_cookies() instead for JWT authentication.
+
+    This function now generates a JWT token and sets it as a cookie.
+    The X-Workspace-ID header is ignored by endpoints (workspace_id comes from JWT).
 
     Args:
         workspace_id: UUID of the workspace
+        user_id: UUID of the user (defaults to predefined test user)
+        email: Email of the user
 
     Returns:
-        Dictionary with X-Workspace-ID header
+        Dictionary with cookies containing JWT token
     """
-    return {"X-Workspace-ID": str(workspace_id)}
+    from pazpaz.core.security import create_access_token
+
+    # Use predefined test user IDs based on workspace
+    if user_id is None:
+        if str(workspace_id) == "00000000-0000-0000-0000-000000000001":
+            user_id = uuid.UUID("10000000-0000-0000-0000-000000000001")
+            email = "test-user-ws1@example.com"
+        elif str(workspace_id) == "00000000-0000-0000-0000-000000000002":
+            user_id = uuid.UUID("10000000-0000-0000-0000-000000000002")
+            email = "test-user-ws2@example.com"
+        else:
+            user_id = uuid.UUID("10000000-0000-0000-0000-000000000001")
+
+    # Generate JWT token
+    jwt_token = create_access_token(
+        user_id=user_id,
+        workspace_id=workspace_id,
+        email=email,
+    )
+
+    # Return cookie header format that httpx understands
+    return {"Cookie": f"access_token={jwt_token}"}
 
 
 @pytest_asyncio.fixture(scope="function")

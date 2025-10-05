@@ -44,6 +44,7 @@ def create_access_token(
         "email": email,
         "exp": expire,
         "iat": datetime.now(UTC),  # Issued at
+        "jti": str(uuid.uuid4()),  # JWT ID for blacklisting
     }
 
     encoded_jwt = jwt.encode(

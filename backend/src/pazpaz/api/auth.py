@@ -176,39 +176,55 @@ async def verify_magic_link_endpoint(
     status_code=200,
     summary="Logout",
     description="""
-    Logout by clearing the JWT cookie.
+    Logout by clearing the JWT cookie and blacklisting the token.
 
-    This invalidates the client-side session by clearing the HttpOnly cookie.
-    For enhanced security (JWT blacklisting), consider adding the JWT to a
-    Redis blacklist with TTL matching the token expiry.
+    Security features:
+    - Clears HttpOnly authentication cookie
+    - Blacklists JWT token in Redis (prevents reuse)
+    - Clears CSRF token cookie
+    - Requires CSRF token for protection against logout CSRF attacks
+
+    The blacklisted token cannot be used even if stolen, providing
+    enhanced security compared to client-side-only logout.
     """,
 )
 async def logout_endpoint(
     response: Response,
+    redis_client: Annotated[redis.Redis, Depends(get_redis)],
     access_token: str | None = Cookie(None),
 ) -> LogoutResponse:
     """
-    Logout user by clearing authentication cookie.
+    Logout user by clearing authentication cookie and blacklisting JWT.
 
     Args:
         response: FastAPI response object (for clearing cookie)
+        redis_client: Redis client for token blacklisting
         access_token: Current JWT from cookie (optional)
 
     Returns:
         Success message
     """
+    from pazpaz.services.auth_service import blacklist_token
+
+    # Blacklist the JWT token (if present)
+    if access_token:
+        try:
+            await blacklist_token(redis_client, access_token)
+            logger.info("jwt_token_blacklisted_on_logout")
+        except Exception as e:
+            # Log error but don't fail logout
+            # User experience is that logout succeeds even if blacklisting fails
+            logger.error(
+                "failed_to_blacklist_token_on_logout",
+                error=str(e),
+                exc_info=True,
+            )
+
     # Clear authentication cookie
     response.delete_cookie(key="access_token")
 
     # Clear CSRF token cookie
     response.delete_cookie(key="csrf_token")
-
-    # Optional: Add JWT to blacklist in Redis
-    # This prevents token reuse until natural expiry
-    # if access_token:
-    #     # Extract exp from token and calculate TTL
-    #     # Add to Redis: blacklist:{token_hash} with TTL
-    #     pass
 
     logger.info("user_logged_out")
 

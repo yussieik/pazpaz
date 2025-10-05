@@ -11,10 +11,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from pazpaz.api.deps import get_current_workspace_id, get_db, get_or_404
+from pazpaz.api.deps import get_current_user, get_db, get_or_404
 from pazpaz.core.logging import get_logger
 from pazpaz.models.appointment import Appointment, AppointmentStatus
 from pazpaz.models.client import Client
+from pazpaz.models.user import User
 from pazpaz.schemas.appointment import (
     AppointmentCreate,
     AppointmentListResponse,
@@ -148,8 +149,8 @@ async def verify_client_in_workspace(
 @router.post("", response_model=AppointmentResponse, status_code=201)
 async def create_appointment(
     appointment_data: AppointmentCreate,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> AppointmentResponse:
     """
     Create a new appointment with conflict detection.
@@ -158,12 +159,12 @@ async def create_appointment(
     1. Client belongs to the workspace
     2. No conflicting appointments exist in the time slot
 
-    SECURITY: workspace_id is injected from authentication, not from request body.
+    SECURITY: workspace_id is derived from authenticated user's JWT token (server-side).
 
     Args:
         appointment_data: Appointment creation data (without workspace_id)
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Created appointment with client information
@@ -172,6 +173,7 @@ async def create_appointment(
         HTTPException: 401 if not authenticated, 404 if client not found,
             409 if conflict exists, 422 if validation fails
     """
+    workspace_id = current_user.workspace_id
     logger.info("appointment_create_started", workspace_id=str(workspace_id))
 
     # Verify client exists and belongs to workspace
@@ -257,6 +259,8 @@ async def create_appointment(
 
 @router.get("", response_model=AppointmentListResponse)
 async def list_appointments(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(50, ge=1, le=100, description="Items per page"),
     start_date: datetime | None = Query(
@@ -267,8 +271,6 @@ async def list_appointments(
     ),
     client_id: uuid.UUID | None = Query(None, description="Filter by client ID"),
     status: AppointmentStatus | None = Query(None, description="Filter by status"),
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> AppointmentListResponse:
     """
     List appointments in the workspace with optional filters.
@@ -276,17 +278,17 @@ async def list_appointments(
     Returns a paginated list of appointments, ordered by scheduled_start descending.
     All results are scoped to the authenticated workspace.
 
-    SECURITY: Only returns appointments belonging to the authenticated workspace.
+    SECURITY: Only returns appointments belonging to the authenticated user's workspace (from JWT).
 
     Args:
+        current_user: Authenticated user (from JWT token)
+        db: Database session
         page: Page number (1-indexed)
         page_size: Number of items per page (max 100)
         start_date: Filter appointments starting on or after this date
         end_date: Filter appointments starting on or before this date
         client_id: Filter by specific client
         status: Filter by appointment status
-        db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Paginated list of appointments with client information
@@ -294,6 +296,7 @@ async def list_appointments(
     Raises:
         HTTPException: 401 if not authenticated
     """
+    workspace_id = current_user.workspace_id
     logger.debug(
         "appointment_list_started",
         workspace_id=str(workspace_id),
@@ -369,28 +372,28 @@ async def list_appointments(
 
 @router.get("/conflicts", response_model=ConflictCheckResponse)
 async def check_appointment_conflicts(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
     scheduled_start: datetime = Query(..., description="Start time to check"),
     scheduled_end: datetime = Query(..., description="End time to check"),
     exclude_appointment_id: uuid.UUID | None = Query(
         None,
         description="Appointment ID to exclude (for updates)",
     ),
-    db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> ConflictCheckResponse:
     """
     Check for appointment conflicts in a time range.
 
     Used by frontend to validate appointment times before submission.
 
-    SECURITY: Only checks conflicts within the authenticated workspace.
+    SECURITY: Only checks conflicts within the authenticated user's workspace (from JWT).
 
     Args:
+        current_user: Authenticated user (from JWT token)
+        db: Database session
         scheduled_start: Start time to check
         scheduled_end: End time to check
         exclude_appointment_id: Appointment to exclude (when updating)
-        db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Conflict check result with list of conflicting appointments
@@ -399,6 +402,8 @@ async def check_appointment_conflicts(
         HTTPException: 401 if not authenticated,
             422 if scheduled_end is not after scheduled_start
     """
+    workspace_id = current_user.workspace_id
+
     # Validate time range
     if scheduled_end <= scheduled_start:
         raise HTTPException(
@@ -463,8 +468,8 @@ async def check_appointment_conflicts(
 @router.get("/{appointment_id}", response_model=AppointmentResponse)
 async def get_appointment(
     appointment_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> AppointmentResponse:
     """
     Get a single appointment by ID.
@@ -472,12 +477,12 @@ async def get_appointment(
     Retrieves an appointment by ID, ensuring it belongs to the authenticated workspace.
 
     SECURITY: Returns 404 for both non-existent appointments and appointments
-    in other workspaces to prevent information leakage.
+    in other workspaces to prevent information leakage. workspace_id is derived from JWT token.
 
     Args:
         appointment_id: UUID of the appointment
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Appointment details with client information
@@ -486,6 +491,7 @@ async def get_appointment(
         HTTPException: 401 if not authenticated,
             404 if not found or wrong workspace
     """
+    workspace_id = current_user.workspace_id
     # Fetch with workspace scoping using generic helper
     # (Validates existence and workspace access)
     await get_or_404(db, Appointment, appointment_id, workspace_id)
@@ -516,8 +522,8 @@ async def get_appointment(
 async def update_appointment(
     appointment_id: uuid.UUID,
     appointment_data: AppointmentUpdate,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> AppointmentResponse:
     """
     Update an existing appointment with conflict detection.
@@ -527,12 +533,13 @@ async def update_appointment(
     Appointment must belong to the authenticated workspace.
 
     SECURITY: Verifies workspace ownership before allowing updates.
+    workspace_id is derived from JWT token (server-side).
 
     Args:
         appointment_id: UUID of the appointment to update
         appointment_data: Fields to update
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         Updated appointment with client information
@@ -541,6 +548,7 @@ async def update_appointment(
         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
             409 if conflict, 422 if validation fails
     """
+    workspace_id = current_user.workspace_id
     # Fetch existing appointment with workspace scoping (raises 404 if not found)
     appointment = await get_or_404(db, Appointment, appointment_id, workspace_id)
 
@@ -635,8 +643,8 @@ async def update_appointment(
 @router.delete("/{appointment_id}", status_code=204)
 async def delete_appointment(
     appointment_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> None:
     """
     Delete an appointment.
@@ -645,11 +653,12 @@ async def delete_appointment(
     due to CASCADE delete. Appointment must belong to the authenticated workspace.
 
     SECURITY: Verifies workspace ownership before allowing deletion.
+    workspace_id is derived from JWT token (server-side).
 
     Args:
         appointment_id: UUID of the appointment to delete
+        current_user: Authenticated user (from JWT token)
         db: Database session
-        workspace_id: Authenticated workspace ID (from auth dependency)
 
     Returns:
         No content (204) on success
@@ -658,6 +667,7 @@ async def delete_appointment(
         HTTPException: 401 if not authenticated,
             404 if not found or wrong workspace
     """
+    workspace_id = current_user.workspace_id
     # Fetch existing appointment with workspace scoping (raises 404 if not found)
     appointment = await get_or_404(db, Appointment, appointment_id, workspace_id)
 

@@ -4,21 +4,24 @@ from __future__ import annotations
 
 import uuid
 
+import redis.asyncio as redis
 from fastapi import Cookie, Depends, Header, HTTPException
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.core.logging import get_logger
+from pazpaz.core.redis import get_redis
 from pazpaz.core.security import decode_access_token
 from pazpaz.db.base import get_db
 from pazpaz.models.user import User
-from pazpaz.services.auth_service import get_user_by_id
+from pazpaz.services.auth_service import get_user_by_id, is_token_blacklisted
 
 logger = get_logger(__name__)
 
 
 async def get_current_user(
     db: AsyncSession = Depends(get_db),
+    redis_client: redis.Redis = Depends(get_redis),
     access_token: str | None = Cookie(None),
 ) -> User:
     """
@@ -30,18 +33,20 @@ async def get_current_user(
     Security:
     - JWT validation with HS256 algorithm
     - Token expiry check (handled by JWT library)
+    - Blacklist check (prevents use after logout)
     - User existence and active status validation
     - Workspace context available via user.workspace_id
 
     Args:
         db: Database session (injected)
+        redis_client: Redis client (injected)
         access_token: JWT from HttpOnly cookie
 
     Returns:
         Authenticated User object
 
     Raises:
-        HTTPException: 401 if token is missing, invalid, or user not found
+        HTTPException: 401 if token is missing, invalid, blacklisted, or user not found
 
     Example:
         ```python
@@ -70,6 +75,18 @@ async def get_current_user(
             raise HTTPException(
                 status_code=401,
                 detail="Invalid authentication credentials",
+            )
+
+        # Check if token is blacklisted (logout/revocation)
+        if await is_token_blacklisted(redis_client, access_token):
+            logger.warning(
+                "authentication_failed",
+                reason="token_blacklisted",
+                user_id=user_id_str,
+            )
+            raise HTTPException(
+                status_code=401,
+                detail="Token has been revoked",
             )
 
         user_id = uuid.UUID(user_id_str)
@@ -128,53 +145,24 @@ async def get_current_user(
     return user
 
 
-async def get_current_workspace_id(
-    x_workspace_id: str | None = Header(None, alias="X-Workspace-ID"),
-) -> uuid.UUID:
-    """
-    DEPRECATED: Extract workspace ID from X-Workspace-ID header.
-
-    This is a LEGACY dependency kept for backward compatibility during migration.
-    Use get_current_user() instead for production authentication.
-
-    SECURITY WARNING: This provides NO actual authentication!
-    Only validates UUID format, not user authorization.
-
-    Migration Path:
-    1. Update all endpoints to use get_current_user()
-    2. Extract workspace_id from user.workspace_id
-    3. Remove this dependency once all endpoints migrated
-
-    Args:
-        x_workspace_id: Workspace ID from X-Workspace-ID header (temporary)
-
-    Returns:
-        Validated workspace UUID
-
-    Raises:
-        HTTPException: 401 if workspace ID is missing or invalid format
-    """
-    if not x_workspace_id:
-        logger.warning("authentication_failed", reason="missing_workspace_id_header")
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication required",
-        )
-
-    try:
-        workspace_uuid = uuid.UUID(x_workspace_id)
-        logger.debug("workspace_authenticated", workspace_id=str(workspace_uuid))
-        return workspace_uuid
-    except ValueError as e:
-        logger.warning(
-            "authentication_failed",
-            reason="invalid_workspace_id_format",
-            workspace_id=x_workspace_id,
-        )
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid authentication credentials",
-        ) from e
+# REMOVED: get_current_workspace_id() dependency
+#
+# This dependency was removed on 2025-10-05 as part of a critical security fix.
+# It accepted unauthenticated X-Workspace-ID headers, allowing workspace isolation bypass.
+#
+# VULNERABILITY: CVE-2025-XXXX (CVSS 9.1 - Critical)
+# - Accepted ANY workspace UUID from X-Workspace-ID header without authentication
+# - No validation that user had access to the workspace
+# - Enabled PHI exposure across workspace boundaries
+#
+# MIGRATION: All endpoints now use get_current_user() which:
+# - Validates JWT tokens from HttpOnly cookies
+# - Derives workspace_id from authenticated user (server-side, trusted)
+# - Prevents cross-workspace data access
+#
+# If you need workspace_id in an endpoint, use:
+#   current_user: User = Depends(get_current_user)
+#   workspace_id = current_user.workspace_id
 
 
 async def get_or_404(
@@ -238,4 +226,4 @@ async def get_or_404(
 
 
 # Re-export for convenience
-__all__ = ["get_db", "get_current_user", "get_current_workspace_id", "get_or_404"]
+__all__ = ["get_db", "get_current_user", "get_or_404"]
