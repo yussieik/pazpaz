@@ -76,6 +76,7 @@ export function useCalendarEvents() {
 
     return allAppointments.map((appointment) => {
       const hasConflict = checkIfAppointmentHasConflict(appointment, allAppointments)
+      const isCancelled = appointment.status === 'cancelled'
 
       return {
         id: appointment.id,
@@ -83,9 +84,13 @@ export function useCalendarEvents() {
           appointment.client?.full_name || `Client ${appointment.client_id.slice(0, 8)}`,
         start: appointment.scheduled_start,
         end: appointment.scheduled_end,
-        backgroundColor: getStatusColor(appointment.status),
-        borderColor: getStatusColor(appointment.status),
-        classNames: hasConflict ? ['has-conflict'] : [],
+        // Use grey color for cancelled appointments
+        backgroundColor: isCancelled ? '#94a3b8' : getStatusColor(appointment.status), // slate-400
+        borderColor: isCancelled ? '#cbd5e1' : getStatusColor(appointment.status), // slate-300
+        classNames: [
+          ...(hasConflict ? ['has-conflict'] : []),
+          ...(isCancelled ? ['is-cancelled'] : []),
+        ],
         extendedProps: {
           status: appointment.status,
           location_type: appointment.location_type,
@@ -93,6 +98,7 @@ export function useCalendarEvents() {
           notes: appointment.notes,
           client_id: appointment.client_id,
           hasConflict,
+          isCancelled,
         },
       }
     })

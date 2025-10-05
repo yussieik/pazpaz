@@ -277,7 +277,9 @@ class TestGetAppointment:
         assert data["client"]["first_name"] == "John"
 
     async def test_get_appointment_not_found(
-        self, client: AsyncClient, workspace_1: Workspace,
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
         test_user_ws1: User,
     ):
         """Non-existent appointment UUID returns 404."""
@@ -297,7 +299,9 @@ class TestListAppointments:
     """Test list appointments endpoint."""
 
     async def test_list_appointments_empty(
-        self, client: AsyncClient, workspace_1: Workspace,
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
         test_user_ws1: User,
     ):
         """List appointments in empty workspace returns empty list."""
@@ -678,6 +682,82 @@ class TestUpdateAppointment:
         assert response.status_code == 404
         assert response.json()["detail"] == "Resource not found"
 
+    async def test_update_appointment_allow_conflict(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+    ):
+        """Update appointment with allow_conflict=true bypasses conflict detection."""
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+
+        # Create two appointments
+        tomorrow = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=1)
+
+        # First appointment: 10:00-11:00
+        response1 = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": tomorrow.isoformat(),
+                "scheduled_end": (tomorrow + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+        appt1_id = response1.json()["id"]
+
+        # Second appointment: 14:00-15:00
+        afternoon = tomorrow.replace(hour=14)
+        response2 = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": afternoon.isoformat(),
+                "scheduled_end": (afternoon + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+        appt2_id = response2.json()["id"]
+
+        # Try to move second appointment to conflict with first (without allow_conflict)
+        response = await client.put(
+            f"/api/v1/appointments/{appt2_id}",
+            headers=headers,
+            json={
+                "scheduled_start": tomorrow.isoformat(),
+                "scheduled_end": (tomorrow + timedelta(hours=1)).isoformat(),
+            },
+        )
+
+        # Should return 409 conflict
+        assert response.status_code == 409
+
+        # Now try with allow_conflict=true
+        response = await client.put(
+            f"/api/v1/appointments/{appt2_id}",
+            headers=headers,
+            params={"allow_conflict": "true"},
+            json={
+                "scheduled_start": tomorrow.isoformat(),
+                "scheduled_end": (tomorrow + timedelta(hours=1)).isoformat(),
+            },
+        )
+
+        # Should succeed even with conflict
+        assert response.status_code == 200
+        data = response.json()
+        assert data["scheduled_start"] == tomorrow.isoformat().replace("+00:00", "Z")
+
 
 class TestDeleteAppointment:
     """Test delete appointment endpoint."""
@@ -739,7 +819,9 @@ class TestConflictCheck:
     """Test conflict check endpoint."""
 
     async def test_conflict_check_no_conflict(
-        self, client: AsyncClient, workspace_1: Workspace,
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
         test_user_ws1: User,
     ):
         """Conflict check with no conflicts returns has_conflict=False."""
@@ -850,7 +932,9 @@ class TestConflictCheck:
         assert data["has_conflict"] is False
 
     async def test_conflict_check_validates_time_range(
-        self, client: AsyncClient, workspace_1: Workspace,
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
         test_user_ws1: User,
     ):
         """Conflict check validates that end is after start."""

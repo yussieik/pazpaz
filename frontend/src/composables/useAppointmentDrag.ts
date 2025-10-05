@@ -26,6 +26,7 @@ export interface DragState {
   hasConflict: boolean
   conflictData: ConflictCheckResponse | null
   ghostPosition: { x: number; y: number } | null
+  revertFn: (() => void) | null
 }
 
 /**
@@ -72,6 +73,7 @@ export function useAppointmentDrag(
     hasConflict: false,
     conflictData: null,
     ghostPosition: null,
+    revertFn: null,
   })
 
   // Keyboard reschedule state
@@ -245,6 +247,7 @@ export function useAppointmentDrag(
       hasConflict: false,
       conflictData: null,
       ghostPosition: { x: mouseEvent.clientX, y: mouseEvent.clientY },
+      revertFn: null,
     }
 
     // Add global mouse move and mouse up listeners
@@ -309,10 +312,11 @@ export function useAppointmentDrag(
     )
     const newEnd = calculateEndTime(newStart, duration)
 
-    // Update drag state with new times
+    // Update drag state with new times and store revert function
     dragState.value.currentStart = newStart
     dragState.value.currentEnd = newEnd
     dragState.value.appointmentId = info.event.id
+    dragState.value.revertFn = info.revert
 
     // Check for conflicts
     try {
@@ -329,11 +333,15 @@ export function useAppointmentDrag(
       info.event.setStart(newStart)
       info.event.setEnd(newEnd)
 
-      // Call reschedule handler to save to database
+      // If has conflict, trigger conflict modal via onReschedule
+      // Otherwise, proceed with reschedule immediately
       await onReschedule(info.event.id, newStart, newEnd, result.has_conflict)
 
-      // Reset drag state after successful reschedule
-      resetDragState()
+      // If no conflict, reset drag state after successful reschedule
+      if (!result.has_conflict) {
+        resetDragState()
+      }
+      // Note: If conflict exists, dragState is preserved for modal to use
     } catch (error) {
       console.error('Failed to reschedule appointment:', error)
       // Revert the visual change on error
@@ -397,6 +405,7 @@ export function useAppointmentDrag(
       hasConflict: false,
       conflictData: null,
       ghostPosition: null,
+      revertFn: null,
     }
 
     document.body.style.cursor = ''

@@ -522,6 +522,10 @@ async def get_appointment(
 async def update_appointment(
     appointment_id: uuid.UUID,
     appointment_data: AppointmentUpdate,
+    allow_conflict: bool = Query(
+        False,
+        description="Allow update even if conflicts exist (for 'Keep Both' scenario)",
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> AppointmentResponse:
@@ -529,7 +533,7 @@ async def update_appointment(
     Update an existing appointment with conflict detection.
 
     Updates appointment fields. Only provided fields are updated.
-    If time is changed, conflict detection is performed.
+    If time is changed, conflict detection is performed unless allow_conflict=True.
     Appointment must belong to the authenticated workspace.
 
     SECURITY: Verifies workspace ownership before allowing updates.
@@ -538,6 +542,7 @@ async def update_appointment(
     Args:
         appointment_id: UUID of the appointment to update
         appointment_data: Fields to update
+        allow_conflict: Allow update even if conflicts exist (default: False)
         current_user: Authenticated user (from JWT token)
         db: Database session
 
@@ -546,7 +551,7 @@ async def update_appointment(
 
     Raises:
         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
-            409 if conflict, 422 if validation fails
+            409 if conflict (and allow_conflict=False), 422 if validation fails
     """
     workspace_id = current_user.workspace_id
     # Fetch existing appointment with workspace scoping (raises 404 if not found)
@@ -583,9 +588,9 @@ async def update_appointment(
             detail="scheduled_end must be after scheduled_start",
         )
 
-    # Check for conflicts if time changed
+    # Check for conflicts if time changed (unless allow_conflict=True)
     time_changed = "scheduled_start" in update_data or "scheduled_end" in update_data
-    if time_changed:
+    if time_changed and not allow_conflict:
         conflicts = await check_conflicts(
             db=db,
             workspace_id=workspace_id,

@@ -16,6 +16,8 @@ type AppointmentResponse =
 type AppointmentListItem = AppointmentResponse['items'][0]
 type AppointmentCreate =
   paths['/api/v1/appointments']['post']['requestBody']['content']['application/json']
+type AppointmentUpdate =
+  paths['/api/v1/appointments/{appointment_id}']['put']['requestBody']['content']['application/json']
 
 export const useAppointmentsStore = defineStore('appointments', () => {
   // State
@@ -117,15 +119,22 @@ export const useAppointmentsStore = defineStore('appointments', () => {
    */
   async function updateAppointment(
     appointmentId: string,
-    updates: Partial<AppointmentCreate>
+    updates: Partial<AppointmentUpdate>,
+    options?: { allowConflict?: boolean }
   ) {
     loading.value = true
     error.value = null
 
     try {
+      const params: Record<string, string | boolean> = {}
+      if (options?.allowConflict) {
+        params.allow_conflict = true
+      }
+
       const response = await apiClient.put<AppointmentListItem>(
         `/appointments/${appointmentId}`,
-        updates
+        updates,
+        { params }
       )
 
       // Update local state

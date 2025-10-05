@@ -16,6 +16,7 @@ interface Emits {
   (e: 'edit', appointment: AppointmentListItem): void
   (e: 'startSessionNotes', appointment: AppointmentListItem): void
   (e: 'cancel', appointment: AppointmentListItem): void
+  (e: 'restore', appointment: AppointmentListItem): void
   (e: 'viewClient', clientId: string): void
 }
 
@@ -272,12 +273,37 @@ function closeModal() {
           <div class="sticky bottom-0 border-t border-slate-200 bg-slate-50 px-6 py-4">
             <div class="flex items-center justify-between gap-3">
               <div class="flex gap-2">
+                <!-- Restore button for cancelled appointments -->
                 <button
+                  v-if="appointment.status === 'cancelled'"
+                  @click="emit('restore', appointment)"
+                  class="flex items-center gap-2 rounded-lg border border-emerald-600 bg-white px-4 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                >
+                  <svg
+                    class="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                  <span>Restore Appointment</span>
+                </button>
+
+                <!-- Edit button (only for non-cancelled) -->
+                <button
+                  v-else
                   @click="emit('edit', appointment)"
                   class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
                 >
                   Edit
                 </button>
+
                 <button
                   v-if="appointment.status === 'scheduled'"
                   @click="emit('startSessionNotes', appointment)"
@@ -286,9 +312,12 @@ function closeModal() {
                   Start Session Notes
                 </button>
               </div>
+
+              <!-- Cancel button (only for non-cancelled) -->
               <button
+                v-if="appointment.status !== 'cancelled'"
                 @click="emit('cancel', appointment)"
-                class="rounded-lg px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                class="rounded-lg px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
               >
                 Cancel Appointment
               </button>
