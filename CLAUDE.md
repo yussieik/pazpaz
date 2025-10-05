@@ -184,6 +184,157 @@ Before starting any implementation, ask yourself:
 3. backend-qa-specialist → Validate fixes meet quality standards
 ```
 
+## 📚 Documentation System - CRITICAL FOR ALL AGENTS
+
+### Documentation Responsibilities
+
+**ALL AGENTS ARE FULLY RESPONSIBLE FOR:**
+
+1. **Reading** relevant documentation before starting any task
+2. **Verifying** existing documentation is accurate and up-to-date
+3. **Updating** documentation when implementing changes
+4. **Creating** new documentation for new features or patterns
+5. **Fixing** incorrect, outdated, or misleading documentation
+
+**Documentation must be:**
+- ✅ **Informative** - Provides clear, actionable guidance
+- ✅ **Concise** - To the point, no unnecessary verbosity
+- ✅ **Accurate** - Reflects current implementation
+- ✅ **Complete** - Includes examples, code snippets, and context
+
+### Documentation Structure
+
+**Main Documentation (`/docs/`)** - Project-wide documentation
+```
+docs/
+├── README.md                              # Navigation guide
+├── SECURITY_FIRST_IMPLEMENTATION_PLAN.md  # Master 5-week plan
+├── PROJECT_OVERVIEW.md                    # Product vision and features
+├── CONTEXT.md                             # Project context
+├── AGENT_ROUTING_GUIDE.md                 # Agent delegation guide
+│
+├── security/                              # Security & HIPAA compliance
+├── architecture/                          # System design & decisions
+├── testing/                               # Testing strategy
+├── frontend/                              # Vue 3 frontend docs
+├── backend/                               # High-level backend docs
+├── deployment/                            # Infrastructure & CI/CD
+└── operations/                            # Runbooks & procedures
+```
+
+**Backend Documentation (`/backend/docs/`)** - Technical implementation
+```
+backend/docs/
+├── README.md                              # Navigation guide
+├── encryption/                            # PHI encryption guides
+├── testing/                               # pytest configuration
+├── api/                                   # API implementation patterns
+├── database/                              # Schema & migrations
+└── performance/                           # Benchmarks & optimization
+```
+
+### Agent-Specific Documentation Duties
+
+**database-architect:**
+- **MUST READ:** `/docs/architecture/`, `/backend/docs/database/`, `/backend/docs/encryption/`
+- **MUST UPDATE:** Schema designs, migration guides, index strategies
+- **MUST CREATE:** ERD diagrams, query optimization guides
+
+**fullstack-backend-specialist:**
+- **MUST READ:** `/docs/backend/`, `/backend/docs/api/`, `/backend/docs/encryption/`, `/docs/security/`
+- **MUST UPDATE:** API patterns, authentication flows, endpoint documentation
+- **MUST CREATE:** Implementation guides, code examples, integration patterns
+
+**fullstack-frontend-specialist:**
+- **MUST READ:** `/docs/frontend/`, `/docs/backend/` (for API integration)
+- **MUST UPDATE:** Component patterns, state management, UI/UX guidelines
+- **MUST CREATE:** Component examples, API client usage, routing patterns
+
+**security-auditor:**
+- **MUST READ:** `/docs/security/`, `/backend/docs/encryption/`, `/docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md`
+- **MUST UPDATE:** Security audit reports, vulnerability assessments
+- **MUST CREATE:** Threat models, security guidelines, incident procedures
+
+**backend-qa-specialist:**
+- **MUST READ:** `/backend/docs/testing/`, `/backend/docs/performance/`, `/docs/testing/`
+- **MUST UPDATE:** Test patterns, QA reports, performance benchmarks
+- **MUST CREATE:** Testing guides, regression reports, quality standards
+
+**ux-design-consultant:**
+- **MUST READ:** `/docs/frontend/`, `/docs/PROJECT_OVERVIEW.md`
+- **MUST UPDATE:** Design patterns, UI guidelines, accessibility standards
+- **MUST CREATE:** Design decisions, UX flows, component specifications
+
+**code-cleaner:**
+- **MUST READ:** All relevant documentation for context
+- **MUST VERIFY:** Documentation references to files being cleaned
+- **MUST UPDATE:** Remove references to deleted files
+
+### Documentation Workflow
+
+**Before Starting Any Task:**
+1. Read `/docs/README.md` to find relevant documentation
+2. Read `/backend/docs/README.md` for technical details
+3. Review existing documentation in your area of responsibility
+4. Note any inaccuracies or gaps
+
+**During Implementation:**
+1. Keep notes of design decisions and rationale
+2. Collect code examples worth documenting
+3. Track any deviations from existing documentation
+
+**After Completing Task:**
+1. Update affected documentation files
+2. Create new documentation if implementing new patterns
+3. Add/update code examples
+4. Verify all links and references still work
+
+### Documentation Quality Standards
+
+**Every documentation file MUST include:**
+- Clear title and purpose
+- Table of contents (if >200 lines)
+- Code examples with context
+- "Why" explanations, not just "what"
+- Links to related documentation
+- Last updated date
+
+**Code examples MUST:**
+- Be valid, executable code
+- Include imports and context
+- Show common use cases
+- Include error handling examples
+- Be tested (if possible)
+
+### Common Documentation Mistakes to Avoid
+
+❌ **DON'T:**
+- Leave "TODO" or "Coming soon" without timeline
+- Copy-paste code without testing
+- Write implementation steps without explaining why
+- Duplicate information (link instead)
+- Use vague terms ("should", "might", "could")
+
+✅ **DO:**
+- Provide specific, actionable guidance
+- Include real code examples from the codebase
+- Explain architectural decisions and trade-offs
+- Link to related documentation
+- Use concrete examples and scenarios
+
+### Documentation Verification Checklist
+
+Before completing any task, verify:
+- [ ] All affected documentation updated
+- [ ] New patterns documented with examples
+- [ ] Links tested and working
+- [ ] Code examples tested
+- [ ] No contradictions with other docs
+- [ ] Clear and concise writing
+- [ ] Proper formatting (Markdown)
+
+---
+
 ## Project Context
 
 **IMPORTANT**: Always read [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) before planning or implementing features.
