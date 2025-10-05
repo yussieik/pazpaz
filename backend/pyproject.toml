@@ -23,6 +23,8 @@ dependencies = [
     "psycopg[binary]>=3.2.10",
     "structlog>=25.4.0",
     "slowapi>=0.1.9",
+    "boto3>=1.40.45",
+    "prometheus-client>=0.23.1",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -55,6 +57,7 @@ ignore = ["B008"]  # Allow function calls in argument defaults (FastAPI Depends 
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = [

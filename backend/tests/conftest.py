@@ -11,6 +11,7 @@ import pytest
 import pytest_asyncio
 import redis.asyncio as redis
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -59,8 +60,80 @@ async def test_db_engine():
         poolclass=NullPool,
     )
 
-    # Create all tables
+    # Create all tables and install pgcrypto extension
     async with engine.begin() as conn:
+        # Install pgcrypto extension for encryption tests
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pgcrypto;"))
+
+        # Create encryption functions (used in performance tests)
+        await conn.execute(
+            text("""
+                CREATE OR REPLACE FUNCTION encrypt_phi_pgcrypto(
+                    plaintext TEXT,
+                    encryption_key TEXT,
+                    key_version TEXT DEFAULT 'v1'
+                )
+                RETURNS TEXT AS $$
+                DECLARE
+                    encrypted_bytes BYTEA;
+                    encoded_result TEXT;
+                BEGIN
+                    IF plaintext IS NULL THEN RETURN NULL; END IF;
+                    IF encryption_key IS NULL OR OCTET_LENGTH(encryption_key) < 32 THEN
+                        RAISE EXCEPTION 'Encryption key must be at least 32 bytes';
+                    END IF;
+                    encrypted_bytes := encrypt(
+                        convert_to(plaintext, 'UTF8'),
+                        convert_to(encryption_key, 'UTF8'),
+                        'aes'
+                    );
+                    encoded_result := encode(encrypted_bytes, 'base64');
+                    RETURN key_version || ':' || encoded_result;
+                END;
+                $$ LANGUAGE plpgsql IMMUTABLE STRICT;
+            """)
+        )
+
+        await conn.execute(
+            text("""
+                CREATE OR REPLACE FUNCTION decrypt_phi_pgcrypto(
+                    ciphertext TEXT,
+                    encryption_key TEXT
+                )
+                RETURNS TEXT AS $$
+                DECLARE
+                    key_version TEXT;
+                    encoded_data TEXT;
+                    encrypted_bytes BYTEA;
+                    decrypted_bytes BYTEA;
+                BEGIN
+                    IF ciphertext IS NULL THEN RETURN NULL; END IF;
+                    IF encryption_key IS NULL OR OCTET_LENGTH(encryption_key) < 32 THEN
+                        RAISE EXCEPTION 'Encryption key must be at least 32 bytes';
+                    END IF;
+                    IF position(':' IN ciphertext) > 0 THEN
+                        key_version := split_part(ciphertext, ':', 1);
+                        encoded_data := split_part(ciphertext, ':', 2);
+                    ELSE
+                        key_version := 'v1';
+                        encoded_data := ciphertext;
+                    END IF;
+                    encrypted_bytes := decode(encoded_data, 'base64');
+                    decrypted_bytes := decrypt(
+                        encrypted_bytes,
+                        convert_to(encryption_key, 'UTF8'),
+                        'aes'
+                    );
+                    RETURN convert_from(decrypted_bytes, 'UTF8');
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        RAISE EXCEPTION 'Decryption failed (invalid key or corrupted data)';
+                END;
+                $$ LANGUAGE plpgsql IMMUTABLE STRICT;
+            """)
+        )
+
+        # Create tables
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
@@ -151,6 +224,18 @@ async def client(
 
     Overrides the get_db and get_redis dependencies to use test instances.
     """
+    from starlette.middleware.base import BaseHTTPMiddleware
+
+    # Middleware to inject db_session into request.state for audit middleware
+    class DBSessionInjectorMiddleware(BaseHTTPMiddleware):
+        def __init__(self, app, db_session):
+            super().__init__(app)
+            self.db_session = db_session
+
+        async def dispatch(self, request, call_next):
+            request.state.db_session = self.db_session
+            response = await call_next(request)
+            return response
 
     async def override_get_db():
         yield db_session
@@ -161,10 +246,16 @@ async def client(
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_redis] = override_get_redis
 
+    # Add test middleware to inject db_session
+    app.add_middleware(DBSessionInjectorMiddleware, db_session=db_session)
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
+    # Remove test middleware and clear overrides
+    app.user_middleware = [m for m in app.user_middleware if not isinstance(m.cls, type) or m.cls.__name__ != 'DBSessionInjectorMiddleware']
+    app.middleware_stack = None  # Force rebuild
     app.dependency_overrides.clear()
 
 
@@ -429,6 +520,107 @@ def get_auth_headers(workspace_id: uuid.UUID) -> dict[str, str]:
         Dictionary with X-Workspace-ID header
     """
     return {"X-Workspace-ID": str(workspace_id)}
+
+
+@pytest_asyncio.fixture(scope="function")
+async def authenticated_client(
+    db_session: AsyncSession,
+    redis_client: redis.Redis,
+    workspace_1: Workspace,
+    test_user_ws1: User,
+) -> AsyncGenerator[AsyncClient]:
+    """
+    Create an authenticated test HTTP client with JWT cookie.
+
+    This fixture provides a client that simulates a logged-in user with:
+    - JWT access token in HttpOnly cookie
+    - CSRF token in cookie and header
+    - Configured for workspace_1
+
+    Usage:
+        async def test_something(authenticated_client):
+            response = authenticated_client.get("/api/v1/clients")
+            assert response.status_code == 200
+    """
+    from pazpaz.core.security import create_access_token
+    from pazpaz.middleware.csrf import generate_csrf_token
+    from starlette.middleware.base import BaseHTTPMiddleware
+
+    # Middleware to inject db_session into request.state for audit middleware
+    class DBSessionInjectorMiddleware(BaseHTTPMiddleware):
+        def __init__(self, app, db_session):
+            super().__init__(app)
+            self.db_session = db_session
+
+        async def dispatch(self, request, call_next):
+            request.state.db_session = self.db_session
+            response = await call_next(request)
+            return response
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_redis():
+        return redis_client
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_redis] = override_get_redis
+
+    # Add test middleware to inject db_session
+    app.add_middleware(DBSessionInjectorMiddleware, db_session=db_session)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        # Generate JWT token
+        jwt_token = create_access_token(
+            user_id=test_user_ws1.id,
+            workspace_id=workspace_1.id,
+            email=test_user_ws1.email,
+        )
+
+        # Generate CSRF token
+        csrf_token = await generate_csrf_token(
+            user_id=test_user_ws1.id,
+            workspace_id=workspace_1.id,
+            redis_client=redis_client,
+        )
+
+        # Set cookies on client
+        ac.cookies.set("access_token", jwt_token)
+        ac.cookies.set("csrf_token", csrf_token)
+
+        # Add default headers including CSRF
+        ac.headers.update(
+            {
+                "X-CSRF-Token": csrf_token,
+                "X-Workspace-ID": str(workspace_1.id),
+            }
+        )
+
+        yield ac
+
+    # Remove test middleware and clear overrides
+    app.user_middleware = [m for m in app.user_middleware if not isinstance(m.cls, type) or m.cls.__name__ != 'DBSessionInjectorMiddleware']
+    app.middleware_stack = None  # Force rebuild
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def workspace_id(workspace_1: Workspace) -> uuid.UUID:
+    """Provide workspace_id for tests."""
+    return workspace_1.id
+
+
+@pytest_asyncio.fixture(scope="function")
+async def user_id(test_user_ws1: User) -> uuid.UUID:
+    """Provide user_id for tests."""
+    return test_user_ws1.id
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client_id(sample_client_ws1: Client) -> uuid.UUID:
+    """Provide client_id for tests."""
+    return sample_client_ws1.id
 
 
 async def add_csrf_to_client(

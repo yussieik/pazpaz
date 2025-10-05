@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from pazpaz.api.appointments import router as appointments_router
+from pazpaz.api.audit import router as audit_router
 from pazpaz.api.auth import router as auth_router
 from pazpaz.api.clients import router as clients_router
 from pazpaz.api.locations import router as locations_router
@@ -18,3 +19,4 @@ api_router.include_router(clients_router)
 api_router.include_router(appointments_router)
 api_router.include_router(services_router)
 api_router.include_router(locations_router)
+api_router.include_router(audit_router)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import Cookie, Header, HTTPException
+from fastapi import Cookie, Depends, Header, HTTPException
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 
 
 async def get_current_user(
-    db: AsyncSession,
+    db: AsyncSession = Depends(get_db),
     access_token: str | None = Cookie(None),
 ) -> User:
     """

@@ -286,7 +286,9 @@ async def performance_dataset(
     causes event loop issues with pytest-asyncio.
 
     Usage:
-        @pytest.mark.parametrize("performance_dataset", ["small", "medium", "large"], indirect=True)
+        @pytest.mark.parametrize(
+            "performance_dataset", ["small", "medium", "large"], indirect=True
+        )
         async def test_something(performance_dataset):
             dataset = performance_dataset
             # ... use dataset
@@ -523,9 +525,7 @@ class TestConflictDetectionPerformance:
             hour=14, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
 
-        end_time = (check_time + timedelta(hours=1)).isoformat().replace(
-            "+00:00", "Z"
-        )
+        end_time = (check_time + timedelta(hours=1)).isoformat().replace("+00:00", "Z")
         url = (
             f"/api/v1/appointments/conflicts?"
             f"scheduled_start={check_time.isoformat().replace('+00:00', 'Z')}&"

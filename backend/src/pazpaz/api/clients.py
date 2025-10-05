@@ -6,7 +6,7 @@ import math
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -252,6 +252,7 @@ async def list_clients(
 @router.get("/{client_id}", response_model=ClientResponse)
 async def get_client(
     client_id: uuid.UUID,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> ClientResponse:
@@ -264,8 +265,12 @@ async def get_client(
     SECURITY: Returns 404 for both non-existent clients and clients in other workspaces
     to prevent information leakage.
 
+    PHI ACCESS: This endpoint accesses Protected Health Information (PHI).
+    All access is automatically logged by AuditMiddleware for HIPAA compliance.
+
     Args:
         client_id: UUID of the client
+        request: FastAPI request object
         db: Database session
         workspace_id: Authenticated workspace ID (from auth dependency)
 
@@ -279,6 +284,7 @@ async def get_client(
     client = await get_or_404(db, Client, client_id, workspace_id)
 
     # Enrich with computed fields
+    # Note: PHI access is automatically logged by AuditMiddleware
     return await enrich_client_response(db, client)
 
 

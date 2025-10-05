@@ -13,6 +13,7 @@ from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from pazpaz.api import api_router
+from pazpaz.api.metrics import router as metrics_router
 from pazpaz.core.config import settings
 from pazpaz.core.logging import (
     bind_context,
@@ -21,6 +22,7 @@ from pazpaz.core.logging import (
     get_logger,
 )
 from pazpaz.core.redis import close_redis
+from pazpaz.middleware.audit import AuditMiddleware
 from pazpaz.middleware.csrf import CSRFProtectionMiddleware
 
 
@@ -142,6 +144,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 # Add request logging middleware
 app.add_middleware(RequestLoggingMiddleware)
 
+# Add audit logging middleware (before CSRF to ensure auditing happens)
+app.add_middleware(AuditMiddleware)
+
 # Add CSRF protection middleware
 app.add_middleware(CSRFProtectionMiddleware)
 
@@ -161,6 +166,9 @@ if settings.debug:
 
 # Include API routes
 app.include_router(api_router, prefix=settings.api_v1_prefix)
+
+# Include metrics endpoint (no auth, no prefix for Prometheus scraping)
+app.include_router(metrics_router)
 
 
 @app.get("/health")
