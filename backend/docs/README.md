@@ -20,10 +20,19 @@ backend/docs/
 │   ├── WEEK1_DAY4_ENCRYPTION_IMPLEMENTATION_SUMMARY.md
 │   └── ENCRYPTED_MODELS_EXAMPLE.py
 │
-└── testing/                     # Test Infrastructure
-    ├── PYTEST_CONFIGURATION_GUIDE.md
-    ├── TEST_FIXTURE_ANALYSIS.md
-    └── TEST_FIXTURE_QUICK_REFERENCE.md
+├── testing/                     # Test Infrastructure
+│   ├── PYTEST_CONFIGURATION_GUIDE.md
+│   ├── TEST_FIXTURE_ANALYSIS.md
+│   └── TEST_FIXTURE_QUICK_REFERENCE.md
+│
+├── api/                         # API Implementation
+│   └── README.md (Coming in Week 2+)
+│
+├── database/                    # Database Schema & Migrations
+│   └── README.md (Coming in Week 2+)
+│
+└── performance/                 # Performance Benchmarks
+    └── README.md (Coming in Week 5)
 ```
 
 ## 📚 Documentation Categories
@@ -55,6 +64,33 @@ backend/docs/
 - **PYTEST_CONFIGURATION_GUIDE.md** (22 KB) - Comprehensive pytest configuration reference
 - **TEST_FIXTURE_ANALYSIS.md** (15 KB) - Test fixture architecture and troubleshooting
 - **TEST_FIXTURE_QUICK_REFERENCE.md** (6 KB) - Quick reference for common test patterns
+
+### API (`api/`)
+
+**FastAPI endpoint implementation guides (Coming in Week 2+).**
+
+- Endpoint patterns and best practices
+- Request/response schema design
+- Authentication guards and workspace scoping
+- Error handling and validation
+
+### Database (`database/`)
+
+**PostgreSQL schema and migration documentation (Coming in Week 2+).**
+
+- Entity relationship diagrams
+- Alembic migration patterns
+- Index strategy and optimization
+- Query performance analysis
+
+### Performance (`performance/`)
+
+**Performance benchmarks and optimization (Coming in Week 5).**
+
+- API response time benchmarks
+- Load testing results
+- Profiling and optimization guides
+- Monitoring and alerts
 
 ---
 

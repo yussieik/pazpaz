@@ -23,8 +23,20 @@ docs/
 │   ├── ARCHITECTURE_SUMMARY.md
 │   └── BACKEND_ARCHITECTURE_DESIGN.md
 │
-└── testing/                               # Testing Strategy
-    └── ROUTING_TEST_SCENARIOS.md
+├── testing/                               # Testing Strategy
+│   └── ROUTING_TEST_SCENARIOS.md
+│
+├── frontend/                              # Frontend (Vue 3)
+│   └── README.md (Coming in Week 2+)
+│
+├── backend/                               # Backend (High-level)
+│   └── README.md (API design, auth flows)
+│
+├── deployment/                            # Infrastructure & Deployment
+│   └── README.md (Coming in Week 5)
+│
+└── operations/                            # Day-to-day Operations
+    └── README.md (Coming in Week 5)
 ```
 
 ## 📚 Documentation Categories
@@ -60,6 +72,45 @@ docs/
 **Testing strategy, test patterns, and quality assurance.**
 
 - **ROUTING_TEST_SCENARIOS.md** - API routing test scenarios
+
+### Frontend (`frontend/`)
+
+**Vue 3 application documentation (Coming in Week 2+).**
+
+- Component architecture and patterns
+- State management (Pinia)
+- API integration
+- UI/UX guidelines and design system
+- Performance optimization
+
+### Backend (`backend/`)
+
+**High-level backend documentation.**
+
+- API design patterns
+- Authentication flows
+- Error handling
+- Middleware stack
+
+### Deployment (`deployment/`)
+
+**Infrastructure and deployment documentation (Coming in Week 5).**
+
+- AWS/cloud infrastructure
+- CI/CD pipelines
+- Environment configuration
+- Database migration procedures
+- Monitoring and alerting
+
+### Operations (`operations/`)
+
+**Day-to-day operations and maintenance (Coming in Week 5).**
+
+- Runbooks and procedures
+- Troubleshooting guides
+- Incident response
+- Performance tuning
+- Security incident procedures
 
 ---
 
