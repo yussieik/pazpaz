@@ -28,18 +28,26 @@ const getAppointmentFromState = (): AppointmentListItem | null => {
     return routerState.appointment
   }
 
-  // Priority 3: Check sessionStorage with extended timeout (5 minutes instead of 5 seconds)
+  // Priority 3: Check sessionStorage with SHORT timeout (30 seconds only)
+  // This is ONLY for direct navigation from appointment modal -> client profile
+  // After 30 seconds, the context expires and banner won't show
   const contextStr = sessionStorage.getItem('navigationContext')
   if (contextStr) {
     try {
       const context = JSON.parse(contextStr)
-      // Extend timeout to 5 minutes (300000ms) for page refresh scenarios
-      if (context.type === 'appointment' && Date.now() - context.timestamp < 300000) {
-        // Don't clear on read - let it expire naturally
+      // Short timeout: 30 seconds (30000ms)
+      // This ensures if user navigates away and comes back, banner doesn't persist
+      if (context.type === 'appointment' && Date.now() - context.timestamp < 30000) {
+        // Clear immediately on read to prevent showing on subsequent navigations
+        sessionStorage.removeItem('navigationContext')
         return context.appointment as AppointmentListItem
+      } else {
+        // Expired - clear it
+        sessionStorage.removeItem('navigationContext')
       }
     } catch {
-      // Invalid JSON in sessionStorage - ignore silently
+      // Invalid JSON in sessionStorage - clear it
+      sessionStorage.removeItem('navigationContext')
     }
   }
 
@@ -68,6 +76,10 @@ onMounted(() => {
   const appointment = getAppointmentFromState()
   if (appointment) {
     sourceAppointment.value = appointment
+  } else {
+    // Clear sessionStorage if we're navigating directly (not from appointment)
+    // This prevents stale "Viewing from appointment" banner
+    sessionStorage.removeItem('navigationContext')
   }
 
   // Focus the back button when coming from appointment modal (P0-1: Focus Management)

@@ -8,6 +8,7 @@ import type {
 } from '@/types/calendar'
 import { checkAppointmentConflicts } from '@/api/client'
 import ConflictAlert from './ConflictAlert.vue'
+import ClientCombobox from '@/components/clients/ClientCombobox.vue'
 
 interface Props {
   visible: boolean
@@ -266,26 +267,11 @@ function handleViewConflict(_appointmentId: string) {
 
           <!-- Form -->
           <form @submit.prevent="handleSubmit" class="space-y-6 px-6 py-6">
-            <!-- Client Field -->
-            <div>
-              <label for="client" class="block text-sm font-medium text-slate-700">
-                Client <span class="text-red-500">*</span>
-              </label>
-              <input
-                id="client"
-                v-model="formData.client_id"
-                type="text"
-                placeholder="Enter client ID (TODO: Replace with dropdown)"
-                class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                :class="{ 'border-red-500': errors.client_id }"
-              />
-              <p v-if="errors.client_id" class="mt-1 text-sm text-red-600">
-                {{ errors.client_id }}
-              </p>
-              <p class="mt-1 text-xs text-slate-500">
-                TODO (M3): Replace with searchable client dropdown
-              </p>
-            </div>
+            <!-- Client Field - Searchable Combobox -->
+            <ClientCombobox
+              v-model="formData.client_id"
+              :error="errors.client_id"
+            />
 
             <!-- Date and Time -->
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useFocusTrap } from '@vueuse/integrations/useFocusTrap'
 import { useScrollLock } from '@vueuse/core'
 import type { AppointmentListItem } from '@/types/calendar'
 import { formatDate, calculateDuration } from '@/utils/calendar/dateFormatters'
 import { getStatusBadgeClass } from '@/utils/calendar/appointmentHelpers'
+import { useAppointmentAutoSave } from '@/composables/useAppointmentAutoSave'
 
 interface Props {
   appointment: AppointmentListItem | null
@@ -13,11 +14,11 @@ interface Props {
 
 interface Emits {
   (e: 'update:visible', value: boolean): void
-  (e: 'edit', appointment: AppointmentListItem): void
   (e: 'startSessionNotes', appointment: AppointmentListItem): void
   (e: 'cancel', appointment: AppointmentListItem): void
   (e: 'restore', appointment: AppointmentListItem): void
   (e: 'viewClient', clientId: string): void
+  (e: 'refresh'): void // Emit when appointment is updated
 }
 
 const props = defineProps<Props>()
@@ -36,6 +37,72 @@ const { activate, deactivate } = useFocusTrap(modalRef, {
 // P1-1: Scroll lock to prevent background scrolling
 const isLocked = useScrollLock(document.body)
 
+// Local editable state
+const editableData = ref({
+  scheduled_start: '',
+  scheduled_end: '',
+  location_type: 'clinic' as 'clinic' | 'home' | 'online',
+  location_details: '',
+  notes: '',
+})
+
+// Auto-save composable
+const autoSave = computed(() => {
+  if (!props.appointment) return null
+  return useAppointmentAutoSave(props.appointment.id)
+})
+
+// Computed properties for auto-save status
+const isSaving = computed(() => autoSave.value?.isSaving.value || false)
+const lastSaved = computed(() => autoSave.value?.lastSaved.value || null)
+const saveError = computed(() => autoSave.value?.saveError.value || null)
+
+// Status-based edit restrictions
+const isReadOnly = computed(() => {
+  return props.appointment?.status === 'completed'
+})
+
+const isRestrictedEdit = computed(() => {
+  // Cancelled appointments: allow notes only (for audit trail)
+  return props.appointment?.status === 'cancelled'
+})
+
+const canEditTimeLocation = computed(() => {
+  // Can edit time/location for scheduled/confirmed only
+  return !isReadOnly.value && !isRestrictedEdit.value
+})
+
+/**
+ * Format the last saved time for display
+ */
+const lastSavedText = computed(() => {
+  if (!lastSaved.value) return ''
+  return formatDate(lastSaved.value.toISOString(), 'h:mm a')
+})
+
+/**
+ * Format datetime-local input value (local timezone)
+ * datetime-local inputs expect format: YYYY-MM-DDTHH:mm
+ */
+function formatDateTimeLocal(isoString: string): string {
+  const date = new Date(isoString)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+/**
+ * Convert datetime-local input to ISO string (preserving local timezone)
+ */
+function parseDateTimeLocal(dateTimeLocal: string): string {
+  // Create date from local datetime string
+  const date = new Date(dateTimeLocal)
+  return date.toISOString()
+}
+
 // Activate/deactivate focus trap and scroll lock based on visibility
 watch(
   () => props.visible,
@@ -50,8 +117,93 @@ watch(
   }
 )
 
+// Sync local editable data with appointment prop
+watch(
+  () => props.appointment,
+  (newAppointment) => {
+    if (newAppointment) {
+      editableData.value = {
+        scheduled_start: formatDateTimeLocal(newAppointment.scheduled_start),
+        scheduled_end: formatDateTimeLocal(newAppointment.scheduled_end),
+        location_type: newAppointment.location_type,
+        location_details: newAppointment.location_details || '',
+        notes: newAppointment.notes || '',
+      }
+    }
+  },
+  { immediate: true }
+)
+
+/**
+ * Close modal immediately
+ * Auto-save will complete in the background
+ */
 function closeModal() {
+  // Force blur on active element to trigger auto-save
+  // Auto-save will complete in background after modal closes
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur()
+  }
   emit('update:visible', false)
+}
+
+/**
+ * Handle field blur - save the field immediately
+ */
+async function handleFieldBlur(
+  field: keyof typeof editableData.value,
+  debounce = false
+) {
+  if (!props.appointment || !autoSave.value) return
+
+  const value = editableData.value[field]
+
+  try {
+    await autoSave.value.saveField(field, value, debounce)
+    // Emit refresh to update parent component's appointment data
+    emit('refresh')
+  } catch (error) {
+    // Error is already handled by autoSave composable
+    // Silently catch to prevent unhandled promise rejection
+  }
+}
+
+/**
+ * Handle date/time change - convert to ISO and save immediately (no debounce)
+ */
+async function handleDateTimeChange(field: 'scheduled_start' | 'scheduled_end') {
+  if (!props.appointment || !autoSave.value) return
+
+  // Get the local datetime value from editableData
+  const localDateTimeValue = editableData.value[field]
+
+  // Convert local datetime format to ISO string for API
+  const isoValue = parseDateTimeLocal(localDateTimeValue)
+
+  try {
+    // Save the ISO value to the API
+    await autoSave.value.saveField(field, isoValue, false)
+    // Emit refresh to update parent component's appointment data
+    emit('refresh')
+  } catch (error) {
+    // Error is already handled by autoSave composable
+    // Silently catch to prevent unhandled promise rejection
+  }
+}
+
+/**
+ * Handle location type change - save immediately
+ */
+function handleLocationTypeChange() {
+  handleFieldBlur('location_type', false)
+}
+
+/**
+ * Handle text field blur - save with debounce for notes
+ */
+function handleTextFieldBlur(field: 'location_details' | 'notes') {
+  const debounce = field === 'notes'
+  handleFieldBlur(field, debounce)
 }
 </script>
 
@@ -106,12 +258,102 @@ function closeModal() {
               >
                 Appointment Details
               </h2>
-              <span
-                :class="getStatusBadgeClass(appointment.status)"
-                class="mt-2 inline-flex"
-              >
-                {{ appointment.status.replace('_', ' ') }}
-              </span>
+              <div class="mt-2 flex items-center gap-2">
+                <span
+                  :class="getStatusBadgeClass(appointment.status)"
+                  class="inline-flex"
+                >
+                  {{ appointment.status.replace('_', ' ') }}
+                </span>
+
+                <!-- Read-only badge -->
+                <div
+                  v-if="isReadOnly"
+                  class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600"
+                >
+                  <svg
+                    class="mr-1 h-3 w-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    />
+                  </svg>
+                  Read-only
+                </div>
+
+                <!-- Save Status Indicator -->
+                <div
+                  v-if="isSaving || lastSaved || saveError"
+                  class="flex items-center gap-1.5 text-xs"
+                >
+                  <!-- Saving -->
+                  <template v-if="isSaving">
+                    <svg
+                      class="h-3 w-3 animate-spin text-slate-400"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      ></circle>
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    <span class="text-slate-600">Saving...</span>
+                  </template>
+
+                  <!-- Saved -->
+                  <template v-else-if="lastSaved && !saveError">
+                    <svg
+                      class="h-3 w-3 text-emerald-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    <span class="text-slate-500">Saved at {{ lastSavedText }}</span>
+                  </template>
+
+                  <!-- Error -->
+                  <template v-else-if="saveError">
+                    <svg
+                      class="h-3 w-3 text-red-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                    <span class="text-red-600">{{ saveError }}</span>
+                  </template>
+                </div>
+              </div>
             </div>
             <button
               @click="closeModal"
@@ -134,85 +376,118 @@ function closeModal() {
             </button>
           </div>
 
-          <!-- Body -->
+          <!-- Body with Editable Fields -->
           <div class="space-y-4 px-6 py-6">
-            <!-- Time Card -->
-            <div class="rounded-lg border border-slate-200 bg-white p-4">
-              <div class="flex items-start gap-3">
-                <div class="mt-0.5 text-slate-400">
-                  <!-- Clock Icon -->
-                  <svg
-                    class="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                </div>
-                <div class="flex-1">
-                  <div class="mb-1 text-sm font-medium text-slate-500">Time</div>
-                  <div class="text-slate-900">
-                    {{ formatDate(appointment.scheduled_start, 'EEEE, MMMM d, yyyy') }}
-                  </div>
-                  <div class="text-sm text-slate-600">
-                    {{ formatDate(appointment.scheduled_start, 'h:mm a') }} -
-                    {{ formatDate(appointment.scheduled_end, 'h:mm a') }}
-                    <span class="ml-1 text-slate-400">
-                      ({{
-                        calculateDuration(
-                          appointment.scheduled_start,
-                          appointment.scheduled_end
-                        )
-                      }})
-                    </span>
-                  </div>
+            <!-- Cancelled appointment info message -->
+            <div
+              v-if="isRestrictedEdit"
+              class="rounded-md border border-amber-200 bg-amber-50 p-3"
+            >
+              <div class="flex">
+                <svg
+                  class="h-5 w-5 text-amber-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div class="ml-3">
+                  <p class="text-sm text-amber-700">
+                    This appointment is cancelled. Only notes can be edited to maintain
+                    the audit trail.
+                  </p>
                 </div>
               </div>
             </div>
 
-            <!-- Location Card -->
+            <!-- Time Card (Editable) -->
             <div class="rounded-lg border border-slate-200 bg-white p-4">
-              <div class="flex items-start gap-3">
-                <div class="mt-0.5 text-slate-400">
-                  <!-- MapPin Icon -->
-                  <svg
-                    class="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                    />
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                </div>
-                <div class="flex-1">
-                  <div class="mb-1 text-sm font-medium text-slate-500">Location</div>
-                  <div class="text-slate-900 capitalize">
-                    {{ appointment.location_type.replace('_', ' ') }}
-                  </div>
-                  <div
-                    v-if="appointment.location_details"
-                    class="text-sm text-slate-600"
-                  >
-                    {{ appointment.location_details }}
-                  </div>
-                </div>
+              <div class="mb-2 text-sm font-medium text-slate-500">Time</div>
+
+              <!-- Start Time -->
+              <div class="mb-3">
+                <label for="edit-start-time" class="block text-xs text-slate-500">
+                  Start
+                </label>
+                <input
+                  id="edit-start-time"
+                  v-model="editableData.scheduled_start"
+                  type="datetime-local"
+                  :disabled="!canEditTimeLocation"
+                  @change="handleDateTimeChange('scheduled_start')"
+                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                />
+              </div>
+
+              <!-- End Time -->
+              <div>
+                <label for="edit-end-time" class="block text-xs text-slate-500">
+                  End
+                </label>
+                <input
+                  id="edit-end-time"
+                  v-model="editableData.scheduled_end"
+                  type="datetime-local"
+                  :disabled="!canEditTimeLocation"
+                  @change="handleDateTimeChange('scheduled_end')"
+                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                />
+              </div>
+
+              <!-- Duration Display -->
+              <div class="mt-2 text-sm text-slate-400">
+                Duration:
+                {{
+                  calculateDuration(
+                    editableData.scheduled_start,
+                    editableData.scheduled_end
+                  )
+                }}
+              </div>
+            </div>
+
+            <!-- Location Card (Editable) -->
+            <div class="rounded-lg border border-slate-200 bg-white p-4">
+              <div class="mb-2 text-sm font-medium text-slate-500">Location</div>
+
+              <!-- Location Type -->
+              <div class="mb-3">
+                <label for="edit-location-type" class="block text-xs text-slate-500">
+                  Type
+                </label>
+                <select
+                  id="edit-location-type"
+                  v-model="editableData.location_type"
+                  :disabled="!canEditTimeLocation"
+                  @change="handleLocationTypeChange"
+                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 capitalize focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                >
+                  <option value="clinic">Clinic</option>
+                  <option value="home">Home Visit</option>
+                  <option value="online">Online (Video/Phone)</option>
+                </select>
+              </div>
+
+              <!-- Location Details -->
+              <div>
+                <label for="edit-location-details" class="block text-xs text-slate-500">
+                  Details
+                </label>
+                <input
+                  id="edit-location-details"
+                  v-model="editableData.location_details"
+                  type="text"
+                  :disabled="!canEditTimeLocation"
+                  placeholder="e.g., Zoom link, room number, address"
+                  @blur="handleTextFieldBlur('location_details')"
+                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                />
               </div>
             </div>
 
@@ -257,15 +532,27 @@ function closeModal() {
               </div>
             </button>
 
-            <!-- Notes (if exist) -->
-            <div
-              v-if="appointment.notes"
-              class="rounded-lg border border-slate-200 bg-white p-4"
-            >
-              <div class="mb-2 text-sm font-medium text-slate-500">Notes</div>
-              <div class="text-sm whitespace-pre-wrap text-slate-700">
-                {{ appointment.notes }}
-              </div>
+            <!-- Notes (Editable) -->
+            <div class="rounded-lg border border-slate-200 bg-white p-4">
+              <label
+                for="edit-notes"
+                class="mb-2 block text-sm font-medium text-slate-500"
+              >
+                Notes
+              </label>
+              <textarea
+                id="edit-notes"
+                v-model="editableData.notes"
+                rows="4"
+                :disabled="isReadOnly"
+                placeholder="Optional notes about this appointment"
+                @blur="handleTextFieldBlur('notes')"
+                class="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+              ></textarea>
+              <p class="mt-1 text-xs text-slate-400">
+                <template v-if="!isReadOnly">Changes are saved automatically</template>
+                <template v-else>Read-only (completed appointment)</template>
+              </p>
             </div>
           </div>
 
@@ -295,15 +582,7 @@ function closeModal() {
                   <span>Restore Appointment</span>
                 </button>
 
-                <!-- Edit button (only for non-cancelled) -->
-                <button
-                  v-else
-                  @click="emit('edit', appointment)"
-                  class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-                >
-                  Edit
-                </button>
-
+                <!-- Start Session Notes button (only for scheduled) -->
                 <button
                   v-if="appointment.status === 'scheduled'"
                   @click="emit('startSessionNotes', appointment)"

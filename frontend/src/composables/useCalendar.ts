@@ -29,8 +29,8 @@ export function useCalendar() {
     end: new Date(),
   })
 
-  // Track last fetched date range to prevent duplicate fetches
-  const lastFetchedRange = ref<{ start: string; end: string } | null>(null)
+  // Note: Removed lastFetchedRange tracking - now handled by store's loadedRange
+  // The store's ensureAppointmentsLoaded() method implements sliding window pattern
 
   // Track if we're in the middle of a view change to prevent currentDate updates
   const isViewChanging = ref(false)
@@ -72,6 +72,12 @@ export function useCalendar() {
    * - We skip updating currentDate to preserve the user's original date
    * - isViewChanging flag is reset in changeView() via nextTick
    * - This function also resets it defensively as a safety measure
+   *
+   * PERFORMANCE OPTIMIZATION:
+   * Uses store's ensureAppointmentsLoaded() with actual visible range:
+   * - Fetches appointments for the exact range FullCalendar is displaying
+   * - Only fetches if the visible range is not fully covered by loaded data
+   * - Prevents unnecessary API calls when navigating within loaded range
    */
   function handleDatesSet(dateInfo: { start: Date; end: Date }) {
     currentDateRange.value = {
@@ -92,26 +98,9 @@ export function useCalendar() {
       isViewChanging.value = false
     }
 
-    // CRITICAL: Send full ISO datetime strings to backend, not just dates
-    // Backend uses <= comparison. Sending '2025-10-03' becomes '2025-10-03 00:00:00 UTC'
-    // which excludes appointments at '2025-10-03 10:00:00 UTC'
-    const startDate = dateInfo.start.toISOString()
-    const endDate = dateInfo.end.toISOString()
-
-    // Only fetch if date range changed
-    if (
-      lastFetchedRange.value?.start === startDate &&
-      lastFetchedRange.value?.end === endDate
-    ) {
-      return
-    }
-
-    if (!startDate || !endDate) {
-      return
-    }
-
-    lastFetchedRange.value = { start: startDate, end: endDate }
-    appointmentsStore.fetchAppointments(startDate, endDate)
+    // Fetch appointments for the visible range
+    // This ensures we always have data for what the user is looking at
+    appointmentsStore.ensureAppointmentsLoaded(dateInfo.start, dateInfo.end)
   }
 
   /**
@@ -205,6 +194,7 @@ export function useCalendar() {
     // State
     currentView,
     currentDate,
+    currentDateRange,
     formattedDateRange,
 
     // Methods

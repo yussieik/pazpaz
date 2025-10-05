@@ -26,6 +26,14 @@ export const useAppointmentsStore = defineStore('appointments', () => {
   const error = ref<string | null>(null)
   const total = ref(0)
 
+  /**
+   * Track the currently loaded date range for smart fetching
+   * This enables sliding window optimization:
+   * - Only fetch if date is outside loaded range
+   * - Prevents unnecessary API calls when navigating within loaded range
+   */
+  const loadedRange = ref<{ startDate: Date; endDate: Date } | null>(null)
+
   // Getters
   const hasAppointments = computed(() => appointments.value.length > 0)
 
@@ -33,6 +41,7 @@ export const useAppointmentsStore = defineStore('appointments', () => {
 
   /**
    * Fetch appointments with optional date range filtering
+   * Updates the loadedRange to enable smart fetching
    */
   async function fetchAppointments(
     startDate?: string,
@@ -58,6 +67,14 @@ export const useAppointmentsStore = defineStore('appointments', () => {
 
       appointments.value = response.data.items
       total.value = response.data.total
+
+      // Track the loaded range for smart fetching
+      if (startDate && endDate) {
+        loadedRange.value = {
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
+        }
+      }
     } catch (err: unknown) {
       // Handle Axios errors with detailed error messages
       if (err && typeof err === 'object' && 'response' in err) {
@@ -188,6 +205,43 @@ export const useAppointmentsStore = defineStore('appointments', () => {
   function clearAppointments() {
     appointments.value = []
     total.value = 0
+    loadedRange.value = null
+  }
+
+  /**
+   * Smart fetch - only fetches if visible range is not fully covered by loaded data
+   *
+   * This prevents unnecessary API calls when:
+   * - Navigating within already-loaded date ranges
+   * - Switching between calendar views that show the same data
+   * - Auto-refreshing on focus/mount
+   *
+   * @param visibleStart - Start of the visible date range
+   * @param visibleEnd - End of the visible date range
+   * @returns Promise that resolves when appointments are available
+   */
+  async function ensureAppointmentsLoaded(
+    visibleStart: Date,
+    visibleEnd: Date
+  ): Promise<AppointmentListItem[]> {
+    // If no data loaded yet, fetch the visible range
+    if (!loadedRange.value) {
+      await fetchAppointments(visibleStart.toISOString(), visibleEnd.toISOString())
+      return appointments.value
+    }
+
+    // Check if visible range is fully covered by loaded range
+    const isFullyCovered =
+      visibleStart >= loadedRange.value.startDate && visibleEnd <= loadedRange.value.endDate
+
+    // If visible range is not fully covered, refetch
+    if (!isFullyCovered) {
+      await fetchAppointments(visibleStart.toISOString(), visibleEnd.toISOString())
+      return appointments.value
+    }
+
+    // Data already loaded and covers visible range, no fetch needed
+    return appointments.value
   }
 
   return {
@@ -196,10 +250,12 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     loading,
     error,
     total,
+    loadedRange,
     // Getters
     hasAppointments,
     // Actions
     fetchAppointments,
+    ensureAppointmentsLoaded,
     createAppointment,
     updateAppointment,
     deleteAppointment,

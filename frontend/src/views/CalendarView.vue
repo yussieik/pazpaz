@@ -85,6 +85,7 @@ const { announcement: screenReaderAnnouncement, announce } = useScreenReader()
 const {
   currentView,
   currentDate,
+  currentDateRange,
   formattedDateRange,
   changeView,
   handlePrev,
@@ -327,39 +328,6 @@ async function handleMobileReschedule(data: { newStart: Date; newEnd: Date }) {
 }
 
 /**
- * Helper function to get visible date range based on current view
- */
-function getVisibleDateRange(view: string, date: Date): { start: Date; end: Date } {
-  const start = new Date(date)
-  const end = new Date(date)
-
-  switch (view) {
-    case 'timeGridWeek':
-      // Get Sunday of current week
-      start.setDate(date.getDate() - date.getDay())
-      start.setHours(0, 0, 0, 0)
-      // Get Saturday of current week
-      end.setDate(start.getDate() + 6)
-      end.setHours(23, 59, 59, 999)
-      break
-    case 'timeGridDay':
-      start.setHours(0, 0, 0, 0)
-      end.setHours(23, 59, 59, 999)
-      break
-    case 'dayGridMonth':
-      // First day of month
-      start.setDate(1)
-      start.setHours(0, 0, 0, 0)
-      // Last day of month
-      end.setMonth(date.getMonth() + 1, 0)
-      end.setHours(23, 59, 59, 999)
-      break
-  }
-
-  return { start, end }
-}
-
-/**
  * Helper function to check if appointment is within date range
  */
 function isAppointmentInRange(
@@ -374,6 +342,9 @@ function isAppointmentInRange(
 /**
  * Appointment summary filtered by visible date range
  * Shows appointment count for currently visible calendar period (week/day/month)
+ *
+ * Uses the actual FullCalendar date range from currentDateRange instead of recalculating,
+ * ensuring perfect alignment with what's visually displayed.
  */
 const appointmentSummary = computed(() => {
   const appointments = appointmentsStore.appointments
@@ -382,10 +353,9 @@ const appointmentSummary = computed(() => {
     return null
   }
 
-  // Filter appointments by visible date range
-  const { start, end } = getVisibleDateRange(currentView.value, currentDate.value)
+  // Use actual FullCalendar date range for filtering
   const visibleAppointments = appointments.filter((apt: AppointmentListItem) =>
-    isAppointmentInRange(apt, start, end)
+    isAppointmentInRange(apt, currentDateRange.value.start, currentDateRange.value.end)
   )
 
   const appointmentCount = visibleAppointments.length
@@ -435,6 +405,29 @@ function viewClientDetails(clientId: string) {
 
   // Close modal after navigation starts
   selectedAppointment.value = null
+}
+
+/**
+ * Refresh appointments after auto-save updates
+ * Updates the calendar to reflect the saved changes without closing the modal
+ */
+async function refreshAppointments() {
+  if (!selectedAppointment.value) return
+
+  const appointmentId = selectedAppointment.value.id
+
+  // Find the updated appointment in the store
+  // The store was already updated by the auto-save composable's PUT request
+  const updatedAppointment = appointmentsStore.appointments.find(
+    (apt) => apt.id === appointmentId
+  )
+
+  // Update the selected appointment to show fresh data in the modal
+  if (updatedAppointment) {
+    selectedAppointment.value = { ...updatedAppointment }
+  }
+
+  // The calendar will automatically update because it's computed from appointmentsStore.appointments
 }
 
 function editAppointment(appointment: AppointmentListItem) {
@@ -759,6 +752,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       @cancel="cancelAppointment"
       @restore="handleRestoreAppointment"
       @view-client="viewClientDetails"
+      @refresh="refreshAppointments"
     />
 
     <!-- Create Appointment Modal -->
