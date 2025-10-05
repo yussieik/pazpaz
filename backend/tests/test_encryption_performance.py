@@ -284,7 +284,7 @@ class TestDatabaseLevelEncryption:
     async def test_pgcrypto_encryption_50b(self, db_session: AsyncSession):
         """Benchmark: pgcrypto encrypt 50-byte field."""
         iterations = 100  # Fewer iterations (database round-trip overhead)
-        encryption_key = "my-test-encryption-key-32bytes!"
+        encryption_key = "my-test-encryption-key-32bytes!!"  # Exactly 32 bytes
 
         # Warm-up query
         await db_session.execute(
@@ -318,7 +318,7 @@ class TestDatabaseLevelEncryption:
     async def test_pgcrypto_encryption_1kb(self, db_session: AsyncSession):
         """Benchmark: pgcrypto encrypt 1KB field."""
         iterations = 100
-        encryption_key = "my-test-encryption-key-32bytes!"
+        encryption_key = "my-test-encryption-key-32bytes!!"  # Exactly 32 bytes
 
         start = time.perf_counter()
         for _ in range(iterations):
@@ -345,7 +345,7 @@ class TestDatabaseLevelEncryption:
     async def test_pgcrypto_decryption_1kb(self, db_session: AsyncSession):
         """Benchmark: pgcrypto decrypt 1KB field."""
         iterations = 100
-        encryption_key = "my-test-encryption-key-32bytes!"
+        encryption_key = "my-test-encryption-key-32bytes!!"  # Exactly 32 bytes
 
         # Pre-encrypt data
         result = await db_session.execute(
@@ -378,7 +378,7 @@ class TestDatabaseLevelEncryption:
     @pytest.mark.asyncio
     async def test_pgcrypto_correctness(self, db_session: AsyncSession):
         """Verify pgcrypto encryption round-trip preserves data."""
-        encryption_key = "my-test-encryption-key-32bytes!"
+        encryption_key = "my-test-encryption-key-32bytes!!"  # Exactly 32 bytes
         test_cases = [
             SMALL_FIELD,
             MEDIUM_FIELD,
