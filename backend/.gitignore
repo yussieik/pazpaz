@@ -69,3 +69,6 @@ alembic/versions/__pycache__/
 # Backup files
 *.bak
 *.backup
+
+# Development scripts
+dev_*.py

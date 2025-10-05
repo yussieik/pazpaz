@@ -30,6 +30,11 @@ const router = createRouter({
       name: 'settings',
       component: () => import('@/views/SettingsView.vue'),
     },
+    {
+      path: '/auth/verify',
+      name: 'auth-verify',
+      component: () => import('@/views/AuthVerifyView.vue'),
+    },
     // TODO: Add more routes as features are implemented
     // - /sessions - Session notes
     // - /sessions/:id - Session detail

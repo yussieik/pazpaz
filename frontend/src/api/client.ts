@@ -23,8 +23,16 @@ const apiClient: AxiosInstance = axios.create({
 })
 
 /**
+ * Helper function to get CSRF token from cookie
+ */
+function getCsrfToken(): string | null {
+  const match = document.cookie.match(/csrf_token=([^;]+)/)
+  return match?.[1] ?? null
+}
+
+/**
  * Request interceptor
- * Adds workspace ID to all requests
+ * Adds workspace ID and CSRF token to all requests
  * TODO: Replace hardcoded workspace ID with real auth when implemented
  */
 apiClient.interceptors.request.use(
@@ -32,6 +40,17 @@ apiClient.interceptors.request.use(
     // TODO: Get workspace ID from auth store/context
     // For now, use test workspace ID
     config.headers['X-Workspace-ID'] = '00000000-0000-0000-0000-000000000001'
+
+    // Add CSRF token for state-changing requests (POST, PUT, PATCH, DELETE)
+    if (config.method && ['post', 'put', 'patch', 'delete'].includes(config.method.toLowerCase())) {
+      const csrfToken = getCsrfToken()
+      if (csrfToken) {
+        config.headers['X-CSRF-Token'] = csrfToken
+      } else {
+        console.warn('CSRF token not found in cookies for state-changing request')
+      }
+    }
+
     return config
   },
   (error) => {

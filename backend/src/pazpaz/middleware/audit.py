@@ -12,7 +12,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from pazpaz.core.logging import get_logger
 from pazpaz.core.security import decode_access_token
-from pazpaz.db.base import get_db
+from pazpaz.db.base import AsyncSessionLocal
 from pazpaz.models.audit_event import AuditAction, ResourceType
 from pazpaz.services.audit_service import create_audit_event
 
@@ -194,7 +194,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         if request.method == "GET":
             path = request.url.path
             # Only audit individual resource reads (with ID in path), not lists
-            # Format: /api/v1/clients/{uuid} (has ID) vs /api/v1/clients (list, no audit)
+            # Format: /api/v1/clients/{uuid} (has ID) vs /api/v1/clients (no audit)
             phi_resource_prefixes = [
                 "/api/v1/clients/",
                 "/api/v1/sessions/",  # When implemented
@@ -410,26 +410,12 @@ class AuditMiddleware(BaseHTTPMiddleware):
         start_time = time.time()
 
         try:
-            # Use provided db_session (from tests) or get new session from pool
+            # Use provided db_session (from tests) or create new session from pool
             if db_session is not None:
                 # Test mode: use provided session (shares transaction with test)
-                db = db_session
-                should_commit = False  # Don't commit in test mode
-            else:
-                # Production mode: get new session from pool
-                db = None
-                async for session in get_db():
-                    db = session
-                    should_commit = True
-                    break
-
-                if db is None:
-                    raise RuntimeError("Failed to get database session")
-
-            try:
                 # Create audit event
                 audit_event = await create_audit_event(
-                    db=db,
+                    db=db_session,
                     user_id=auth_context["user_id"],
                     workspace_id=auth_context["workspace_id"],
                     action=action,
@@ -440,12 +426,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
                     metadata=metadata,
                 )
 
-                # Commit only in production (tests manage their own transactions)
-                if should_commit:
-                    await db.commit()
-                else:
-                    # In test mode, flush to make visible in same transaction
-                    await db.flush()
+                # In test mode, flush to make visible in same transaction
+                await db_session.flush()
 
                 # Success metrics
                 audit_events_total.labels(
@@ -462,11 +444,45 @@ class AuditMiddleware(BaseHTTPMiddleware):
                     audit_event_id=str(audit_event.id),
                 )
 
-            except Exception:
-                # Rollback only if we own the session
-                if should_commit and db:
-                    await db.rollback()
-                raise
+            else:
+                # Production mode: create new session with proper context manager
+                async with AsyncSessionLocal() as db:
+                    try:
+                        # Create audit event
+                        audit_event = await create_audit_event(
+                            db=db,
+                            user_id=auth_context["user_id"],
+                            workspace_id=auth_context["workspace_id"],
+                            action=action,
+                            resource_type=resource_context["resource_type"],
+                            resource_id=resource_context.get("resource_id"),
+                            ip_address=ip_address,
+                            user_agent=user_agent,
+                            metadata=metadata,
+                        )
+
+                        # Commit the audit event in its own transaction
+                        await db.commit()
+
+                        # Success metrics
+                        audit_events_total.labels(
+                            resource_type=resource_context["resource_type"].value,
+                            action=action.value,
+                            workspace_id=str(auth_context["workspace_id"]),
+                        ).inc()
+
+                        logger.debug(
+                            "audit_event_logged",
+                            action=action.value,
+                            resource_type=resource_context["resource_type"].value,
+                            user_id=str(auth_context["user_id"]),
+                            audit_event_id=str(audit_event.id),
+                        )
+
+                    except Exception:
+                        # Rollback on error
+                        await db.rollback()
+                        raise
 
         except Exception as e:
             # Failure metrics

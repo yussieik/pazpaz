@@ -25,6 +25,7 @@ dependencies = [
     "slowapi>=0.1.9",
     "boto3>=1.40.45",
     "prometheus-client>=0.23.1",
+    "aiosmtplib>=4.0.2",
 ]
 
 [tool.hatch.build.targets.wheel]
