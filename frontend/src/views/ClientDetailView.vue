@@ -277,6 +277,9 @@ function handleKeydown(e: KeyboardEvent) {
 
 // P1-5: Add Escape key shortcut for back navigation
 onKeyStroke('Escape', (e) => {
+  // Don't trigger if schedule modal is open (let modal handle Escape)
+  if (showScheduleModal.value) return
+
   // Only trigger if not typing in input field
   const target = e.target as HTMLElement
   if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
