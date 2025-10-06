@@ -133,6 +133,127 @@ function openCreateModalWithPrefill(prefillData: { start: Date; end: Date }) {
 // Initialize calendar creation composable
 const { handleDateClick } = useCalendarCreation(openCreateModalWithPrefill)
 
+// Cell hover highlighting for timeGrid views using overlay
+const hoverOverlayVisible = ref(false)
+const hoverOverlayStyle = ref({ top: '0px', left: '0px', width: '0px', height: '0px' })
+const isHoverInOffHours = ref(false)
+
+function handleCalendarMouseMove(event: MouseEvent) {
+  // Only apply to timeGrid views (week/day)
+  if (!currentView.value.includes('timeGrid')) {
+    hoverOverlayVisible.value = false
+    return
+  }
+
+  const target = event.target as HTMLElement
+
+  // Find the time slot lane (horizontal row)
+  // The .fc-non-business overlay sits on top of slots in off-hours, blocking direct access
+  let slotLane = target.closest('.fc-timegrid-slot-lane')
+
+  if (!slotLane) {
+    // Off-hours: .fc-non-business overlay blocks the slot lane
+    // Use elementsFromPoint to find the slot lane underneath
+    const allElements = document.elementsFromPoint(event.clientX, event.clientY)
+    slotLane = allElements.find((el) => el.classList.contains('fc-timegrid-slot-lane')) as
+      | HTMLElement
+      | undefined
+  }
+
+  if (!slotLane || !(slotLane instanceof HTMLElement)) {
+    hoverOverlayVisible.value = false
+    return
+  }
+
+  // FullCalendar's structure: the background grid and events are in separate layers
+  // We need to find which day column we're in by looking at the mouse X position
+  // and comparing it to the column positions
+
+  // Get all day columns in the current view
+  const dayColumns = document.querySelectorAll('.fc-timegrid-col')
+
+  if (dayColumns.length === 0) {
+    hoverOverlayVisible.value = false
+    return
+  }
+
+  // Find which column the mouse is over based on X coordinate
+  const mouseX = event.clientX
+  let targetColumn: HTMLElement | null = null
+
+  for (const col of dayColumns) {
+    const rect = col.getBoundingClientRect()
+    if (mouseX >= rect.left && mouseX <= rect.right) {
+      targetColumn = col as HTMLElement
+      break
+    }
+  }
+
+  if (!targetColumn) {
+    hoverOverlayVisible.value = false
+    return
+  }
+
+  // Now we have both the row (slotLane) and column (targetColumn)
+  const slotRect = slotLane.getBoundingClientRect()
+  const colRect = targetColumn.getBoundingClientRect()
+
+  // Check if there's an event in this cell
+  // Look for events at multiple points within the cell to catch events that don't fill the full width
+  const eventsAtPosition = document.elementsFromPoint(event.clientX, event.clientY)
+  const hasEventAtCursor = eventsAtPosition.some((el) => el.classList.contains('fc-event'))
+
+  // Check center of the cell and left/right edges for events
+  const centerX = colRect.left + colRect.width / 2
+  const leftX = colRect.left + 10
+  const rightX = colRect.right - 10
+  const centerY = slotRect.top + slotRect.height / 2
+
+  const hasEventInCell = [
+    document.elementsFromPoint(centerX, centerY),
+    document.elementsFromPoint(leftX, centerY),
+    document.elementsFromPoint(rightX, centerY),
+  ].some((elements) => elements.some((el) => el.classList.contains('fc-event')))
+
+  if (hasEventAtCursor || hasEventInCell) {
+    // Don't show hover effect if there's an event in this cell
+    hoverOverlayVisible.value = false
+    return
+  }
+
+  // Check if we're hovering over an off-hours cell
+  // Off-hours cells have .fc-non-business class overlay
+  const isNonBusiness = eventsAtPosition.some((el) => el.classList.contains('fc-non-business'))
+  isHoverInOffHours.value = isNonBusiness
+
+  const calendarContainer = document.querySelector('.calendar-container')
+
+  if (calendarContainer) {
+    const containerRect = calendarContainer.getBoundingClientRect()
+
+    // Calculate the intersection of the row and column (this is our cell!)
+    const cellTop = slotRect.top - containerRect.top
+    const cellLeft = colRect.left - containerRect.left
+    const cellWidth = colRect.width
+    const cellHeight = slotRect.height
+
+    // Update overlay position and size
+    hoverOverlayStyle.value = {
+      top: `${cellTop}px`,
+      left: `${cellLeft}px`,
+      width: `${cellWidth}px`,
+      height: `${cellHeight}px`,
+    }
+    hoverOverlayVisible.value = true
+  } else {
+    hoverOverlayVisible.value = false
+  }
+}
+
+function handleCalendarMouseLeave() {
+  hoverOverlayVisible.value = false
+}
+
 // Drag-and-drop rescheduling
 const {
   isDragging,
@@ -812,7 +933,22 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       <!-- Calendar Content Area (Fixed Height Container) -->
       <div class="calendar-content-area">
         <!-- FullCalendar Component with Transition -->
-        <div class="calendar-container relative p-4">
+        <div
+          class="calendar-container relative p-4"
+          @mousemove="handleCalendarMouseMove"
+          @mouseleave="handleCalendarMouseLeave"
+        >
+          <!-- Hover overlay for timeGrid individual cells -->
+          <!-- z-[3] sits above background layers but below events (which are z-[4] and higher) -->
+          <div
+            v-if="hoverOverlayVisible"
+            :class="[
+              'cell-hover-overlay pointer-events-none absolute z-[3] ring-1 ring-inset ring-gray-200 transition-all duration-75',
+              isHoverInOffHours ? 'bg-white' : 'bg-gray-50',
+            ]"
+            :style="hoverOverlayStyle"
+          ></div>
+
           <Transition name="calendar-fade" mode="out-in">
             <FullCalendar
               ref="calendarRef"
@@ -1134,6 +1270,10 @@ function handleGlobalKeydown(event: KeyboardEvent) {
   background-color: #fafafa; /* Light gray for early/late hours (6-8 AM, 6-10 PM) */
 }
 
+/* Off-hours hover effect - reverse contrast for visibility */
+/* Note: .cell-hover-overlay is positioned absolutely in .calendar-container,
+   not inside .fc-non-business, so we need to detect off-hours via JavaScript */
+
 /* PHASE 2: Improved time labels styling */
 .fc-timegrid-slot-label {
   color: #374151; /* gray-700 - stronger contrast than default gray-500 */
@@ -1430,26 +1570,22 @@ function handleGlobalKeydown(event: KeyboardEvent) {
   border-width: 0;
 }
 
-/* Double-click to create - Hover states */
+/* Double-click to create - Cursor affordance */
 
-/* Week/Day view timeslots - subtle affordance */
-:deep(.fc-timegrid-slot:hover) {
-  background-color: rgb(243 244 246); /* gray-100 */
-  cursor: pointer;
-  transition: background-color 150ms ease;
+/* Week/Day view timeslots - cell cursor for clickability */
+:deep(.fc-timegrid-body) {
+  cursor: cell;
 }
 
-/* Disable hover on timeslots with events (handled by event hover) */
-:deep(.fc-timegrid-slot.fc-timegrid-slot-lane:has(.fc-event):hover) {
-  background-color: transparent;
-  cursor: default;
+/* Month view day cells - cell cursor and hover background */
+:deep(.fc-daygrid-day) {
+  cursor: cell;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
 }
 
-/* Month view day cells */
 :deep(.fc-daygrid-day:hover) {
   background-color: rgb(249 250 251); /* gray-50 */
-  cursor: pointer;
-  transition: background-color 150ms ease;
+  box-shadow: inset 0 0 0 1px rgb(229 231 235); /* gray-200 subtle border */
 }
 
 /* Don't show hover on days with events already (less visual noise) */
@@ -1459,8 +1595,11 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 
 /* Respect reduced motion for hover transitions */
 @media (prefers-reduced-motion: reduce) {
-  :deep(.fc-timegrid-slot:hover),
-  :deep(.fc-daygrid-day:hover) {
+  .cell-hover-overlay {
+    transition: none !important;
+  }
+
+  :deep(.fc-daygrid-day) {
     transition: none;
   }
 }

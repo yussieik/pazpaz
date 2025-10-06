@@ -7,7 +7,6 @@ import type {
   ConflictingAppointment,
 } from '@/types/calendar'
 import { checkAppointmentConflicts } from '@/api/client'
-import ConflictAlert from './ConflictAlert.vue'
 import ClientCombobox from '@/components/clients/ClientCombobox.vue'
 
 interface Props {
@@ -41,6 +40,8 @@ const errors = ref<Record<string, string>>({})
 // Conflict detection state
 const conflicts = ref<ConflictingAppointment[]>([])
 const isCheckingConflicts = ref(false)
+const isInitialLoad = ref(true)
+const showAvailableIndicator = ref(false)
 
 // Watch for appointment changes (edit mode)
 watch(
@@ -79,9 +80,14 @@ watch(
     if (!isVisible) {
       resetForm()
     } else if (props.mode === 'create') {
+      // Mark as initial load to prevent showing conflict check on first open
+      isInitialLoad.value = true
+
       if (props.prefillDateTime) {
         // Use pre-filled date/time from calendar double-click
-        formData.value.scheduled_start = formatDateTimeForInput(props.prefillDateTime.start)
+        formData.value.scheduled_start = formatDateTimeForInput(
+          props.prefillDateTime.start
+        )
         formData.value.scheduled_end = formatDateTimeForInput(props.prefillDateTime.end)
       } else {
         // Default to now + 1 hour (existing behavior for "+ New Appointment" button)
@@ -93,7 +99,12 @@ watch(
 
       // Set other defaults
       formData.value.location_type = 'clinic'
-      formData.value.status = 'scheduled'
+
+      // After initial form data is set, mark as no longer initial load
+      // Use nextTick to ensure form data watchers have run first
+      setTimeout(() => {
+        isInitialLoad.value = false
+      }, 100)
     }
   }
 )
@@ -110,6 +121,8 @@ function resetForm() {
   errors.value = {}
   conflicts.value = []
   isCheckingConflicts.value = false
+  isInitialLoad.value = true
+  showAvailableIndicator.value = false
 }
 
 function validate(): boolean {
@@ -176,8 +189,26 @@ const checkConflicts = useDebounceFn(async () => {
   // Convert datetime-local format to ISO 8601
   const startISO = new Date(formData.value.scheduled_start).toISOString()
   const endISO = new Date(formData.value.scheduled_end).toISOString()
+  const wasInitialLoad = isInitialLoad.value
 
-  isCheckingConflicts.value = true
+  // Threshold-based loading indicator: "Silent-Fast, Feedback-Slow"
+  // Fast checks (<400ms): Silent, no loading indicator
+  // Slow checks (>400ms): Show loading indicator for minimum 600ms
+  const FEEDBACK_DELAY = 400 // Only show loading if check takes longer than this
+  const MIN_DISPLAY_TIME = 600 // Once shown, keep visible for smooth transition
+
+  let showLoadingTimer: number | null = null
+  let loadingShownAt: number | null = null
+
+  // Schedule loading indicator to appear after FEEDBACK_DELAY
+  // (unless check completes first - typical case)
+  if (!wasInitialLoad) {
+    showLoadingTimer = window.setTimeout(() => {
+      isCheckingConflicts.value = true
+      loadingShownAt = Date.now()
+    }, FEEDBACK_DELAY)
+  }
+
   try {
     const response = await checkAppointmentConflicts({
       scheduled_start: startISO,
@@ -186,12 +217,39 @@ const checkConflicts = useDebounceFn(async () => {
     })
 
     conflicts.value = response.has_conflict ? response.conflicting_appointments : []
+
+    // Show brief "available" indicator only after initial check if no conflicts
+    if (wasInitialLoad && !response.has_conflict && props.mode === 'create') {
+      showAvailableIndicator.value = true
+      // Auto-hide after 2 seconds
+      setTimeout(() => {
+        showAvailableIndicator.value = false
+      }, 2000)
+    }
   } catch (error) {
     console.error('Conflict check failed:', error)
     // Don't block user on error, just clear conflicts
     conflicts.value = []
   } finally {
+    // If loading was shown, ensure it displays for minimum time (smooth transition)
+    if (loadingShownAt) {
+      const displayDuration = Date.now() - loadingShownAt
+      const remainingTime = Math.max(0, MIN_DISPLAY_TIME - displayDuration)
+
+      await new Promise((resolve) => setTimeout(resolve, remainingTime))
+    }
+
+    // Cancel scheduled loading indicator if check completed fast
+    if (showLoadingTimer !== null) {
+      clearTimeout(showLoadingTimer)
+    }
+
     isCheckingConflicts.value = false
+
+    // Mark initial load complete after first check
+    if (wasInitialLoad) {
+      isInitialLoad.value = false
+    }
   }
 }, 500)
 
@@ -206,6 +264,8 @@ watch(
 // Computed properties
 const hasConflicts = computed(() => conflicts.value.length > 0)
 
+const firstConflict = computed(() => conflicts.value[0] || null)
+
 const modalTitle = computed(() =>
   props.mode === 'create' ? 'New Appointment' : 'Edit Appointment'
 )
@@ -219,8 +279,32 @@ const isPastAppointment = computed(() => {
   return new Date(formData.value.scheduled_start) < new Date()
 })
 
-function handleViewConflict(_appointmentId: string) {
-  // TODO: Navigate to conflicting appointment or open in modal
+// Helper functions for formatting conflict details in status area
+function formatTime(isoDatetime: string): string {
+  try {
+    const date = new Date(isoDatetime)
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
+  } catch (error) {
+    console.error('Error formatting time:', error)
+    return isoDatetime
+  }
+}
+
+function formatTimeRange(start: string, end: string): string {
+  return `${formatTime(start)} - ${formatTime(end)}`
+}
+
+function getLocationLabel(locationType: string): string {
+  const labels: Record<string, string> = {
+    clinic: 'Clinic',
+    home: 'Home Visit',
+    online: 'Online',
+  }
+  return labels[locationType] || locationType
 }
 </script>
 
@@ -293,19 +377,53 @@ function handleViewConflict(_appointmentId: string) {
             </button>
           </div>
 
-          <!-- Form -->
-          <form @submit.prevent="handleSubmit" class="space-y-6 px-6 py-6">
-            <!-- Past Appointment Warning -->
+          <!-- Persistent Status Area - always reserves space to prevent layout shift -->
+          <div class="min-h-10 px-6 pt-4 transition-all duration-200">
+            <!-- Loading State (only when user edits times, NOT initial load) -->
             <div
-              v-if="isPastAppointment && mode === 'create'"
-              class="rounded-md border border-amber-200 bg-amber-50 p-3"
+              v-if="isCheckingConflicts && !isInitialLoad"
+              class="flex items-center gap-2 text-sm text-slate-600"
+              role="status"
+              aria-live="polite"
             >
-              <div class="flex gap-2">
+              <svg
+                class="h-4 w-4 animate-spin text-slate-400"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              <span>Checking availability...</span>
+            </div>
+
+            <!-- Conflict Warning (amber styling, non-blocking) -->
+            <div
+              v-else-if="hasConflicts"
+              role="alert"
+              aria-live="polite"
+              class="rounded-lg border border-amber-200 bg-amber-50 p-3"
+            >
+              <div class="flex gap-3">
                 <svg
                   class="h-5 w-5 flex-shrink-0 text-amber-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path
                     stroke-linecap="round"
@@ -314,18 +432,108 @@ function handleViewConflict(_appointmentId: string) {
                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                   />
                 </svg>
-                <p class="text-sm text-amber-800">
-                  This appointment is in the past. You can still create it if you're logging a
-                  past session.
-                </p>
+                <div class="flex-1">
+                  <p class="text-sm font-semibold text-amber-900">
+                    Time slot overlap detected
+                  </p>
+                  <p class="mt-1 text-sm text-amber-700">
+                    {{
+                      conflicts.length === 1
+                        ? '1 existing appointment'
+                        : `${conflicts.length} existing appointments`
+                    }}
+                    conflict with this time slot.
+                  </p>
+                  <!-- Show first conflict details inline for quick reference -->
+                  <div v-if="firstConflict" class="mt-2 text-xs text-amber-700">
+                    <span class="font-medium">{{
+                      formatTimeRange(
+                        firstConflict.scheduled_start,
+                        firstConflict.scheduled_end
+                      )
+                    }}</span>
+                    <span class="mx-1">&bull;</span>
+                    <span>Client: {{ firstConflict.client_initials }}</span>
+                    <span class="mx-1">&bull;</span>
+                    <span>{{ getLocationLabel(firstConflict.location_type) }}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
+            <!-- Available Indicator (optional, brief success state) -->
+            <Transition
+              enter-active-class="transition-all duration-200 ease-out"
+              leave-active-class="transition-all duration-200 ease-in"
+              enter-from-class="opacity-0 scale-95"
+              enter-to-class="opacity-100 scale-100"
+              leave-from-class="opacity-100 scale-100"
+              leave-to-class="opacity-0 scale-95"
+            >
+              <div
+                v-if="showAvailableIndicator"
+                class="flex items-center gap-2 text-sm text-emerald-700"
+                role="status"
+                aria-live="polite"
+              >
+                <svg
+                  class="h-4 w-4 text-emerald-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span>Time slot available</span>
+              </div>
+            </Transition>
+          </div>
+
+          <!-- Form -->
+          <form @submit.prevent="handleSubmit" class="space-y-6 px-6 pb-6">
+            <!-- Past Appointment Warning -->
+            <Transition
+              enter-active-class="transition-all duration-150 ease-out"
+              leave-active-class="transition-all duration-150 ease-in"
+              enter-from-class="opacity-0 max-h-0"
+              enter-to-class="opacity-100 max-h-20"
+              leave-from-class="opacity-100 max-h-20"
+              leave-to-class="opacity-0 max-h-0"
+            >
+              <div
+                v-if="isPastAppointment && mode === 'create'"
+                class="overflow-hidden rounded-md border border-amber-200 bg-amber-50 p-3"
+              >
+                <div class="flex gap-2">
+                  <svg
+                    class="h-5 w-5 flex-shrink-0 text-amber-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  <p class="text-sm text-amber-800">
+                    This appointment is in the past. You can still create it if you're
+                    logging a past session.
+                  </p>
+                </div>
+              </div>
+            </Transition>
+
             <!-- Client Field - Searchable Combobox -->
-            <ClientCombobox
-              v-model="formData.client_id"
-              :error="errors.client_id"
-            />
+            <ClientCombobox v-model="formData.client_id" :error="errors.client_id" />
 
             <!-- Date and Time -->
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -365,41 +573,6 @@ function handleViewConflict(_appointmentId: string) {
                   {{ errors.scheduled_end }}
                 </p>
               </div>
-            </div>
-
-            <!-- Conflict Alert (appears below time fields when conflicts exist) -->
-            <ConflictAlert
-              v-if="hasConflicts"
-              :conflicts="conflicts"
-              @view-conflict="handleViewConflict"
-            />
-
-            <!-- Loading Indicator (during conflict check) -->
-            <div
-              v-else-if="isCheckingConflicts"
-              class="mt-3 flex items-center gap-2 text-sm text-slate-600"
-            >
-              <svg
-                class="h-4 w-4 animate-spin text-slate-400"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  class="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              <span>Checking for conflicts...</span>
             </div>
 
             <!-- Location Type -->
