@@ -10,6 +10,7 @@ import { useCalendarEvents } from '@/composables/useCalendarEvents'
 import { useCalendarKeyboardShortcuts } from '@/composables/useCalendarKeyboardShortcuts'
 import { useCalendarLoading } from '@/composables/useCalendarLoading'
 import { useAppointmentDrag } from '@/composables/useAppointmentDrag'
+import { useCalendarCreation } from '@/composables/useCalendarCreation'
 import { useScreenReader } from '@/composables/useScreenReader'
 import { toISOString } from '@/utils/dragHelpers'
 import type { ConflictingAppointment } from '@/api/client'
@@ -19,6 +20,7 @@ import CalendarToolbar from '@/components/calendar/CalendarToolbar.vue'
 import AppointmentDetailsModal from '@/components/calendar/AppointmentDetailsModal.vue'
 import AppointmentFormModal from '@/components/calendar/AppointmentFormModal.vue'
 import CancelAppointmentDialog from '@/components/calendar/CancelAppointmentDialog.vue'
+import DeleteAppointmentDialog from '@/components/calendar/DeleteAppointmentDialog.vue'
 import CalendarLoadingState from '@/components/calendar/CalendarLoadingState.vue'
 import DragConflictModal from '@/components/calendar/DragConflictModal.vue'
 import MobileRescheduleModal from '@/components/calendar/MobileRescheduleModal.vue'
@@ -47,8 +49,13 @@ const toolbarRef = ref<InstanceType<typeof CalendarToolbar>>()
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showCancelDialog = ref(false)
+const showDeleteDialog = ref(false)
 const appointmentToEdit = ref<AppointmentListItem | null>(null)
 const appointmentToCancel = ref<AppointmentListItem | null>(null)
+const appointmentToDelete = ref<AppointmentListItem | null>(null)
+
+// Double-click create state
+const createModalPrefillData = ref<{ start: Date; end: Date } | null>(null)
 
 // Drag-and-drop state
 const showDragConflictModal = ref(false)
@@ -100,6 +107,32 @@ const { selectedAppointment, calendarEvents, handleEventClick } = useCalendarEve
 // Debounced loading state
 const { showLoadingSpinner } = useCalendarLoading()
 
+/**
+ * Open create modal with pre-filled date/time from calendar double-click
+ */
+function openCreateModalWithPrefill(prefillData: { start: Date; end: Date }) {
+  createModalPrefillData.value = prefillData
+  showCreateModal.value = true
+
+  // Screen reader announcement
+  const dateStr = prefillData.start.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })
+  const timeStr = prefillData.start.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+
+  announce(
+    `Creating new appointment for ${dateStr} at ${timeStr}. Fill in client and details.`
+  )
+}
+
+// Initialize calendar creation composable
+const { handleDateClick } = useCalendarCreation(openCreateModalWithPrefill)
+
 // Drag-and-drop rescheduling
 const {
   isDragging,
@@ -143,7 +176,7 @@ useCalendarKeyboardShortcuts({
 // Build calendar options with events and handlers
 // Wrap in computed to make it reactive to view/date/event changes
 const calendarOptions = computed(() => ({
-  ...buildCalendarOptions(calendarEvents.value, handleEventClick),
+  ...buildCalendarOptions(calendarEvents.value, handleEventClick, handleDateClick),
   eventDrop: handleEventDrop as (arg: EventDropArg) => void,
 }))
 
@@ -448,9 +481,26 @@ function cancelAppointment(appointment: AppointmentListItem) {
   showCancelDialog.value = true
 }
 
+function deleteAppointment(appointment: AppointmentListItem) {
+  selectedAppointment.value = null // Close detail modal
+  appointmentToDelete.value = appointment
+  showDeleteDialog.value = true
+}
+
 function createNewAppointment() {
+  createModalPrefillData.value = null // Clear any prefill data
   showCreateModal.value = true
 }
+
+// Clear prefill data when modal closes
+watch(
+  () => showCreateModal.value,
+  (isVisible) => {
+    if (!isVisible) {
+      createModalPrefillData.value = null
+    }
+  }
+)
 
 /**
  * Form submission handlers
@@ -596,6 +646,37 @@ async function handleRestoreAppointment(appointment: AppointmentListItem) {
     await announce('Appointment restored')
   } catch (error) {
     console.error('Failed to restore appointment:', error)
+  }
+}
+
+/**
+ * Confirm and perform appointment deletion
+ */
+async function handleConfirmDelete() {
+  if (!appointmentToDelete.value) return
+
+  const appointment = appointmentToDelete.value
+
+  try {
+    // Permanently delete appointment via store
+    await appointmentsStore.deleteAppointment(appointment.id)
+
+    // Screen reader announcement
+    await announce(
+      `Appointment with ${appointment.client?.full_name || 'client'} on ${new Date(
+        appointment.scheduled_start
+      ).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} permanently deleted.`
+    )
+
+    // Close dialog and clear delete state
+    showDeleteDialog.value = false
+    appointmentToDelete.value = null
+
+    // TODO (M3): Add success toast notification
+  } catch (error) {
+    console.error('Failed to delete appointment:', error)
+    // TODO (M3): Add error toast notification
+    // Keep dialog open on error so user can retry
   }
 }
 
@@ -751,6 +832,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       @edit="editAppointment"
       @start-session-notes="startSessionNotes"
       @cancel="cancelAppointment"
+      @delete="deleteAppointment"
       @restore="handleRestoreAppointment"
       @view-client="viewClientDetails"
       @refresh="refreshAppointments"
@@ -760,6 +842,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
     <AppointmentFormModal
       :visible="showCreateModal"
       mode="create"
+      :prefill-date-time="createModalPrefillData"
       @update:visible="showCreateModal = $event"
       @submit="handleCreateAppointment"
     />
@@ -779,6 +862,14 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       :appointment="appointmentToCancel"
       @update:visible="showCancelDialog = $event"
       @confirm="handleConfirmCancel"
+    />
+
+    <!-- Delete Appointment Dialog -->
+    <DeleteAppointmentDialog
+      :visible="showDeleteDialog"
+      :appointment="appointmentToDelete"
+      @update:visible="showDeleteDialog = $event"
+      @confirm="handleConfirmDelete"
     />
 
     <!-- Drag Conflict Modal -->
@@ -1337,5 +1428,40 @@ function handleGlobalKeydown(event: KeyboardEvent) {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+/* Double-click to create - Hover states */
+
+/* Week/Day view timeslots - subtle affordance */
+:deep(.fc-timegrid-slot:hover) {
+  background-color: rgb(243 244 246); /* gray-100 */
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+/* Disable hover on timeslots with events (handled by event hover) */
+:deep(.fc-timegrid-slot.fc-timegrid-slot-lane:has(.fc-event):hover) {
+  background-color: transparent;
+  cursor: default;
+}
+
+/* Month view day cells */
+:deep(.fc-daygrid-day:hover) {
+  background-color: rgb(249 250 251); /* gray-50 */
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+/* Don't show hover on days with events already (less visual noise) */
+:deep(.fc-daygrid-day:has(.fc-event):hover) {
+  background-color: transparent;
+}
+
+/* Respect reduced motion for hover transitions */
+@media (prefers-reduced-motion: reduce) {
+  :deep(.fc-timegrid-slot:hover),
+  :deep(.fc-daygrid-day:hover) {
+    transition: none;
+  }
 }
 </style>

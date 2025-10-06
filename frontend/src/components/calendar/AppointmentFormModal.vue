@@ -14,6 +14,7 @@ interface Props {
   visible: boolean
   appointment?: AppointmentListItem | null
   mode: 'create' | 'edit'
+  prefillDateTime?: { start: Date; end: Date } | null
 }
 
 interface Emits {
@@ -59,18 +60,40 @@ watch(
   { immediate: true }
 )
 
-// Reset form when modal closes
+/**
+ * Helper: Format Date to datetime-local input format
+ */
+function formatDateTimeForInput(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+// Reset form when modal closes or set defaults when opening
 watch(
   () => props.visible,
   (isVisible) => {
     if (!isVisible) {
       resetForm()
     } else if (props.mode === 'create') {
-      // Set default start time to now, end time to +1 hour
-      const now = new Date()
-      const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000)
-      formData.value.scheduled_start = now.toISOString().slice(0, 16)
-      formData.value.scheduled_end = oneHourLater.toISOString().slice(0, 16)
+      if (props.prefillDateTime) {
+        // Use pre-filled date/time from calendar double-click
+        formData.value.scheduled_start = formatDateTimeForInput(props.prefillDateTime.start)
+        formData.value.scheduled_end = formatDateTimeForInput(props.prefillDateTime.end)
+      } else {
+        // Default to now + 1 hour (existing behavior for "+ New Appointment" button)
+        const now = new Date()
+        const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000)
+        formData.value.scheduled_start = formatDateTimeForInput(now)
+        formData.value.scheduled_end = formatDateTimeForInput(oneHourLater)
+      }
+
+      // Set other defaults
+      formData.value.location_type = 'clinic'
+      formData.value.status = 'scheduled'
     }
   }
 )
@@ -191,6 +214,11 @@ const submitButtonText = computed(() =>
   props.mode === 'create' ? 'Create' : 'Save Changes'
 )
 
+const isPastAppointment = computed(() => {
+  if (!formData.value.scheduled_start) return false
+  return new Date(formData.value.scheduled_start) < new Date()
+})
+
 function handleViewConflict(_appointmentId: string) {
   // TODO: Navigate to conflicting appointment or open in modal
 }
@@ -267,6 +295,32 @@ function handleViewConflict(_appointmentId: string) {
 
           <!-- Form -->
           <form @submit.prevent="handleSubmit" class="space-y-6 px-6 py-6">
+            <!-- Past Appointment Warning -->
+            <div
+              v-if="isPastAppointment && mode === 'create'"
+              class="rounded-md border border-amber-200 bg-amber-50 p-3"
+            >
+              <div class="flex gap-2">
+                <svg
+                  class="h-5 w-5 flex-shrink-0 text-amber-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+                <p class="text-sm text-amber-800">
+                  This appointment is in the past. You can still create it if you're logging a
+                  past session.
+                </p>
+              </div>
+            </div>
+
             <!-- Client Field - Searchable Combobox -->
             <ClientCombobox
               v-model="formData.client_id"

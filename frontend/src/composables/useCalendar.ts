@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import type { CalendarOptions } from '@fullcalendar/core'
+import type { DateClickArg } from '@fullcalendar/interaction'
 import type { ViewType } from '@/types/calendar'
 import { formatDateRange } from '@/utils/calendar/dateFormatters'
 import {
@@ -175,12 +176,14 @@ export function useCalendar() {
    *
    * NOTE: events and eventClick will be provided by useCalendarEvents
    * datesSet callback is provided internally
+   * dateClick is optional and enables double-click to create appointments
    *
    * IMPORTANT: Caller must wrap in computed() to make it reactive
    */
   function buildCalendarOptions(
     events: CalendarOptions['events'],
-    eventClick: CalendarOptions['eventClick']
+    eventClick: CalendarOptions['eventClick'],
+    dateClick?: (info: DateClickArg) => void
   ): CalendarOptions {
     return {
       plugins: CALENDAR_PLUGINS,
@@ -188,6 +191,7 @@ export function useCalendar() {
       initialDate: currentDate.value,
       events,
       eventClick,
+      dateClick,
       datesSet: handleDatesSet,
       ...BASE_CALENDAR_OPTIONS,
       // Apply view-specific options based on current view
