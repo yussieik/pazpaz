@@ -126,7 +126,10 @@ export function useAppointmentDrag(
    */
   const keyboardTimeRange = computed(() => {
     if (!keyboardState.value.currentStart || !keyboardState.value.currentEnd) return ''
-    return formatTimeRange(keyboardState.value.currentStart, keyboardState.value.currentEnd)
+    return formatTimeRange(
+      keyboardState.value.currentStart,
+      keyboardState.value.currentEnd
+    )
   })
 
   /**

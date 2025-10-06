@@ -232,7 +232,8 @@ export const useAppointmentsStore = defineStore('appointments', () => {
 
     // Check if visible range is fully covered by loaded range
     const isFullyCovered =
-      visibleStart >= loadedRange.value.startDate && visibleEnd <= loadedRange.value.endDate
+      visibleStart >= loadedRange.value.startDate &&
+      visibleEnd <= loadedRange.value.endDate
 
     // If visible range is not fully covered, refetch
     if (!isFullyCovered) {

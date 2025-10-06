@@ -19,7 +19,7 @@ describe('useCalendarEvents - Reactive Data Flow', () => {
     workspace_id: 'ws-1',
     client_id: 'client-1',
     scheduled_start: '2024-01-15T14:00:00Z', // 2:00 PM
-    scheduled_end: '2024-01-15T15:00:00Z',   // 3:00 PM
+    scheduled_end: '2024-01-15T15:00:00Z', // 3:00 PM
     location_type: 'clinic',
     location_details: 'Room 101',
     status: 'scheduled',
@@ -58,7 +58,7 @@ describe('useCalendarEvents - Reactive Data Flow', () => {
       const updatedAppointment: AppointmentListItem = {
         ...mockAppointment,
         scheduled_start: '2024-01-15T15:30:00Z', // 3:30 PM - NEW TIME
-        scheduled_end: '2024-01-15T16:30:00Z',   // 4:30 PM - NEW TIME
+        scheduled_end: '2024-01-15T16:30:00Z', // 4:30 PM - NEW TIME
         updated_at: '2024-01-15T15:35:00Z',
       }
 
@@ -72,7 +72,9 @@ describe('useCalendarEvents - Reactive Data Flow', () => {
       expect(selectedAppointment.value?.scheduled_end).toBe('2024-01-15T16:30:00Z')
 
       // Ensure it's NOT returning stale data
-      expect(selectedAppointment.value?.scheduled_start).not.toBe('2024-01-15T14:00:00Z')
+      expect(selectedAppointment.value?.scheduled_start).not.toBe(
+        '2024-01-15T14:00:00Z'
+      )
     })
 
     it('should return null when selected appointment is deleted from store', () => {

@@ -24,7 +24,10 @@ export function roundToNearest15Minutes(date: Date): Date {
  * @param end - End time
  * @returns Duration in milliseconds
  */
-export function getAppointmentDuration(start: Date | string, end: Date | string): number {
+export function getAppointmentDuration(
+  start: Date | string,
+  end: Date | string
+): number {
   const startDate = typeof start === 'string' ? new Date(start) : start
   const endDate = typeof end === 'string' ? new Date(end) : end
   return endDate.getTime() - startDate.getTime()
@@ -152,7 +155,10 @@ export function toISOString(date: Date): string {
  * @param newDate - New appointment date
  * @returns True if crosses day boundary
  */
-export function crossesDayBoundary(originalDate: Date | string, newDate: Date | string): boolean {
+export function crossesDayBoundary(
+  originalDate: Date | string,
+  newDate: Date | string
+): boolean {
   const orig = typeof originalDate === 'string' ? new Date(originalDate) : originalDate
   const updated = typeof newDate === 'string' ? new Date(newDate) : newDate
 

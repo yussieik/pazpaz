@@ -18,7 +18,9 @@ const isExpanded = ref(false)
 
 const conflictCount = computed(() => props.conflicts.length)
 const conflictCountText = computed(() =>
-  conflictCount.value === 1 ? '1 existing appointment' : `${conflictCount.value} existing appointments`
+  conflictCount.value === 1
+    ? '1 existing appointment'
+    : `${conflictCount.value} existing appointments`
 )
 
 function toggleExpanded() {
@@ -84,7 +86,7 @@ function getLocationLabel(locationType: string): string {
           @click="toggleExpanded"
           :aria-expanded="isExpanded"
           aria-controls="conflict-details"
-          class="ml-1 font-medium underline hover:text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
+          class="ml-1 font-medium underline hover:text-amber-900 focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 focus:outline-none"
         >
           {{ isExpanded ? 'Hide details' : 'View details' }}
         </button>
@@ -120,7 +122,7 @@ function getLocationLabel(locationType: string): string {
 
           <button
             @click="handleViewConflict(conflict.id)"
-            class="flex-shrink-0 rounded px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            class="flex-shrink-0 rounded px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
             :aria-label="`View appointment at ${formatTimeRange(conflict.scheduled_start, conflict.scheduled_end)}`"
           >
             View →

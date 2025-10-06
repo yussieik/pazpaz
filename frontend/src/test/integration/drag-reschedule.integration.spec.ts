@@ -438,7 +438,7 @@ describe('Drag-and-Drop Appointment Rescheduling - Integration', () => {
       const initialAppointment: AppointmentListItem = {
         ...mockAppointment,
         scheduled_start: '2024-01-15T14:00:00Z', // 2:00 PM
-        scheduled_end: '2024-01-15T15:00:00Z',   // 3:00 PM
+        scheduled_end: '2024-01-15T15:00:00Z', // 3:00 PM
       }
 
       appointmentsStore.appointments = [initialAppointment]
@@ -453,12 +453,14 @@ describe('Drag-and-Drop Appointment Rescheduling - Integration', () => {
       const rescheduledAppointment: AppointmentListItem = {
         ...mockAppointment,
         scheduled_start: '2024-01-15T15:30:00Z', // 3:30 PM
-        scheduled_end: '2024-01-15T16:30:00Z',   // 4:30 PM
+        scheduled_end: '2024-01-15T16:30:00Z', // 4:30 PM
         updated_at: '2024-01-15T15:35:00Z',
       }
 
       // Mock store update to return new appointment data
-      appointmentsStore.updateAppointment = vi.fn().mockResolvedValue(rescheduledAppointment)
+      appointmentsStore.updateAppointment = vi
+        .fn()
+        .mockResolvedValue(rescheduledAppointment)
 
       const vm = wrapper.vm as any
       if (vm.performReschedule) {
@@ -548,7 +550,9 @@ describe('Drag-and-Drop Appointment Rescheduling - Integration', () => {
       expect(reopenedSelectedAppointment?.scheduled_end).toBe('2024-01-15T17:00:00Z')
 
       // Ensure it's not showing stale data
-      expect(reopenedSelectedAppointment?.scheduled_start).not.toBe('2024-01-15T10:00:00Z')
+      expect(reopenedSelectedAppointment?.scheduled_start).not.toBe(
+        '2024-01-15T10:00:00Z'
+      )
     })
 
     it('should display correct times when multiple appointments are rescheduled', async () => {

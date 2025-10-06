@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import type {
   AppointmentListItem,
@@ -14,6 +14,7 @@ interface Props {
   appointment?: AppointmentListItem | null
   mode: 'create' | 'edit'
   prefillDateTime?: { start: Date; end: Date } | null
+  prefillClientId?: string | null
 }
 
 interface Emits {
@@ -34,6 +35,11 @@ const formData = ref<AppointmentFormData>({
   notes: '',
 })
 
+// Template refs for auto-focus
+const clientComboboxRef = ref<InstanceType<typeof ClientCombobox>>()
+const startTimeInputRef = ref<HTMLInputElement>()
+const locationSelectRef = ref<HTMLSelectElement>()
+
 // Validation
 const errors = ref<Record<string, string>>({})
 
@@ -42,6 +48,10 @@ const conflicts = ref<ConflictingAppointment[]>([])
 const isCheckingConflicts = ref(false)
 const isInitialLoad = ref(true)
 const showAvailableIndicator = ref(false)
+
+// Platform detection for keyboard shortcuts
+const isMac = computed(() => navigator.platform.toUpperCase().indexOf('MAC') >= 0)
+const modifierKey = computed(() => (isMac.value ? '⌘' : 'Ctrl'))
 
 // Watch for appointment changes (edit mode)
 watch(
@@ -83,6 +93,12 @@ watch(
       // Mark as initial load to prevent showing conflict check on first open
       isInitialLoad.value = true
 
+      // Reset form to ensure clean state
+      // Only preserve client_id if explicitly provided via prefillClientId
+      formData.value.client_id = props.prefillClientId || ''
+      formData.value.location_details = ''
+      formData.value.notes = ''
+
       if (props.prefillDateTime) {
         // Use pre-filled date/time from calendar double-click
         formData.value.scheduled_start = formatDateTimeForInput(
@@ -105,6 +121,26 @@ watch(
       setTimeout(() => {
         isInitialLoad.value = false
       }, 100)
+
+      // Auto-focus: Focus the first appropriate field based on context
+      nextTick(() => {
+        // Context-aware focus logic:
+        // 1. If client is NOT pre-filled → Focus Client combobox
+        // 2. If client IS pre-filled but Start Time is empty → Focus Start Time picker
+        // 3. If both client and Start Time are pre-filled → Focus Location dropdown
+        if (!formData.value.client_id) {
+          clientComboboxRef.value?.inputRef?.focus()
+        } else if (!formData.value.scheduled_start) {
+          startTimeInputRef.value?.focus()
+        } else {
+          locationSelectRef.value?.focus()
+        }
+      })
+    } else if (props.mode === 'edit') {
+      // For edit mode, focus the first editable field (client combobox)
+      nextTick(() => {
+        clientComboboxRef.value?.inputRef?.focus()
+      })
     }
   }
 )
@@ -163,6 +199,16 @@ function closeModal() {
 }
 
 function handleKeydown(e: KeyboardEvent) {
+  // Check for ⌘Enter (macOS) or Ctrl+Enter (Windows/Linux) to submit form
+  const isSubmitShortcut = (e.metaKey || e.ctrlKey) && e.key === 'Enter'
+
+  if (isSubmitShortcut && props.visible) {
+    e.preventDefault()
+    handleSubmit()
+    return
+  }
+
+  // Escape to close modal
   if (e.key === 'Escape' && props.visible) {
     e.preventDefault()
     closeModal()
@@ -306,6 +352,11 @@ function getLocationLabel(locationType: string): string {
   }
   return labels[locationType] || locationType
 }
+
+// Computed property for client lock state
+const isClientLocked = computed(() => {
+  return props.mode === 'create' && !!props.prefillClientId
+})
 </script>
 
 <template>
@@ -533,7 +584,13 @@ function getLocationLabel(locationType: string): string {
             </Transition>
 
             <!-- Client Field - Searchable Combobox -->
-            <ClientCombobox v-model="formData.client_id" :error="errors.client_id" />
+            <ClientCombobox
+              ref="clientComboboxRef"
+              v-model="formData.client_id"
+              :disabled="isClientLocked"
+              :error="errors.client_id"
+              :help-text="isClientLocked ? 'Client is pre-selected' : undefined"
+            />
 
             <!-- Date and Time -->
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -547,6 +604,7 @@ function getLocationLabel(locationType: string): string {
                 </label>
                 <input
                   id="start-time"
+                  ref="startTimeInputRef"
                   v-model="formData.scheduled_start"
                   type="datetime-local"
                   class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
@@ -585,6 +643,7 @@ function getLocationLabel(locationType: string): string {
               </label>
               <select
                 id="location-type"
+                ref="locationSelectRef"
                 v-model="formData.location_type"
                 class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               >
@@ -637,19 +696,28 @@ function getLocationLabel(locationType: string): string {
             >
               Cancel
             </button>
-            <button
-              @click="handleSubmit"
-              type="submit"
-              :class="[
-                'rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors',
-                hasConflicts
-                  ? 'bg-amber-600 hover:bg-amber-700'
-                  : 'bg-emerald-600 hover:bg-emerald-700',
-              ]"
-            >
-              <span v-if="hasConflicts">⚠️ {{ submitButtonText }} Anyway</span>
-              <span v-else>{{ submitButtonText }}</span>
-            </button>
+            <div class="flex flex-col items-center gap-2">
+              <button
+                @click="handleSubmit"
+                type="submit"
+                :class="[
+                  'rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors',
+                  hasConflicts
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-emerald-600 hover:bg-emerald-700',
+                ]"
+              >
+                <span v-if="hasConflicts">⚠️ {{ submitButtonText }} Anyway</span>
+                <span v-else>{{ submitButtonText }}</span>
+              </button>
+              <p class="text-xs text-slate-500">
+                or press
+                <kbd
+                  class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700"
+                  >{{ modifierKey }}Enter</kbd
+                >
+              </p>
+            </div>
           </div>
         </div>
       </div>

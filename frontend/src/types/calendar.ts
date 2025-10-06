@@ -13,7 +13,12 @@ export type AppointmentListItem = AppointmentResponse['items'][0]
 /**
  * Appointment status type
  */
-export type AppointmentStatus = 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
+export type AppointmentStatus =
+  | 'scheduled'
+  | 'confirmed'
+  | 'completed'
+  | 'cancelled'
+  | 'no_show'
 
 /**
  * Calendar state interface

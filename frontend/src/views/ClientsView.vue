@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useClientsStore } from '@/stores/clients'
-import { ref } from 'vue'
+import { useClientListKeyboard } from '@/composables/useClientListKeyboard'
+import { useScreenReader } from '@/composables/useScreenReader'
+import type { ClientListItem } from '@/types/client'
 import PageHeader from '@/components/common/PageHeader.vue'
 
 const router = useRouter()
@@ -10,6 +12,7 @@ const clientsStore = useClientsStore()
 
 // Local state for search
 const searchQuery = ref('')
+const searchInputRef = ref<HTMLInputElement>()
 
 // Filtered clients based on search
 const filteredClients = computed(() => {
@@ -26,17 +29,45 @@ const filteredClients = computed(() => {
 })
 
 // Navigate to client detail
-function viewClient(clientId: string) {
-  router.push(`/clients/${clientId}`)
+function viewClient(client: ClientListItem) {
+  // Store focused client ID in sessionStorage for restoration
+  sessionStorage.setItem('lastFocusedClientId', client.id)
+  router.push(`/clients/${client.id}`)
 }
+
+// Keyboard navigation
+const { focusedIndex, setCardRef, restoreFocusToClient } = useClientListKeyboard(
+  filteredClients,
+  viewClient,
+  searchInputRef
+)
+
+// Screen reader announcements
+const { announcement } = useScreenReader()
 
 // Navigate to new client form
 function createNewClient() {
   // TODO (M3): Open create client modal
 }
 
-onMounted(() => {
-  clientsStore.fetchClients()
+onMounted(async () => {
+  await clientsStore.fetchClients()
+
+  // Restore focus if returning from client detail view
+  const lastFocusedClientId = sessionStorage.getItem('lastFocusedClientId')
+  if (lastFocusedClientId) {
+    // Only restore focus if we came from a client detail page
+    // Check if the previous route was a client detail route
+    const fromClientDetail = document.referrer.includes('/clients/')
+
+    if (fromClientDetail) {
+      await nextTick() // Ensure DOM is ready
+      restoreFocusToClient(lastFocusedClientId)
+    }
+
+    // Clear the stored ID after attempting restoration
+    sessionStorage.removeItem('lastFocusedClientId')
+  }
 })
 </script>
 
@@ -89,9 +120,10 @@ onMounted(() => {
             </svg>
           </div>
           <input
+            ref="searchInputRef"
             v-model="searchQuery"
             type="search"
-            placeholder="Search clients by name, email, or phone..."
+            placeholder="Search clients by name, email, or phone... (press / to focus)"
             autofocus
             class="block w-full rounded-lg border border-slate-300 bg-white py-3 pr-3 pl-10 text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
           />
@@ -176,10 +208,17 @@ onMounted(() => {
     <!-- Client List -->
     <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <button
-        v-for="client in filteredClients"
+        v-for="(client, index) in filteredClients"
         :key="client.id"
-        @click="viewClient(client.id)"
-        class="group block rounded-lg border border-slate-200 bg-white p-4 text-left transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none"
+        :ref="(el) => setCardRef(el as HTMLElement, index)"
+        :data-client-id="client.id"
+        @click="viewClient(client)"
+        :class="[
+          'group block rounded-lg border bg-white p-4 text-left transition-all hover:shadow-md focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
+          focusedIndex === index
+            ? 'scale-[1.02] border-emerald-500 bg-emerald-50 shadow-md ring-2 ring-emerald-500/20'
+            : 'border-slate-200',
+        ]"
       >
         <!-- Client Avatar -->
         <div class="mb-3 flex items-center gap-3">
@@ -219,5 +258,32 @@ onMounted(() => {
         </div>
       </button>
     </div>
+
+    <!-- Screen Reader Announcements -->
+    <div role="status" aria-live="polite" aria-atomic="true" class="sr-only">
+      {{ announcement }}
+    </div>
   </div>
 </template>
+
+<style scoped>
+/* Screen reader only class */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Respect user's motion preferences for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .transition-all {
+    transition: none !important;
+  }
+}
+</style>

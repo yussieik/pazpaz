@@ -1,17 +1,68 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useClientsStore } from '@/stores/clients'
+import { useAppointmentsStore } from '@/stores/appointments'
+import { useScreenReader } from '@/composables/useScreenReader'
 import { formatDate } from '@/utils/calendar/dateFormatters'
-import type { AppointmentListItem } from '@/types/calendar'
+import type { AppointmentListItem, AppointmentFormData } from '@/types/calendar'
 import { onKeyStroke } from '@vueuse/core'
+import { format } from 'date-fns'
+import AppointmentFormModal from '@/components/calendar/AppointmentFormModal.vue'
+import AppointmentSuccessToast from '@/components/common/AppointmentSuccessToast.vue'
 
 const route = useRoute()
 const router = useRouter()
 const clientsStore = useClientsStore()
+const appointmentsStore = useAppointmentsStore()
+
+// Screen reader announcements
+const { announcement, announce } = useScreenReader()
 
 // Local state
 const activeTab = ref<'overview' | 'history' | 'plan-of-care' | 'files'>('overview')
+
+// Button refs for keyboard feedback
+const editButtonRef = ref<HTMLButtonElement | null>(null)
+const scheduleButtonRef = ref<HTMLButtonElement | null>(null)
+
+// Modal state for scheduling appointments
+const showScheduleModal = ref(false)
+
+// Success toast state
+const showSuccessToast = ref(false)
+const successToastData = ref({
+  datetime: '',
+  appointmentId: '',
+})
+
+// Success toast actions
+const successToastActions = computed(() => [
+  {
+    label: 'View in Calendar',
+    handler: () => handleViewInCalendar(successToastData.value.appointmentId),
+  },
+  {
+    label: 'View Details',
+    handler: () => handleViewDetails(successToastData.value.appointmentId),
+  },
+])
+
+// Handlers for success toast actions
+function handleViewInCalendar(appointmentId: string) {
+  showSuccessToast.value = false
+  router.push({
+    path: '/',
+    query: { appointment: appointmentId },
+  })
+}
+
+function handleViewDetails(appointmentId: string) {
+  showSuccessToast.value = false
+  // For now, navigate to calendar with appointment selected
+  // In the future, we could open the Details Modal directly
+  handleViewInCalendar(appointmentId)
+}
 
 // Appointment context from navigation state (H1: Contextual Banner)
 // Try multiple sources for reliable state passing across different scenarios
@@ -23,7 +74,11 @@ const getAppointmentFromState = (): AppointmentListItem | null => {
 
   // Priority 2: Check router state (works in tests)
   // TypeScript safe access to state property
-  const routerState = (router.currentRoute.value as unknown as { state?: { appointment?: AppointmentListItem } }).state
+  const routerState = (
+    router.currentRoute.value as unknown as {
+      state?: { appointment?: AppointmentListItem }
+    }
+  ).state
   if (routerState?.appointment) {
     return routerState.appointment
   }
@@ -94,6 +149,13 @@ onMounted(() => {
 
   // Fetch client data
   clientsStore.fetchClient(clientId.value)
+
+  // Register keyboard shortcuts listener
+  window.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
 })
 
 const clientId = computed(() => route.params.id as string)
@@ -130,6 +192,89 @@ const backDestination = computed(() => {
   }
 })
 
+/**
+ * Helper function to check if user is typing in an input field
+ * Prevents keyboard shortcuts from triggering while user is typing
+ */
+function isTypingInInput(e: KeyboardEvent): boolean {
+  const target = e.target as HTMLElement
+  return (
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.isContentEditable
+  )
+}
+
+/**
+ * Triggers visual feedback by briefly focusing the button
+ * Same pattern as calendar view keyboard shortcuts
+ */
+function triggerButtonFeedback(button: HTMLButtonElement | null) {
+  if (!button) return
+  button.focus()
+  setTimeout(() => button.blur(), 150)
+}
+
+/**
+ * Keyboard shortcuts handler for Client Detail page
+ * Implements P0 shortcuts: Tab switching (1-4), Edit (e), New Note (n), Schedule (s)
+ */
+function handleKeydown(e: KeyboardEvent) {
+  // Don't trigger shortcuts when typing in input fields
+  if (isTypingInInput(e)) return
+
+  // Only process shortcuts when client data is loaded
+  if (!client.value) return
+
+  // Tab switching (1-4)
+  if (['1', '2', '3', '4'].includes(e.key)) {
+    e.preventDefault()
+    const tabMap: Record<string, 'overview' | 'history' | 'plan-of-care' | 'files'> = {
+      '1': 'overview',
+      '2': 'history',
+      '3': 'plan-of-care',
+      '4': 'files',
+    }
+    const tabLabels: Record<string, string> = {
+      '1': 'Overview',
+      '2': 'History',
+      '3': 'Plan of Care',
+      '4': 'Files',
+    }
+    const newTab = tabMap[e.key]
+    if (newTab) {
+      activeTab.value = newTab
+      announce(`${tabLabels[e.key]} tab selected`)
+    }
+    return
+  }
+
+  // Edit client (e)
+  if (e.key === 'e') {
+    e.preventDefault()
+    editClient()
+    triggerButtonFeedback(editButtonRef.value)
+    announce('Edit client')
+    return
+  }
+
+  // New session note (n)
+  if (e.key === 'n') {
+    e.preventDefault()
+    newSessionNote()
+    return
+  }
+
+  // Schedule appointment (s)
+  if (e.key === 's') {
+    e.preventDefault()
+    scheduleAppointment()
+    triggerButtonFeedback(scheduleButtonRef.value)
+    announce('Schedule appointment')
+    return
+  }
+}
+
 // P1-5: Add Escape key shortcut for back navigation
 onKeyStroke('Escape', (e) => {
   // Only trigger if not typing in input field
@@ -148,14 +293,67 @@ function editClient() {
   // TODO (M3): Open edit client modal
 }
 
+function newSessionNote() {
+  // TODO (M4): Open session note creation modal
+  // Placeholder for now - feature coming in M4
+  announce('Session notes feature coming soon')
+}
+
 function scheduleAppointment() {
-  // TODO (M3): Open appointment modal with client pre-selected
-  router.push('/')
+  if (!client.value) return
+
+  // Open modal with client pre-filled
+  showScheduleModal.value = true
+
+  // Screen reader announcement
+  announce(
+    `Schedule appointment for ${client.value.first_name} ${client.value.last_name}`
+  )
+}
+
+async function handleScheduleAppointment(data: AppointmentFormData) {
+  try {
+    // Create appointment via store
+    const newAppt = await appointmentsStore.createAppointment({
+      client_id: data.client_id,
+      scheduled_start: new Date(data.scheduled_start).toISOString(),
+      scheduled_end: new Date(data.scheduled_end).toISOString(),
+      location_type: data.location_type,
+      location_details: data.location_details || null,
+      notes: data.notes || null,
+    })
+
+    // Close modal
+    showScheduleModal.value = false
+
+    // Show success toast
+    showSuccessToast.value = true
+    successToastData.value = {
+      datetime: format(new Date(newAppt.scheduled_start), "MMM d 'at' h:mm a"),
+      appointmentId: newAppt.id,
+    }
+
+    // Screen reader announcement
+    announce('Appointment scheduled successfully')
+
+    // Refresh client data to update appointment count in History tab
+    await clientsStore.fetchClient(clientId.value)
+  } catch (error) {
+    console.error('Failed to schedule appointment:', error)
+    // Keep modal open on error so user can retry
+    // Modal will handle error display
+    announce('Failed to schedule appointment. Please try again.')
+  }
 }
 </script>
 
 <template>
   <div class="container mx-auto px-4 py-8">
+    <!-- Screen Reader Announcements -->
+    <div role="status" aria-live="polite" aria-atomic="true" class="sr-only">
+      {{ announcement }}
+    </div>
+
     <!-- Back Button (H6: Smart Navigation + P1-5: Escape Key Hint) -->
     <button
       @click="backDestination.action"
@@ -178,18 +376,19 @@ function scheduleAppointment() {
       </kbd>
     </button>
 
-    <!-- H1: Contextual Appointment Banner (P1-2: Enhanced Visual Hierarchy) -->
+    <!-- Enhanced Appointment Context Banner -->
     <div
       v-if="sourceAppointment"
-      class="mb-6 rounded-lg border-l-4 border-blue-500 bg-gradient-to-r from-blue-50 to-transparent p-4 shadow-sm"
-      role="status"
-      aria-live="polite"
+      class="mb-6 rounded-lg border-l-4 border-blue-500 bg-blue-50 p-4 shadow-sm"
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
+          <!-- Icon -->
+          <div
+            class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600"
+          >
             <svg
-              class="h-5 w-5 text-blue-600"
+              class="h-6 w-6 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -198,32 +397,64 @@ function scheduleAppointment() {
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
           </div>
+
+          <!-- Content -->
           <div>
             <p class="text-sm font-semibold text-blue-900">Viewing from appointment</p>
-            <p class="mt-0.5 text-sm text-blue-700">
-              {{ formatDate(sourceAppointment.scheduled_start, 'EEEE, MMM d') }} at
-              {{ formatDate(sourceAppointment.scheduled_start, 'h:mm a') }}
+            <p class="text-sm text-blue-700">
+              {{ formatDate(sourceAppointment.scheduled_start, "MMM d 'at' h:mm a") }}
+              •
+              {{
+                sourceAppointment.location_type === 'clinic'
+                  ? 'Clinic'
+                  : sourceAppointment.location_type === 'home'
+                    ? 'Home Visit'
+                    : 'Telehealth'
+              }}
             </p>
           </div>
         </div>
-        <button
-          @click="dismissBanner"
-          class="rounded-lg p-1.5 text-blue-400 transition-colors hover:bg-blue-100 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          aria-label="Dismiss appointment context"
-        >
-          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
+
+        <!-- Actions -->
+        <div class="flex items-center gap-2">
+          <button
+            @click="backDestination.action()"
+            class="inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50"
+          >
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
+            </svg>
+            Back to Appointment
+            <kbd
+              class="ml-1 rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs text-blue-700"
+            >
+              Esc
+            </kbd>
+          </button>
+          <button
+            @click="dismissBanner"
+            class="rounded-lg p-2 text-blue-400 transition-colors hover:bg-blue-100 hover:text-blue-600"
+            aria-label="Dismiss banner"
+          >
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -331,14 +562,21 @@ function scheduleAppointment() {
           <!-- Action Buttons -->
           <div class="flex gap-2">
             <button
+              ref="editButtonRef"
               @click="editClient"
-              class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+              class="group relative inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
             >
               Edit
+              <kbd
+                class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity group-hover:opacity-100"
+              >
+                e
+              </kbd>
             </button>
             <button
+              ref="scheduleButtonRef"
               @click="scheduleAppointment"
-              class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+              class="group relative inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
             >
               <svg
                 class="h-4 w-4"
@@ -354,6 +592,11 @@ function scheduleAppointment() {
                 />
               </svg>
               Schedule
+              <kbd
+                class="ml-1 rounded bg-emerald-700 px-1.5 py-0.5 font-mono text-xs text-emerald-100 opacity-0 transition-opacity group-hover:opacity-100"
+              >
+                s
+              </kbd>
             </button>
           </div>
         </div>
@@ -372,6 +615,14 @@ function scheduleAppointment() {
             ]"
           >
             Overview
+            <kbd
+              :class="[
+                'ml-1 font-mono text-xs',
+                activeTab === 'overview' ? 'opacity-60' : 'opacity-40',
+              ]"
+            >
+              1
+            </kbd>
           </button>
           <button
             @click="activeTab = 'history'"
@@ -383,6 +634,14 @@ function scheduleAppointment() {
             ]"
           >
             History
+            <kbd
+              :class="[
+                'ml-1 font-mono text-xs',
+                activeTab === 'history' ? 'opacity-60' : 'opacity-40',
+              ]"
+            >
+              2
+            </kbd>
           </button>
           <button
             @click="activeTab = 'plan-of-care'"
@@ -394,6 +653,14 @@ function scheduleAppointment() {
             ]"
           >
             Plan of Care
+            <kbd
+              :class="[
+                'ml-1 font-mono text-xs',
+                activeTab === 'plan-of-care' ? 'opacity-60' : 'opacity-40',
+              ]"
+            >
+              3
+            </kbd>
           </button>
           <button
             @click="activeTab = 'files'"
@@ -405,6 +672,14 @@ function scheduleAppointment() {
             ]"
           >
             Files
+            <kbd
+              :class="[
+                'ml-1 font-mono text-xs',
+                activeTab === 'files' ? 'opacity-60' : 'opacity-40',
+              ]"
+            >
+              4
+            </kbd>
           </button>
         </nav>
       </div>
@@ -485,5 +760,37 @@ function scheduleAppointment() {
         </div>
       </div>
     </div>
+
+    <!-- Schedule Appointment Modal -->
+    <AppointmentFormModal
+      :visible="showScheduleModal"
+      mode="create"
+      :prefill-client-id="client?.id ?? null"
+      @update:visible="showScheduleModal = $event"
+      @submit="handleScheduleAppointment"
+    />
+
+    <!-- Success Toast -->
+    <AppointmentSuccessToast
+      v-model:visible="showSuccessToast"
+      message="Appointment scheduled"
+      :datetime="successToastData.datetime"
+      :actions="successToastActions"
+    />
   </div>
 </template>
+
+<style scoped>
+/* Screen reader only class */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+</style>

@@ -30,7 +30,7 @@ function getInitials(client: Client): string {
 <template>
   <div
     :class="[
-      'flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors',
+      'flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors',
       isHighlighted ? 'bg-emerald-50' : 'hover:bg-slate-50',
       isSelected && 'bg-emerald-100',
     ]"
@@ -40,7 +40,7 @@ function getInitials(client: Client): string {
     <!-- Avatar with Initials -->
     <div
       :class="[
-        'flex h-10 w-10 items-center justify-center rounded-full font-medium text-sm shrink-0',
+        'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium',
         isHighlighted || isSelected
           ? 'bg-emerald-200 text-emerald-800'
           : 'bg-slate-100 text-slate-700',
@@ -50,14 +50,14 @@ function getInitials(client: Client): string {
     </div>
 
     <!-- Client Info -->
-    <div class="flex-1 min-w-0">
+    <div class="min-w-0 flex-1">
       <div class="flex items-center gap-2">
-        <span class="font-medium text-slate-900 truncate">
+        <span class="truncate font-medium text-slate-900">
           {{ client.full_name }}
         </span>
         <span
           v-if="isRecent"
-          class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 shrink-0"
+          class="inline-flex shrink-0 items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700"
         >
           Recent
         </span>

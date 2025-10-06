@@ -197,8 +197,6 @@ function handleKeydown(e: KeyboardEvent) {
       </div>
     </form>
 
-    <p class="mt-2 text-xs text-slate-500">
-      Press Enter to add, Escape to cancel
-    </p>
+    <p class="mt-2 text-xs text-slate-500">Press Enter to add, Escape to cancel</p>
   </div>
 </template>

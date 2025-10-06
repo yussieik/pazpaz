@@ -310,7 +310,9 @@ describe('Appointments Store', () => {
 
       const result = await store.updateAppointment('1', updates)
 
-      expect(apiClient.put).toHaveBeenCalledWith('/appointments/1', updates, { params: {} })
+      expect(apiClient.put).toHaveBeenCalledWith('/appointments/1', updates, {
+        params: {},
+      })
       expect(result).toEqual(updatedAppointment)
       expect(store.appointments[0]).toEqual(updatedAppointment)
       expect(store.loading).toBe(false)
@@ -634,7 +636,9 @@ describe('Appointments Store', () => {
       expect(secondRange).not.toBeNull()
       expect(secondRange?.startDate).toEqual(novStart)
       expect(secondRange?.endDate).toEqual(novEnd)
-      expect(secondRange?.startDate.getTime()).not.toEqual(firstRange?.startDate.getTime())
+      expect(secondRange?.startDate.getTime()).not.toEqual(
+        firstRange?.startDate.getTime()
+      )
       expect(secondRange?.endDate.getTime()).not.toEqual(firstRange?.endDate.getTime())
     })
 

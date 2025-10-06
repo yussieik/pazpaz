@@ -10,6 +10,7 @@ import { useAppointmentAutoSave } from '@/composables/useAppointmentAutoSave'
 interface Props {
   appointment: AppointmentListItem | null
   visible: boolean
+  showEditSuccess?: boolean
 }
 
 interface Emits {
@@ -22,7 +23,9 @@ interface Emits {
   (e: 'refresh'): void // Emit when appointment is updated
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  showEditSuccess: false,
+})
 const emit = defineEmits<Emits>()
 
 const modalRef = ref<HTMLElement>()
@@ -253,12 +256,38 @@ function handleTextFieldBlur(field: 'location_details' | 'notes') {
             class="sticky top-0 flex items-start justify-between border-b border-slate-200 bg-white px-6 py-4"
           >
             <div>
-              <h2
-                :id="`appointment-details-modal-title-${appointment.id}`"
-                class="text-xl font-semibold text-slate-900"
-              >
-                Appointment Details
-              </h2>
+              <div class="flex items-center gap-3">
+                <h2
+                  :id="`appointment-details-modal-title-${appointment.id}`"
+                  class="text-xl font-semibold text-slate-900"
+                >
+                  Appointment Details
+                </h2>
+
+                <!-- Edit Success Badge -->
+                <Transition name="fade">
+                  <div
+                    v-if="showEditSuccess"
+                    class="inline-flex items-center gap-1.5 rounded-md bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700"
+                  >
+                    <svg
+                      class="h-3 w-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    Changes saved
+                  </div>
+                </Transition>
+              </div>
+
               <div class="mt-2 flex items-center gap-2">
                 <span
                   :class="getStatusBadgeClass(appointment.status)"
@@ -646,3 +675,15 @@ function handleTextFieldBlur(field: 'location_details' | 'notes') {
     </Transition>
   </Teleport>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

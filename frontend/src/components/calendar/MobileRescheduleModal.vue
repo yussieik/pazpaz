@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import type { AppointmentListItem } from '@/types/calendar'
-import { formatTimeRange, getAppointmentDuration, calculateEndTime } from '@/utils/dragHelpers'
+import {
+  formatTimeRange,
+  getAppointmentDuration,
+  calculateEndTime,
+} from '@/utils/dragHelpers'
 
 /**
  * Mobile Reschedule Modal
@@ -64,7 +68,10 @@ watch(
  */
 const currentTimeDisplay = computed(() => {
   if (!props.appointment) return ''
-  return formatTimeRange(props.appointment.scheduled_start, props.appointment.scheduled_end)
+  return formatTimeRange(
+    props.appointment.scheduled_start,
+    props.appointment.scheduled_end
+  )
 })
 
 /**
@@ -142,11 +149,16 @@ function getTodayDate(): string {
             </h3>
             <button
               type="button"
-              class="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              class="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
               @click="handleClose"
               aria-label="Close dialog"
             >
-              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -174,7 +186,10 @@ function getTodayDate(): string {
           <form @submit.prevent="handleReschedule" class="space-y-4">
             <!-- Date picker -->
             <div>
-              <label for="reschedule-date" class="block text-sm font-medium text-gray-700">
+              <label
+                for="reschedule-date"
+                class="block text-sm font-medium text-gray-700"
+              >
                 New Date
               </label>
               <input
@@ -189,7 +204,10 @@ function getTodayDate(): string {
 
             <!-- Time picker -->
             <div>
-              <label for="reschedule-time" class="block text-sm font-medium text-gray-700">
+              <label
+                for="reschedule-time"
+                class="block text-sm font-medium text-gray-700"
+              >
                 New Time
               </label>
               <input
@@ -200,13 +218,17 @@ function getTodayDate(): string {
                 step="900"
                 class="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 focus-visible:outline-none"
               />
-              <p class="mt-1.5 text-xs text-gray-500">Time will be rounded to 15-minute increments</p>
+              <p class="mt-1.5 text-xs text-gray-500">
+                Time will be rounded to 15-minute increments
+              </p>
             </div>
 
             <!-- Preview -->
             <div v-if="newTimePreview" class="rounded-lg bg-emerald-50 p-4">
               <p class="text-sm font-medium text-emerald-900">New appointment time:</p>
-              <p class="mt-1 text-base font-semibold text-emerald-700">{{ newTimePreview }}</p>
+              <p class="mt-1 text-base font-semibold text-emerald-700">
+                {{ newTimePreview }}
+              </p>
             </div>
           </form>
         </div>
@@ -215,7 +237,7 @@ function getTodayDate(): string {
         <div class="flex gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
           <button
             type="button"
-            class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2"
+            class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 focus-visible:outline-none"
             @click="handleClose"
           >
             Cancel
@@ -223,7 +245,7 @@ function getTodayDate(): string {
           <button
             type="button"
             :disabled="!isFormValid"
-            class="flex-1 rounded-lg bg-emerald-600 px-4 py-3 text-base font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex-1 rounded-lg bg-emerald-600 px-4 py-3 text-base font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             @click="handleReschedule"
           >
             Reschedule

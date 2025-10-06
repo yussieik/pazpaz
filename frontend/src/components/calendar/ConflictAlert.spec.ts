@@ -143,14 +143,17 @@ describe('ConflictAlert', () => {
   })
 
   it('handles multiple conflicts with scrollable container', async () => {
-    const manyConflicts: ConflictingAppointment[] = Array.from({ length: 10 }, (_, i) => ({
-      id: `conflict-${i}`,
-      scheduled_start: '2025-10-03T10:00:00Z',
-      scheduled_end: '2025-10-03T11:00:00Z',
-      client_initials: `C.${i}`,
-      location_type: 'clinic' as const,
-      status: 'scheduled' as const,
-    }))
+    const manyConflicts: ConflictingAppointment[] = Array.from(
+      { length: 10 },
+      (_, i) => ({
+        id: `conflict-${i}`,
+        scheduled_start: '2025-10-03T10:00:00Z',
+        scheduled_end: '2025-10-03T11:00:00Z',
+        client_initials: `C.${i}`,
+        location_type: 'clinic' as const,
+        status: 'scheduled' as const,
+      })
+    )
 
     const wrapper = mount(ConflictAlert, {
       props: {

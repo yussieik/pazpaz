@@ -195,7 +195,9 @@ export function useCalendar() {
       datesSet: handleDatesSet,
       ...BASE_CALENDAR_OPTIONS,
       // Apply view-specific options based on current view
-      ...(VIEW_SPECIFIC_OPTIONS[currentView.value as keyof typeof VIEW_SPECIFIC_OPTIONS] || {}),
+      ...(VIEW_SPECIFIC_OPTIONS[
+        currentView.value as keyof typeof VIEW_SPECIFIC_OPTIONS
+      ] || {}),
     }
   }
 

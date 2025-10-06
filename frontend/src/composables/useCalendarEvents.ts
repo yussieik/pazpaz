@@ -27,13 +27,15 @@ export function useCalendarEvents() {
       if (!selectedAppointmentId.value) return null
 
       // Always fetch fresh data from store to avoid stale references
-      return appointmentsStore.appointments.find(
-        (a) => a.id === selectedAppointmentId.value
-      ) || null
+      return (
+        appointmentsStore.appointments.find(
+          (a) => a.id === selectedAppointmentId.value
+        ) || null
+      )
     },
     set: (value: AppointmentListItem | null) => {
       selectedAppointmentId.value = value ? value.id : null
-    }
+    },
   })
 
   /**
@@ -81,7 +83,8 @@ export function useCalendarEvents() {
       return {
         id: appointment.id,
         title:
-          appointment.client?.full_name || `Client ${appointment.client_id.slice(0, 8)}`,
+          appointment.client?.full_name ||
+          `Client ${appointment.client_id.slice(0, 8)}`,
         start: appointment.scheduled_start,
         end: appointment.scheduled_end,
         // Use grey color for cancelled appointments

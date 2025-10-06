@@ -161,11 +161,16 @@ function handleKeydown(event: KeyboardEvent) {
             <!-- Close button -->
             <button
               type="button"
-              class="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+              class="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none"
               @click="handleCancel"
               aria-label="Close dialog"
             >
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -182,7 +187,9 @@ function handleKeydown(event: KeyboardEvent) {
           <!-- New time info -->
           <div class="mb-4 rounded-lg bg-blue-50 p-3">
             <p class="text-sm font-medium text-blue-900">New appointment time:</p>
-            <p class="mt-1 text-base font-semibold text-blue-700">{{ formattedNewTime }}</p>
+            <p class="mt-1 text-base font-semibold text-blue-700">
+              {{ formattedNewTime }}
+            </p>
           </div>
 
           <!-- Conflicting appointments list -->
@@ -211,9 +218,16 @@ function handleKeydown(event: KeyboardEvent) {
                   </div>
 
                   <!-- Time and location -->
-                  <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                  <div
+                    class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600"
+                  >
                     <span class="flex items-center gap-1">
-                      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg
+                        class="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
                         <path
                           stroke-linecap="round"
                           stroke-linejoin="round"
@@ -224,7 +238,12 @@ function handleKeydown(event: KeyboardEvent) {
                       {{ formatConflictTime(conflict) }}
                     </span>
                     <span class="flex items-center gap-1 capitalize">
-                      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg
+                        class="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
                         <path
                           stroke-linecap="round"
                           stroke-linejoin="round"
@@ -257,8 +276,8 @@ function handleKeydown(event: KeyboardEvent) {
           <!-- Warning message -->
           <div class="mt-4 rounded-lg bg-yellow-50 p-3">
             <p class="text-sm text-yellow-800">
-              <strong>Note:</strong> Keeping both appointments will result in overlapping
-              schedules. You may want to reschedule one of them.
+              <strong>Note:</strong> Keeping both appointments will result in
+              overlapping schedules. You may want to reschedule one of them.
             </p>
           </div>
         </div>
@@ -267,14 +286,14 @@ function handleKeydown(event: KeyboardEvent) {
         <div class="flex gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
           <button
             type="button"
-            class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2"
+            class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 focus-visible:outline-none"
             @click="handleCancel"
           >
             Cancel Move
           </button>
           <button
             type="button"
-            class="flex-1 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+            class="flex-1 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-amber-700 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:outline-none"
             @click="handleConfirm"
             autofocus
           >

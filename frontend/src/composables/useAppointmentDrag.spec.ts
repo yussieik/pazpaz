@@ -47,10 +47,8 @@ describe('useAppointmentDrag', () => {
 
   describe('keyboard navigation', () => {
     it('activates keyboard reschedule mode', () => {
-      const { activateKeyboardReschedule, isKeyboardRescheduleActive } = useAppointmentDrag(
-        appointments,
-        onReschedule
-      )
+      const { activateKeyboardReschedule, isKeyboardRescheduleActive } =
+        useAppointmentDrag(appointments, onReschedule)
 
       expect(isKeyboardRescheduleActive.value).toBe(false)
 
@@ -114,8 +112,11 @@ describe('useAppointmentDrag', () => {
     })
 
     it('confirms reschedule and calls onReschedule callback', async () => {
-      const { activateKeyboardReschedule, handleKeyboardNavigation, confirmKeyboardReschedule } =
-        useAppointmentDrag(appointments, onReschedule)
+      const {
+        activateKeyboardReschedule,
+        handleKeyboardNavigation,
+        confirmKeyboardReschedule,
+      } = useAppointmentDrag(appointments, onReschedule)
 
       activateKeyboardReschedule('apt-1')
       handleKeyboardNavigation('ArrowDown') // Move 15 minutes later
@@ -131,8 +132,11 @@ describe('useAppointmentDrag', () => {
     })
 
     it('cancels reschedule and resets state', () => {
-      const { activateKeyboardReschedule, cancelKeyboardReschedule, isKeyboardRescheduleActive } =
-        useAppointmentDrag(appointments, onReschedule)
+      const {
+        activateKeyboardReschedule,
+        cancelKeyboardReschedule,
+        isKeyboardRescheduleActive,
+      } = useAppointmentDrag(appointments, onReschedule)
 
       activateKeyboardReschedule('apt-1')
       expect(isKeyboardRescheduleActive.value).toBe(true)

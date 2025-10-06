@@ -5,12 +5,13 @@ import { useClientSearch } from '@/composables/useClientSearch'
 import { useScreenReader } from '@/composables/useScreenReader'
 import ClientDropdownItem from './ClientDropdownItem.vue'
 import ClientQuickAddForm from './ClientQuickAddForm.vue'
-import type { Client, ClientCreate } from '@/types/client'
+import type { Client, ClientListItem, ClientCreate } from '@/types/client'
 
 interface Props {
   modelValue: string // client_id
   error?: string
   disabled?: boolean
+  helpText?: string
 }
 
 interface Emits {
@@ -20,12 +21,24 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   error: '',
   disabled: false,
+  helpText: undefined,
 })
 
 const emit = defineEmits<Emits>()
 
 // Composables
-const { searchResults, recentClients, isSearching, isLoadingRecent, isCreating, error, searchClients, fetchRecentClients, createClient, clearSearch } = useClientSearch()
+const {
+  searchResults,
+  recentClients,
+  isSearching,
+  isLoadingRecent,
+  isCreating,
+  error: searchError,
+  searchClients,
+  fetchRecentClients,
+  createClient,
+  clearSearch,
+} = useClientSearch()
 const { announce } = useScreenReader()
 
 // Component state
@@ -213,7 +226,10 @@ function handleKeydown(e: KeyboardEvent) {
     case 'Enter':
       e.preventDefault()
       if (showQuickAddForm.value) break
-      if (highlightedIndex.value >= 0 && highlightedIndex.value < displayedClients.value.length) {
+      if (
+        highlightedIndex.value >= 0 &&
+        highlightedIndex.value < displayedClients.value.length
+      ) {
         const selectedItem = displayedClients.value[highlightedIndex.value]
         if (selectedItem) {
           selectClient(selectedItem)
@@ -263,8 +279,13 @@ function isRecentClient(client: Client | undefined): boolean {
  * Get last visit date for a client
  */
 function getLastVisitDate(client: Client): string | null {
-  return (client as any).last_appointment || null
+  return (client as ClientListItem).last_appointment || null
 }
+
+// Expose inputRef so parent components can focus the input
+defineExpose({
+  inputRef,
+})
 </script>
 
 <template>
@@ -295,24 +316,32 @@ function getLastVisitDate(client: Client): string | null {
         role="combobox"
         :aria-expanded="isOpen"
         :aria-controls="listboxId"
-        :aria-activedescendant="highlightedIndex >= 0 ? `${comboboxId}-option-${highlightedIndex}` : undefined"
+        :aria-activedescendant="
+          highlightedIndex >= 0 ? `${comboboxId}-option-${highlightedIndex}` : undefined
+        "
         aria-autocomplete="list"
-        :placeholder="selectedClient ? selectedClient.full_name : 'Search for a client...'"
+        :placeholder="
+          selectedClient ? selectedClient.full_name : 'Search for a client...'
+        "
         :disabled="disabled"
         @focus="handleInputFocus"
         @click="handleInputClick"
         @keydown="handleKeydown"
         :class="[
-          'block w-full rounded-lg border px-3 py-2 pr-10 text-slate-900 placeholder-slate-400 transition-colors',
+          'block w-full rounded-lg border px-3 py-2 pr-10 transition-colors',
           'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none',
           error ? 'border-red-500' : 'border-slate-300',
-          disabled && 'bg-slate-100 cursor-not-allowed',
+          disabled
+            ? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-500'
+            : 'text-slate-900 placeholder-slate-400',
           selectedClient && 'font-medium',
         ]"
       />
 
       <!-- Dropdown Icon -->
-      <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+      <div
+        class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
+      >
         <svg
           :class="[
             'h-5 w-5 transition-transform',
@@ -331,6 +360,9 @@ function getLastVisitDate(client: Client): string | null {
         </svg>
       </div>
     </div>
+
+    <!-- Help Text -->
+    <p v-if="helpText" class="mt-1 text-xs text-slate-500">{{ helpText }}</p>
 
     <!-- Error Message -->
     <p v-if="error" class="mt-1 text-sm text-red-600" role="alert">
@@ -383,11 +415,11 @@ function getLastVisitDate(client: Client): string | null {
 
         <!-- Error State -->
         <div
-          v-else-if="error"
+          v-else-if="searchError"
           class="px-4 py-8 text-center text-sm text-red-600"
           role="alert"
         >
-          {{ error }}
+          {{ searchError }}
         </div>
 
         <!-- Client List -->
@@ -399,7 +431,7 @@ function getLastVisitDate(client: Client): string | null {
               v-if="!searchQuery.trim() && recentClients.length > 0"
               class="border-b border-slate-200 bg-slate-50 px-4 py-2"
             >
-              <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <h3 class="text-xs font-semibold tracking-wide text-slate-500 uppercase">
                 Recent Clients
               </h3>
             </div>

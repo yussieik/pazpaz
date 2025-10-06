@@ -25,6 +25,8 @@ import CalendarLoadingState from '@/components/calendar/CalendarLoadingState.vue
 import DragConflictModal from '@/components/calendar/DragConflictModal.vue'
 import MobileRescheduleModal from '@/components/calendar/MobileRescheduleModal.vue'
 import UndoToast from '@/components/common/UndoToast.vue'
+import AppointmentSuccessToast from '@/components/common/AppointmentSuccessToast.vue'
+import { format } from 'date-fns'
 
 /**
  * Calendar View - appointment scheduling with weekly/day/month views
@@ -85,8 +87,40 @@ const undoCancelData = ref<{
   originalNotes?: string
 } | null>(null)
 
+// Success toast state
+const showSuccessToast = ref(false)
+const successToastData = ref({
+  message: '',
+  clientName: '',
+  datetime: '',
+  appointmentId: '',
+})
+
+// Edit success badge state
+const showEditSuccessBadge = ref(false)
+
 // Screen reader announcements
 const { announcement: screenReaderAnnouncement, announce } = useScreenReader()
+
+// Success toast actions
+const successToastActions = computed(() => [
+  {
+    label: 'View Details',
+    handler: () => handleViewDetailsFromToast(successToastData.value.appointmentId),
+  },
+])
+
+// Handler for viewing details from toast
+function handleViewDetailsFromToast(appointmentId: string) {
+  // Close toast
+  showSuccessToast.value = false
+
+  // Find and open appointment in Details Modal
+  const appointment = appointmentsStore.appointments.find((a) => a.id === appointmentId)
+  if (appointment) {
+    selectedAppointment.value = appointment
+  }
+}
 
 // Calendar state and navigation
 const {
@@ -155,9 +189,9 @@ function handleCalendarMouseMove(event: MouseEvent) {
     // Off-hours: .fc-non-business overlay blocks the slot lane
     // Use elementsFromPoint to find the slot lane underneath
     const allElements = document.elementsFromPoint(event.clientX, event.clientY)
-    slotLane = allElements.find((el) => el.classList.contains('fc-timegrid-slot-lane')) as
-      | HTMLElement
-      | undefined
+    slotLane = allElements.find((el) =>
+      el.classList.contains('fc-timegrid-slot-lane')
+    ) as HTMLElement | undefined
   }
 
   if (!slotLane || !(slotLane instanceof HTMLElement)) {
@@ -201,7 +235,9 @@ function handleCalendarMouseMove(event: MouseEvent) {
   // Check if there's an event in this cell
   // Look for events at multiple points within the cell to catch events that don't fill the full width
   const eventsAtPosition = document.elementsFromPoint(event.clientX, event.clientY)
-  const hasEventAtCursor = eventsAtPosition.some((el) => el.classList.contains('fc-event'))
+  const hasEventAtCursor = eventsAtPosition.some((el) =>
+    el.classList.contains('fc-event')
+  )
 
   // Check center of the cell and left/right edges for events
   const centerX = colRect.left + colRect.width / 2
@@ -223,7 +259,9 @@ function handleCalendarMouseMove(event: MouseEvent) {
 
   // Check if we're hovering over an off-hours cell
   // Off-hours cells have .fc-non-business class overlay
-  const isNonBusiness = eventsAtPosition.some((el) => el.classList.contains('fc-non-business'))
+  const isNonBusiness = eventsAtPosition.some((el) =>
+    el.classList.contains('fc-non-business')
+  )
   isHoverInOffHours.value = isNonBusiness
 
   const calendarContainer = document.querySelector('.calendar-container')
@@ -316,7 +354,8 @@ async function handleAppointmentReschedule(
       appointmentId,
       newStart,
       newEnd,
-      conflicts: dragState.value.conflictData.conflicting_appointments as ConflictingAppointment[],
+      conflicts: dragState.value.conflictData
+        .conflicting_appointments as ConflictingAppointment[],
     }
     showDragConflictModal.value = true
     return
@@ -629,7 +668,7 @@ watch(
 async function handleCreateAppointment(data: AppointmentFormData) {
   try {
     // Create appointment via store (calls API and updates local state)
-    await appointmentsStore.createAppointment({
+    const newAppt = await appointmentsStore.createAppointment({
       client_id: data.client_id,
       scheduled_start: new Date(data.scheduled_start).toISOString(),
       scheduled_end: new Date(data.scheduled_end).toISOString(),
@@ -640,8 +679,19 @@ async function handleCreateAppointment(data: AppointmentFormData) {
 
     // Close modal on success
     showCreateModal.value = false
+    createModalPrefillData.value = null
 
-    // TODO (M3): Add success toast notification
+    // Show success toast
+    showSuccessToast.value = true
+    successToastData.value = {
+      message: 'Appointment created',
+      clientName: newAppt.client?.full_name || 'Unknown Client',
+      datetime: format(new Date(newAppt.scheduled_start), "MMM d 'at' h:mm a"),
+      appointmentId: newAppt.id,
+    }
+
+    // Screen reader announcement
+    announce(`Appointment created for ${newAppt.client?.full_name || 'Unknown Client'}`)
   } catch (error) {
     console.error('Failed to create appointment:', error)
     // TODO (M3): Add error toast notification
@@ -656,11 +706,27 @@ async function handleEditAppointment(data: AppointmentFormData) {
     // Update appointment in store (calls API and updates local state)
     await appointmentsStore.updateAppointment(appointmentToEdit.value.id, data)
 
-    // Close modal and clear edit state
+    // Close Edit Modal
     showEditModal.value = false
+
+    // Reopen Details Modal with updated data
+    const updatedAppointment = appointmentsStore.appointments.find(
+      (a) => a.id === appointmentToEdit.value!.id
+    )
+    if (updatedAppointment) {
+      selectedAppointment.value = updatedAppointment
+    }
+
     appointmentToEdit.value = null
 
-    // TODO (M3): Add success toast notification
+    // Show edit success badge (3 seconds)
+    showEditSuccessBadge.value = true
+    setTimeout(() => {
+      showEditSuccessBadge.value = false
+    }, 3000)
+
+    // Screen reader announcement
+    announce('Appointment updated')
   } catch (error) {
     console.error('Failed to update appointment:', error)
     // TODO (M3): Add error toast notification
@@ -700,7 +766,10 @@ async function handleConfirmCancel(reason: string) {
     await announce(
       `Appointment with ${appointment.client?.full_name || 'client'} on ${new Date(
         appointment.scheduled_start
-      ).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} cancelled. Undo within 8 seconds.`
+      ).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+      })} cancelled. Undo within 8 seconds.`
     )
 
     // Set timeout to hide toast
@@ -786,7 +855,10 @@ async function handleConfirmDelete() {
     await announce(
       `Appointment with ${appointment.client?.full_name || 'client'} on ${new Date(
         appointment.scheduled_start
-      ).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} permanently deleted.`
+      ).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+      })} permanently deleted.`
     )
 
     // Close dialog and clear delete state
@@ -943,7 +1015,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
           <div
             v-if="hoverOverlayVisible"
             :class="[
-              'cell-hover-overlay pointer-events-none absolute z-[3] ring-1 ring-inset ring-gray-200 transition-all duration-75',
+              'cell-hover-overlay pointer-events-none absolute z-[3] ring-1 ring-gray-200 transition-all duration-75 ring-inset',
               isHoverInOffHours ? 'bg-white' : 'bg-gray-50',
             ]"
             :style="hoverOverlayStyle"
@@ -964,6 +1036,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
     <AppointmentDetailsModal
       :appointment="selectedAppointment"
       :visible="!!selectedAppointment"
+      :show-edit-success="showEditSuccessBadge"
       @update:visible="selectedAppointment = null"
       @edit="editAppointment"
       @start-session-notes="startSessionNotes"
@@ -1044,7 +1117,12 @@ function handleGlobalKeydown(event: KeyboardEvent) {
         role="status"
         aria-live="polite"
       >
-        <svg class="h-5 w-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          class="h-5 w-5 text-emerald-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -1055,14 +1133,14 @@ function handleGlobalKeydown(event: KeyboardEvent) {
         <span class="text-sm font-medium">Appointment rescheduled</span>
         <button
           type="button"
-          class="ml-2 rounded-md bg-white/10 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+          class="ml-2 rounded-md bg-white/10 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 focus-visible:outline-none"
           @click="handleUndoReschedule"
         >
           Undo
         </button>
         <button
           type="button"
-          class="ml-1 rounded-lg p-1 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          class="ml-1 rounded-lg p-1 transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
           @click="showUndoToast = false"
           aria-label="Dismiss"
         >
@@ -1086,16 +1164,30 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       @close="showCancelUndoToast = false"
     />
 
+    <!-- Success Toast -->
+    <AppointmentSuccessToast
+      v-model:visible="showSuccessToast"
+      :message="successToastData.message"
+      :client-name="successToastData.clientName"
+      :datetime="successToastData.datetime"
+      :actions="successToastActions"
+    />
+
     <!-- Keyboard Reschedule Mode Indicator -->
     <Transition name="fade">
       <div
         v-if="isKeyboardRescheduleActive"
-        class="fixed bottom-6 right-6 z-50 rounded-lg bg-blue-600 px-4 py-3 text-white shadow-2xl"
+        class="fixed right-6 bottom-6 z-50 rounded-lg bg-blue-600 px-4 py-3 text-white shadow-2xl"
         role="status"
         aria-live="polite"
       >
         <div class="flex items-start gap-3">
-          <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="h-5 w-5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -1121,7 +1213,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
     <Transition name="ghost-fade">
       <div
         v-if="isDragging && dragState.ghostPosition"
-        class="pointer-events-none fixed z-50 animate-ghost-float"
+        class="animate-ghost-float pointer-events-none fixed z-50"
         :style="{
           left: `${dragState.ghostPosition.x + 10}px`,
           top: `${dragState.ghostPosition.y + 10}px`,
@@ -1144,7 +1236,9 @@ function handleGlobalKeydown(event: KeyboardEvent) {
                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span class="text-sm font-semibold text-gray-900">{{ ghostTimeRange }}</span>
+            <span class="text-sm font-semibold text-gray-900">{{
+              ghostTimeRange
+            }}</span>
           </div>
           <p class="mt-1 text-xs text-gray-600">{{ ghostDateTimePreview }}</p>
           <div
@@ -1441,12 +1535,16 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 /* Event hover state - indicate draggable */
 .fc-event:not(.fc-event-past) {
   cursor: grab;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .fc-event:not(.fc-event-past):hover {
   transform: scale(1.02);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 /* Event being dragged - placeholder state */
@@ -1532,7 +1630,9 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 .fc-event.is-cancelled {
   opacity: 0.5;
   filter: grayscale(40%);
-  transition: opacity 0.2s ease, filter 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    filter 0.2s ease;
 }
 
 .fc-event.is-cancelled .fc-event-title {
@@ -1580,7 +1680,9 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 /* Month view day cells - cell cursor and hover background */
 :deep(.fc-daygrid-day) {
   cursor: cell;
-  transition: background-color 150ms ease, box-shadow 150ms ease;
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 :deep(.fc-daygrid-day:hover) {

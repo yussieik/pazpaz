@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import AppointmentFormModal from './AppointmentFormModal.vue'
-import ConflictAlert from './ConflictAlert.vue'
 import * as apiClient from '@/api/client'
 import type { ConflictCheckResponse } from '@/types/calendar'
 
@@ -42,7 +41,9 @@ describe('AppointmentFormModal - Conflict Detection', () => {
   }
 
   it('debounces conflict checks to 500ms', async () => {
-    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(mockNoConflictResponse)
+    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(
+      mockNoConflictResponse
+    )
 
     const wrapper = mount(AppointmentFormModal, {
       props: {
@@ -82,7 +83,9 @@ describe('AppointmentFormModal - Conflict Detection', () => {
   })
 
   it('passes correct parameters to API in create mode', async () => {
-    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(mockNoConflictResponse)
+    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(
+      mockNoConflictResponse
+    )
 
     const wrapper = mount(AppointmentFormModal, {
       props: {
@@ -112,7 +115,9 @@ describe('AppointmentFormModal - Conflict Detection', () => {
   })
 
   it('excludes current appointment ID in edit mode', async () => {
-    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(mockNoConflictResponse)
+    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(
+      mockNoConflictResponse
+    )
 
     const appointmentId = 'existing-appointment-123'
 
@@ -153,8 +158,10 @@ describe('AppointmentFormModal - Conflict Detection', () => {
     wrapper.unmount()
   })
 
-  it('shows ConflictAlert component when conflicts are detected', async () => {
-    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(mockConflictResponse)
+  it('shows conflict warning in status area when conflicts are detected', async () => {
+    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(
+      mockConflictResponse
+    )
 
     const wrapper = mount(AppointmentFormModal, {
       props: {
@@ -173,15 +180,22 @@ describe('AppointmentFormModal - Conflict Detection', () => {
 
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
+    await nextTick()
 
-    // Should show ConflictAlert component
-    expect(wrapper.findComponent(ConflictAlert).exists()).toBe(true)
+    // Should show conflict warning with amber styling in status area (check in document.body due to Teleport)
+    const conflictAlert = Array.from(
+      document.body.querySelectorAll('[role="alert"]')
+    ).find((el) => el.textContent?.includes('Time slot overlap detected'))
+    expect(conflictAlert).toBeTruthy()
+    expect(conflictAlert?.textContent).toContain('1 existing appointment conflict')
 
     wrapper.unmount()
   })
 
-  it('hides ConflictAlert when no conflicts exist', async () => {
-    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(mockNoConflictResponse)
+  it('hides conflict warning when no conflicts exist', async () => {
+    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(
+      mockNoConflictResponse
+    )
 
     const wrapper = mount(AppointmentFormModal, {
       props: {
@@ -200,9 +214,13 @@ describe('AppointmentFormModal - Conflict Detection', () => {
 
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
+    await nextTick()
 
-    // Should NOT show ConflictAlert
-    expect(wrapper.findComponent(ConflictAlert).exists()).toBe(false)
+    // Should NOT show conflict warning (check in document.body due to Teleport)
+    const conflictAlert = Array.from(
+      document.body.querySelectorAll('[role="alert"]')
+    ).find((el) => el.textContent?.includes('Time slot overlap detected'))
+    expect(conflictAlert).toBeFalsy()
 
     wrapper.unmount()
   })
@@ -231,19 +249,24 @@ describe('AppointmentFormModal - Conflict Detection', () => {
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
 
-    // Should log error but not show conflict alert
+    // Should log error but not show conflict warning
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       'Conflict check failed:',
       expect.any(Error)
     )
-    expect(wrapper.findComponent(ConflictAlert).exists()).toBe(false)
+    const conflictAlert = Array.from(
+      document.body.querySelectorAll('[role="alert"]')
+    ).find((el) => el.textContent?.includes('Time slot overlap detected'))
+    expect(conflictAlert).toBeFalsy()
 
     consoleErrorSpy.mockRestore()
     wrapper.unmount()
   })
 
   it('clears conflicts when time fields are emptied', async () => {
-    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(mockConflictResponse)
+    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(
+      mockConflictResponse
+    )
 
     const wrapper = mount(AppointmentFormModal, {
       props: {
@@ -264,8 +287,12 @@ describe('AppointmentFormModal - Conflict Detection', () => {
 
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
+    await nextTick()
 
-    expect(wrapper.findComponent(ConflictAlert).exists()).toBe(true)
+    let conflictAlert = Array.from(
+      document.body.querySelectorAll('[role="alert"]')
+    ).find((el) => el.textContent?.includes('Time slot overlap detected'))
+    expect(conflictAlert).toBeTruthy()
 
     // Clear end time
     vm.formData.scheduled_end = ''
@@ -273,15 +300,21 @@ describe('AppointmentFormModal - Conflict Detection', () => {
 
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
+    await nextTick()
 
     // Conflict should be cleared (no API call with incomplete times)
-    expect(wrapper.findComponent(ConflictAlert).exists()).toBe(false)
+    conflictAlert = Array.from(document.body.querySelectorAll('[role="alert"]')).find(
+      (el) => el.textContent?.includes('Time slot overlap detected')
+    )
+    expect(conflictAlert).toBeFalsy()
 
     wrapper.unmount()
   })
 
   it('resets conflicts when modal is closed', async () => {
-    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(mockConflictResponse)
+    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(
+      mockConflictResponse
+    )
 
     const wrapper = mount(AppointmentFormModal, {
       props: {
@@ -302,25 +335,36 @@ describe('AppointmentFormModal - Conflict Detection', () => {
 
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
+    await nextTick()
 
-    expect(wrapper.findComponent(ConflictAlert).exists()).toBe(true)
+    let conflictAlert = Array.from(
+      document.body.querySelectorAll('[role="alert"]')
+    ).find((el) => el.textContent?.includes('Time slot overlap detected'))
+    expect(conflictAlert).toBeTruthy()
 
     // Close modal
     await wrapper.setProps({ visible: false })
     await flushPromises()
+    await nextTick()
 
     // Reopen modal
     await wrapper.setProps({ visible: true })
     await flushPromises()
+    await nextTick()
 
     // Conflicts should be cleared
-    expect(wrapper.findComponent(ConflictAlert).exists()).toBe(false)
+    conflictAlert = Array.from(document.body.querySelectorAll('[role="alert"]')).find(
+      (el) => el.textContent?.includes('Time slot overlap detected')
+    )
+    expect(conflictAlert).toBeFalsy()
 
     wrapper.unmount()
   })
 
   it('converts datetime-local format to ISO 8601 for API', async () => {
-    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(mockNoConflictResponse)
+    vi.mocked(apiClient.checkAppointmentConflicts).mockResolvedValue(
+      mockNoConflictResponse
+    )
 
     const wrapper = mount(AppointmentFormModal, {
       props: {
@@ -341,8 +385,12 @@ describe('AppointmentFormModal - Conflict Detection', () => {
     await flushPromises()
 
     expect(apiClient.checkAppointmentConflicts).toHaveBeenCalledWith({
-      scheduled_start: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
-      scheduled_end: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
+      scheduled_start: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+      ),
+      scheduled_end: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+      ),
       exclude_appointment_id: undefined,
     })
 
