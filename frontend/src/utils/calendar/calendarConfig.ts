@@ -58,7 +58,6 @@ export const BUSINESS_HOURS_CONFIG = {
  */
 export const BASE_CALENDAR_OPTIONS = {
   headerToolbar: false,
-  height: 'auto',
   allDaySlot: false,
   nowIndicator: true,
   editable: true, // Enable drag-and-drop rescheduling
@@ -72,4 +71,23 @@ export const BASE_CALENDAR_OPTIONS = {
   ...TIME_SLOT_CONFIG,
   ...TIME_FORMAT_CONFIG,
   ...BUSINESS_HOURS_CONFIG,
+} as const
+
+/**
+ * Per-view height strategies for visual consistency
+ *
+ * All views: Fill container height for consistent experience
+ * Month view: fixedWeekCount: false shows only actual weeks (4-6 weeks)
+ */
+export const VIEW_SPECIFIC_OPTIONS = {
+  timeGridWeek: {
+    height: '100%',
+  },
+  timeGridDay: {
+    height: '100%',
+  },
+  dayGridMonth: {
+    height: '100%', // Fill container like other views
+    fixedWeekCount: false, // Show only weeks that exist (4-6 weeks, not always 6)
+  },
 } as const

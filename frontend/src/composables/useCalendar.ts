@@ -5,6 +5,7 @@ import { formatDateRange } from '@/utils/calendar/dateFormatters'
 import {
   CALENDAR_PLUGINS,
   BASE_CALENDAR_OPTIONS,
+  VIEW_SPECIFIC_OPTIONS,
 } from '@/utils/calendar/calendarConfig'
 import { useAppointmentsStore } from '@/stores/appointments'
 
@@ -169,11 +170,13 @@ export function useCalendar() {
   }
 
   /**
-   * Build FullCalendar options computed property
-   * Must be computed so it updates when currentDate or currentView change
+   * Build FullCalendar options
+   * Returns plain object with current view-specific options applied
    *
    * NOTE: events and eventClick will be provided by useCalendarEvents
-   * datesSet callback will be provided by the consumer
+   * datesSet callback is provided internally
+   *
+   * IMPORTANT: Caller must wrap in computed() to make it reactive
    */
   function buildCalendarOptions(
     events: CalendarOptions['events'],
@@ -187,6 +190,8 @@ export function useCalendar() {
       eventClick,
       datesSet: handleDatesSet,
       ...BASE_CALENDAR_OPTIONS,
+      // Apply view-specific options based on current view
+      ...(VIEW_SPECIFIC_OPTIONS[currentView.value as keyof typeof VIEW_SPECIFIC_OPTIONS] || {}),
     }
   }
 

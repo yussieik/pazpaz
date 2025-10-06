@@ -141,6 +141,7 @@ useCalendarKeyboardShortcuts({
 })
 
 // Build calendar options with events and handlers
+// Wrap in computed to make it reactive to view/date/event changes
 const calendarOptions = computed(() => ({
   ...buildCalendarOptions(calendarEvents.value, handleEventClick),
   eventDrop: handleEventDrop as (arg: EventDropArg) => void,
@@ -963,31 +964,39 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 }
 
 /**
- * Flexible Layout System for Calendar Transitions
+ * Responsive Height System for Calendar Views
  *
  * Architecture:
- * 1. calendar-content-area: Auto-height container - adapts to FullCalendar's natural height
- * 2. calendar-container: Positioned relatively within content area
+ * 1. calendar-content-area: Viewport-based height for responsive sizing
+ * 2. View-specific height strategies applied via VIEW_SPECIFIC_OPTIONS:
+ *    - Week/Day views: height: '100%' fills container
+ *    - Month view: height: 'auto' with spacious date cells
  *
- * This ensures smooth transitions between calendar views without layout shifts.
- * FullCalendar's height: 'auto' configuration (in calendarConfig.ts) allows it to size
- * itself based on content (16 hours × 72px = 1,152px + internal structure).
- *
- * The container uses min-height to prevent collapsing and allows natural page scroll
- * instead of container-level scrolling for better UX.
+ * This ensures consistent visual experience across views with smooth transitions.
  */
 
-/* Main content area with auto height - adapts to FullCalendar's natural size */
+/* Calendar content container - responsive viewport-based height */
 .calendar-content-area {
   position: relative;
-  min-height: 600px; /* Prevent collapsing on initial load */
+  min-height: 700px; /* Comfortable minimum for month view */
+  height: calc(100vh - 280px); /* Full viewport minus header/toolbar/padding */
   overflow: visible; /* Allow natural page scroll */
 }
 
-/* Calendar container */
+/* Month view: Ensure spacious date cells for better appointment visibility */
+:deep(.fc-dayGridMonth-view) {
+  min-height: 650px; /* Prevent over-compression on small screens */
+}
+
+:deep(.fc-daygrid-day-frame) {
+  min-height: 120px; /* Larger cells = more room for appointment details */
+}
+
+/* Calendar container - must have height for child's height: 100% to work */
 .calendar-container {
   position: relative;
   z-index: 1;
+  height: 100%; /* Allow FullCalendar's height: 100% to reference this */
 }
 
 /* FullCalendar custom styling to match PazPaz design */
@@ -1080,15 +1089,45 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 
 /* PHASE 2: Responsive adjustments */
 
-/* Tablet-specific adjustments (641px - 1024px) */
-@media (max-width: 1024px) and (min-width: 641px) {
+/* Desktop: Full height strategy */
+@media (min-width: 1024px) {
+  .calendar-content-area {
+    height: calc(100vh - 280px);
+    min-height: 700px;
+  }
+
+  :deep(.fc-daygrid-day-frame) {
+    min-height: 120px;
+  }
+}
+
+/* Tablet: Slightly reduced sizing (641px - 1023px) */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .calendar-content-area {
+    height: calc(100vh - 240px);
+    min-height: 600px;
+  }
+
+  :deep(.fc-daygrid-day-frame) {
+    min-height: 100px;
+  }
+
   .fc-timegrid-slot {
     height: 4rem; /* 64px on tablet - balanced readability */
   }
 }
 
-/* Mobile adjustments (≤640px) */
+/* Mobile: Compact sizing (≤640px) */
 @media (max-width: 640px) {
+  .calendar-content-area {
+    height: calc(100vh - 200px);
+    min-height: 500px;
+  }
+
+  :deep(.fc-daygrid-day-frame) {
+    min-height: 80px;
+  }
+
   .fc-header-toolbar {
     flex-direction: column;
     gap: 0.5rem;
