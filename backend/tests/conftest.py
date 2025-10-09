@@ -506,6 +506,116 @@ async def cancelled_appointment_ws1(
     return appointment
 
 
+@pytest_asyncio.fixture(scope="function")
+async def test_session(
+    db_session: AsyncSession,
+    workspace_1: Workspace,
+    sample_client_ws1: Client,
+    test_user_ws1: User,
+) -> "Session":
+    """
+    Create a test session in workspace 1.
+
+    Standard SOAP note with all fields populated.
+    """
+    from pazpaz.models.session import Session
+
+    session = Session(
+        workspace_id=workspace_1.id,
+        client_id=sample_client_ws1.id,
+        created_by_user_id=test_user_ws1.id,
+        session_date=datetime.now(UTC) - timedelta(days=1),
+        subjective="Patient reports lower back pain",
+        objective="Limited range of motion observed",
+        assessment="Acute lumbar strain",
+        plan="Ice therapy, rest for 48 hours",
+        duration_minutes=60,
+        is_draft=True,
+        version=1,
+    )
+    db_session.add(session)
+    await db_session.commit()
+    await db_session.refresh(session)
+    return session
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_session2(
+    db_session: AsyncSession,
+    workspace_2: Workspace,
+    sample_client_ws2: Client,
+    test_user_ws2: User,
+) -> "Session":
+    """
+    Create a test session in workspace 2.
+
+    Used to test workspace isolation.
+    """
+    from pazpaz.models.session import Session
+
+    session = Session(
+        workspace_id=workspace_2.id,
+        client_id=sample_client_ws2.id,
+        created_by_user_id=test_user_ws2.id,
+        session_date=datetime.now(UTC) - timedelta(days=2),
+        subjective="Different workspace session",
+        objective="Different workspace observations",
+        assessment="Different workspace assessment",
+        plan="Different workspace plan",
+        duration_minutes=45,
+        is_draft=False,
+        finalized_at=datetime.now(UTC) - timedelta(days=2),
+        version=1,
+    )
+    db_session.add(session)
+    await db_session.commit()
+    await db_session.refresh(session)
+    return session
+
+
+# Convenience aliases for consistent test fixture naming
+@pytest_asyncio.fixture(scope="function")
+async def test_workspace(workspace_1: Workspace) -> Workspace:
+    """Alias for workspace_1 (convenience)."""
+    return workspace_1
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_workspace2(workspace_2: Workspace) -> Workspace:
+    """Alias for workspace_2 (convenience)."""
+    return workspace_2
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_user(test_user_ws1: User) -> User:
+    """Alias for test_user_ws1 (convenience)."""
+    return test_user_ws1
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_user2(test_user_ws2: User) -> User:
+    """Alias for test_user_ws2 (convenience)."""
+    return test_user_ws2
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_client(sample_client_ws1: Client) -> Client:
+    """Alias for sample_client_ws1 (convenience)."""
+    return sample_client_ws1
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_client2(sample_client_ws2: Client) -> Client:
+    """Alias for sample_client_ws2 (convenience)."""
+    return sample_client_ws2
+
+
+@pytest_asyncio.fixture(scope="function")
+async def auth_headers(workspace_1: Workspace, test_user_ws1: User) -> dict[str, str]:
+    """Provide pre-configured auth headers for workspace 1."""
+    return get_auth_headers(workspace_1.id, test_user_ws1.id, test_user_ws1.email)
+
+
 # Helper functions for tests
 
 

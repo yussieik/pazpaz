@@ -6,8 +6,9 @@ import secrets
 import uuid
 
 import redis.asyncio as redis
-from fastapi import Cookie, HTTPException, Request
+from fastapi import Cookie, Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
 from pazpaz.core.config import settings
 from pazpaz.core.logging import get_logger
@@ -65,9 +66,11 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
                 has_cookie=bool(csrf_cookie),
                 has_header=bool(csrf_header),
             )
-            raise HTTPException(
+            # Return JSONResponse directly instead of raising HTTPException
+            # This avoids Python 3.13 ExceptionGroup issues in middleware
+            return JSONResponse(
                 status_code=403,
-                detail="CSRF token missing. Both cookie and header required.",
+                content={"detail": "CSRF token missing. Both cookie and header required."},
             )
 
         # Tokens must match
@@ -80,9 +83,10 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
                 path=request.url.path,
                 method=request.method,
             )
-            raise HTTPException(
+            # Return JSONResponse directly instead of raising HTTPException
+            return JSONResponse(
                 status_code=403,
-                detail="CSRF token mismatch. Cookie and header must match.",
+                content={"detail": "CSRF token mismatch. Cookie and header must match."},
             )
 
         logger.debug(

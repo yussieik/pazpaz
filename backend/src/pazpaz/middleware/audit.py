@@ -82,6 +82,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
     PATH_TO_RESOURCE: dict[str, ResourceType] = {
         "/api/v1/clients": ResourceType.CLIENT,
         "/api/v1/appointments": ResourceType.APPOINTMENT,
+        "/api/v1/sessions": ResourceType.SESSION,
         "/api/v1/services": ResourceType.SERVICE,
         "/api/v1/locations": ResourceType.LOCATION,
         "/api/v1/users": ResourceType.USER,

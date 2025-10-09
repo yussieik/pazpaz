@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -46,7 +46,8 @@ class SessionBase(BaseModel):
     @classmethod
     def validate_session_date(cls, v: datetime) -> datetime:
         """Validate session date is not in the future."""
-        if v > datetime.now(datetime.timezone.utc):
+        from datetime import UTC
+        if v > datetime.now(UTC):
             raise ValueError("Session date cannot be in the future")
         return v
 
@@ -82,8 +83,10 @@ class SessionUpdate(BaseModel):
     @classmethod
     def validate_session_date(cls, v: datetime | None) -> datetime | None:
         """Validate session date is not in the future."""
-        if v is not None and v > datetime.now(timezone.utc):
-            raise ValueError("Session date cannot be in the future")
+        if v is not None:
+            from datetime import UTC
+            if v > datetime.now(UTC):
+                raise ValueError("Session date cannot be in the future")
         return v
 
 
