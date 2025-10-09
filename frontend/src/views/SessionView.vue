@@ -1,0 +1,222 @@
+<script setup lang="ts">
+/**
+ * SessionView - Session Detail Page
+ *
+ * Route: /sessions/:id
+ *
+ * Displays a SOAP session note with client context and metadata.
+ * Wraps the SessionEditor component and handles data loading.
+ *
+ * Features:
+ * - Loads session and client data
+ * - Shows PageHeader with client name
+ * - Handles session finalized event
+ * - Back navigation to client detail or calendar
+ */
+
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import apiClient from '@/api/client'
+import type { AxiosError } from 'axios'
+import PageHeader from '@/components/common/PageHeader.vue'
+import SessionEditor from '@/components/sessions/SessionEditor.vue'
+
+const route = useRoute()
+const router = useRouter()
+
+// Session and client data interfaces
+interface SessionData {
+  id: string
+  client_id: string
+  workspace_id: string
+  subjective: string | null
+  objective: string | null
+  assessment: string | null
+  plan: string | null
+  session_date: string
+  duration_minutes: number | null
+  is_draft: boolean
+  draft_last_saved_at: string | null
+  finalized_at: string | null
+  version: number
+  created_at: string
+  updated_at: string
+}
+
+interface ClientData {
+  id: string
+  first_name: string
+  last_name: string
+  email: string | null
+  phone: string | null
+  date_of_birth: string | null
+  created_at: string
+  updated_at: string
+}
+
+// State
+const session = ref<SessionData | null>(null)
+const client = ref<ClientData | null>(null)
+const isLoadingSession = ref(true)
+const isLoadingClient = ref(false)
+const loadError = ref<string | null>(null)
+
+// Computed
+const sessionId = computed(() => route.params.id as string)
+
+const pageTitle = computed(() => {
+  if (client.value) {
+    return `Session Note - ${client.value.first_name} ${client.value.last_name}`
+  }
+  return 'Session Note'
+})
+
+const pageMetadata = computed(() => {
+  if (session.value) {
+    const date = new Date(session.value.session_date)
+    const formattedDate = date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+    const formattedTime = date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+
+    const status = session.value.is_draft ? 'Draft' : 'Finalized'
+    return `${formattedDate} at ${formattedTime} • ${status}`
+  }
+  return ''
+})
+
+// Load session data
+async function loadSession() {
+  isLoadingSession.value = true
+  loadError.value = null
+
+  try {
+    const response = await apiClient.get<SessionData>(`/sessions/${sessionId.value}`)
+    session.value = response.data
+
+    // Load client data
+    if (response.data.client_id) {
+      await loadClient(response.data.client_id)
+    }
+  } catch (error) {
+    console.error('Failed to load session:', error)
+    const axiosError = error as AxiosError<{ detail?: string }>
+
+    if (axiosError.response?.status === 404) {
+      loadError.value = 'Session not found'
+    } else if (axiosError.response?.status === 403) {
+      loadError.value = 'You do not have permission to view this session'
+    } else {
+      loadError.value = axiosError.response?.data?.detail || 'Failed to load session'
+    }
+  } finally {
+    isLoadingSession.value = false
+  }
+}
+
+// Load client data
+async function loadClient(clientId: string) {
+  isLoadingClient.value = true
+
+  try {
+    const response = await apiClient.get<ClientData>(`/clients/${clientId}`)
+    client.value = response.data
+  } catch (error) {
+    console.error('Failed to load client:', error)
+    // Don't set error - client data is supplementary
+  } finally {
+    isLoadingClient.value = false
+  }
+}
+
+// Handle session finalized
+function handleSessionFinalized() {
+  // Reload session to update metadata
+  loadSession()
+}
+
+// Navigate back
+function goBack() {
+  if (session.value?.client_id) {
+    // Go back to client detail page
+    router.push(`/clients/${session.value.client_id}`)
+  } else {
+    // Fall back to calendar
+    router.push('/')
+  }
+}
+
+// Lifecycle
+onMounted(() => {
+  loadSession()
+})
+</script>
+
+<template>
+  <div class="session-view mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Back Button -->
+    <div class="mb-6">
+      <button
+        type="button"
+        @click="goBack"
+        class="inline-flex items-center text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+      >
+        <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to {{ session?.client_id ? 'Client' : 'Calendar' }}
+      </button>
+    </div>
+
+    <!-- Page Header -->
+    <PageHeader
+      :title="pageTitle"
+      :metadata="pageMetadata"
+      :loading="isLoadingSession || isLoadingClient"
+    />
+
+    <!-- Error State -->
+    <div v-if="loadError" class="rounded-lg border border-red-200 bg-red-50 p-6">
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <h3 class="text-sm font-medium text-red-800">Error Loading Session</h3>
+          <div class="mt-2 text-sm text-red-700">
+            <p>{{ loadError }}</p>
+          </div>
+          <div class="mt-4">
+            <button
+              type="button"
+              @click="goBack"
+              class="rounded-md bg-red-100 px-3 py-2 text-sm font-semibold text-red-800 transition-colors hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-red-50"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Session Editor -->
+    <div v-else-if="!isLoadingSession">
+      <SessionEditor
+        :session-id="sessionId"
+        @finalized="handleSessionFinalized"
+      />
+    </div>
+  </div>
+</template>
+
+<style scoped>
+/* Additional styles if needed */
+</style>

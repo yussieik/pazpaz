@@ -47,6 +47,7 @@ class SessionBase(BaseModel):
     def validate_session_date(cls, v: datetime) -> datetime:
         """Validate session date is not in the future."""
         from datetime import UTC
+
         if v > datetime.now(UTC):
             raise ValueError("Session date cannot be in the future")
         return v
@@ -85,6 +86,7 @@ class SessionUpdate(BaseModel):
         """Validate session date is not in the future."""
         if v is not None:
             from datetime import UTC
+
             if v > datetime.now(UTC):
                 raise ValueError("Session date cannot be in the future")
         return v
@@ -117,6 +119,22 @@ class SessionListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class SessionDraftUpdate(BaseModel):
+    """
+    Schema for draft autosave updates (relaxed validation).
+
+    Used by PATCH /sessions/{id}/draft endpoint for frontend autosave.
+    All fields are optional to allow partial updates.
+    No validation on session_date (drafts can be incomplete).
+    """
+
+    subjective: str | None = Field(None, max_length=5000)
+    objective: str | None = Field(None, max_length=5000)
+    assessment: str | None = Field(None, max_length=5000)
+    plan: str | None = Field(None, max_length=5000)
+    duration_minutes: int | None = Field(None, ge=0, le=480)
 
 
 class SessionAttachmentResponse(BaseModel):

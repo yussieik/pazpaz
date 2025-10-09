@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.core.logging import get_logger
+from pazpaz.core.rate_limiting import check_rate_limit_redis
 from pazpaz.core.security import create_access_token
 from pazpaz.models.user import User
 from pazpaz.services.email_service import send_magic_link_email
@@ -50,11 +51,15 @@ async def request_magic_link(
     Raises:
         HTTPException: If rate limit exceeded
     """
-    # Check rate limit by IP
+    # Check rate limit by IP (3 requests per hour using sliding window)
     rate_limit_key = f"magic_link_rate_limit:{request_ip}"
-    current_count = await redis_client.get(rate_limit_key)
 
-    if current_count and int(current_count) >= RATE_LIMIT_MAX_REQUESTS:
+    if not await check_rate_limit_redis(
+        redis_client=redis_client,
+        key=rate_limit_key,
+        max_requests=RATE_LIMIT_MAX_REQUESTS,
+        window_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    ):
         logger.warning(
             "magic_link_rate_limit_exceeded",
             ip=request_ip,
@@ -103,12 +108,6 @@ async def request_magic_link(
         MAGIC_LINK_EXPIRY_SECONDS,
         json.dumps(token_data),
     )
-
-    # Increment rate limit counter
-    if not current_count:
-        await redis_client.setex(rate_limit_key, RATE_LIMIT_WINDOW_SECONDS, 1)
-    else:
-        await redis_client.incr(rate_limit_key)
 
     # Send magic link email
     await send_magic_link_email(user.email, token)

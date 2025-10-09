@@ -6,17 +6,20 @@ import math
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.api.deps import get_current_user, get_db, get_or_404
 from pazpaz.core.logging import get_logger
+from pazpaz.core.rate_limiting import check_rate_limit_redis
+from pazpaz.core.redis import get_redis
 from pazpaz.models.client import Client
 from pazpaz.models.session import Session
 from pazpaz.models.user import User
 from pazpaz.schemas.session import (
     SessionCreate,
+    SessionDraftUpdate,
     SessionListResponse,
     SessionResponse,
     SessionUpdate,
@@ -210,10 +213,12 @@ async def list_sessions(
     Returns a paginated list of sessions, ordered by session_date descending.
     All results are scoped to the authenticated workspace.
 
-    SECURITY: Only returns sessions belonging to the authenticated user's workspace (from JWT).
-    Requires client_id filter to prevent accidental exposure of all sessions.
+    SECURITY: Only returns sessions belonging to the authenticated user's
+    workspace (from JWT). Requires client_id filter to prevent accidental
+    exposure of all sessions.
 
-    PERFORMANCE: Uses ix_sessions_workspace_client_date index for optimal query performance.
+    PERFORMANCE: Uses ix_sessions_workspace_client_date index for optimal
+    query performance.
 
     Args:
         current_user: Authenticated user (from JWT token)
@@ -261,14 +266,12 @@ async def list_sessions(
     offset = (page - 1) * page_size
 
     # Build base query with workspace and client scoping
-    # Uses ix_sessions_workspace_client_date index (workspace_id, client_id, session_date DESC)
-    base_query = (
-        select(Session)
-        .where(
-            Session.workspace_id == workspace_id,
-            Session.client_id == client_id,
-            Session.deleted_at.is_(None),  # Only active sessions
-        )
+    # Uses ix_sessions_workspace_client_date index
+    # (workspace_id, client_id, session_date DESC)
+    base_query = select(Session).where(
+        Session.workspace_id == workspace_id,
+        Session.client_id == client_id,
+        Session.deleted_at.is_(None),  # Only active sessions
     )
 
     # Apply draft filter if provided
@@ -282,9 +285,7 @@ async def list_sessions(
 
     # Get paginated results ordered by session_date descending
     query = (
-        base_query.order_by(Session.session_date.desc())
-        .offset(offset)
-        .limit(page_size)
+        base_query.order_by(Session.session_date.desc()).offset(offset).limit(page_size)
     )
     result = await db.execute(query)
     sessions = result.scalars().all()
@@ -399,6 +400,210 @@ async def update_session(
     return SessionResponse.model_validate(session)
 
 
+@router.patch("/{session_id}/draft", response_model=SessionResponse)
+async def save_draft(
+    session_id: uuid.UUID,
+    draft_update: SessionDraftUpdate,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    redis_client=Depends(get_redis),
+) -> SessionResponse:
+    """
+    Save session draft (autosave endpoint).
+
+    This endpoint is designed for frontend autosave functionality called
+    every ~5 seconds.
+
+    Features:
+    - Relaxed validation (partial/empty fields allowed - drafts don't
+      need to be complete)
+    - Rate limited to 60 requests/minute per user per session
+      (allows autosave every ~1 second)
+    - Updates only provided fields (partial update)
+    - Auto-increments version for optimistic locking
+    - Updates draft_last_saved_at timestamp
+    - Keeps is_draft = True
+
+    SECURITY: Verifies workspace ownership before allowing updates.
+    workspace_id is derived from JWT token (server-side).
+    Rate limiting uses Redis-backed distributed sliding window algorithm.
+
+    AUDIT: Update is automatically logged by AuditMiddleware.
+
+    Args:
+        session_id: UUID of the session to update
+        draft_update: Fields to update (all optional)
+        request: FastAPI request object (for audit logging)
+        current_user: Authenticated user (from JWT token)
+        db: Database session
+        redis_client: Redis client for distributed rate limiting
+
+    Returns:
+        Updated session with decrypted PHI fields
+
+    Raises:
+        HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
+            429 if rate limit exceeded, 422 if validation fails
+
+    Example:
+        PATCH /api/v1/sessions/{uuid}/draft
+        {
+            "subjective": "Patient reports... (partial update)"
+        }
+    """
+    workspace_id = current_user.workspace_id
+
+    # Apply rate limit (60 requests per minute per user per session)
+    # Per-session scoping allows concurrent editing of multiple sessions
+    rate_limit_key = f"draft_autosave:{current_user.id}:{session_id}"
+    if not await check_rate_limit_redis(
+        redis_client=redis_client,
+        key=rate_limit_key,
+        max_requests=60,
+        window_seconds=60,
+    ):
+        logger.warning(
+            "draft_autosave_rate_limit_exceeded",
+            user_id=str(current_user.id),
+            workspace_id=str(workspace_id),
+            session_id=str(session_id),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                "Rate limit exceeded. Maximum 60 autosave requests "
+                "per minute per session."
+            ),
+        )
+
+    # Fetch session with workspace scoping
+    session = await get_or_404(db, Session, session_id, workspace_id)
+
+    # Get update data (only fields that were provided)
+    update_data = draft_update.model_dump(exclude_unset=True)
+
+    if update_data:
+        logger.info(
+            "session_draft_save_started",
+            session_id=str(session_id),
+            workspace_id=str(workspace_id),
+            updated_fields=list(update_data.keys()),
+        )
+
+        # Update fields (PHI fields automatically encrypted)
+        for field, value in update_data.items():
+            setattr(session, field, value)
+
+        # Update draft metadata
+        session.draft_last_saved_at = datetime.now(UTC)
+        session.version += 1
+        session.is_draft = True  # Ensure it stays as draft
+
+        await db.commit()
+        await db.refresh(session)
+
+        logger.info(
+            "session_draft_saved",
+            session_id=str(session_id),
+            workspace_id=str(workspace_id),
+            new_version=session.version,
+        )
+
+    # Return response (PHI automatically decrypted)
+    return SessionResponse.model_validate(session)
+
+
+@router.post("/{session_id}/finalize", response_model=SessionResponse)
+async def finalize_session(
+    session_id: uuid.UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    """
+    Finalize session and mark as complete.
+
+    Marks a session as finalized, making it immutable and preventing deletion.
+    At least one SOAP field must have content before finalizing.
+
+    Validation:
+    - At least one SOAP field (subjective, objective, assessment, plan)
+      must have content
+    - Session must exist and belong to the authenticated workspace
+
+    Effect:
+    - Sets finalized_at timestamp to current time
+    - Sets is_draft to False
+    - Increments version
+    - Prevents deletion (enforced in DELETE endpoint)
+
+    SECURITY: Verifies workspace ownership before allowing finalization.
+    workspace_id is derived from JWT token (server-side).
+
+    AUDIT: Update is automatically logged by AuditMiddleware with "finalized" action.
+
+    Args:
+        session_id: UUID of the session to finalize
+        request: FastAPI request object (for audit logging)
+        current_user: Authenticated user (from JWT token)
+        db: Database session
+
+    Returns:
+        Finalized session with finalized_at timestamp set
+
+    Raises:
+        HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
+            422 if validation fails (no SOAP content)
+
+    Example:
+        POST /api/v1/sessions/{uuid}/finalize
+        (no request body needed)
+    """
+    workspace_id = current_user.workspace_id
+
+    # Fetch session with workspace scoping
+    session = await get_or_404(db, Session, session_id, workspace_id)
+
+    # Validate at least one SOAP field has content
+    if not any(
+        [session.subjective, session.objective, session.assessment, session.plan]
+    ):
+        logger.warning(
+            "session_finalize_rejected_empty",
+            session_id=str(session_id),
+            workspace_id=str(workspace_id),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Cannot finalize session: at least one SOAP field must have content",
+        )
+
+    logger.info(
+        "session_finalize_started",
+        session_id=str(session_id),
+        workspace_id=str(workspace_id),
+    )
+
+    # Finalize session
+    session.finalized_at = datetime.now(UTC)
+    session.is_draft = False
+    session.version += 1
+
+    await db.commit()
+    await db.refresh(session)
+
+    logger.info(
+        "session_finalized",
+        session_id=str(session_id),
+        workspace_id=str(workspace_id),
+        finalized_at=session.finalized_at.isoformat(),
+    )
+
+    # Return response (PHI automatically decrypted)
+    return SessionResponse.model_validate(session)
+
+
 @router.delete("/{session_id}", status_code=204)
 async def delete_session(
     session_id: uuid.UUID,
@@ -415,6 +620,8 @@ async def delete_session(
     SECURITY: Verifies workspace ownership before allowing deletion.
     workspace_id is derived from JWT token (server-side).
 
+    PROTECTION: Finalized sessions cannot be deleted (immutable records).
+
     AUDIT: Deletion is automatically logged by AuditMiddleware.
 
     Args:
@@ -428,7 +635,8 @@ async def delete_session(
 
     Raises:
         HTTPException: 401 if not authenticated,
-            404 if not found, already deleted, or wrong workspace
+            404 if not found, already deleted, or wrong workspace,
+            422 if session is finalized (cannot delete finalized sessions)
 
     Example:
         DELETE /api/v1/sessions/{uuid}
@@ -446,8 +654,24 @@ async def delete_session(
             workspace_id=str(workspace_id),
         )
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Resource not found",
+        )
+
+    # Prevent deletion of finalized sessions
+    if session.finalized_at is not None:
+        logger.warning(
+            "session_delete_rejected_finalized",
+            session_id=str(session_id),
+            workspace_id=str(workspace_id),
+            finalized_at=session.finalized_at.isoformat(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "Cannot delete finalized sessions. "
+                "Finalized sessions are permanent records."
+            ),
         )
 
     # Soft delete: set deleted_at timestamp

@@ -35,9 +35,13 @@ const router = createRouter({
       name: 'auth-verify',
       component: () => import('@/views/AuthVerifyView.vue'),
     },
+    {
+      path: '/sessions/:id',
+      name: 'session-detail',
+      component: () => import('@/views/SessionView.vue'),
+    },
     // TODO: Add more routes as features are implemented
-    // - /sessions - Session notes
-    // - /sessions/:id - Session detail
+    // - /sessions - Session list view
   ],
 })
 
