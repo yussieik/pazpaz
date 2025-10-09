@@ -37,33 +37,28 @@ from pazpaz.utils.encryption import (
 # =============================================================================
 
 
-class EncryptedTestModel(Base):
-    """Test model with encrypted fields for integration testing."""
+class _TestBase(Base):
+    """
+    Separate declarative base for test-only models.
 
-    __tablename__ = "test_encrypted_model"
+    These models should NOT be registered in the production Base.metadata
+    to avoid conflicts with fixture cleanup. Test models must be manually
+    created/dropped within tests.
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    workspace_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=False,
-    )
+    NOTE: Prefixed with _ to avoid pytest collecting it as a test class.
+    """
 
-    # Encrypted fields using EncryptedString type
-    encrypted_text: Mapped[str | None] = mapped_column(
-        EncryptedString(1000),
-        nullable=True,
-    )
-
-    encrypted_required: Mapped[str] = mapped_column(
-        EncryptedString(500),
-        nullable=False,
-    )
+    __abstract__ = True
 
 
-class VersionedTestModel(Base):
-    """Test model with versioned encrypted fields."""
+class VersionedTestModel(_TestBase):
+    """Test model with versioned encrypted fields.
+
+    NOTE: This model is NOT automatically created by fixtures.
+    Tests must manually create/drop this table using:
+        async with test_db_engine.begin() as conn:
+            await conn.run_sync(VersionedTestModel.__table__.create)
+    """
 
     __tablename__ = "test_versioned_model"
 
@@ -306,69 +301,63 @@ def test_decrypt_field_invalid_ciphertext_size():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(
-    reason="SQLAlchemy type tests require manual verification"
-)
 async def test_encrypted_string_type_insert(
-    db: AsyncSession, workspace_1: Workspace, test_db_engine
+    db: AsyncSession, workspace_1: Workspace, test_user_ws1, sample_client_ws1
 ):
-    """Test 11: Insert with encryption using EncryptedString type."""
-    # Create test table using engine
-    async with test_db_engine.begin() as conn:
-        await conn.run_sync(EncryptedTestModel.__table__.create, checkfirst=True)
+    """Test 11: Insert with encryption using EncryptedString type (Session model)."""
+    from datetime import UTC, datetime
+    from pazpaz.models.session import Session
 
-    # Insert record with encrypted fields
-    test_record = EncryptedTestModel(
+    # Insert Session record with encrypted SOAP fields
+    session = Session(
         workspace_id=workspace_1.id,
-        encrypted_text="sensitive data",
-        encrypted_required="required encrypted field",
+        client_id=sample_client_ws1.id,
+        created_by_user_id=test_user_ws1.id,
+        session_date=datetime.now(UTC),
+        subjective="sensitive data",
+        objective="required encrypted field",
     )
-    db.add(test_record)
+    db.add(session)
     await db.commit()
-    await db.refresh(test_record)
+    await db.refresh(session)
 
     # Verify record was created
-    assert test_record.id is not None
-    assert test_record.encrypted_text == "sensitive data"
-    assert test_record.encrypted_required == "required encrypted field"
+    assert session.id is not None
+    assert session.subjective == "sensitive data"
+    assert session.objective == "required encrypted field"
 
     # Verify data is actually encrypted in database
     # Query the raw bytes from the database
     result = await db.execute(
-        select(EncryptedTestModel).where(EncryptedTestModel.id == test_record.id)
+        select(Session).where(Session.id == session.id)
     )
     retrieved = result.scalar_one()
 
     # The decrypted values should match (SQLAlchemy decrypts automatically)
-    assert retrieved.encrypted_text == "sensitive data"
-
-    # Cleanup
-    async with test_db_engine.begin() as conn:
-        await conn.run_sync(EncryptedTestModel.__table__.drop)
+    assert retrieved.subjective == "sensitive data"
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(
-    reason="SQLAlchemy type tests require manual verification"
-)
 async def test_encrypted_string_type_select(
-    db: AsyncSession, workspace_1: Workspace, test_db_engine
+    db: AsyncSession, workspace_1: Workspace, test_user_ws1, sample_client_ws1
 ):
-    """Test 12: Select with decryption using EncryptedString type."""
-    # Create test table
-    async with test_db_engine.begin() as conn:
-        await conn.run_sync(EncryptedTestModel.__table__.create, checkfirst=True)
+    """Test 12: Select with decryption using EncryptedString type (Session model)."""
+    from datetime import UTC, datetime
+    from pazpaz.models.session import Session
 
     # Insert record
     original_text = "confidential patient notes"
-    test_record = EncryptedTestModel(
+    session = Session(
         workspace_id=workspace_1.id,
-        encrypted_text=original_text,
-        encrypted_required="test",
+        client_id=sample_client_ws1.id,
+        created_by_user_id=test_user_ws1.id,
+        session_date=datetime.now(UTC),
+        subjective=original_text,
+        objective="test",
     )
-    db.add(test_record)
+    db.add(session)
     await db.commit()
-    record_id = test_record.id
+    record_id = session.id
 
     # Clear session to force re-fetch from database
     await db.commit()
@@ -376,101 +365,84 @@ async def test_encrypted_string_type_select(
 
     # Retrieve record (should decrypt automatically)
     result = await db.execute(
-        select(EncryptedTestModel).where(EncryptedTestModel.id == record_id)
+        select(Session).where(Session.id == record_id)
     )
     retrieved = result.scalar_one()
 
-    assert retrieved.encrypted_text == original_text
-    assert retrieved.encrypted_required == "test"
-
-    # Cleanup
-    async with test_db_engine.begin() as conn:
-        await conn.run_sync(EncryptedTestModel.__table__.drop)
+    assert retrieved.subjective == original_text
+    assert retrieved.objective == "test"
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(
-    reason="SQLAlchemy type tests require manual verification"
-)
 async def test_encrypted_string_type_none(
-    db: AsyncSession, workspace_1: Workspace, test_db_engine
+    db: AsyncSession, workspace_1: Workspace, test_user_ws1, sample_client_ws1
 ):
-    """Test 13: Handle NULL values with EncryptedString type."""
-    # Create test table
-    async with test_db_engine.begin() as conn:
-        await conn.run_sync(EncryptedTestModel.__table__.create, checkfirst=True)
+    """Test 13: Handle NULL values with EncryptedString type (Session model)."""
+    from datetime import UTC, datetime
+    from pazpaz.models.session import Session
 
     # Insert record with NULL encrypted field
-    test_record = EncryptedTestModel(
+    session = Session(
         workspace_id=workspace_1.id,
-        encrypted_text=None,  # NULL value
-        encrypted_required="test",
+        client_id=sample_client_ws1.id,
+        created_by_user_id=test_user_ws1.id,
+        session_date=datetime.now(UTC),
+        subjective=None,  # NULL value
+        objective="test",
     )
-    db.add(test_record)
+    db.add(session)
     await db.commit()
-    record_id = test_record.id
+    record_id = session.id
 
     # Retrieve and verify NULL is preserved
     result = await db.execute(
-        select(EncryptedTestModel).where(EncryptedTestModel.id == record_id)
+        select(Session).where(Session.id == record_id)
     )
     retrieved = result.scalar_one()
 
-    assert retrieved.encrypted_text is None
-    assert retrieved.encrypted_required == "test"
-
-    # Cleanup
-    async with test_db_engine.begin() as conn:
-        await conn.run_sync(EncryptedTestModel.__table__.drop)
+    assert retrieved.subjective is None
+    assert retrieved.objective == "test"
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(
-    reason="SQLAlchemy type tests require manual verification"
-)
 async def test_encrypted_string_type_update(
-    db: AsyncSession, workspace_1: Workspace, test_db_engine
+    db: AsyncSession, workspace_1: Workspace, test_user_ws1, sample_client_ws1
 ):
-    """Test 14: Update encrypted field."""
-    # Create test table
-    async with test_db_engine.begin() as conn:
-        await conn.run_sync(EncryptedTestModel.__table__.create, checkfirst=True)
+    """Test 14: Update encrypted field (Session model)."""
+    from datetime import UTC, datetime
+    from pazpaz.models.session import Session
 
     # Insert record
-    test_record = EncryptedTestModel(
+    session = Session(
         workspace_id=workspace_1.id,
-        encrypted_text="original value",
-        encrypted_required="test",
+        client_id=sample_client_ws1.id,
+        created_by_user_id=test_user_ws1.id,
+        session_date=datetime.now(UTC),
+        subjective="original value",
+        objective="test",
     )
-    db.add(test_record)
+    db.add(session)
     await db.commit()
-    record_id = test_record.id
+    record_id = session.id
 
     # Update encrypted field
-    test_record.encrypted_text = "updated value"
+    session.subjective = "updated value"
     await db.commit()
 
     # Retrieve and verify update
-    await db.refresh(test_record)
-    assert test_record.encrypted_text == "updated value"
+    await db.refresh(session)
+    assert session.subjective == "updated value"
 
     # Verify from fresh query
     db.expunge_all()
     result = await db.execute(
-        select(EncryptedTestModel).where(EncryptedTestModel.id == record_id)
+        select(Session).where(Session.id == record_id)
     )
     retrieved = result.scalar_one()
-    assert retrieved.encrypted_text == "updated value"
-
-    # Cleanup
-    async with test_db_engine.begin() as conn:
-        await conn.run_sync(EncryptedTestModel.__table__.drop)
+    assert retrieved.subjective == "updated value"
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(
-    reason="SQLAlchemy type tests require manual verification"
-)
 async def test_encrypted_string_versioned_type(
     db: AsyncSession, workspace_1: Workspace, test_db_engine
 ):

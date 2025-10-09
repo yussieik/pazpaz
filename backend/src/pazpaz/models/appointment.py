@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from pazpaz.models.client import Client
     from pazpaz.models.location import Location
     from pazpaz.models.service import Service
+    from pazpaz.models.session import Session
     from pazpaz.models.workspace import Workspace
 
 
@@ -131,6 +132,11 @@ class Appointment(Base):
     location: Mapped[Location | None] = relationship(
         "Location",
         back_populates="appointments",
+    )
+    session: Mapped[Session | None] = relationship(
+        "Session",
+        back_populates="appointment",
+        uselist=False,
     )
 
     # Indexes for performance-critical queries

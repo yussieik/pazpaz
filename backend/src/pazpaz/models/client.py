@@ -15,6 +15,7 @@ from pazpaz.db.base import Base
 
 if TYPE_CHECKING:
     from pazpaz.models.appointment import Appointment
+    from pazpaz.models.session import Session
     from pazpaz.models.workspace import Workspace
 
 
@@ -120,6 +121,11 @@ class Client(Base):
     )
     appointments: Mapped[list[Appointment]] = relationship(
         "Appointment",
+        back_populates="client",
+        cascade="all, delete-orphan",
+    )
+    sessions: Mapped[list[Session]] = relationship(
+        "Session",
         back_populates="client",
         cascade="all, delete-orphan",
     )
