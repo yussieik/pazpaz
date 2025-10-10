@@ -1029,3 +1029,102 @@ async def restore_session(
 
     # Return response (PHI automatically decrypted)
     return SessionResponse.model_validate(session)
+
+
+@router.delete("/{session_id}/permanent", status_code=204)
+async def permanently_delete_session(
+    session_id: uuid.UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """
+    Permanently delete a soft-deleted session (HARD DELETE).
+
+    This endpoint performs a true database deletion, permanently removing the
+    session record and all associated data. This action is irreversible.
+
+    SECURITY: Verifies workspace ownership before allowing deletion.
+    workspace_id is derived from JWT token (server-side).
+
+    RESTRICTIONS:
+    - Can only permanently delete sessions that are already soft-deleted
+    - Cannot delete active (non-deleted) sessions - use DELETE /sessions/{id} first
+
+    AUDIT: Permanent deletion is logged in audit trail before record removal.
+
+    Args:
+        session_id: UUID of the session to permanently delete
+        request: FastAPI request object (for audit logging)
+        current_user: Authenticated user (from JWT token)
+        db: Database session
+
+    Returns:
+        No content (204) on success
+
+    Raises:
+        HTTPException: 401 if not authenticated,
+            404 if not found or wrong workspace,
+            422 if session is not soft-deleted (must soft-delete first)
+
+    Example:
+        DELETE /api/v1/sessions/{uuid}/permanent
+    """
+    workspace_id = current_user.workspace_id
+
+    # Fetch session with workspace scoping (include soft-deleted)
+    session = await get_or_404(
+        db=db,
+        model_class=Session,
+        resource_id=session_id,
+        workspace_id=workspace_id,
+        include_deleted=True,
+    )
+
+    # Verify session is actually soft-deleted
+    if session.deleted_at is None:
+        logger.warning(
+            "permanent_delete_not_soft_deleted",
+            session_id=str(session_id),
+            workspace_id=str(workspace_id),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Session must be soft-deleted before permanent deletion. Use DELETE /sessions/{id} first.",
+        )
+
+    logger.info(
+        "session_permanent_delete_started",
+        session_id=str(session_id),
+        workspace_id=str(workspace_id),
+        was_finalized=session.finalized_at is not None,
+        deleted_at=session.deleted_at.isoformat(),
+    )
+
+    # Create audit log BEFORE deletion (record will be gone after)
+    await create_audit_event(
+        db=db,
+        user_id=current_user.id,
+        workspace_id=workspace_id,
+        action=AuditAction.DELETE,
+        resource_type=ResourceType.SESSION,
+        resource_id=session_id,
+        metadata={
+            "permanent_delete": True,
+            "was_soft_deleted": True,
+            "was_finalized": session.finalized_at is not None,
+            "amendment_count": session.amendment_count,
+            "deleted_at": session.deleted_at.isoformat(),
+            "deletion_reason": session.deleted_reason,
+        },
+    )
+
+    # HARD DELETE: Remove from database permanently
+    await db.delete(session)
+    await db.commit()
+
+    logger.info(
+        "session_permanently_deleted",
+        session_id=str(session_id),
+        workspace_id=str(workspace_id),
+    )

@@ -166,12 +166,10 @@ async function permanentlyDeleteSession(session: SessionResponse) {
   deletingNoteId.value = session.id
 
   try {
-    await apiClient.delete(`/sessions/${session.id}`)
+    await apiClient.delete(`/sessions/${session.id}/permanent`)
 
-    // Show info message
     showInfo('Session note permanently deleted')
 
-    // Remove from local list
     deletedNotes.value = deletedNotes.value.filter((s) => s.id !== session.id)
   } catch (err) {
     console.error('Failed to permanently delete session:', err)
