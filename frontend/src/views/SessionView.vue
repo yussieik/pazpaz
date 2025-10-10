@@ -16,6 +16,7 @@
 
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { onKeyStroke } from '@vueuse/core'
 import apiClient from '@/api/client'
 import type { AxiosError } from 'axios'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -185,6 +186,12 @@ function goBack() {
 // Lifecycle
 onMounted(() => {
   loadSession()
+})
+
+// Keyboard shortcuts
+onKeyStroke('Escape', (e) => {
+  e.preventDefault()
+  goBack()
 })
 </script>
 
