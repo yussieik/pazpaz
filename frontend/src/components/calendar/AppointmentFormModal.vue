@@ -8,6 +8,7 @@ import type {
 } from '@/types/calendar'
 import { checkAppointmentConflicts } from '@/api/client'
 import ClientCombobox from '@/components/clients/ClientCombobox.vue'
+import TimePickerDropdown from '@/components/common/TimePickerDropdown.vue'
 
 interface Props {
   visible: boolean
@@ -35,9 +36,12 @@ const formData = ref<AppointmentFormData>({
   notes: '',
 })
 
+// Separate date field for the date picker (YYYY-MM-DD format)
+const appointmentDate = ref<string>('')
+
 // Template refs for auto-focus
 const clientComboboxRef = ref<InstanceType<typeof ClientCombobox>>()
-const startTimeInputRef = ref<HTMLInputElement>()
+const dateInputRef = ref<HTMLInputElement>()
 const locationSelectRef = ref<HTMLSelectElement>()
 
 // Validation
@@ -48,6 +52,10 @@ const conflicts = ref<ConflictingAppointment[]>([])
 const isCheckingConflicts = ref(false)
 const isInitialLoad = ref(true)
 const showAvailableIndicator = ref(false)
+
+// Duration management
+const previousStartTime = ref<string>('')
+const DEFAULT_DURATION_MINUTES = 60
 
 // Platform detection for keyboard shortcuts
 const isMac = computed(() => navigator.platform.toUpperCase().indexOf('MAC') >= 0)
@@ -83,6 +91,24 @@ function formatDateTimeForInput(date: Date): string {
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
+/**
+ * Helper: Add minutes to a datetime string
+ */
+function addMinutes(datetimeString: string, minutes: number): string {
+  const date = new Date(datetimeString)
+  date.setMinutes(date.getMinutes() + minutes)
+  return formatDateTimeForInput(date)
+}
+
+/**
+ * Helper: Calculate duration in minutes between two datetime strings
+ */
+function getDurationMinutes(start: string, end: string): number {
+  const startDate = new Date(start)
+  const endDate = new Date(end)
+  return Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60))
+}
+
 // Reset form when modal closes or set defaults when opening
 watch(
   () => props.visible,
@@ -106,11 +132,13 @@ watch(
         )
         formData.value.scheduled_end = formatDateTimeForInput(props.prefillDateTime.end)
       } else {
-        // Default to now + 1 hour (existing behavior for "+ New Appointment" button)
+        // Default to now with 60-minute duration
         const now = new Date()
-        const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000)
         formData.value.scheduled_start = formatDateTimeForInput(now)
-        formData.value.scheduled_end = formatDateTimeForInput(oneHourLater)
+        formData.value.scheduled_end = addMinutes(
+          formData.value.scheduled_start,
+          DEFAULT_DURATION_MINUTES
+        )
       }
 
       // Set other defaults
@@ -126,12 +154,12 @@ watch(
       nextTick(() => {
         // Context-aware focus logic:
         // 1. If client is NOT pre-filled → Focus Client combobox
-        // 2. If client IS pre-filled but Start Time is empty → Focus Start Time picker
-        // 3. If both client and Start Time are pre-filled → Focus Location dropdown
+        // 2. If client IS pre-filled but Date is empty → Focus Date picker
+        // 3. If both client and Date are pre-filled → Focus Location dropdown
         if (!formData.value.client_id) {
           clientComboboxRef.value?.inputRef?.focus()
-        } else if (!formData.value.scheduled_start) {
-          startTimeInputRef.value?.focus()
+        } else if (!appointmentDate.value) {
+          dateInputRef.value?.focus()
         } else {
           locationSelectRef.value?.focus()
         }
@@ -299,7 +327,30 @@ const checkConflicts = useDebounceFn(async () => {
   }
 }, 500)
 
-// Watch time fields for changes
+// Watch start time changes to preserve duration
+watch(
+  () => formData.value.scheduled_start,
+  (newStart, oldStart) => {
+    // Skip if:
+    // 1. Initial load or form reset (oldStart is empty)
+    // 2. No end time set yet
+    if (!oldStart || !formData.value.scheduled_end || isInitialLoad.value) {
+      previousStartTime.value = newStart
+      return
+    }
+
+    // Calculate current duration from old start to end
+    const currentDuration = getDurationMinutes(oldStart, formData.value.scheduled_end)
+
+    // Apply same duration to new start time
+    formData.value.scheduled_end = addMinutes(newStart, currentDuration)
+
+    // Store for next change
+    previousStartTime.value = newStart
+  }
+)
+
+// Watch time fields for conflict detection
 watch(
   () => [formData.value.scheduled_start, formData.value.scheduled_end],
   () => {
@@ -323,6 +374,11 @@ const submitButtonText = computed(() =>
 const isPastAppointment = computed(() => {
   if (!formData.value.scheduled_start) return false
   return new Date(formData.value.scheduled_start) < new Date()
+})
+
+const calculatedDuration = computed(() => {
+  if (!formData.value.scheduled_start || !formData.value.scheduled_end) return 0
+  return getDurationMinutes(formData.value.scheduled_start, formData.value.scheduled_end)
 })
 
 // Helper functions for formatting conflict details in status area
@@ -357,6 +413,60 @@ function getLocationLabel(locationType: string): string {
 const isClientLocked = computed(() => {
   return props.mode === 'create' && !!props.prefillClientId
 })
+
+/**
+ * Set duration by adjusting end time relative to start time
+ */
+function setDuration(minutes: number) {
+  if (!formData.value.scheduled_start) return
+
+  formData.value.scheduled_end = addMinutes(formData.value.scheduled_start, minutes)
+}
+
+/**
+ * Extract date in YYYY-MM-DD format from datetime string
+ */
+function extractDate(datetimeString: string): string {
+  if (!datetimeString) return ''
+  const date = new Date(datetimeString)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Watch for date changes and update start/end times accordingly
+ */
+watch(appointmentDate, (newDate) => {
+  if (!newDate || !formData.value.scheduled_start) return
+
+  // Extract time from current start/end
+  const startTime = new Date(formData.value.scheduled_start)
+  const endTime = new Date(formData.value.scheduled_end)
+
+  // Create new datetime with new date and existing times
+  const newStart = new Date(newDate)
+  newStart.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0)
+
+  const newEnd = new Date(newDate)
+  newEnd.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0)
+
+  formData.value.scheduled_start = formatDateTimeForInput(newStart)
+  formData.value.scheduled_end = formatDateTimeForInput(newEnd)
+})
+
+/**
+ * Sync appointmentDate when formData.scheduled_start changes
+ */
+watch(
+  () => formData.value.scheduled_start,
+  (newStart) => {
+    if (newStart) {
+      appointmentDate.value = extractDate(newStart)
+    }
+  }
+)
 </script>
 
 <template>
@@ -592,44 +702,74 @@ const isClientLocked = computed(() => {
               :help-text="isClientLocked ? 'Client is pre-selected' : undefined"
             />
 
-            <!-- Date and Time -->
+            <!-- Date -->
+            <div>
+              <label for="appointment-date" class="block text-sm font-medium text-slate-700">
+                Date <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="appointment-date"
+                ref="dateInputRef"
+                v-model="appointmentDate"
+                type="date"
+                aria-label="Appointment date"
+                class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <!-- Time Pickers -->
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <!-- Start Time -->
-              <div>
-                <label
-                  for="start-time"
-                  class="block text-sm font-medium text-slate-700"
-                >
-                  Start Time <span class="text-red-500">*</span>
-                </label>
-                <input
-                  id="start-time"
-                  ref="startTimeInputRef"
-                  v-model="formData.scheduled_start"
-                  type="datetime-local"
-                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  :class="{ 'border-red-500': errors.scheduled_start }"
-                />
-                <p v-if="errors.scheduled_start" class="mt-1 text-sm text-red-600">
-                  {{ errors.scheduled_start }}
-                </p>
-              </div>
+              <TimePickerDropdown
+                v-model="formData.scheduled_start"
+                label="Start Time *"
+                :error="errors.scheduled_start"
+                min-time="06:00"
+                max-time="22:00"
+                :interval="15"
+              />
 
               <!-- End Time -->
+              <TimePickerDropdown
+                v-model="formData.scheduled_end"
+                label="End Time *"
+                :error="errors.scheduled_end"
+                min-time="06:00"
+                max-time="22:00"
+                :interval="15"
+              />
+            </div>
+
+            <!-- Duration Display & Quick Duration Pills -->
+            <div v-if="formData.scheduled_start" class="space-y-3">
+              <!-- Duration Display -->
+              <div class="text-sm text-slate-600">
+                Duration: {{ calculatedDuration }} min
+              </div>
+
+              <!-- Quick Duration Pills -->
               <div>
-                <label for="end-time" class="block text-sm font-medium text-slate-700">
-                  End Time <span class="text-red-500">*</span>
+                <label class="block text-sm font-medium text-slate-700 mb-2">
+                  Quick Duration:
                 </label>
-                <input
-                  id="end-time"
-                  v-model="formData.scheduled_end"
-                  type="datetime-local"
-                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  :class="{ 'border-red-500': errors.scheduled_end }"
-                />
-                <p v-if="errors.scheduled_end" class="mt-1 text-sm text-red-600">
-                  {{ errors.scheduled_end }}
-                </p>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="duration in [30, 45, 60, 90]"
+                    :key="duration"
+                    type="button"
+                    @click="setDuration(duration)"
+                    :aria-label="`Set duration to ${duration} minutes`"
+                    :aria-pressed="calculatedDuration === duration"
+                    :class="[
+                      'px-3 py-1.5 text-sm rounded-full transition-all',
+                      calculatedDuration === duration
+                        ? 'border border-emerald-600 bg-emerald-50 text-emerald-900 font-medium'
+                        : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
+                    ]"
+                  >
+                    {{ duration }} min
+                  </button>
+                </div>
               </div>
             </div>
 

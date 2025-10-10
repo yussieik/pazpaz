@@ -3,7 +3,7 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useFocusTrap } from '@vueuse/integrations/useFocusTrap'
 import { useScrollLock } from '@vueuse/core'
 import type { AppointmentListItem, SessionStatus, AppointmentStatus } from '@/types/calendar'
-import { formatDate, calculateDuration } from '@/utils/calendar/dateFormatters'
+import { formatDate } from '@/utils/calendar/dateFormatters'
 import { getStatusBadgeClass } from '@/utils/calendar/appointmentHelpers'
 import { useAppointmentAutoSave } from '@/composables/useAppointmentAutoSave'
 import { useToast } from '@/composables/useToast'
@@ -11,6 +11,7 @@ import { useAppointmentsStore } from '@/stores/appointments'
 import AppointmentStatusCard from './AppointmentStatusCard.vue'
 import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentModal.vue'
 import AppointmentEditIndicator from '@/components/appointments/AppointmentEditIndicator.vue'
+import TimePickerDropdown from '@/components/common/TimePickerDropdown.vue'
 import { formatDistanceToNow, format as formatDateTime } from 'date-fns'
 
 const appointmentsStore = useAppointmentsStore()
@@ -65,6 +66,12 @@ const editableData = ref({
   notes: '',
 })
 
+// Separate date field for the date picker (YYYY-MM-DD format)
+const appointmentDate = ref<string>('')
+
+// Flag to prevent duration preservation during date changes
+const isUpdatingFromDateChange = ref(false)
+
 // Auto-save composable
 const autoSave = computed(() => {
   if (!props.appointment) return null
@@ -98,6 +105,24 @@ function formatDateTimeLocal(isoString: string): string {
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
   return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+/**
+ * Helper: Add minutes to a datetime string
+ */
+function addMinutes(datetimeString: string, minutes: number): string {
+  const date = new Date(datetimeString)
+  date.setMinutes(date.getMinutes() + minutes)
+  return formatDateTimeLocal(date.toISOString())
+}
+
+/**
+ * Helper: Calculate duration in minutes between two datetime strings
+ */
+function getDurationMinutes(start: string, end: string): number {
+  const startDate = new Date(start)
+  const endDate = new Date(end)
+  return Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60))
 }
 
 /**
@@ -138,6 +163,36 @@ watch(
     }
   },
   { immediate: true }
+)
+
+// Previous start time for duration preservation
+const previousStartTime = ref<string>('')
+
+// Watch start time changes to preserve duration
+watch(
+  () => editableData.value.scheduled_start,
+  (newStart, oldStart) => {
+    // Skip if updating from date change (end time is already set correctly)
+    if (isUpdatingFromDateChange.value) {
+      previousStartTime.value = newStart
+      return
+    }
+
+    // Skip if initial load or no old value
+    if (!oldStart || !editableData.value.scheduled_end) {
+      previousStartTime.value = newStart
+      return
+    }
+
+    // Calculate current duration from old start to end
+    const currentDuration = getDurationMinutes(oldStart, editableData.value.scheduled_end)
+
+    // Apply same duration to new start time
+    editableData.value.scheduled_end = addMinutes(newStart, currentDuration)
+
+    // Store for next change
+    previousStartTime.value = newStart
+  }
 )
 
 /**
@@ -370,6 +425,105 @@ async function handleDeleteConfirm(payload: {
 function handleDeleteCancel() {
   showDeleteModal.value = false
 }
+
+/**
+ * Computed property for calculated duration
+ */
+const calculatedDuration = computed(() => {
+  if (!editableData.value.scheduled_start || !editableData.value.scheduled_end) return 0
+  return getDurationMinutes(editableData.value.scheduled_start, editableData.value.scheduled_end)
+})
+
+/**
+ * Set duration by adjusting end time relative to start time
+ */
+function setDuration(minutes: number) {
+  if (!editableData.value.scheduled_start) return
+
+  editableData.value.scheduled_end = addMinutes(editableData.value.scheduled_start, minutes)
+  // Trigger auto-save for end time
+  handleDateTimeChange('scheduled_end')
+}
+
+/**
+ * Extract date in YYYY-MM-DD format from datetime string
+ */
+function extractDate(datetimeString: string): string {
+  if (!datetimeString) return ''
+  const date = new Date(datetimeString)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Watch for date changes and update start/end times accordingly
+ */
+watch(appointmentDate, async (newDate, oldDate) => {
+  if (!newDate || !editableData.value.scheduled_start) return
+
+  // Skip if date hasn't actually changed (prevent circular updates)
+  if (newDate === oldDate) return
+
+  // Set flag to prevent duration preservation watcher from interfering
+  isUpdatingFromDateChange.value = true
+
+  // Extract time from current start/end (these are in datetime-local format: YYYY-MM-DDTHH:mm)
+  const startTime = new Date(editableData.value.scheduled_start)
+  const endTime = new Date(editableData.value.scheduled_end)
+
+  // Parse new date components (YYYY-MM-DD format)
+  const [year, month, day] = newDate.split('-').map(Number)
+
+  // Create new datetime with new date and existing times (using local timezone)
+  const newStart = new Date(year, month - 1, day, startTime.getHours(), startTime.getMinutes(), 0, 0)
+  const newEnd = new Date(year, month - 1, day, endTime.getHours(), endTime.getMinutes(), 0, 0)
+
+  // Format as datetime-local (YYYY-MM-DDTHH:mm)
+  editableData.value.scheduled_start = formatDateTimeLocal(newStart.toISOString())
+  editableData.value.scheduled_end = formatDateTimeLocal(newEnd.toISOString())
+
+  // Wait for reactivity to settle before saving
+  await nextTick()
+
+  // Clear flag after updates complete
+  isUpdatingFromDateChange.value = false
+
+  // Save both start and end times together to avoid validation errors
+  if (props.appointment && autoSave.value) {
+    const startISO = parseDateTimeLocal(editableData.value.scheduled_start)
+    const endISO = parseDateTimeLocal(editableData.value.scheduled_end)
+
+    try {
+      // Update both fields in the store
+      await appointmentsStore.updateAppointment(props.appointment.id, {
+        scheduled_start: startISO,
+        scheduled_end: endISO,
+      })
+      emit('refresh')
+    } catch (error) {
+      console.error('Failed to update appointment dates:', error)
+    }
+  }
+})
+
+/**
+ * Sync appointmentDate when editableData.scheduled_start changes
+ * (but only if date portion actually changed to avoid circular updates)
+ */
+watch(
+  () => editableData.value.scheduled_start,
+  (newStart) => {
+    if (newStart) {
+      const newDateValue = extractDate(newStart)
+      // Only update if date actually changed (avoid circular updates)
+      if (newDateValue !== appointmentDate.value) {
+        appointmentDate.value = newDateValue
+      }
+    }
+  }
+)
 </script>
 
 <template>
@@ -580,45 +734,77 @@ function handleDeleteCancel() {
           <div class="space-y-4 px-6 py-6">
             <!-- Time Card (Editable) -->
             <div class="rounded-lg border border-slate-200 bg-white p-4">
-              <div class="mb-2 text-sm font-medium text-slate-500">Time</div>
+              <div class="mb-3 text-sm font-medium text-slate-500">Time</div>
+
+              <!-- Date -->
+              <div class="mb-3">
+                <label for="edit-date" class="block text-xs text-slate-500">
+                  Date
+                </label>
+                <input
+                  id="edit-date"
+                  v-model="appointmentDate"
+                  type="date"
+                  aria-label="Appointment date"
+                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
 
               <!-- Start Time -->
               <div class="mb-3">
-                <label for="edit-start-time" class="block text-xs text-slate-500">
-                  Start
-                </label>
-                <input
-                  id="edit-start-time"
+                <TimePickerDropdown
                   v-model="editableData.scheduled_start"
-                  type="datetime-local"
-                  @change="handleDateTimeChange('scheduled_start')"
-                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  label="Start"
+                  min-time="06:00"
+                  max-time="22:00"
+                  :interval="15"
+                  @update:model-value="handleDateTimeChange('scheduled_start')"
                 />
               </div>
 
               <!-- End Time -->
-              <div>
-                <label for="edit-end-time" class="block text-xs text-slate-500">
-                  End
-                </label>
-                <input
-                  id="edit-end-time"
+              <div class="mb-3">
+                <TimePickerDropdown
                   v-model="editableData.scheduled_end"
-                  type="datetime-local"
-                  @change="handleDateTimeChange('scheduled_end')"
-                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  label="End"
+                  min-time="06:00"
+                  max-time="22:00"
+                  :interval="15"
+                  @update:model-value="handleDateTimeChange('scheduled_end')"
                 />
               </div>
 
-              <!-- Duration Display -->
-              <div class="mt-2 text-sm text-slate-400">
-                Duration:
-                {{
-                  calculateDuration(
-                    editableData.scheduled_start,
-                    editableData.scheduled_end
-                  )
-                }}
+              <!-- Duration Display & Quick Duration Pills -->
+              <div class="mt-3 space-y-3">
+                <!-- Duration Display -->
+                <div class="text-sm text-slate-600">
+                  Duration: {{ calculatedDuration }} min
+                </div>
+
+                <!-- Quick Duration Pills -->
+                <div>
+                  <label class="block text-xs text-slate-500 mb-2">
+                    Quick Duration:
+                  </label>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      v-for="duration in [30, 45, 60, 90]"
+                      :key="duration"
+                      type="button"
+                      @click="setDuration(duration)"
+                      :aria-label="`Set duration to ${duration} minutes`"
+                      :aria-pressed="calculatedDuration === duration"
+                      :class="[
+                        'px-3 py-1.5 text-sm rounded-full transition-all',
+                        calculatedDuration === duration
+                          ? 'border border-emerald-600 bg-emerald-50 text-emerald-900 font-medium'
+                          : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
+                      ]"
+                    >
+                      {{ duration }} min
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
