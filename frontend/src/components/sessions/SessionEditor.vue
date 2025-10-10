@@ -12,7 +12,6 @@
  * - "Finalize" button to lock the note
  * - Loading states during save operations
  * - Character count for each SOAP field (5000 max)
- * - Unsaved changes warning when navigating away
  * - Read-only mode for finalized sessions
  *
  * Usage:
@@ -20,7 +19,6 @@
  */
 
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
 import { onKeyStroke } from '@vueuse/core'
 import { useAutosave } from '@/composables/useAutosave'
 import { useLocalStorage } from '@vueuse/core'
@@ -302,18 +300,8 @@ onKeyStroke(['Meta+Enter', 'Control+Enter'], (e) => {
   }
 })
 
-// Unsaved changes warning
-onBeforeRouteLeave((_to, _from, next) => {
-  if (hasUnsavedChanges.value && !isFinalized.value) {
-    const answer = window.confirm(
-      'You have unsaved changes. Are you sure you want to leave? Changes are autosaved every 5 seconds.'
-    )
-    if (!answer) {
-      return next(false)
-    }
-  }
-  next()
-})
+// Note: Removed unsaved changes warning - autosave handles persistence automatically
+// Users can safely navigate away as changes are saved every 5 seconds
 
 // Lifecycle hooks
 onMounted(() => {
