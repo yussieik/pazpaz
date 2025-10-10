@@ -6,24 +6,37 @@ import math
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from pazpaz.api.deps import get_current_user, get_db, get_or_404
+from pazpaz.api.deps import (
+    get_current_user,
+    get_db,
+    get_or_404,
+    verify_client_in_workspace,
+)
 from pazpaz.core.logging import get_logger
 from pazpaz.models.appointment import Appointment, AppointmentStatus
+from pazpaz.models.audit_event import AuditAction, ResourceType
 from pazpaz.models.client import Client
 from pazpaz.models.user import User
 from pazpaz.schemas.appointment import (
     AppointmentCreate,
+    AppointmentDeleteRequest,
     AppointmentListResponse,
     AppointmentResponse,
     AppointmentUpdate,
     ClientSummary,
     ConflictCheckResponse,
     ConflictingAppointmentDetail,
+)
+from pazpaz.services.audit_service import create_audit_event
+from pazpaz.utils.session_helpers import (
+    apply_soft_delete,
+    get_active_sessions_for_appointment,
+    validate_session_not_amended,
 )
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
@@ -121,29 +134,105 @@ def get_client_initials(client: Client) -> str:
         return "?"
 
 
-async def verify_client_in_workspace(
+async def validate_status_transition(
     db: AsyncSession,
-    client_id: uuid.UUID,
-    workspace_id: uuid.UUID,
-) -> Client:
+    appointment: Appointment,
+    new_status: AppointmentStatus,
+) -> None:
     """
-    Verify that a client exists and belongs to the workspace.
+    Validate appointment status transitions according to business rules.
 
-    SECURITY: Returns generic 404 error to prevent information leakage.
+    Valid transitions:
+    - scheduled → completed (always allowed)
+    - scheduled → cancelled (always allowed)
+    - scheduled → no_show (always allowed)
+    - completed → no_show (allowed - correction)
+    - completed → cancelled (blocked if session exists - data protection)
+    - cancelled → scheduled (allowed - restore)
+    - no_show → scheduled (allowed - correction)
+    - no_show → completed (allowed - correction)
+
+    Invalid transitions:
+    - completed → scheduled (data integrity)
+    - completed → cancelled (if session exists - data protection)
 
     Args:
         db: Database session
-        client_id: Client ID to verify
-        workspace_id: Expected workspace ID
-
-    Returns:
-        Client instance
+        appointment: Current appointment
+        new_status: Desired new status
 
     Raises:
-        HTTPException: 404 if client not found or belongs to different workspace
+        HTTPException: 400 if transition is invalid
     """
-    # Use generic helper for workspace-scoped fetch
-    return await get_or_404(db, Client, client_id, workspace_id)
+    current_status = appointment.status
+
+    # No change - always valid
+    if current_status == new_status:
+        return
+
+    # Transitions from SCHEDULED - all allowed
+    if current_status == AppointmentStatus.SCHEDULED:
+        return
+
+    # Transitions from COMPLETED
+    if current_status == AppointmentStatus.COMPLETED:
+        # completed → no_show: allowed (correction)
+        if new_status == AppointmentStatus.NO_SHOW:
+            return
+
+        # completed → cancelled: check for session
+        if new_status == AppointmentStatus.CANCELLED:
+            # Check if session exists using centralized helper
+            sessions = await get_active_sessions_for_appointment(db, appointment.id)
+
+            if sessions:
+                logger.warning(
+                    "status_transition_blocked",
+                    appointment_id=str(appointment.id),
+                    current_status=current_status.value,
+                    new_status=new_status.value,
+                    reason="session_exists",
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Cannot cancel completed appointment with existing "
+                        "session note. Delete the session note first to "
+                        "maintain data integrity."
+                    ),
+                )
+            return
+
+        # completed → scheduled: not allowed
+        if new_status == AppointmentStatus.SCHEDULED:
+            logger.warning(
+                "status_transition_blocked",
+                appointment_id=str(appointment.id),
+                current_status=current_status.value,
+                new_status=new_status.value,
+                reason="invalid_transition",
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Cannot change completed appointment back to scheduled. "
+                    "This prevents data integrity issues."
+                ),
+            )
+
+    # Transitions from CANCELLED
+    if current_status == AppointmentStatus.CANCELLED:
+        # cancelled → scheduled: allowed (restore)
+        if new_status == AppointmentStatus.SCHEDULED:
+            return
+        # Other transitions not typically needed but allow them
+        return
+
+    # Transitions from NO_SHOW
+    if current_status == AppointmentStatus.NO_SHOW:
+        # no_show → scheduled: allowed (correction)
+        # no_show → completed: allowed (correction)
+        return
 
 
 @router.post("", response_model=AppointmentResponse, status_code=201)
@@ -278,7 +367,8 @@ async def list_appointments(
     Returns a paginated list of appointments, ordered by scheduled_start descending.
     All results are scoped to the authenticated workspace.
 
-    SECURITY: Only returns appointments belonging to the authenticated user's workspace (from JWT).
+    SECURITY: Only returns appointments belonging to the authenticated user's
+    workspace (from JWT).
 
     Args:
         current_user: Authenticated user (from JWT token)
@@ -386,7 +476,8 @@ async def check_appointment_conflicts(
 
     Used by frontend to validate appointment times before submission.
 
-    SECURITY: Only checks conflicts within the authenticated user's workspace (from JWT).
+    SECURITY: Only checks conflicts within the authenticated user's workspace
+    (from JWT).
 
     Args:
         current_user: Authenticated user (from JWT token)
@@ -477,7 +568,8 @@ async def get_appointment(
     Retrieves an appointment by ID, ensuring it belongs to the authenticated workspace.
 
     SECURITY: Returns 404 for both non-existent appointments and appointments
-    in other workspaces to prevent information leakage. workspace_id is derived from JWT token.
+    in other workspaces to prevent information leakage. workspace_id is derived
+    from JWT token.
 
     Args:
         appointment_id: UUID of the appointment
@@ -577,6 +669,14 @@ async def update_appointment(
             workspace_id=workspace_id,
         )
 
+    # If status is being updated, validate the transition
+    if "status" in update_data:
+        await validate_status_transition(
+            db=db,
+            appointment=appointment,
+            new_status=update_data["status"],
+        )
+
     # Determine final scheduled times for conflict check
     final_start = update_data.get("scheduled_start", appointment.scheduled_start)
     final_end = update_data.get("scheduled_end", appointment.scheduled_end)
@@ -616,9 +716,51 @@ async def update_appointment(
                 },
             )
 
+    # Track field-level changes for audit log
+    changes = {}
+    for field, new_value in update_data.items():
+        old_value = getattr(appointment, field)
+        if old_value != new_value:
+            # Format values for audit log (convert enums, datetimes to strings)
+            if hasattr(old_value, "value"):  # Enum
+                old_str = old_value.value
+            elif hasattr(old_value, "isoformat"):  # datetime
+                old_str = old_value.isoformat()
+            else:
+                old_str = str(old_value)
+
+            if hasattr(new_value, "value"):  # Enum
+                new_str = new_value.value
+            elif hasattr(new_value, "isoformat"):  # datetime
+                new_str = new_value.isoformat()
+            else:
+                new_str = str(new_value)
+
+            changes[field] = {"old": old_str, "new": new_str}
+
     # Update fields
     for field, value in update_data.items():
         setattr(appointment, field, value)
+
+    # Update edit tracking if there were actual changes
+    if changes:
+        appointment.edited_at = datetime.now()
+        appointment.edit_count += 1
+
+        # Create audit log entry with field-level changes
+        await create_audit_event(
+            db=db,
+            user_id=current_user.id,
+            workspace_id=workspace_id,
+            action=AuditAction.UPDATE,
+            resource_type=ResourceType.APPOINTMENT,
+            resource_id=appointment_id,
+            metadata={
+                "appointment_status": appointment.status.value,
+                "changes": changes,
+                "edit_count": appointment.edit_count,
+            },
+        )
 
     await db.commit()
     await db.refresh(appointment)
@@ -650,18 +792,34 @@ async def delete_appointment(
     appointment_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    deletion_request: AppointmentDeleteRequest | None = Body(None),
 ) -> None:
     """
-    Delete an appointment.
+    Delete an appointment with optional session note handling.
 
-    Permanently deletes an appointment and associated data (sessions, etc.)
-    due to CASCADE delete. Appointment must belong to the authenticated workspace.
+    Permanently deletes an appointment. If appointment has attached session notes,
+    you can choose to:
+    - soft delete them (30-day grace period for restoration)
+    - keep them unchanged (default)
+
+    SOFT DELETE: Session notes are soft-deleted with 30-day grace period.
+    After 30 days, they will be permanently purged by a background job.
+
+    VALIDATION: Cannot delete session notes that have been amended (amendment_count > 0)
+    due to medical-legal significance.
 
     SECURITY: Verifies workspace ownership before allowing deletion.
     workspace_id is derived from JWT token (server-side).
 
+    AUDIT: Comprehensive audit logging includes:
+    - Appointment status at deletion
+    - Whether session note existed and action taken
+    - Optional deletion reasons (appointment and session)
+    - Client/service context for forensic review
+
     Args:
         appointment_id: UUID of the appointment to delete
+        deletion_request: Optional deletion reason and session note action
         current_user: Authenticated user (from JWT token)
         db: Database session
 
@@ -670,11 +828,134 @@ async def delete_appointment(
 
     Raises:
         HTTPException: 401 if not authenticated,
-            404 if not found or wrong workspace
+            404 if not found or wrong workspace,
+            422 if trying to delete amended session notes
+
+    Example:
+        DELETE /api/v1/appointments/{uuid}
+        {
+          "reason": "Duplicate entry - scheduled twice by mistake",
+          "session_note_action": "delete",
+          "deletion_reason": "Incorrect session data, will recreate"
+        }
     """
     workspace_id = current_user.workspace_id
+
     # Fetch existing appointment with workspace scoping (raises 404 if not found)
-    appointment = await get_or_404(db, Appointment, appointment_id, workspace_id)
+    # Load client relationship for audit logging
+    query = (
+        select(Appointment)
+        .where(
+            Appointment.id == appointment_id,
+            Appointment.workspace_id == workspace_id,
+        )
+        .options(selectinload(Appointment.client))
+    )
+    result = await db.execute(query)
+    appointment = result.scalar_one_or_none()
+
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    # Check if session note(s) exist using centralized helper
+    # Get ALL sessions (not just first) to handle edge case of multiple sessions
+    sessions = await get_active_sessions_for_appointment(db, appointment_id)
+    had_session_note = len(sessions) > 0
+
+    # Log warning if multiple sessions found (edge case that shouldn't happen)
+    if len(sessions) > 1:
+        logger.warning(
+            "multiple_sessions_on_appointment",
+            appointment_id=str(appointment_id),
+            session_count=len(sessions),
+            workspace_id=str(workspace_id),
+            session_ids=[str(s.id) for s in sessions],
+            extra={"structured": True},
+        )
+
+    # Gather deletion context
+    appointment_deletion_reason = deletion_request.reason if deletion_request else None
+    session_note_action = (
+        deletion_request.session_note_action if deletion_request else None
+    )
+    session_deletion_reason = (
+        deletion_request.deletion_reason if deletion_request else None
+    )
+
+    # Handle session note deletion if requested
+    session_was_soft_deleted = False
+    if had_session_note and session_note_action == "delete":
+        # Validate: cannot delete amended notes (medical-legal significance)
+        # Check ALL sessions - if ANY has been amended, block deletion using utility
+        for session in sessions:
+            validate_session_not_amended(session)
+
+        # Soft delete ALL sessions using utility function
+        for session in sessions:
+            apply_soft_delete(
+                session=session,
+                deleted_by_user_id=current_user.id,
+                deletion_reason=session_deletion_reason,
+            )
+
+            # Create audit log for each session soft delete
+            await create_audit_event(
+                db=db,
+                user_id=current_user.id,
+                workspace_id=workspace_id,
+                action=AuditAction.DELETE,
+                resource_type=ResourceType.SESSION,
+                resource_id=session.id,
+                metadata={
+                    "soft_delete": True,
+                    "deleted_with_appointment": True,
+                    "appointment_id": str(appointment_id),
+                    "permanent_delete_after": (
+                        session.permanent_delete_after.isoformat()
+                    ),
+                    "deleted_reason": session_deletion_reason,
+                    "was_finalized": session.finalized_at is not None,
+                },
+            )
+
+            logger.info(
+                "session_soft_deleted_with_appointment",
+                session_id=str(session.id),
+                appointment_id=str(appointment_id),
+                workspace_id=str(workspace_id),
+                permanent_delete_after=session.permanent_delete_after.isoformat(),
+            )
+
+        session_was_soft_deleted = True
+
+    # Create comprehensive audit log entry for appointment deletion
+    await create_audit_event(
+        db=db,
+        user_id=current_user.id,
+        workspace_id=workspace_id,
+        action=AuditAction.DELETE,
+        resource_type=ResourceType.APPOINTMENT,
+        resource_id=appointment_id,
+        metadata={
+            "appointment_status": appointment.status.value,
+            "had_session_note": had_session_note,
+            "session_note_action": session_note_action or "keep",
+            "session_was_soft_deleted": session_was_soft_deleted,
+            "scheduled_start": appointment.scheduled_start.isoformat(),
+            "scheduled_end": appointment.scheduled_end.isoformat(),
+            "location_type": appointment.location_type.value,
+            "deletion_provided": appointment_deletion_reason is not None,
+        },
+    )
+
+    # Delete appointment (CASCADE will NOT delete soft-deleted sessions since
+    # appointment_id is SET NULL on delete, not CASCADE)
+    # If session was soft-deleted, it stays in DB but unlinked from appointment
+    # If action was "keep" (or not specified), sessions stay active and linked
+    if had_session_note and session_note_action != "delete":
+        # Unlink ALL sessions from appointment (SET NULL) but keep them active
+        for session in sessions:
+            session.appointment_id = None
 
     await db.delete(appointment)
     await db.commit()
@@ -683,4 +964,9 @@ async def delete_appointment(
         "appointment_deleted",
         appointment_id=str(appointment_id),
         workspace_id=str(workspace_id),
+        status=appointment.status.value,
+        had_session_note=had_session_note,
+        session_note_action=session_note_action or "keep",
+        session_was_soft_deleted=session_was_soft_deleted,
+        deletion_reason_provided=appointment_deletion_reason is not None,
     )

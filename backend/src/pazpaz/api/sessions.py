@@ -10,47 +10,38 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pazpaz.api.deps import get_current_user, get_db, get_or_404
+from pazpaz.api.deps import (
+    get_current_user,
+    get_db,
+    get_or_404,
+    verify_client_in_workspace,
+)
 from pazpaz.core.logging import get_logger
 from pazpaz.core.rate_limiting import check_rate_limit_redis
 from pazpaz.core.redis import get_redis
-from pazpaz.models.client import Client
+from pazpaz.models.appointment import Appointment, AppointmentStatus
+from pazpaz.models.audit_event import AuditAction, ResourceType
 from pazpaz.models.session import Session
+from pazpaz.models.session_version import SessionVersion
 from pazpaz.models.user import User
 from pazpaz.schemas.session import (
     SessionCreate,
+    SessionDeleteRequest,
     SessionDraftUpdate,
     SessionListResponse,
     SessionResponse,
     SessionUpdate,
+    SessionVersionResponse,
+)
+from pazpaz.services.audit_service import create_audit_event
+from pazpaz.utils.session_helpers import (
+    apply_soft_delete,
+    clear_soft_delete_metadata,
+    is_grace_period_expired,
 )
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 logger = get_logger(__name__)
-
-
-async def verify_client_in_workspace(
-    db: AsyncSession,
-    client_id: uuid.UUID,
-    workspace_id: uuid.UUID,
-) -> Client:
-    """
-    Verify that a client exists and belongs to the workspace.
-
-    SECURITY: Returns generic 404 error to prevent information leakage.
-
-    Args:
-        db: Database session
-        client_id: Client ID to verify
-        workspace_id: Expected workspace ID
-
-    Returns:
-        Client instance
-
-    Raises:
-        HTTPException: 404 if client not found or belongs to different workspace
-    """
-    return await get_or_404(db, Client, client_id, workspace_id)
 
 
 @router.post("", response_model=SessionResponse, status_code=201)
@@ -130,6 +121,26 @@ async def create_session(
     )
 
     db.add(session)
+
+    # If appointment_id provided and appointment is scheduled, auto-complete it
+    if session_data.appointment_id:
+        query = select(Appointment).where(
+            Appointment.id == session_data.appointment_id,
+            Appointment.workspace_id == workspace_id,
+        )
+        result = await db.execute(query)
+        appointment = result.scalar_one_or_none()
+
+        if appointment and appointment.status == AppointmentStatus.SCHEDULED:
+            appointment.status = AppointmentStatus.COMPLETED
+            logger.info(
+                "appointment_auto_completed",
+                appointment_id=str(appointment.id),
+                session_id=str(session.id),
+                workspace_id=str(workspace_id),
+                reason="session_created",
+            )
+
     await db.commit()
     await db.refresh(session)
 
@@ -203,80 +214,114 @@ async def list_sessions(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(50, ge=1, le=100, description="Items per page"),
     client_id: uuid.UUID | None = Query(
-        None, description="Filter by client ID (required for list operations)"
+        None, description="Filter by client ID (optional if appointment_id provided)"
+    ),
+    appointment_id: uuid.UUID | None = Query(
+        None, description="Filter by appointment ID (optional if client_id provided)"
     ),
     is_draft: bool | None = Query(None, description="Filter by draft status"),
+    include_deleted: bool = Query(
+        False, description="Include soft-deleted sessions (for restoration)"
+    ),
 ) -> SessionListResponse:
     """
-    List sessions with optional filters.
+    List sessions for a client or appointment.
 
     Returns a paginated list of sessions, ordered by session_date descending.
     All results are scoped to the authenticated workspace.
 
-    SECURITY: Only returns sessions belonging to the authenticated user's
-    workspace (from JWT). Requires client_id filter to prevent accidental
-    exposure of all sessions.
+    Query Parameters:
+        client_id: Filter sessions by client ID (optional if appointment_id
+            provided)
+        appointment_id: Filter sessions by appointment ID (optional if
+            client_id provided)
+        page: Page number (default: 1)
+        page_size: Items per page (default: 50, max: 100)
+        is_draft: Filter by draft status (optional)
+        include_deleted: Include soft-deleted sessions (default: false)
 
-    PERFORMANCE: Uses ix_sessions_workspace_client_date index for optimal
-    query performance.
+    Note: At least one of client_id or appointment_id must be provided.
+
+    SECURITY: Only returns sessions belonging to the authenticated user's
+    workspace (from JWT). Requires either client_id or appointment_id filter
+    to prevent accidental exposure of all sessions.
+
+    PERFORMANCE: Uses ix_sessions_workspace_client_date or
+    ix_sessions_workspace_appointment indexes for optimal query performance.
 
     Args:
         current_user: Authenticated user (from JWT token)
         db: Database session
         page: Page number (1-indexed)
         page_size: Number of items per page (max 100)
-        client_id: Filter by specific client (REQUIRED)
+        client_id: Filter by specific client (optional)
+        appointment_id: Filter by specific appointment (optional)
         is_draft: Filter by draft status (optional)
 
     Returns:
         Paginated list of sessions with decrypted PHI fields
 
     Raises:
-        HTTPException: 401 if not authenticated, 422 if client_id not provided
+        HTTPException: 401 if not authenticated,
+            400 if neither client_id nor appointment_id provided,
+            404 if client/appointment not found in workspace
 
     Example:
         GET /api/v1/sessions?client_id={uuid}&page=1&page_size=50&is_draft=true
+        GET /api/v1/sessions?appointment_id={uuid}
     """
     workspace_id = current_user.workspace_id
 
-    # Require client_id filter to prevent accidental broad queries
-    if not client_id:
+    # Validate: must provide either client_id or appointment_id
+    if not client_id and not appointment_id:
         raise HTTPException(
-            status_code=422,
-            detail="client_id parameter is required for listing sessions",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Must provide either client_id or appointment_id parameter",
         )
 
     logger.debug(
         "session_list_started",
         workspace_id=str(workspace_id),
-        client_id=str(client_id),
+        client_id=str(client_id) if client_id else None,
+        appointment_id=str(appointment_id) if appointment_id else None,
         page=page,
         page_size=page_size,
         is_draft=is_draft,
     )
 
-    # Verify client belongs to workspace
-    await verify_client_in_workspace(
-        db=db,
-        client_id=client_id,
-        workspace_id=workspace_id,
-    )
+    # Build base query with workspace scoping
+    base_query = select(Session).where(Session.workspace_id == workspace_id)
 
-    # Calculate offset
-    offset = (page - 1) * page_size
+    # Filter deleted sessions unless explicitly requested
+    if not include_deleted:
+        base_query = base_query.where(Session.deleted_at.is_(None))
 
-    # Build base query with workspace and client scoping
-    # Uses ix_sessions_workspace_client_date index
-    # (workspace_id, client_id, session_date DESC)
-    base_query = select(Session).where(
-        Session.workspace_id == workspace_id,
-        Session.client_id == client_id,
-        Session.deleted_at.is_(None),  # Only active sessions
-    )
+    # Apply filters
+    if client_id:
+        # Verify client belongs to workspace
+        await verify_client_in_workspace(
+            db=db,
+            client_id=client_id,
+            workspace_id=workspace_id,
+        )
+        base_query = base_query.where(Session.client_id == client_id)
+
+    if appointment_id:
+        # Verify appointment belongs to workspace
+        await get_or_404(
+            db=db,
+            model_class=Appointment,
+            resource_id=appointment_id,
+            workspace_id=workspace_id,
+        )
+        base_query = base_query.where(Session.appointment_id == appointment_id)
 
     # Apply draft filter if provided
     if is_draft is not None:
         base_query = base_query.where(Session.is_draft == is_draft)
+
+    # Calculate offset
+    offset = (page - 1) * page_size
 
     # Get total count
     count_query = select(func.count()).select_from(base_query.subquery())
@@ -299,9 +344,12 @@ async def list_sessions(
     logger.debug(
         "session_list_completed",
         workspace_id=str(workspace_id),
-        client_id=str(client_id),
+        client_id=str(client_id) if client_id else None,
+        appointment_id=str(appointment_id) if appointment_id else None,
         total_sessions=total,
         page=page,
+        page_size=page_size,
+        extra={"structured": True},
     )
 
     return SessionListResponse(
@@ -374,14 +422,71 @@ async def update_session(
         session_id=str(session_id),
         workspace_id=str(workspace_id),
         updated_fields=list(update_data.keys()),
+        is_finalized=session.finalized_at is not None,
     )
+
+    # Track which SOAP fields are being changed (for amendment audit)
+    sections_changed = []
+    soap_fields = ["subjective", "objective", "assessment", "plan"]
+    for field in soap_fields:
+        if field in update_data and getattr(session, field) != update_data[field]:
+            sections_changed.append(field)
+
+    # If session is finalized, create new version before applying changes
+    if session.finalized_at is not None:
+        # Create new version (preserve current state BEFORE edit)
+        new_version_number = (
+            session.amendment_count + 2
+        )  # v1 = original, v2+ = amendments
+        version = SessionVersion(
+            session_id=session.id,
+            version_number=new_version_number,
+            subjective=session.subjective,  # Current values BEFORE edit
+            objective=session.objective,
+            assessment=session.assessment,
+            plan=session.plan,
+            created_at=datetime.now(UTC),
+            created_by_user_id=current_user.id,
+        )
+        db.add(version)
+
+        # Update amendment tracking
+        session.amended_at = datetime.now(UTC)
+        session.amendment_count += 1
+
+        # Create audit log entry for amendment
+        await create_audit_event(
+            db=db,
+            user_id=current_user.id,
+            workspace_id=workspace_id,
+            action=AuditAction.UPDATE,
+            resource_type=ResourceType.SESSION,
+            resource_id=session_id,
+            metadata={
+                "amendment": True,
+                "original_finalized_at": session.finalized_at.isoformat(),
+                "amendment_count": session.amendment_count,
+                "sections_changed": sections_changed,
+                "previous_version_number": new_version_number - 1,
+            },
+        )
+
+        logger.info(
+            "session_amended",
+            session_id=str(session_id),
+            workspace_id=str(workspace_id),
+            amendment_count=session.amendment_count,
+            version_created=new_version_number,
+            sections_changed=sections_changed,
+        )
 
     # Update fields (PHI fields automatically encrypted)
     for field, value in update_data.items():
         setattr(session, field, value)
 
-    # Update draft metadata
-    session.draft_last_saved_at = datetime.now(UTC)
+    # Update draft metadata (if still draft)
+    if session.is_draft:
+        session.draft_last_saved_at = datetime.now(UTC)
 
     # Increment version for optimistic locking
     session.version += 1
@@ -394,6 +499,7 @@ async def update_session(
         session_id=str(session_id),
         workspace_id=str(workspace_id),
         new_version=session.version,
+        was_amendment=session.finalized_at is not None,
     )
 
     # Return response (PHI automatically decrypted)
@@ -585,10 +691,36 @@ async def finalize_session(
         workspace_id=str(workspace_id),
     )
 
+    # Check if already finalized
+    if session.finalized_at is not None:
+        logger.warning(
+            "session_already_finalized",
+            session_id=str(session_id),
+            workspace_id=str(workspace_id),
+            finalized_at=session.finalized_at.isoformat(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Session is already finalized",
+        )
+
     # Finalize session
     session.finalized_at = datetime.now(UTC)
     session.is_draft = False
     session.version += 1
+
+    # Create version 1 (original snapshot)
+    version = SessionVersion(
+        session_id=session.id,
+        version_number=1,
+        subjective=session.subjective,
+        objective=session.objective,
+        assessment=session.assessment,
+        plan=session.plan,
+        created_at=session.finalized_at,
+        created_by_user_id=current_user.id,
+    )
+    db.add(version)
 
     await db.commit()
     await db.refresh(session)
@@ -598,10 +730,86 @@ async def finalize_session(
         session_id=str(session_id),
         workspace_id=str(workspace_id),
         finalized_at=session.finalized_at.isoformat(),
+        version_created=1,
     )
 
     # Return response (PHI automatically decrypted)
     return SessionResponse.model_validate(session)
+
+
+@router.get("/{session_id}/versions", response_model=list[SessionVersionResponse])
+async def get_session_versions(
+    session_id: uuid.UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[SessionVersionResponse]:
+    """
+    Get version history for a session note.
+
+    Returns all versions of a session note in reverse chronological order
+    (most recent first). Only finalized sessions have versions.
+
+    SECURITY: Verifies workspace ownership before allowing access.
+    workspace_id is derived from JWT token (server-side).
+
+    AUDIT: PHI access is automatically logged by AuditMiddleware.
+
+    Args:
+        session_id: UUID of the session
+        request: FastAPI request object (for audit logging)
+        current_user: Authenticated user (from JWT token)
+        db: Database session
+
+    Returns:
+        List of session versions with decrypted PHI fields
+
+    Raises:
+        HTTPException: 401 if not authenticated,
+            404 if not found or wrong workspace
+
+    Example:
+        GET /api/v1/sessions/{uuid}/versions
+        Response: [
+          {
+            "id": "version-uuid-2",
+            "session_id": "session-uuid",
+            "version_number": 2,
+            "subjective": "Amended note...",
+            "created_at": "2025-01-16T09:15:00Z"
+          },
+          {
+            "id": "version-uuid-1",
+            "session_id": "session-uuid",
+            "version_number": 1,
+            "subjective": "Original note...",
+            "created_at": "2025-01-15T15:05:00Z"
+          }
+        ]
+    """
+    workspace_id = current_user.workspace_id
+
+    # Verify session exists and belongs to workspace
+    await get_or_404(db, Session, session_id, workspace_id)
+
+    # Get all versions ordered by version_number descending
+    query = (
+        select(SessionVersion)
+        .where(SessionVersion.session_id == session_id)
+        .order_by(SessionVersion.version_number.desc())
+    )
+    result = await db.execute(query)
+    versions = result.scalars().all()
+
+    logger.debug(
+        "session_versions_accessed",
+        session_id=str(session_id),
+        workspace_id=str(workspace_id),
+        version_count=len(versions),
+    )
+
+    # Return response (PHI automatically decrypted)
+    return [SessionVersionResponse.model_validate(version) for version in versions]
 
 
 @router.delete("/{session_id}", status_code=204)
@@ -610,9 +818,10 @@ async def delete_session(
     request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    deletion_request: SessionDeleteRequest | None = None,
 ) -> None:
     """
-    Soft delete a session.
+    Soft delete a session with optional deletion reason.
 
     SOFT DELETE ONLY: Sets deleted_at timestamp without removing data.
     This preserves audit trail and allows recovery if needed.
@@ -629,6 +838,10 @@ async def delete_session(
         request: FastAPI request object (for audit logging)
         current_user: Authenticated user (from JWT token)
         db: Database session
+        deletion_request: Optional request body with deletion reason
+
+    Body Parameters:
+        reason: Optional reason for deletion (max 500 chars, logged in audit trail)
 
     Returns:
         No content (204) on success
@@ -640,6 +853,9 @@ async def delete_session(
 
     Example:
         DELETE /api/v1/sessions/{uuid}
+        {
+            "reason": "Duplicate entry, will recreate"
+        }
     """
     workspace_id = current_user.workspace_id
 
@@ -658,24 +874,32 @@ async def delete_session(
             detail="Resource not found",
         )
 
-    # Prevent deletion of finalized sessions
-    if session.finalized_at is not None:
-        logger.warning(
-            "session_delete_rejected_finalized",
-            session_id=str(session_id),
-            workspace_id=str(workspace_id),
-            finalized_at=session.finalized_at.isoformat(),
-        )
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                "Cannot delete finalized sessions. "
-                "Finalized sessions are permanent records."
-            ),
-        )
+    # Extract deletion reason if provided
+    deletion_reason = deletion_request.reason if deletion_request else None
 
-    # Soft delete: set deleted_at timestamp
-    session.deleted_at = datetime.now(UTC)
+    # Apply soft delete using utility function
+    apply_soft_delete(
+        session=session,
+        deleted_by_user_id=current_user.id,
+        deletion_reason=deletion_reason,
+    )
+
+    # Create audit log entry with context
+    await create_audit_event(
+        db=db,
+        user_id=current_user.id,
+        workspace_id=workspace_id,
+        action=AuditAction.DELETE,
+        resource_type=ResourceType.SESSION,
+        resource_id=session_id,
+        metadata={
+            "soft_delete": True,
+            "was_finalized": session.finalized_at is not None,
+            "had_amendments": session.amendment_count > 0,
+            "amendment_count": session.amendment_count,
+            "deleted_reason": deletion_reason,
+        },
+    )
 
     await db.commit()
 
@@ -683,4 +907,125 @@ async def delete_session(
         "session_deleted",
         session_id=str(session_id),
         workspace_id=str(workspace_id),
+        was_finalized=session.finalized_at is not None,
+        amendment_count=session.amendment_count,
+        permanent_delete_after=session.permanent_delete_after.isoformat(),
+        deleted_reason=deletion_reason,
     )
+
+
+@router.post("/{session_id}/restore", response_model=SessionResponse)
+async def restore_session(
+    session_id: uuid.UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    """
+    Restore a soft-deleted session within 30-day grace period.
+
+    Restores a soft-deleted session by clearing the deletion metadata.
+    Can only restore sessions that haven't exceeded the 30-day grace period.
+
+    SECURITY: Verifies workspace ownership before allowing restoration.
+    workspace_id is derived from JWT token (server-side).
+
+    AUDIT: Restoration is logged in audit trail.
+
+    Args:
+        session_id: UUID of the session to restore
+        request: FastAPI request object (for audit logging)
+        current_user: Authenticated user (from JWT token)
+        db: Database session
+
+    Returns:
+        Restored session with cleared deletion metadata
+
+    Raises:
+        HTTPException: 401 if not authenticated,
+            404 if not found or not deleted or wrong workspace,
+            410 if 30-day grace period has expired
+
+    Example:
+        POST /api/v1/sessions/{uuid}/restore
+        (no request body needed)
+    """
+    workspace_id = current_user.workspace_id
+
+    # Fetch session with workspace scoping
+    # Use include_deleted=True to access soft-deleted sessions for restoration
+    session = await get_or_404(
+        db=db,
+        model_class=Session,
+        resource_id=session_id,
+        workspace_id=workspace_id,
+        include_deleted=True,
+    )
+
+    # Check if session is actually deleted
+    if session.deleted_at is None:
+        logger.warning(
+            "session_restore_not_deleted",
+            session_id=str(session_id),
+            workspace_id=str(workspace_id),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session is not deleted",
+        )
+
+    # Check if 30-day grace period has expired using utility function
+    if session.permanent_delete_after and is_grace_period_expired(
+        session.permanent_delete_after
+    ):
+        logger.warning(
+            "session_restore_expired",
+            session_id=str(session_id),
+            workspace_id=str(workspace_id),
+            permanent_delete_after=session.permanent_delete_after.isoformat(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail=(
+                "Session cannot be restored: 30-day grace period has expired. "
+                f"Session was scheduled for permanent deletion on "
+                f"{session.permanent_delete_after.isoformat()}."
+            ),
+        )
+
+    logger.info(
+        "session_restore_started",
+        session_id=str(session_id),
+        workspace_id=str(workspace_id),
+        deleted_at=session.deleted_at.isoformat(),
+    )
+
+    # Clear deletion metadata using utility function
+    clear_soft_delete_metadata(session)
+
+    # Create audit log for restoration
+    await create_audit_event(
+        db=db,
+        user_id=current_user.id,
+        workspace_id=workspace_id,
+        action=AuditAction.UPDATE,
+        resource_type=ResourceType.SESSION,
+        resource_id=session_id,
+        metadata={
+            "action": "restore",
+            "was_finalized": session.finalized_at is not None,
+            "amendment_count": session.amendment_count,
+        },
+    )
+
+    await db.commit()
+    await db.refresh(session)
+
+    logger.info(
+        "session_restored",
+        session_id=str(session_id),
+        workspace_id=str(workspace_id),
+    )
+
+    # Return response (PHI automatically decrypted)
+    return SessionResponse.model_validate(session)

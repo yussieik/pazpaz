@@ -703,7 +703,7 @@ class TestUpdateAppointment:
         ) + timedelta(days=1)
 
         # First appointment: 10:00-11:00
-        response1 = await client.post(
+        await client.post(
             "/api/v1/appointments",
             headers=headers,
             json={
@@ -713,7 +713,6 @@ class TestUpdateAppointment:
                 "location_type": "clinic",
             },
         )
-        appt1_id = response1.json()["id"]
 
         # Second appointment: 14:00-15:00
         afternoon = tomorrow.replace(hour=14)
@@ -1114,3 +1113,678 @@ class TestConflictCheck:
         data = response.json()
         # Completed appointments should still cause conflicts
         assert data["has_conflict"] is True
+
+
+class TestAppointmentStatusTransitions:
+    """Test appointment status transition validation."""
+
+    async def test_scheduled_to_completed_success(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_appointment_ws1: Appointment,
+        test_user_ws1: User,
+        redis_client,
+    ):
+        """Scheduled appointment can be marked as completed."""
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+
+        response = await client.put(
+            f"/api/v1/appointments/{sample_appointment_ws1.id}",
+            headers=headers,
+            json={"status": "completed"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "completed"
+
+    async def test_scheduled_to_cancelled_success(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_appointment_ws1: Appointment,
+        test_user_ws1: User,
+        redis_client,
+    ):
+        """Scheduled appointment can be cancelled."""
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+
+        response = await client.put(
+            f"/api/v1/appointments/{sample_appointment_ws1.id}",
+            headers=headers,
+            json={"status": "cancelled"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "cancelled"
+
+    async def test_scheduled_to_no_show_success(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_appointment_ws1: Appointment,
+        test_user_ws1: User,
+        redis_client,
+    ):
+        """Scheduled appointment can be marked as no-show."""
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+
+        response = await client.put(
+            f"/api/v1/appointments/{sample_appointment_ws1.id}",
+            headers=headers,
+            json={"status": "no_show"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "no_show"
+
+    async def test_completed_to_no_show_success(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+    ):
+        """Completed appointment can be corrected to no-show."""
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+        tomorrow = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=1)
+
+        # Create and complete appointment
+        create_response = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": tomorrow.isoformat(),
+                "scheduled_end": (tomorrow + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+        appointment_id = create_response.json()["id"]
+
+        await client.put(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={"status": "completed"},
+        )
+
+        # Correct to no_show
+        response = await client.put(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={"status": "no_show"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "no_show"
+
+    async def test_completed_to_cancelled_without_session_success(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+    ):
+        """Completed appointment without session can be cancelled."""
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+        tomorrow = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=1)
+
+        # Create and complete appointment
+        create_response = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": tomorrow.isoformat(),
+                "scheduled_end": (tomorrow + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+        appointment_id = create_response.json()["id"]
+
+        await client.put(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={"status": "completed"},
+        )
+
+        # Cancel it (no session exists)
+        response = await client.put(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={"status": "cancelled"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "cancelled"
+
+    async def test_completed_to_cancelled_with_session_blocked(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+    ):
+        """Completed appointment with session cannot be cancelled."""
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+        yesterday = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) - timedelta(days=1)
+
+        # Create appointment in the past (so we can create session for it)
+        create_response = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": yesterday.isoformat(),
+                "scheduled_end": (yesterday + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+        appointment_id = create_response.json()["id"]
+
+        # Create a session for this appointment (will auto-complete it)
+        await client.post(
+            "/api/v1/sessions",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "appointment_id": appointment_id,
+                "session_date": yesterday.isoformat(),
+                "subjective": "Test note",
+                "objective": "Test observation",
+                "assessment": "Test assessment",
+                "plan": "Test plan",
+            },
+        )
+
+        # Try to cancel it (should fail due to session)
+        response = await client.put(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={"status": "cancelled"},
+        )
+
+        assert response.status_code == 400
+        assert "session note" in response.json()["detail"].lower()
+
+    async def test_completed_to_scheduled_blocked(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+    ):
+        """Completed appointment cannot be changed back to scheduled."""
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+        tomorrow = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=1)
+
+        # Create and complete appointment
+        create_response = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": tomorrow.isoformat(),
+                "scheduled_end": (tomorrow + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+        appointment_id = create_response.json()["id"]
+
+        await client.put(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={"status": "completed"},
+        )
+
+        # Try to change back to scheduled
+        response = await client.put(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={"status": "scheduled"},
+        )
+
+        assert response.status_code == 400
+        assert "data integrity" in response.json()["detail"].lower()
+
+    async def test_cancelled_to_scheduled_success(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        cancelled_appointment_ws1: Appointment,
+        test_user_ws1: User,
+        redis_client,
+    ):
+        """Cancelled appointment can be restored to scheduled."""
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+
+        response = await client.put(
+            f"/api/v1/appointments/{cancelled_appointment_ws1.id}",
+            headers=headers,
+            json={"status": "scheduled"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "scheduled"
+
+    async def test_no_show_to_scheduled_success(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+    ):
+        """No-show appointment can be corrected to scheduled."""
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+        tomorrow = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=1)
+
+        # Create and mark as no_show
+        create_response = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": tomorrow.isoformat(),
+                "scheduled_end": (tomorrow + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+        appointment_id = create_response.json()["id"]
+
+        await client.put(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={"status": "no_show"},
+        )
+
+        # Correct to scheduled
+        response = await client.put(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={"status": "scheduled"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "scheduled"
+
+    async def test_no_show_to_completed_success(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+    ):
+        """No-show appointment can be corrected to completed."""
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+        tomorrow = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(days=1)
+
+        # Create and mark as no_show
+        create_response = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": tomorrow.isoformat(),
+                "scheduled_end": (tomorrow + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+        appointment_id = create_response.json()["id"]
+
+        await client.put(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={"status": "no_show"},
+        )
+
+        # Correct to completed
+        response = await client.put(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={"status": "completed"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "completed"
+
+    async def test_session_creation_auto_completes_appointment(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+    ):
+        """Creating a session for scheduled appointment auto-completes it."""
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+        yesterday = datetime.now(UTC).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) - timedelta(days=1)
+
+        # Create scheduled appointment in the past
+        create_response = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": yesterday.isoformat(),
+                "scheduled_end": (yesterday + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+        appointment_id = create_response.json()["id"]
+
+        # Verify it's scheduled
+        get_response = await client.get(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+        )
+        assert get_response.json()["status"] == "scheduled"
+
+        # Create a session for this appointment
+        await client.post(
+            "/api/v1/sessions",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "appointment_id": appointment_id,
+                "session_date": yesterday.isoformat(),
+                "subjective": "Test note",
+                "objective": "Test observation",
+                "assessment": "Test assessment",
+                "plan": "Test plan",
+            },
+        )
+
+        # Verify appointment is now completed
+        get_response = await client.get(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+        )
+        assert get_response.json()["status"] == "completed"
+
+
+class TestDeleteAppointmentMultipleSessions:
+    """P1 FIX: Tests for handling multiple sessions on same appointment."""
+
+    async def test_delete_appointment_with_multiple_sessions_delete_action(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+        db_session,
+    ):
+        """P1 FIX: Verify DELETE with multiple sessions deletes all when action=delete."""
+        from sqlalchemy import select
+        from pazpaz.models.session import Session
+
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+
+        # Create appointment in the past
+        yesterday = datetime.now(UTC) - timedelta(days=1)
+        create_response = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": yesterday.isoformat(),
+                "scheduled_end": (yesterday + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+        appointment_id = create_response.json()["id"]
+
+        # Create TWO sessions for this appointment (edge case)
+        session_ids = []
+        for i in range(2):
+            session_response = await client.post(
+                "/api/v1/sessions",
+                headers=headers,
+                json={
+                    "client_id": str(sample_client_ws1.id),
+                    "appointment_id": appointment_id,
+                    "session_date": yesterday.isoformat(),
+                    "subjective": f"Test note {i+1}",
+                },
+            )
+            session_ids.append(session_response.json()["id"])
+
+        # Delete appointment with session_note_action="delete"
+        response = await client.delete(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={
+                "session_note_action": "delete",
+                "reason": "Test deletion",
+            },
+        )
+
+        assert response.status_code == 204
+
+        # Verify BOTH sessions are soft-deleted
+        for session_id in session_ids:
+            result = await db_session.execute(
+                select(Session).where(Session.id == uuid.UUID(session_id))
+            )
+            session = result.scalar_one()
+            assert session.deleted_at is not None, f"Session {session_id} should be soft-deleted"
+
+    async def test_delete_appointment_with_multiple_sessions_keep_action(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+        db_session,
+    ):
+        """P1 FIX: Verify DELETE with multiple sessions keeps all when action=keep."""
+        from sqlalchemy import select
+        from pazpaz.models.session import Session
+
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+
+        # Create appointment in the past
+        yesterday = datetime.now(UTC) - timedelta(days=1)
+        create_response = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": yesterday.isoformat(),
+                "scheduled_end": (yesterday + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+        appointment_id = create_response.json()["id"]
+
+        # Create TWO sessions for this appointment (edge case)
+        session_ids = []
+        for i in range(2):
+            session_response = await client.post(
+                "/api/v1/sessions",
+                headers=headers,
+                json={
+                    "client_id": str(sample_client_ws1.id),
+                    "appointment_id": appointment_id,
+                    "session_date": yesterday.isoformat(),
+                    "subjective": f"Test note {i+1}",
+                },
+            )
+            session_ids.append(session_response.json()["id"])
+
+        # Delete appointment with session_note_action="keep"
+        response = await client.delete(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={
+                "session_note_action": "keep",
+                "reason": "Test deletion",
+            },
+        )
+
+        assert response.status_code == 204
+
+        # Verify BOTH sessions are NOT deleted, but unlinked from appointment
+        for session_id in session_ids:
+            result = await db_session.execute(
+                select(Session).where(Session.id == uuid.UUID(session_id))
+            )
+            session = result.scalar_one()
+            assert session.deleted_at is None, f"Session {session_id} should NOT be deleted"
+            assert session.appointment_id is None, f"Session {session_id} should be unlinked from appointment"
+
+    async def test_delete_appointment_multiple_sessions_one_amended_blocks_all(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+        db_session,
+    ):
+        """P1 FIX: Verify DELETE blocked if ANY session has amendments."""
+        from sqlalchemy import select
+        from pazpaz.models.session import Session
+
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+
+        # Create appointment in the past
+        yesterday = datetime.now(UTC) - timedelta(days=1)
+        create_response = await client.post(
+            "/api/v1/appointments",
+            headers=headers,
+            json={
+                "client_id": str(sample_client_ws1.id),
+                "scheduled_start": yesterday.isoformat(),
+                "scheduled_end": (yesterday + timedelta(hours=1)).isoformat(),
+                "location_type": "clinic",
+            },
+        )
+        appointment_id = create_response.json()["id"]
+
+        # Create TWO sessions for this appointment
+        session_ids = []
+        for i in range(2):
+            session_response = await client.post(
+                "/api/v1/sessions",
+                headers=headers,
+                json={
+                    "client_id": str(sample_client_ws1.id),
+                    "appointment_id": appointment_id,
+                    "session_date": yesterday.isoformat(),
+                    "subjective": f"Test note {i+1}",
+                },
+            )
+            session_ids.append(session_response.json()["id"])
+
+        # Finalize first session
+        await client.post(
+            f"/api/v1/sessions/{session_ids[0]}/finalize",
+            headers=headers,
+        )
+
+        # Amend first session (make it have amendment_count > 0)
+        await client.put(
+            f"/api/v1/sessions/{session_ids[0]}",
+            headers=headers,
+            json={"subjective": "Amended note"},
+        )
+
+        # Verify first session has amendments
+        result = await db_session.execute(
+            select(Session).where(Session.id == uuid.UUID(session_ids[0]))
+        )
+        session = result.scalar_one()
+        assert session.amendment_count > 0
+
+        # Try to delete appointment with session_note_action="delete"
+        # Should fail because one session has amendments
+        response = await client.delete(
+            f"/api/v1/appointments/{appointment_id}",
+            headers=headers,
+            json={
+                "session_note_action": "delete",
+                "reason": "Test deletion",
+            },
+        )
+
+        # Should be rejected with 422
+        assert response.status_code == 422
+        assert "amended" in response.json()["detail"].lower()

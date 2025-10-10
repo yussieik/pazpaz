@@ -12,20 +12,19 @@ import { useCalendarLoading } from '@/composables/useCalendarLoading'
 import { useAppointmentDrag } from '@/composables/useAppointmentDrag'
 import { useCalendarCreation } from '@/composables/useCalendarCreation'
 import { useScreenReader } from '@/composables/useScreenReader'
+import { useToast } from '@/composables/useToast'
 import { toISOString } from '@/utils/dragHelpers'
 import type { ConflictingAppointment } from '@/api/client'
 import type { AppointmentStatus } from '@/types/calendar'
+import apiClient from '@/api/client'
 import PageHeader from '@/components/common/PageHeader.vue'
 import CalendarToolbar from '@/components/calendar/CalendarToolbar.vue'
 import AppointmentDetailsModal from '@/components/calendar/AppointmentDetailsModal.vue'
 import AppointmentFormModal from '@/components/calendar/AppointmentFormModal.vue'
 import CancelAppointmentDialog from '@/components/calendar/CancelAppointmentDialog.vue'
-import DeleteAppointmentDialog from '@/components/calendar/DeleteAppointmentDialog.vue'
 import CalendarLoadingState from '@/components/calendar/CalendarLoadingState.vue'
 import DragConflictModal from '@/components/calendar/DragConflictModal.vue'
 import MobileRescheduleModal from '@/components/calendar/MobileRescheduleModal.vue'
-import UndoToast from '@/components/common/UndoToast.vue'
-import AppointmentSuccessToast from '@/components/common/AppointmentSuccessToast.vue'
 import { format } from 'date-fns'
 
 /**
@@ -51,10 +50,8 @@ const toolbarRef = ref<InstanceType<typeof CalendarToolbar>>()
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showCancelDialog = ref(false)
-const showDeleteDialog = ref(false)
 const appointmentToEdit = ref<AppointmentListItem | null>(null)
 const appointmentToCancel = ref<AppointmentListItem | null>(null)
-const appointmentToDelete = ref<AppointmentListItem | null>(null)
 
 // Double-click create state
 const createModalPrefillData = ref<{ start: Date; end: Date } | null>(null)
@@ -69,32 +66,20 @@ const dragConflictData = ref<{
   conflicts: ConflictingAppointment[]
 } | null>(null)
 const mobileRescheduleAppointment = ref<AppointmentListItem | null>(null)
-const undoTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
-const showUndoToast = ref(false)
-const undoToastMessage = ref('')
 const undoData = ref<{
   appointmentId: string
   originalStart: string
   originalEnd: string
 } | null>(null)
 
-// Cancellation undo state (separate from reschedule undo)
-const showCancelUndoToast = ref(false)
-const undoCancelTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
+// Cancellation undo state
 const undoCancelData = ref<{
   appointmentId: string
   originalStatus: AppointmentStatus
   originalNotes?: string
 } | null>(null)
 
-// Success toast state
-const showSuccessToast = ref(false)
-const successToastData = ref({
-  message: '',
-  clientName: '',
-  datetime: '',
-  appointmentId: '',
-})
+// Success toast state - REMOVED (now using vue-toastification)
 
 // Edit success badge state
 const showEditSuccessBadge = ref(false)
@@ -102,25 +87,8 @@ const showEditSuccessBadge = ref(false)
 // Screen reader announcements
 const { announcement: screenReaderAnnouncement, announce } = useScreenReader()
 
-// Success toast actions
-const successToastActions = computed(() => [
-  {
-    label: 'View Details',
-    handler: () => handleViewDetailsFromToast(successToastData.value.appointmentId),
-  },
-])
-
-// Handler for viewing details from toast
-function handleViewDetailsFromToast(appointmentId: string) {
-  // Close toast
-  showSuccessToast.value = false
-
-  // Find and open appointment in Details Modal
-  const appointment = appointmentsStore.appointments.find((a) => a.id === appointmentId)
-  if (appointment) {
-    selectedAppointment.value = appointment
-  }
-}
+// Toast notifications
+const { showSuccess, showAppointmentSuccess, showSuccessWithUndo } = useToast()
 
 // Calendar state and navigation
 const {
@@ -136,7 +104,8 @@ const {
 } = useCalendar()
 
 // Calendar events and selection
-const { selectedAppointment, calendarEvents, handleEventClick } = useCalendarEvents()
+const { selectedAppointment, calendarEvents, handleEventClick, sessionStatusMap } =
+  useCalendarEvents()
 
 // Debounced loading state
 const { showLoadingSpinner } = useCalendarLoading()
@@ -337,6 +306,53 @@ useCalendarKeyboardShortcuts({
 const calendarOptions = computed(() => ({
   ...buildCalendarOptions(calendarEvents.value, handleEventClick, handleDateClick),
   eventDrop: handleEventDrop as (arg: EventDropArg) => void,
+  eventDidMount: (info: {
+    event: {
+      title: string
+      extendedProps: {
+        hasSession: boolean
+        isDraft: boolean
+        duration_minutes?: number
+        status: string
+      }
+    }
+    el: HTMLElement
+  }) => {
+    const event = info.event
+    const hasSession = event.extendedProps.hasSession
+    const isDraft = event.extendedProps.isDraft
+    const duration = event.extendedProps.duration_minutes
+
+    // Build tooltip text
+    let tooltipText = event.title
+
+    // Add session status
+    if (hasSession) {
+      tooltipText += isDraft
+        ? '\n📄 Session note: Draft'
+        : '\n📄 Session note: Finalized'
+    } else if (event.extendedProps.status === 'completed') {
+      tooltipText += '\n📝 No session note yet'
+    }
+
+    // Add duration if available
+    if (duration) {
+      tooltipText += `\n⏱️ ${duration} minutes`
+    }
+
+    // Add location type
+    if (event.extendedProps.location_type) {
+      const locationEmoji: Record<string, string> = {
+        clinic: '🏥',
+        home: '🏠',
+        online: '💻',
+      }
+      const emoji = locationEmoji[event.extendedProps.location_type] || '📍'
+      tooltipText += `\n${emoji} ${event.extendedProps.location_type}`
+    }
+
+    info.el.title = tooltipText
+  },
 }))
 
 /**
@@ -374,9 +390,13 @@ async function performReschedule(appointmentId: string, newStart: Date, newEnd: 
   )
   if (!appointment) return
 
-  // Store original times for undo
+  // Store original times for undo (captured in closure)
   const originalStart = appointment.scheduled_start
   const originalEnd = appointment.scheduled_end
+
+  // Get client name for toast message
+  const clientName =
+    appointment.client?.first_name || appointment.client?.full_name || 'Appointment'
 
   // Optimistic update
   try {
@@ -385,22 +405,32 @@ async function performReschedule(appointmentId: string, newStart: Date, newEnd: 
       scheduled_end: toISOString(newEnd),
     })
 
-    // Show success toast with undo button
+    // Create a specific undo handler for this reschedule (closure captures the original times)
+    const handleUndo = async () => {
+      try {
+        await appointmentsStore.updateAppointment(appointmentId, {
+          scheduled_start: originalStart,
+          scheduled_end: originalEnd,
+        })
+
+        // Clear the keyboard undo data if this was the most recent
+        if (undoData.value?.appointmentId === appointmentId) {
+          undoData.value = null
+        }
+      } catch (error) {
+        console.error('Failed to undo reschedule:', error)
+      }
+    }
+
+    // Store for keyboard shortcut (Ctrl+Z)
     undoData.value = {
       appointmentId,
       originalStart,
       originalEnd,
     }
-    showUndoToast.value = true
 
-    // Set 5-second undo timeout
-    if (undoTimeout.value) {
-      clearTimeout(undoTimeout.value)
-    }
-    undoTimeout.value = setTimeout(() => {
-      showUndoToast.value = false
-      undoData.value = null
-    }, 5000)
+    // Show toast with specific undo handler
+    showSuccessWithUndo(`${clientName} rescheduled`, handleUndo)
   } catch (error) {
     console.error('Failed to reschedule appointment:', error)
     // TODO: Show error toast
@@ -422,10 +452,6 @@ async function handleUndoReschedule() {
     })
 
     // Clear undo state
-    if (undoTimeout.value) {
-      clearTimeout(undoTimeout.value)
-    }
-    showUndoToast.value = false
     undoData.value = null
   } catch (error) {
     console.error('Failed to undo reschedule:', error)
@@ -440,7 +466,7 @@ async function handleConfirmConflictReschedule() {
 
   const { appointmentId, newStart, newEnd } = dragConflictData.value
 
-  // Store original times for undo
+  // Store original times for undo (captured in closure)
   const appointment = appointmentsStore.appointments.find(
     (a: AppointmentListItem) => a.id === appointmentId
   )
@@ -448,6 +474,10 @@ async function handleConfirmConflictReschedule() {
 
   const originalStart = appointment.scheduled_start
   const originalEnd = appointment.scheduled_end
+
+  // Get client name for toast message
+  const clientName =
+    appointment.client?.first_name || appointment.client?.full_name || 'Appointment'
 
   try {
     // Force update even with conflict by passing allowConflict: true
@@ -460,22 +490,32 @@ async function handleConfirmConflictReschedule() {
       { allowConflict: true }
     )
 
-    // Show success toast with undo button
+    // Create a specific undo handler for this reschedule (closure captures the original times)
+    const handleUndo = async () => {
+      try {
+        await appointmentsStore.updateAppointment(appointmentId, {
+          scheduled_start: originalStart,
+          scheduled_end: originalEnd,
+        })
+
+        // Clear the keyboard undo data if this was the most recent
+        if (undoData.value?.appointmentId === appointmentId) {
+          undoData.value = null
+        }
+      } catch (error) {
+        console.error('Failed to undo reschedule:', error)
+      }
+    }
+
+    // Store for keyboard shortcut (Ctrl+Z)
     undoData.value = {
       appointmentId,
       originalStart,
       originalEnd,
     }
-    showUndoToast.value = true
 
-    // Set 5-second undo timeout
-    if (undoTimeout.value) {
-      clearTimeout(undoTimeout.value)
-    }
-    undoTimeout.value = setTimeout(() => {
-      showUndoToast.value = false
-      undoData.value = null
-    }, 5000)
+    // Show toast with specific undo handler
+    showSuccessWithUndo(`${clientName} rescheduled`, handleUndo)
 
     // Close conflict modal and reset drag state
     showDragConflictModal.value = false
@@ -576,6 +616,25 @@ const appointmentSummary = computed(() => {
 /**
  * Action handlers for appointment modal
  */
+
+/**
+ * Handle status update from AppointmentDetailsModal
+ * Updates appointment status with optimistic UI and error handling
+ */
+async function handleUpdateStatus(appointmentId: string, newStatus: string) {
+  try {
+    await appointmentsStore.updateAppointmentStatus(appointmentId, newStatus)
+
+    // Refresh appointments to update calendar colors
+    await refreshAppointments()
+  } catch (error) {
+    console.error('Failed to update appointment status:', error)
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to update status'
+    alert(`Error: ${errorMessage}`)
+  }
+}
+
 function viewClientDetails(clientId: string) {
   const appointmentData = selectedAppointment.value
 
@@ -599,6 +658,29 @@ function viewClientDetails(clientId: string) {
 
   // Close modal after navigation starts
   selectedAppointment.value = null
+}
+
+/**
+ * Navigate to session view (from appointment modal)
+ */
+function viewSession(sessionId: string) {
+  // Close appointment modal
+  selectedAppointment.value = null
+
+  // Navigate to session with return context
+  router.push({
+    path: `/sessions/${sessionId}`,
+  })
+
+  // Set history state after navigation
+  window.history.replaceState(
+    {
+      ...window.history.state,
+      from: 'appointment',
+      returnTo: 'calendar',
+    },
+    ''
+  )
 }
 
 /**
@@ -630,21 +712,86 @@ function editAppointment(appointment: AppointmentListItem) {
   showEditModal.value = true
 }
 
-function startSessionNotes(_appointment: AppointmentListItem) {
-  selectedAppointment.value = null // Close modal
-  // TODO (M4): Open session notes drawer
+/**
+ * Calculate duration in minutes between two dates
+ */
+function calculateDuration(start: Date, end: Date): number {
+  const diffMs = end.getTime() - start.getTime()
+  const diffMinutes = Math.round(diffMs / (1000 * 60))
+  return Math.max(0, diffMinutes) // Ensure non-negative
+}
+
+/**
+ * Start session notes for an appointment
+ * Creates a draft session linked to the appointment and navigates to editor
+ */
+async function startSessionNotes(appointment: AppointmentListItem) {
+  try {
+    // If appointment is scheduled, mark as completed first
+    if (appointment.status === 'scheduled') {
+      await appointmentsStore.updateAppointmentStatus(appointment.id, 'completed')
+      // Show toast notification for auto-completion with client name and unique ID
+      const clientName = appointment.client?.first_name || 'Appointment'
+      showSuccess(`${clientName} completed`, {
+        toastId: `completion-${appointment.id}-${Date.now()}`,
+      })
+    }
+
+    // Calculate duration from appointment times
+    const durationMinutes = calculateDuration(
+      new Date(appointment.scheduled_start),
+      new Date(appointment.scheduled_end)
+    )
+
+    // Create new draft session linked to appointment
+    const response = await apiClient.post('/sessions', {
+      client_id: appointment.client_id,
+      appointment_id: appointment.id,
+      session_date: appointment.scheduled_start,
+      duration_minutes: durationMinutes,
+      is_draft: true,
+      // Optional: Pre-fill Subjective with appointment notes
+      subjective: appointment.notes || null,
+    })
+
+    // Immediately update session status map (optimistic update)
+    // This ensures the green border appears when user returns to calendar
+    sessionStatusMap.value.set(appointment.id, {
+      hasSession: true,
+      sessionId: response.data.id,
+      isDraft: true,
+    })
+
+    // Close appointment modal
+    selectedAppointment.value = null
+
+    // Navigate to session editor with context
+    // Note: Vue Router doesn't support state in route definition,
+    // so we use window.history.state which is preserved by router.push
+    await router.push(`/sessions/${response.data.id}`)
+
+    // Set history state after navigation
+    window.history.replaceState(
+      {
+        ...window.history.state,
+        from: 'appointment',
+        appointmentId: appointment.id,
+        returnTo: 'calendar',
+      },
+      ''
+    )
+  } catch (error) {
+    console.error('Failed to create session:', error)
+    // TODO (M3): Show error toast notification
+    // For now, log the error and keep modal open
+    alert('Failed to create session note. Please try again.')
+  }
 }
 
 function cancelAppointment(appointment: AppointmentListItem) {
   selectedAppointment.value = null // Close detail modal
   appointmentToCancel.value = appointment
   showCancelDialog.value = true
-}
-
-function deleteAppointment(appointment: AppointmentListItem) {
-  selectedAppointment.value = null // Close detail modal
-  appointmentToDelete.value = appointment
-  showDeleteDialog.value = true
 }
 
 function createNewAppointment() {
@@ -681,14 +828,24 @@ async function handleCreateAppointment(data: AppointmentFormData) {
     showCreateModal.value = false
     createModalPrefillData.value = null
 
-    // Show success toast
-    showSuccessToast.value = true
-    successToastData.value = {
-      message: 'Appointment created',
+    // Show success toast with rich content
+    showAppointmentSuccess('Appointment created', {
       clientName: newAppt.client?.full_name || 'Unknown Client',
       datetime: format(new Date(newAppt.scheduled_start), "MMM d 'at' h:mm a"),
-      appointmentId: newAppt.id,
-    }
+      actions: [
+        {
+          label: 'View Details',
+          onClick: () => {
+            const appointment = appointmentsStore.appointments.find(
+              (a) => a.id === newAppt.id
+            )
+            if (appointment) {
+              selectedAppointment.value = appointment
+            }
+          },
+        },
+      ],
+    })
 
     // Screen reader announcement
     announce(`Appointment created for ${newAppt.client?.full_name || 'Unknown Client'}`)
@@ -758,9 +915,9 @@ async function handleConfirmCancel(reason: string) {
       originalNotes: appointment.notes || undefined,
     }
 
-    // Show undo toast
-    undoToastMessage.value = 'Appointment cancelled'
-    showCancelUndoToast.value = true
+    // Show undo toast with client name
+    const clientName = appointment.client?.first_name || 'Appointment'
+    showSuccessWithUndo(`${clientName} cancelled`, handleUndoCancel)
 
     // Screen reader announcement
     await announce(
@@ -769,17 +926,8 @@ async function handleConfirmCancel(reason: string) {
       ).toLocaleDateString('en-US', {
         month: 'long',
         day: 'numeric',
-      })} cancelled. Undo within 8 seconds.`
+      })} cancelled. Undo within 5 seconds.`
     )
-
-    // Set timeout to hide toast
-    if (undoCancelTimeout.value) {
-      clearTimeout(undoCancelTimeout.value)
-    }
-    undoCancelTimeout.value = setTimeout(() => {
-      showCancelUndoToast.value = false
-      undoCancelData.value = null
-    }, 8000) // 8 seconds
 
     // Close dialog and clear cancel state
     showCancelDialog.value = false
@@ -806,10 +954,6 @@ async function handleUndoCancel() {
     })
 
     // Clear undo state
-    if (undoCancelTimeout.value) {
-      clearTimeout(undoCancelTimeout.value)
-    }
-    showCancelUndoToast.value = false
     undoCancelData.value = null
 
     // Screen reader announcement
@@ -839,40 +983,6 @@ async function handleRestoreAppointment(appointment: AppointmentListItem) {
   }
 }
 
-/**
- * Confirm and perform appointment deletion
- */
-async function handleConfirmDelete() {
-  if (!appointmentToDelete.value) return
-
-  const appointment = appointmentToDelete.value
-
-  try {
-    // Permanently delete appointment via store
-    await appointmentsStore.deleteAppointment(appointment.id)
-
-    // Screen reader announcement
-    await announce(
-      `Appointment with ${appointment.client?.full_name || 'client'} on ${new Date(
-        appointment.scheduled_start
-      ).toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-      })} permanently deleted.`
-    )
-
-    // Close dialog and clear delete state
-    showDeleteDialog.value = false
-    appointmentToDelete.value = null
-
-    // TODO (M3): Add success toast notification
-  } catch (error) {
-    console.error('Failed to delete appointment:', error)
-    // TODO (M3): Add error toast notification
-    // Keep dialog open on error so user can retry
-  }
-}
-
 // Open appointment from query param (for "return to appointment" flow)
 watch(
   () => route.query.appointment,
@@ -899,12 +1009,6 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown)
   cleanupDrag()
-  if (undoTimeout.value) {
-    clearTimeout(undoTimeout.value)
-  }
-  if (undoCancelTimeout.value) {
-    clearTimeout(undoCancelTimeout.value)
-  }
 })
 
 /**
@@ -937,11 +1041,11 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 
   // Undo with Ctrl+Z or Cmd+Z
   if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
-    // Prioritize cancellation undo if both are showing
-    if (showCancelUndoToast.value) {
+    // Prioritize cancellation undo if both undo data exists
+    if (undoCancelData.value) {
       event.preventDefault()
       handleUndoCancel()
-    } else if (showUndoToast.value) {
+    } else if (undoData.value) {
       event.preventDefault()
       handleUndoReschedule()
     }
@@ -1037,13 +1141,19 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       :appointment="selectedAppointment"
       :visible="!!selectedAppointment"
       :show-edit-success="showEditSuccessBadge"
+      :session-status="
+        selectedAppointment
+          ? sessionStatusMap.get(selectedAppointment.id) || null
+          : null
+      "
       @update:visible="selectedAppointment = null"
       @edit="editAppointment"
       @start-session-notes="startSessionNotes"
+      @update-status="handleUpdateStatus"
       @cancel="cancelAppointment"
-      @delete="deleteAppointment"
       @restore="handleRestoreAppointment"
       @view-client="viewClientDetails"
+      @view-session="viewSession"
       @refresh="refreshAppointments"
     />
 
@@ -1073,14 +1183,6 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       @confirm="handleConfirmCancel"
     />
 
-    <!-- Delete Appointment Dialog -->
-    <DeleteAppointmentDialog
-      :visible="showDeleteDialog"
-      :appointment="appointmentToDelete"
-      @update:visible="showDeleteDialog = $event"
-      @confirm="handleConfirmDelete"
-    />
-
     <!-- Drag Conflict Modal -->
     <DragConflictModal
       :visible="showDragConflictModal"
@@ -1108,70 +1210,6 @@ function handleGlobalKeydown(event: KeyboardEvent) {
     <div role="status" aria-live="polite" aria-atomic="true" class="sr-only">
       {{ screenReaderAnnouncement }}
     </div>
-
-    <!-- Reschedule Undo Toast -->
-    <Transition name="toast-slide">
-      <div
-        v-if="showUndoToast"
-        class="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg bg-gray-900 px-4 py-3 text-white shadow-2xl"
-        role="status"
-        aria-live="polite"
-      >
-        <svg
-          class="h-5 w-5 text-emerald-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
-        <span class="text-sm font-medium">Appointment rescheduled</span>
-        <button
-          type="button"
-          class="ml-2 rounded-md bg-white/10 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 focus-visible:outline-none"
-          @click="handleUndoReschedule"
-        >
-          Undo
-        </button>
-        <button
-          type="button"
-          class="ml-1 rounded-lg p-1 transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
-          @click="showUndoToast = false"
-          aria-label="Dismiss"
-        >
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      </div>
-    </Transition>
-
-    <!-- Cancellation Undo Toast -->
-    <UndoToast
-      :show="showCancelUndoToast"
-      :message="undoToastMessage"
-      @undo="handleUndoCancel"
-      @close="showCancelUndoToast = false"
-    />
-
-    <!-- Success Toast -->
-    <AppointmentSuccessToast
-      v-model:visible="showSuccessToast"
-      :message="successToastData.message"
-      :client-name="successToastData.clientName"
-      :datetime="successToastData.datetime"
-      :actions="successToastActions"
-    />
 
     <!-- Keyboard Reschedule Mode Indicator -->
     <Transition name="fade">
@@ -1479,6 +1517,19 @@ function handleGlobalKeydown(event: KeyboardEvent) {
   }
 }
 
+/* Session Status Indicators (P0 Feature) */
+
+/* Green left border for appointments with session notes */
+:deep(.fc-event.event-with-session) {
+  border-left: 3px solid #10b981 !important; /* emerald-500 green accent */
+  padding-left: 4px; /* Adjust padding to accommodate thicker border */
+}
+
+/* Ensure session indicator works in month view */
+:deep(.fc-daygrid-event.event-with-session) {
+  border-left: 3px solid #10b981 !important;
+}
+
 /* Conflict Detection Visual Indicators */
 
 /* Striped pattern and border for conflicting appointments */
@@ -1556,22 +1607,6 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 /* Valid drop zone - pulse effect */
 .fc-timegrid-col:hover {
   animation: pulse-border 1.5s ease-in-out infinite;
-}
-
-/* Toast slide-up transition */
-.toast-slide-enter-active,
-.toast-slide-leave-active {
-  transition: all 0.3s ease;
-}
-
-.toast-slide-enter-from {
-  transform: translate(-50%, 100px);
-  opacity: 0;
-}
-
-.toast-slide-leave-to {
-  transform: translate(-50%, 20px);
-  opacity: 0;
 }
 
 /* Fade transition for indicators */

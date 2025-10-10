@@ -71,12 +71,7 @@ export function useAutosave<T = Record<string, unknown>>(
   saveFn: (data: T) => Promise<void>,
   options: AutosaveOptions = {}
 ) {
-  const {
-    debounceMs = 5000,
-    onSuccess,
-    onError,
-    autoStart = true,
-  } = options
+  const { debounceMs = 5000, onSuccess, onError, autoStart = true } = options
 
   // State
   const isSaving = ref(false)
@@ -147,18 +142,15 @@ export function useAutosave<T = Record<string, unknown>>(
    * Debounced save function (5-second delay by default)
    * Used for automatic saves during typing
    */
-  const debouncedSave = useDebounceFn(
-    async (data: T) => {
-      try {
-        await performSave(data)
-      } catch (error) {
-        // Error is already handled in performSave (sets saveError.value)
-        // Catch here to prevent unhandled promise rejection
-        console.debug('Autosave error caught in debouncedSave:', error)
-      }
-    },
-    debounceMs
-  )
+  const debouncedSave = useDebounceFn(async (data: T) => {
+    try {
+      await performSave(data)
+    } catch (error) {
+      // Error is already handled in performSave (sets saveError.value)
+      // Catch here to prevent unhandled promise rejection
+      console.debug('Autosave error caught in debouncedSave:', error)
+    }
+  }, debounceMs)
 
   /**
    * Save data with debounce (default autosave behavior)

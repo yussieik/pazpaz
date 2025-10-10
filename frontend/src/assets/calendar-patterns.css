@@ -1,0 +1,71 @@
+/**
+ * Calendar Event Accessibility Patterns
+ *
+ * We use color + pattern combinations to ensure colorblind accessibility:
+ * - Completed: Solid emerald fill (default)
+ * - Cancelled: Gray with diagonal stripes
+ * - No-show: Orange with dashed border
+ * - Past scheduled: Amber with pulsing glow
+ * - Future scheduled: Solid emerald fill (default)
+ *
+ * This meets WCAG 2.1 Level AA requirements (not color-only).
+ */
+
+/* Striped pattern for cancelled appointments */
+.fc-event.event-cancelled {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 8px,
+    rgba(255, 255, 255, 0.2) 8px,
+    rgba(255, 255, 255, 0.2) 16px
+  );
+}
+
+/* Dashed border for no-show appointments */
+.fc-event.event-no-show {
+  border-style: dashed !important;
+  border-width: 2px !important;
+}
+
+/* Pulsing animation for past scheduled appointments */
+.fc-event.event-past-scheduled {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0);
+  }
+}
+
+/* Ensure patterns work on hover */
+.fc-event.event-cancelled:hover {
+  opacity: 0.9;
+}
+
+.fc-event.event-no-show:hover {
+  opacity: 0.9;
+}
+
+/* Reduce animation on hover (less distracting) */
+.fc-event.event-past-scheduled:hover {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .fc-event.event-past-scheduled {
+    animation: none !important;
+    /* Use static visual cue instead */
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3);
+  }
+
+  .fc-event.event-past-scheduled:hover {
+    animation: none !important;
+  }
+}

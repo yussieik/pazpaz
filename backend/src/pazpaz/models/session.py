@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from pazpaz.models.appointment import Appointment
     from pazpaz.models.client import Client
     from pazpaz.models.session_attachment import SessionAttachment
+    from pazpaz.models.session_version import SessionVersion
     from pazpaz.models.user import User
     from pazpaz.models.workspace import Workspace
 
@@ -70,6 +71,10 @@ class Session(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
+    deleted_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     # ENCRYPTED PHI FIELDS (SOAP Notes)
     # CRITICAL: Use EncryptedString type for transparent encryption
@@ -106,7 +111,19 @@ class Session(Base):
         TIMESTAMP(timezone=True), nullable=True
     )
     finalized_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True
+        TIMESTAMP(timezone=True),
+        nullable=True,
+        comment="When session was first finalized (immutable after set)",
+    )
+    amended_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+        comment="When session was last amended (NULL if never amended)",
+    )
+    amendment_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        comment="Number of times this finalized session has been amended",
     )
     version: Mapped[int] = mapped_column(Integer, default=1)
 
@@ -125,6 +142,14 @@ class Session(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True, index=True
     )
+    deleted_reason: Mapped[str | None] = mapped_column(
+        sa.Text, nullable=True, comment="Optional reason for soft deletion"
+    )
+    permanent_delete_after: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+        comment="Date when session will be permanently purged (deleted_at + 30 days)",
+    )
 
     # Relationships
     workspace: Mapped[Workspace] = relationship(
@@ -137,10 +162,19 @@ class Session(Base):
     created_by: Mapped[User | None] = relationship(
         "User", foreign_keys=[created_by_user_id]
     )
+    deleted_by: Mapped[User | None] = relationship(
+        "User", foreign_keys=[deleted_by_user_id]
+    )
     attachments: Mapped[list[SessionAttachment]] = relationship(
         "SessionAttachment",
         back_populates="session",
         cascade="all, delete-orphan",
+    )
+    versions: Mapped[list[SessionVersion]] = relationship(
+        "SessionVersion",
+        back_populates="session",
+        cascade="all, delete-orphan",
+        order_by="SessionVersion.version_number.desc()",
     )
 
     # Indexes for performance (must match migration exactly)
@@ -172,6 +206,12 @@ class Session(Base):
             "workspace_id",
             sa.text("session_date DESC"),
             postgresql_where=sa.text("deleted_at IS NULL"),
+        ),
+        # Index 5: Purge job query (WHERE permanent_delete_after IS NOT NULL)
+        Index(
+            "ix_sessions_permanent_delete_after",
+            "permanent_delete_after",
+            postgresql_where=sa.text("permanent_delete_after IS NOT NULL"),
         ),
         {"comment": "SOAP session notes with encrypted PHI fields"},
     )

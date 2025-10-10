@@ -66,3 +66,48 @@ export interface ConflictCheckResponse {
   has_conflict: boolean
   conflicting_appointments: ConflictingAppointment[]
 }
+
+/**
+ * Extended appointment type with edit tracking
+ * Note: The base AppointmentListItem comes from OpenAPI schema
+ * These fields will be added by the backend specialist
+ */
+export interface AppointmentWithEditTracking extends AppointmentListItem {
+  edited_at: string | null
+  edit_count: number
+}
+
+/**
+ * Session status for appointment details
+ */
+export interface SessionStatus {
+  hasSession: boolean
+  sessionId: string | null
+  isDraft: boolean
+}
+
+/**
+ * Extended session interface with amendment tracking
+ * These fields will be added by the backend specialist
+ */
+export interface SessionWithAmendments {
+  id: string
+  finalized_at: string | null
+  amended_at: string | null
+  amendment_count: number
+  has_versions: boolean
+  // Other session fields will be typed via OpenAPI schema
+}
+
+/**
+ * Session version for version history
+ */
+export interface SessionVersion {
+  id: string
+  version_number: number
+  subjective: string | null
+  objective: string | null
+  assessment: string | null
+  plan: string | null
+  created_at: string
+}

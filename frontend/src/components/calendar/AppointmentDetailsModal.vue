@@ -2,15 +2,28 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useFocusTrap } from '@vueuse/integrations/useFocusTrap'
 import { useScrollLock } from '@vueuse/core'
-import type { AppointmentListItem } from '@/types/calendar'
+import type { AppointmentListItem, SessionStatus, AppointmentStatus } from '@/types/calendar'
 import { formatDate, calculateDuration } from '@/utils/calendar/dateFormatters'
 import { getStatusBadgeClass } from '@/utils/calendar/appointmentHelpers'
 import { useAppointmentAutoSave } from '@/composables/useAppointmentAutoSave'
+import { useToast } from '@/composables/useToast'
+import { useAppointmentsStore } from '@/stores/appointments'
+import AppointmentStatusCard from './AppointmentStatusCard.vue'
+import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentModal.vue'
+import AppointmentEditIndicator from '@/components/appointments/AppointmentEditIndicator.vue'
+import { formatDistanceToNow, format as formatDateTime } from 'date-fns'
+
+const appointmentsStore = useAppointmentsStore()
+const { showSuccess, showSuccessWithUndo, showError } = useToast()
+
+// Delete modal state
+const showDeleteModal = ref(false)
 
 interface Props {
   appointment: AppointmentListItem | null
   visible: boolean
   showEditSuccess?: boolean
+  sessionStatus?: SessionStatus | null
 }
 
 interface Emits {
@@ -18,9 +31,11 @@ interface Emits {
   (e: 'startSessionNotes', appointment: AppointmentListItem): void
   (e: 'cancel', appointment: AppointmentListItem): void
   (e: 'restore', appointment: AppointmentListItem): void
-  (e: 'delete', appointment: AppointmentListItem): void
   (e: 'viewClient', clientId: string): void
+  (e: 'viewSession', sessionId: string): void
   (e: 'refresh'): void // Emit when appointment is updated
+  (e: 'updateStatus', appointmentId: string, status: string): void
+  (e: 'edit', appointment: AppointmentListItem): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -61,20 +76,7 @@ const isSaving = computed(() => autoSave.value?.isSaving.value || false)
 const lastSaved = computed(() => autoSave.value?.lastSaved.value || null)
 const saveError = computed(() => autoSave.value?.saveError.value || null)
 
-// Status-based edit restrictions
-const isReadOnly = computed(() => {
-  return props.appointment?.status === 'completed'
-})
-
-const isRestrictedEdit = computed(() => {
-  // Cancelled appointments: allow notes only (for audit trail)
-  return props.appointment?.status === 'cancelled'
-})
-
-const canEditTimeLocation = computed(() => {
-  // Can edit time/location for scheduled/confirmed only
-  return !isReadOnly.value && !isRestrictedEdit.value
-})
+// All appointments are editable with audit trail tracking
 
 /**
  * Format the last saved time for display
@@ -173,6 +175,28 @@ async function handleFieldBlur(
 }
 
 /**
+ * Format relative time for edit indicators
+ */
+function formatRelativeTime(isoString: string): string {
+  return formatDistanceToNow(new Date(isoString), { addSuffix: true })
+}
+
+/**
+ * Format absolute time for tooltips
+ */
+function formatAbsoluteTime(isoString: string): string {
+  return formatDateTime(new Date(isoString), "MMM d, yyyy 'at' h:mm a")
+}
+
+/**
+ * Check if appointment has been edited
+ */
+const hasBeenEdited = computed(() => {
+  // @ts-expect-error - edited_at will be added by backend specialist
+  return !!props.appointment?.edited_at
+})
+
+/**
  * Handle date/time change - convert to ISO and save immediately (no debounce)
  */
 async function handleDateTimeChange(field: 'scheduled_start' | 'scheduled_end') {
@@ -208,6 +232,143 @@ function handleLocationTypeChange() {
 function handleTextFieldBlur(field: 'location_details' | 'notes') {
   const debounce = field === 'notes'
   handleFieldBlur(field, debounce)
+}
+
+/**
+ * Check if appointment is in the past
+ */
+const isPastAppointment = computed(() => {
+  if (!props.appointment) return false
+  return new Date(props.appointment.scheduled_end) < new Date()
+})
+
+/**
+ * Check if appointment is in the future
+ */
+const isFutureAppointment = computed(() => {
+  if (!props.appointment) return false
+  return new Date(props.appointment.scheduled_start) > new Date()
+})
+
+/**
+ * Get user-friendly message for status change with client name
+ */
+function getStatusChangeMessage(status: AppointmentStatus, clientName: string): string {
+  const messages: Record<AppointmentStatus, string> = {
+    scheduled: `${clientName} restored to scheduled`,
+    confirmed: `${clientName} confirmed`,
+    completed: `${clientName} completed`,
+    cancelled: `${clientName} cancelled`,
+    no_show: `${clientName} marked as no-show`,
+  }
+  return messages[status] || 'Status updated'
+}
+
+/**
+ * Handle status update from AppointmentStatusCard
+ * Shows toast notification with undo functionality using closure-based handler
+ */
+async function handleStatusUpdate(newStatus: string) {
+  if (!props.appointment) return
+
+  // Capture data in closure for undo handler
+  const appointmentId = props.appointment.id
+  const previousStatus = props.appointment.status
+  const clientName = props.appointment.client?.first_name || 'Appointment'
+
+  try {
+    // Update status via store
+    await appointmentsStore.updateAppointmentStatus(
+      appointmentId,
+      newStatus as AppointmentStatus
+    )
+
+    // Create closure-based undo handler
+    const handleUndo = async () => {
+      try {
+        await appointmentsStore.updateAppointmentStatus(
+          appointmentId,
+          previousStatus as AppointmentStatus
+        )
+        showSuccess('Status reverted')
+        emit('refresh')
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to undo status change'
+        showError(errorMessage)
+      }
+    }
+
+    // Show success toast with undo using closure-based pattern
+    showSuccessWithUndo(
+      getStatusChangeMessage(newStatus as AppointmentStatus, clientName),
+      handleUndo
+    )
+
+    // Emit refresh to update parent
+    emit('refresh')
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to update appointment status'
+    showError(errorMessage)
+  }
+}
+
+/**
+ * Handle complete and document action
+ */
+function handleCompleteAndDocument() {
+  if (!props.appointment) return
+  // First update status, then start session notes
+  emit('updateStatus', props.appointment.id, 'completed')
+  // Emit startSessionNotes to navigate to session creation
+  emit('startSessionNotes', props.appointment)
+}
+
+/**
+ * Handle delete button click - show modal for confirmation
+ */
+function handleDeleteClick() {
+  if (!props.appointment) return
+  showDeleteModal.value = true
+}
+
+/**
+ * Handle delete confirmation from modal
+ */
+async function handleDeleteConfirm(payload: {
+  reason?: string
+  session_note_action?: 'delete' | 'keep'
+  deletion_reason?: string
+}) {
+  if (!props.appointment) return
+
+  try {
+    await appointmentsStore.deleteAppointment(props.appointment.id, payload)
+    showDeleteModal.value = false
+
+    // Show appropriate success message
+    const message = payload.session_note_action === 'delete'
+      ? 'Appointment and session note deleted'
+      : payload.session_note_action === 'keep'
+      ? 'Appointment deleted (session note kept)'
+      : 'Appointment deleted'
+
+    showSuccess(message)
+    emit('refresh')
+    emit('update:visible', false) // Close the details modal
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to delete appointment'
+    showError(errorMessage)
+  }
+}
+
+/**
+ * Handle delete cancellation
+ */
+function handleDeleteCancel() {
+  showDeleteModal.value = false
 }
 </script>
 
@@ -289,6 +450,7 @@ function handleTextFieldBlur(field: 'location_details' | 'notes') {
               </div>
 
               <div class="mt-2 flex items-center gap-2">
+                <!-- Primary Status Badge (state truth) -->
                 <span
                   :class="getStatusBadgeClass(appointment.status)"
                   class="inline-flex"
@@ -296,26 +458,34 @@ function handleTextFieldBlur(field: 'location_details' | 'notes') {
                   {{ appointment.status.replace('_', ' ') }}
                 </span>
 
-                <!-- Read-only badge -->
-                <div
-                  v-if="isReadOnly"
-                  class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600"
+                <!-- WARNING BADGE: Only for past scheduled appointments -->
+                <span
+                  v-if="appointment.status === 'scheduled' && isPastAppointment"
+                  class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900 ring-1 ring-amber-600/20 ring-inset"
                 >
+                  <!-- Clock Icon -->
                   <svg
-                    class="mr-1 h-3 w-3"
+                    class="h-3 w-3"
                     fill="none"
-                    stroke="currentColor"
                     viewBox="0 0 24 24"
+                    stroke="currentColor"
                   >
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                  Read-only
-                </div>
+                  Needs Completion
+                </span>
+
+                <!-- Edit Indicator -->
+                <AppointmentEditIndicator
+                  v-if="appointment.edited_at && appointment.edit_count"
+                  :edit-count="appointment.edit_count"
+                  :edited-at="appointment.edited_at"
+                />
 
                 <!-- Save Status Indicator -->
                 <div
@@ -408,34 +578,6 @@ function handleTextFieldBlur(field: 'location_details' | 'notes') {
 
           <!-- Body with Editable Fields -->
           <div class="space-y-4 px-6 py-6">
-            <!-- Cancelled appointment info message -->
-            <div
-              v-if="isRestrictedEdit"
-              class="rounded-md border border-amber-200 bg-amber-50 p-3"
-            >
-              <div class="flex">
-                <svg
-                  class="h-5 w-5 text-amber-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <div class="ml-3">
-                  <p class="text-sm text-amber-700">
-                    This appointment is cancelled. Only notes can be edited to maintain
-                    the audit trail.
-                  </p>
-                </div>
-              </div>
-            </div>
-
             <!-- Time Card (Editable) -->
             <div class="rounded-lg border border-slate-200 bg-white p-4">
               <div class="mb-2 text-sm font-medium text-slate-500">Time</div>
@@ -449,9 +591,8 @@ function handleTextFieldBlur(field: 'location_details' | 'notes') {
                   id="edit-start-time"
                   v-model="editableData.scheduled_start"
                   type="datetime-local"
-                  :disabled="!canEditTimeLocation"
                   @change="handleDateTimeChange('scheduled_start')"
-                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
               </div>
 
@@ -464,9 +605,8 @@ function handleTextFieldBlur(field: 'location_details' | 'notes') {
                   id="edit-end-time"
                   v-model="editableData.scheduled_end"
                   type="datetime-local"
-                  :disabled="!canEditTimeLocation"
                   @change="handleDateTimeChange('scheduled_end')"
-                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
               </div>
 
@@ -494,9 +634,8 @@ function handleTextFieldBlur(field: 'location_details' | 'notes') {
                 <select
                   id="edit-location-type"
                   v-model="editableData.location_type"
-                  :disabled="!canEditTimeLocation"
                   @change="handleLocationTypeChange"
-                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 capitalize focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 capitalize focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 >
                   <option value="clinic">Clinic</option>
                   <option value="home">Home Visit</option>
@@ -513,10 +652,9 @@ function handleTextFieldBlur(field: 'location_details' | 'notes') {
                   id="edit-location-details"
                   v-model="editableData.location_details"
                   type="text"
-                  :disabled="!canEditTimeLocation"
                   placeholder="e.g., Zoom link, room number, address"
                   @blur="handleTextFieldBlur('location_details')"
-                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -574,15 +712,135 @@ function handleTextFieldBlur(field: 'location_details' | 'notes') {
                 id="edit-notes"
                 v-model="editableData.notes"
                 rows="4"
-                :disabled="isReadOnly"
                 placeholder="Optional notes about this appointment"
                 @blur="handleTextFieldBlur('notes')"
-                class="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                class="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               ></textarea>
               <p class="mt-1 text-xs text-slate-400">
-                <template v-if="!isReadOnly">Changes are saved automatically</template>
-                <template v-else>Read-only (completed appointment)</template>
+                Changes are saved automatically
               </p>
+            </div>
+
+            <!-- Appointment Status Management Card -->
+            <AppointmentStatusCard
+              v-if="appointment"
+              :appointment="appointment"
+              :session-status="sessionStatus"
+              @update-status="handleStatusUpdate"
+              @complete-and-document="handleCompleteAndDocument"
+            />
+
+            <!-- Session Status Section (P0 Feature) -->
+            <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <!-- Has Session Note -->
+              <div v-if="sessionStatus?.hasSession" class="flex items-start gap-3">
+                <svg
+                  class="h-5 w-5 shrink-0 text-emerald-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div class="flex-1">
+                  <p class="text-sm font-medium text-slate-900">
+                    Session Note:
+                    {{ sessionStatus.isDraft ? 'Draft' : 'Finalized' }}
+                  </p>
+                  <button
+                    @click="emit('viewSession', sessionStatus.sessionId!)"
+                    class="mt-1 text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-700 focus:underline focus:outline-none"
+                  >
+                    {{ sessionStatus.isDraft ? 'Continue Editing →' : 'View Note →' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- No Session Note - Context-Aware Messaging -->
+              <div v-else-if="!sessionStatus?.hasSession">
+                <!-- Completed - Encourage documentation -->
+                <div
+                  v-if="appointment.status === 'completed'"
+                  class="flex items-start gap-3"
+                >
+                  <svg
+                    class="h-5 w-5 shrink-0 text-amber-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  <div>
+                    <p class="text-sm font-medium text-slate-900">
+                      No session note yet
+                    </p>
+                    <p class="mt-0.5 text-xs text-slate-600">
+                      Document this appointment with SOAP notes
+                    </p>
+                    <button
+                      @click="emit('startSessionNotes', appointment)"
+                      class="mt-2 text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-700 focus:underline focus:outline-none"
+                    >
+                      Start Session Note →
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Scheduled - Future -->
+                <div v-else-if="isFutureAppointment" class="text-sm text-slate-600">
+                  <p>Session notes can be created after the appointment</p>
+                </div>
+
+                <!-- Scheduled - Past (prompt to complete) -->
+                <div
+                  v-else-if="isPastAppointment && appointment.status === 'scheduled'"
+                  class="flex items-start gap-3"
+                >
+                  <svg
+                    class="h-5 w-5 shrink-0 text-blue-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <div>
+                    <p class="text-sm font-medium text-slate-900">
+                      This appointment has ended
+                    </p>
+                    <p class="mt-0.5 text-xs text-slate-600">
+                      Mark it as completed to create session notes
+                    </p>
+                  </div>
+                </div>
+
+                <!-- No-Show / Cancelled -->
+                <div
+                  v-else-if="['no_show', 'cancelled'].includes(appointment.status)"
+                  class="text-sm text-slate-500"
+                >
+                  <p>
+                    No session notes for
+                    {{ appointment.status.replace('_', ' ') }} appointments
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -612,21 +870,34 @@ function handleTextFieldBlur(field: 'location_details' | 'notes') {
                   <span>Restore Appointment</span>
                 </button>
 
-                <!-- Start Session Notes button (only for scheduled) -->
+                <!-- Start Session Notes button (if has session, show View/Continue) -->
                 <button
-                  v-if="appointment.status === 'scheduled'"
+                  v-if="sessionStatus?.hasSession"
+                  @click="emit('viewSession', sessionStatus.sessionId!)"
+                  class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                >
+                  {{
+                    sessionStatus.isDraft
+                      ? 'Continue Editing Session'
+                      : 'View Session Note'
+                  }}
+                </button>
+
+                <!-- Start Session Notes button (only if no session and completed) -->
+                <button
+                  v-else-if="appointment.status === 'completed'"
                   @click="emit('startSessionNotes', appointment)"
-                  class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+                  class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                 >
                   Start Session Notes
                 </button>
               </div>
 
               <div class="flex items-center gap-2">
-                <!-- Delete button (only for scheduled/cancelled, not completed) -->
+                <!-- Delete button - always enabled -->
                 <button
-                  v-if="appointment.status !== 'completed'"
-                  @click="emit('delete', appointment)"
+                  @click="handleDeleteClick"
+                  title="Delete this appointment"
                   class="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
                 >
                   <svg
@@ -645,9 +916,9 @@ function handleTextFieldBlur(field: 'location_details' | 'notes') {
                   <span>Delete</span>
                 </button>
 
-                <!-- Cancel button (only for non-cancelled) -->
+                <!-- Cancel button (only for scheduled/no_show, not completed or cancelled) -->
                 <button
-                  v-if="appointment.status !== 'cancelled'"
+                  v-if="['scheduled', 'no_show'].includes(appointment.status)"
                   @click="emit('cancel', appointment)"
                   class="rounded-lg px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
                 >
@@ -668,11 +939,45 @@ function handleTextFieldBlur(field: 'location_details' | 'notes') {
                 Last updated
                 {{ formatDate(appointment.updated_at, "MMM d, yyyy 'at' h:mm a") }}
               </div>
+              <!-- Edit Indicator -->
+              <div
+                v-if="hasBeenEdited"
+                class="flex items-center gap-1.5 text-slate-600"
+                :title="
+                  formatAbsoluteTime(
+                    (appointment as any).edited_at
+                  )
+                "
+              >
+                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                  />
+                </svg>
+                Edited
+                {{
+                  formatRelativeTime(
+                    (appointment as any).edited_at
+                  )
+                }}
+              </div>
             </div>
           </div>
         </div>
       </div>
     </Transition>
+
+    <!-- Delete Appointment Modal -->
+    <DeleteAppointmentModal
+      :appointment="appointment"
+      :session-status="sessionStatus"
+      :open="showDeleteModal"
+      @confirm="handleDeleteConfirm"
+      @cancel="handleDeleteCancel"
+    />
   </Teleport>
 </template>
 

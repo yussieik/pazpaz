@@ -327,7 +327,6 @@ describe('Drag-and-Drop Appointment Rescheduling - Integration', () => {
       appointmentsStore.updateAppointment = vi.fn().mockResolvedValue(mockAppointment)
 
       const vm = wrapper.vm as any
-      vm.showUndoToast = true
       vm.undoData = {
         appointmentId: 'apt-1',
         originalStart: '2024-01-15T10:00:00Z',

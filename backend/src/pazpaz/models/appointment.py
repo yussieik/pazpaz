@@ -115,6 +115,16 @@ class Appointment(Base):
         onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
+    edited_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When appointment was last edited (NULL if never edited)",
+    )
+    edit_count: Mapped[int] = mapped_column(
+        default=0,
+        nullable=False,
+        comment="Number of times this appointment has been edited",
+    )
 
     # Relationships
     workspace: Mapped[Workspace] = relationship(

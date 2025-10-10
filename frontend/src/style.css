@@ -39,3 +39,44 @@
   /* Container constraints */
   --container-max-width: 1280px;
 }
+
+/**
+ * Toast Notification Customization
+ * Override vue-toastification default styles to match PazPaz design system
+ */
+
+/* Success toast - emerald accent */
+.Vue-Toastification__toast--success {
+  background-color: #059669 !important; /* emerald-600 */
+}
+
+/* Error toast - red accent */
+.Vue-Toastification__toast--error {
+  background-color: #dc2626 !important; /* red-600 */
+}
+
+/* Warning toast - amber accent */
+.Vue-Toastification__toast--warning {
+  background-color: #f59e0b !important; /* amber-500 */
+}
+
+/* Info toast - sky accent */
+.Vue-Toastification__toast--info {
+  background-color: #0ea5e9 !important; /* sky-500 */
+}
+
+/* Progress bar styling */
+.Vue-Toastification__progress-bar {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Toast container positioning */
+.Vue-Toastification__container {
+  z-index: 9999 !important;
+}
+
+/* Toast body text styling */
+.Vue-Toastification__toast-body {
+  padding: 0;
+  width: 100%;
+}

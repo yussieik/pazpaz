@@ -308,18 +308,21 @@ class TestListSessions:
         assert session_data is not None
         assert session_data["client_id"] == str(test_client.id)
 
-    async def test_list_sessions_requires_client_id(
+    async def test_list_sessions_requires_filter(
         self,
         authenticated_client: AsyncClient,
         auth_headers,
     ):
-        """Test list sessions requires client_id parameter."""
+        """Test list sessions requires either client_id or appointment_id parameter."""
         response = await authenticated_client.get(
             "/api/v1/sessions",
         )
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        assert "client_id" in response.text.lower()
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            "must provide either client_id or appointment_id"
+            in response.text.lower()
+        )
 
     async def test_list_sessions_pagination(
         self,
@@ -436,6 +439,345 @@ class TestListSessions:
         )
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+class TestSessionListAppointmentFilter:
+    """Test filtering sessions by appointment_id."""
+
+    async def test_list_sessions_by_appointment_id(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace,
+        test_client,
+        test_user,
+    ):
+        """Should return sessions linked to specific appointment."""
+        from pazpaz.models.appointment import Appointment, AppointmentStatus
+        from pazpaz.models.session import Session
+
+        # Create appointment
+        appointment = Appointment(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            scheduled_start=datetime.now(UTC) + timedelta(hours=1),
+            scheduled_end=datetime.now(UTC) + timedelta(hours=2),
+            location_type="clinic",
+            status=AppointmentStatus.SCHEDULED,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Create 2 sessions linked to this appointment
+        session1 = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            appointment_id=appointment.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(hours=1),
+            subjective="Session 1",
+            is_draft=True,
+            version=1,
+        )
+        session2 = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            appointment_id=appointment.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(hours=2),
+            subjective="Session 2",
+            is_draft=True,
+            version=1,
+        )
+        db_session.add_all([session1, session2])
+        await db_session.commit()
+
+        # Create different appointment with its own session
+        appointment2 = Appointment(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            scheduled_start=datetime.now(UTC) + timedelta(hours=3),
+            scheduled_end=datetime.now(UTC) + timedelta(hours=4),
+            location_type="clinic",
+            status=AppointmentStatus.SCHEDULED,
+        )
+        db_session.add(appointment2)
+        await db_session.commit()
+        await db_session.refresh(appointment2)
+
+        session3 = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            appointment_id=appointment2.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(hours=3),
+            subjective="Session 3",
+            is_draft=True,
+            version=1,
+        )
+        db_session.add(session3)
+        await db_session.commit()
+
+        # Query by appointment_id
+        response = await authenticated_client.get(
+            f"/api/v1/sessions?appointment_id={appointment.id}",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        # Should return only 2 sessions linked to appointment 1
+        assert data["total"] == 2
+        assert len(data["items"]) == 2
+        session_ids = {item["id"] for item in data["items"]}
+        assert str(session1.id) in session_ids
+        assert str(session2.id) in session_ids
+        assert str(session3.id) not in session_ids
+
+    async def test_list_sessions_by_appointment_id_empty(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace,
+        test_client,
+    ):
+        """Should return empty list if no sessions for appointment."""
+        from pazpaz.models.appointment import Appointment, AppointmentStatus
+
+        # Create appointment with no sessions
+        appointment = Appointment(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            scheduled_start=datetime.now(UTC) + timedelta(hours=1),
+            scheduled_end=datetime.now(UTC) + timedelta(hours=2),
+            location_type="clinic",
+            status=AppointmentStatus.SCHEDULED,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Query by appointment_id
+        response = await authenticated_client.get(
+            f"/api/v1/sessions?appointment_id={appointment.id}",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        # Should return empty list
+        assert data["total"] == 0
+        assert len(data["items"]) == 0
+
+    async def test_list_sessions_by_appointment_id_workspace_isolation(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace2,
+        test_client2,
+        test_user2,
+    ):
+        """Should not return sessions from other workspaces."""
+        from pazpaz.models.appointment import Appointment, AppointmentStatus
+        from pazpaz.models.session import Session
+
+        # Create appointment in workspace 2
+        appointment = Appointment(
+            workspace_id=test_workspace2.id,
+            client_id=test_client2.id,
+            scheduled_start=datetime.now(UTC) + timedelta(hours=1),
+            scheduled_end=datetime.now(UTC) + timedelta(hours=2),
+            location_type="clinic",
+            status=AppointmentStatus.SCHEDULED,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Create session linked to appointment in workspace 2
+        session = Session(
+            workspace_id=test_workspace2.id,
+            client_id=test_client2.id,
+            appointment_id=appointment.id,
+            created_by_user_id=test_user2.id,
+            session_date=datetime.now(UTC) - timedelta(hours=1),
+            subjective="Session in workspace 2",
+            is_draft=True,
+            version=1,
+        )
+        db_session.add(session)
+        await db_session.commit()
+
+        # Try to query from workspace 1 (authenticated_client is workspace 1)
+        response = await authenticated_client.get(
+            f"/api/v1/sessions?appointment_id={appointment.id}",
+        )
+
+        # Should return 404 (appointment not found in workspace 1)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_list_sessions_by_appointment_excludes_soft_deleted(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace,
+        test_client,
+        test_user,
+    ):
+        """Should exclude soft-deleted sessions when filtering by appointment."""
+        from pazpaz.models.appointment import Appointment, AppointmentStatus
+        from pazpaz.models.session import Session
+
+        # Create appointment
+        appointment = Appointment(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            scheduled_start=datetime.now(UTC) + timedelta(hours=1),
+            scheduled_end=datetime.now(UTC) + timedelta(hours=2),
+            location_type="clinic",
+            status=AppointmentStatus.SCHEDULED,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Create 2 sessions linked to appointment
+        session1 = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            appointment_id=appointment.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(hours=1),
+            subjective="Session 1",
+            is_draft=True,
+            version=1,
+        )
+        session2 = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            appointment_id=appointment.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(hours=2),
+            subjective="Session 2",
+            is_draft=True,
+            version=1,
+        )
+        db_session.add_all([session1, session2])
+        await db_session.commit()
+
+        # Soft delete session1
+        session1.deleted_at = datetime.now(UTC)
+        session1.deleted_by_user_id = test_user.id
+        session1.permanent_delete_after = datetime.now(UTC) + timedelta(days=30)
+        await db_session.commit()
+
+        # Query by appointment_id
+        response = await authenticated_client.get(
+            f"/api/v1/sessions?appointment_id={appointment.id}",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        # Should return only 1 non-deleted session
+        assert data["total"] == 1
+        assert len(data["items"]) == 1
+        assert data["items"][0]["id"] == str(session2.id)
+
+    async def test_list_sessions_by_client_still_works(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace,
+        test_client,
+        test_user,
+    ):
+        """Ensure existing client_id filtering still works (backward compatibility)."""
+        from pazpaz.models.session import Session
+
+        # Create 3 sessions for client
+        sessions = []
+        for i in range(3):
+            session = Session(
+                workspace_id=test_workspace.id,
+                client_id=test_client.id,
+                created_by_user_id=test_user.id,
+                session_date=datetime.now(UTC) - timedelta(hours=i + 1),
+                subjective=f"Session {i + 1}",
+                is_draft=True,
+                version=1,
+            )
+            db_session.add(session)
+            sessions.append(session)
+        await db_session.commit()
+
+        # Query by client_id (existing behavior)
+        response = await authenticated_client.get(
+            f"/api/v1/sessions?client_id={test_client.id}",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        # Should return all 3 sessions (plus any existing test sessions)
+        assert data["total"] >= 3
+        session_ids = {item["id"] for item in data["items"]}
+        for session in sessions:
+            assert str(session.id) in session_ids
+
+    async def test_list_sessions_by_both_client_and_appointment(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace,
+        test_client,
+        test_user,
+    ):
+        """Should support filtering by both client_id and appointment_id."""
+        from pazpaz.models.appointment import Appointment, AppointmentStatus
+        from pazpaz.models.session import Session
+
+        # Create appointment
+        appointment = Appointment(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            scheduled_start=datetime.now(UTC) + timedelta(hours=1),
+            scheduled_end=datetime.now(UTC) + timedelta(hours=2),
+            location_type="clinic",
+            status=AppointmentStatus.SCHEDULED,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Create session linked to both
+        session = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            appointment_id=appointment.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(hours=1),
+            subjective="Session for both filters",
+            is_draft=True,
+            version=1,
+        )
+        db_session.add(session)
+        await db_session.commit()
+        await db_session.refresh(session)
+
+        # Query with both client_id and appointment_id
+        response = await authenticated_client.get(
+            f"/api/v1/sessions?client_id={test_client.id}&appointment_id={appointment.id}",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        # Should return the session
+        assert data["total"] >= 1
+        session_ids = {item["id"] for item in data["items"]}
+        assert str(session.id) in session_ids
 
 
 class TestUpdateSession:
@@ -764,7 +1106,7 @@ class TestAuditLogging:
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
-        # Verify audit event was created
+        # Verify audit event was created (there may be multiple from middleware)
         result = await db_session.execute(
             select(AuditEvent).where(
                 AuditEvent.resource_type == ResourceType.SESSION.value,
@@ -772,7 +1114,9 @@ class TestAuditLogging:
                 AuditEvent.action == AuditAction.DELETE,
             )
         )
-        audit_event = result.scalar_one()
+        audit_events = result.scalars().all()
+        assert len(audit_events) > 0
+        audit_event = audit_events[0]
         assert audit_event is not None
         assert audit_event.workspace_id == test_workspace.id
 
@@ -1519,3 +1863,597 @@ class TestDraftAutosaveRateLimiting:
         # Verify the sorted set has 1 member (1 request)
         count = await redis_client.zcard(expected_key)
         assert count == 1, f"Expected 1 request in window, got {count}"
+
+
+class TestSessionSoftDelete:
+    """Tests for soft delete functionality of session notes."""
+
+    async def test_soft_delete_session_success(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+        test_user,
+    ):
+        """Test successful soft delete of session note."""
+        assert test_session.deleted_at is None
+        assert test_session.permanent_delete_after is None
+
+        response = await authenticated_client.delete(
+            f"/api/v1/sessions/{test_session.id}",
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        # Verify soft delete fields are set
+        await db_session.refresh(test_session)
+        assert test_session.deleted_at is not None
+        assert test_session.deleted_by_user_id == test_user.id
+        assert test_session.permanent_delete_after is not None
+
+        # Verify 30-day grace period
+        expected_purge = test_session.deleted_at + timedelta(days=30)
+        time_diff = test_session.permanent_delete_after - expected_purge
+        assert abs(time_diff.total_seconds()) < 5
+
+    async def test_soft_deleted_session_excluded_from_list(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+        test_client,
+    ):
+        """Test soft-deleted sessions are excluded from list endpoint."""
+        # Soft delete the session
+        response = await authenticated_client.delete(
+            f"/api/v1/sessions/{test_session.id}",
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        # List sessions for client
+        response = await authenticated_client.get(
+            f"/api/v1/sessions?client_id={test_client.id}",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        # Verify soft-deleted session is not in list
+        session_ids = [item["id"] for item in data["items"]]
+        assert str(test_session.id) not in session_ids
+
+    async def test_restore_session_success(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+        test_user,
+    ):
+        """Test successful restoration of soft-deleted session."""
+        # First soft delete the session
+        now = datetime.now(UTC)
+        test_session.deleted_at = now
+        test_session.deleted_by_user_id = test_user.id
+        test_session.deleted_reason = "Test deletion"
+        test_session.permanent_delete_after = now + timedelta(days=30)
+        await db_session.commit()
+
+        # Restore the session
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/restore",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        # Verify deletion fields are cleared
+        assert data["deleted_at"] is None
+        assert data["deleted_by_user_id"] is None
+        assert data["deleted_reason"] is None
+        assert data["permanent_delete_after"] is None
+
+        # Verify in database
+        await db_session.refresh(test_session)
+        assert test_session.deleted_at is None
+        assert test_session.deleted_by_user_id is None
+        assert test_session.deleted_reason is None
+        assert test_session.permanent_delete_after is None
+
+    async def test_restore_session_expired_grace_period(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+        test_user,
+    ):
+        """Test cannot restore session after 30-day grace period."""
+        # Soft delete with expired grace period (31 days ago)
+        deleted_at = datetime.now(UTC) - timedelta(days=31)
+        test_session.deleted_at = deleted_at
+        test_session.deleted_by_user_id = test_user.id
+        test_session.permanent_delete_after = deleted_at + timedelta(days=30)
+        await db_session.commit()
+
+        # Try to restore
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/restore",
+        )
+
+        assert response.status_code == status.HTTP_410_GONE
+        assert "grace period has expired" in response.json()["detail"].lower()
+
+        # Verify session is still deleted
+        await db_session.refresh(test_session)
+        assert test_session.deleted_at is not None
+
+    async def test_restore_non_deleted_session(
+        self,
+        authenticated_client: AsyncClient,
+        test_session,
+    ):
+        """Test cannot restore session that is not deleted."""
+        assert test_session.deleted_at is None
+
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/restore",
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert "not deleted" in response.json()["detail"].lower()
+
+    async def test_restored_session_appears_in_list(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+        test_user,
+        test_client,
+    ):
+        """Test restored session appears in list endpoint."""
+        # Soft delete
+        now = datetime.now(UTC)
+        test_session.deleted_at = now
+        test_session.deleted_by_user_id = test_user.id
+        test_session.permanent_delete_after = now + timedelta(days=30)
+        await db_session.commit()
+
+        # Verify not in list
+        response = await authenticated_client.get(
+            f"/api/v1/sessions?client_id={test_client.id}",
+        )
+        data = response.json()
+        session_ids = [item["id"] for item in data["items"]]
+        assert str(test_session.id) not in session_ids
+
+        # Restore
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/restore",
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # Verify now in list
+        response = await authenticated_client.get(
+            f"/api/v1/sessions?client_id={test_client.id}",
+        )
+        data = response.json()
+        session_ids = [item["id"] for item in data["items"]]
+        assert str(test_session.id) in session_ids
+
+    async def test_soft_delete_audit_logging(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+        test_user,
+        test_workspace,
+    ):
+        """Test soft delete creates proper audit log entry."""
+        response = await authenticated_client.delete(
+            f"/api/v1/sessions/{test_session.id}",
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        # Verify audit event created (there may be multiple from middleware)
+        result = await db_session.execute(
+            select(AuditEvent).where(
+                AuditEvent.resource_type == ResourceType.SESSION,
+                AuditEvent.resource_id == test_session.id,
+                AuditEvent.action == AuditAction.DELETE,
+            )
+        )
+        audit_events = result.scalars().all()
+
+        # Should have at least one DELETE audit event
+        assert len(audit_events) > 0
+        audit_event = audit_events[0]
+        assert audit_event.user_id == test_user.id
+        assert audit_event.workspace_id == test_workspace.id
+
+    async def test_restore_audit_logging(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+        test_user,
+        test_workspace,
+    ):
+        """Test restore creates proper audit log entry."""
+        # Soft delete first
+        now = datetime.now(UTC)
+        test_session.deleted_at = now
+        test_session.deleted_by_user_id = test_user.id
+        test_session.permanent_delete_after = now + timedelta(days=30)
+        await db_session.commit()
+
+        # Restore
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/restore",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+
+        # Verify audit event created for restore
+        result = await db_session.execute(
+            select(AuditEvent).where(
+                AuditEvent.resource_type == ResourceType.SESSION,
+                AuditEvent.resource_id == test_session.id,
+                AuditEvent.action == AuditAction.UPDATE,
+            )
+        )
+        audit_events = result.scalars().all()
+
+        # Find the restore audit event
+        restore_events = [
+            e for e in audit_events
+            if e.event_metadata and e.event_metadata.get("action") == "restore"
+        ]
+        assert len(restore_events) > 0
+        restore_event = restore_events[0]
+        assert restore_event.user_id == test_user.id
+        assert restore_event.workspace_id == test_workspace.id
+
+
+class TestSoftDeleteFixes:
+    """Tests for P0 and P1 soft delete fixes."""
+
+    async def test_get_soft_deleted_session_returns_404(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+        test_user,
+    ):
+        """P0 FIX: Verify GET on soft-deleted session returns 404."""
+        # Soft delete the session
+        now = datetime.now(UTC)
+        test_session.deleted_at = now
+        test_session.deleted_by_user_id = test_user.id
+        test_session.permanent_delete_after = now + timedelta(days=30)
+        await db_session.commit()
+
+        # Try to GET the soft-deleted session
+        response = await authenticated_client.get(
+            f"/api/v1/sessions/{test_session.id}",
+        )
+
+        # Should return 404 (not 200 with deleted data)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "Resource not found"
+
+    async def test_update_soft_deleted_session_returns_404(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+        test_user,
+    ):
+        """P0 FIX: Verify PUT on soft-deleted session returns 404."""
+        # Soft delete the session
+        now = datetime.now(UTC)
+        test_session.deleted_at = now
+        test_session.deleted_by_user_id = test_user.id
+        test_session.permanent_delete_after = now + timedelta(days=30)
+        await db_session.commit()
+
+        # Try to update the soft-deleted session
+        response = await authenticated_client.put(
+            f"/api/v1/sessions/{test_session.id}",
+            json={"subjective": "Updated note"},
+        )
+
+        # Should return 404 (not 200 with updated data)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "Resource not found"
+
+    async def test_restore_endpoint_can_access_deleted_sessions(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+        test_user,
+    ):
+        """P0 FIX: Verify restore endpoint can access soft-deleted sessions."""
+        # Soft delete the session
+        now = datetime.now(UTC)
+        test_session.deleted_at = now
+        test_session.deleted_by_user_id = test_user.id
+        test_session.permanent_delete_after = now + timedelta(days=30)
+        await db_session.commit()
+
+        # Restore should work (uses include_deleted=True)
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/restore",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["deleted_at"] is None
+
+    async def test_delete_session_with_reason(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+    ):
+        """P1 FIX: Verify DELETE accepts deletion reason in request body."""
+        deletion_reason = "Incorrect session data, will recreate"
+
+        response = await authenticated_client.delete(
+            f"/api/v1/sessions/{test_session.id}",
+            json={"reason": deletion_reason},
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        # Verify reason is stored in database
+        await db_session.refresh(test_session)
+        assert test_session.deleted_at is not None
+        assert test_session.deleted_reason == deletion_reason
+
+    async def test_delete_session_without_reason(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+    ):
+        """P1 FIX: Verify DELETE works without reason (optional parameter)."""
+        response = await authenticated_client.delete(
+            f"/api/v1/sessions/{test_session.id}",
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        # Verify deletion worked but reason is NULL
+        await db_session.refresh(test_session)
+        assert test_session.deleted_at is not None
+        assert test_session.deleted_reason is None
+
+    async def test_delete_session_reason_max_length_validation(
+        self,
+        authenticated_client: AsyncClient,
+        test_session,
+    ):
+        """P1 FIX: Verify deletion reason max length is enforced (500 chars)."""
+        # Create reason that exceeds 500 chars
+        long_reason = "a" * 501
+
+        response = await authenticated_client.delete(
+            f"/api/v1/sessions/{test_session.id}",
+            json={"reason": long_reason},
+        )
+
+        # Should reject with validation error
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    async def test_delete_session_reason_in_audit_log(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+        test_user,  # noqa: ARG002
+        test_workspace,  # noqa: ARG002
+    ):
+        """P1 FIX: Verify deletion reason is logged in audit trail."""
+        deletion_reason = "Test deletion reason"
+
+        response = await authenticated_client.delete(
+            f"/api/v1/sessions/{test_session.id}",
+            json={"reason": deletion_reason},
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        # Verify audit event includes deletion reason
+        result = await db_session.execute(
+            select(AuditEvent).where(
+                AuditEvent.resource_type == ResourceType.SESSION,
+                AuditEvent.resource_id == test_session.id,
+                AuditEvent.action == AuditAction.DELETE,
+            )
+        )
+        audit_events = result.scalars().all()
+        assert len(audit_events) > 0
+
+        # Find the delete audit event with deletion reason
+        delete_event = audit_events[-1]  # Most recent
+        assert delete_event.event_metadata is not None
+        assert delete_event.event_metadata.get("deleted_reason") == deletion_reason
+
+
+class TestDeleteAppointmentWithSessionIntegration:
+    """Integration tests for deleting appointments with session notes."""
+
+    async def test_delete_appointment_with_session_detected_via_appointment_filter(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace,
+        test_client,
+        test_user,
+    ):
+        """
+        Integration test: Verify frontend can detect session notes via
+        appointment_id filter.
+
+        This test reproduces the bug where:
+        1. Session is created and linked to appointment
+        2. Frontend checks for session using GET /sessions?appointment_id={id}
+        3. Backend returns the session
+        4. Frontend shows two-stage deletion dialog
+        5. User chooses "delete"
+        6. Session is soft-deleted (not just unlinked)
+        """
+        from pazpaz.models.appointment import Appointment, AppointmentStatus
+        from pazpaz.models.session import Session
+
+        # Step 1: Create an appointment
+        appointment = Appointment(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            scheduled_start=datetime.now(UTC) + timedelta(hours=1),
+            scheduled_end=datetime.now(UTC) + timedelta(hours=2),
+            location_type="clinic",
+            status=AppointmentStatus.SCHEDULED,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Step 2: Create a session linked to the appointment
+        session_response = await authenticated_client.post(
+            "/api/v1/sessions",
+            json={
+                "client_id": str(test_client.id),
+                "appointment_id": str(appointment.id),
+                "session_date": "2025-10-10T10:00:00Z",
+                "subjective": "Patient reports pain",
+            },
+        )
+        assert session_response.status_code == 201
+        session_id = session_response.json()["id"]
+
+        # Step 3: Frontend checks for session notes using appointment_id filter
+        check_response = await authenticated_client.get(
+            f"/api/v1/sessions?appointment_id={appointment.id}"
+        )
+        assert check_response.status_code == 200
+        sessions = check_response.json()["items"]
+        assert len(sessions) == 1  # Should find the session
+        assert sessions[0]["id"] == session_id
+
+        # Step 4: Delete appointment with session_note_action="delete"
+        # Note: This requires the appointment delete endpoint to support this parameter
+        # For now, we'll verify the session can be deleted independently
+        delete_session_response = await authenticated_client.delete(
+            f"/api/v1/sessions/{session_id}",
+            json={
+                "reason": "Test deletion via appointment delete",
+            },
+        )
+        assert delete_session_response.status_code == 204
+
+        # Step 5: Verify session was soft-deleted (not just unlinked)
+        session_query = select(Session).where(Session.id == uuid.UUID(session_id))
+        result = await db_session.execute(session_query)
+        session = result.scalar_one()
+
+        assert session.deleted_at is not None  # Should be soft-deleted
+        assert session.deleted_reason == "Test deletion via appointment delete"
+        assert session.permanent_delete_after is not None
+
+        # Step 6: Verify session no longer appears when querying by appointment_id
+        check_response_after = await authenticated_client.get(
+            f"/api/v1/sessions?appointment_id={appointment.id}"
+        )
+        assert check_response_after.status_code == 200
+        sessions_after = check_response_after.json()["items"]
+        assert len(sessions_after) == 0  # Soft-deleted session should not appear
+
+    async def test_frontend_can_detect_multiple_sessions_for_appointment(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace,
+        test_client,
+        test_user,
+    ):
+        """
+        Verify frontend can detect multiple session notes for an appointment.
+        """
+        from pazpaz.models.appointment import Appointment, AppointmentStatus
+
+        # Create appointment
+        appointment = Appointment(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            scheduled_start=datetime.now(UTC) + timedelta(hours=1),
+            scheduled_end=datetime.now(UTC) + timedelta(hours=2),
+            location_type="clinic",
+            status=AppointmentStatus.SCHEDULED,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Create multiple sessions linked to the appointment
+        session_ids = []
+        for i in range(3):
+            session_response = await authenticated_client.post(
+                "/api/v1/sessions",
+                json={
+                    "client_id": str(test_client.id),
+                    "appointment_id": str(appointment.id),
+                    "session_date": f"2025-10-10T{10 + i}:00:00Z",
+                    "subjective": f"Session note {i + 1}",
+                },
+            )
+            assert session_response.status_code == 201
+            session_ids.append(session_response.json()["id"])
+
+        # Frontend checks for session notes using appointment_id filter
+        check_response = await authenticated_client.get(
+            f"/api/v1/sessions?appointment_id={appointment.id}"
+        )
+        assert check_response.status_code == 200
+        sessions = check_response.json()["items"]
+        assert len(sessions) == 3  # Should find all 3 sessions
+
+        # Verify all session IDs are present
+        found_session_ids = {s["id"] for s in sessions}
+        for session_id in session_ids:
+            assert session_id in found_session_ids
+
+    async def test_appointment_without_session_returns_empty_list(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace,
+        test_client,
+    ):
+        """
+        Verify querying appointment without sessions returns empty list.
+        This allows frontend to know it's safe to delete without showing dialog.
+        """
+        from pazpaz.models.appointment import Appointment, AppointmentStatus
+
+        # Create appointment without sessions
+        appointment = Appointment(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            scheduled_start=datetime.now(UTC) + timedelta(hours=1),
+            scheduled_end=datetime.now(UTC) + timedelta(hours=2),
+            location_type="clinic",
+            status=AppointmentStatus.SCHEDULED,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Check for session notes
+        check_response = await authenticated_client.get(
+            f"/api/v1/sessions?appointment_id={appointment.id}"
+        )
+        assert check_response.status_code == 200
+        sessions = check_response.json()["items"]
+        assert len(sessions) == 0  # No sessions, safe to delete without dialog

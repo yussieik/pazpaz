@@ -7,28 +7,30 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from pazpaz.core.constants import DELETION_REASON_MAX_LENGTH, SOAP_FIELD_MAX_LENGTH
+
 
 class SessionBase(BaseModel):
     """Base schema for Session CRUD operations."""
 
     subjective: str | None = Field(
         None,
-        max_length=5000,
+        max_length=SOAP_FIELD_MAX_LENGTH,
         description="Patient-reported symptoms (PHI - encrypted at rest)",
     )
     objective: str | None = Field(
         None,
-        max_length=5000,
+        max_length=SOAP_FIELD_MAX_LENGTH,
         description="Therapist observations (PHI - encrypted at rest)",
     )
     assessment: str | None = Field(
         None,
-        max_length=5000,
+        max_length=SOAP_FIELD_MAX_LENGTH,
         description="Clinical assessment (PHI - encrypted at rest)",
     )
     plan: str | None = Field(
         None,
-        max_length=5000,
+        max_length=SOAP_FIELD_MAX_LENGTH,
         description="Treatment plan (PHI - encrypted at rest)",
     )
     session_date: datetime = Field(
@@ -73,10 +75,10 @@ class SessionCreate(SessionBase):
 class SessionUpdate(BaseModel):
     """Schema for updating a session (all fields optional for partial updates)."""
 
-    subjective: str | None = Field(None, max_length=5000)
-    objective: str | None = Field(None, max_length=5000)
-    assessment: str | None = Field(None, max_length=5000)
-    plan: str | None = Field(None, max_length=5000)
+    subjective: str | None = Field(None, max_length=SOAP_FIELD_MAX_LENGTH)
+    objective: str | None = Field(None, max_length=SOAP_FIELD_MAX_LENGTH)
+    assessment: str | None = Field(None, max_length=SOAP_FIELD_MAX_LENGTH)
+    plan: str | None = Field(None, max_length=SOAP_FIELD_MAX_LENGTH)
     session_date: datetime | None = None
     duration_minutes: int | None = Field(None, ge=0, le=480)
 
@@ -103,10 +105,30 @@ class SessionResponse(SessionBase):
     is_draft: bool
     draft_last_saved_at: datetime | None
     finalized_at: datetime | None
+    amended_at: datetime | None = Field(
+        None, description="When session was last amended (NULL if never amended)"
+    )
+    amendment_count: int = Field(
+        0, description="Number of times this finalized session has been amended"
+    )
     version: int
     created_at: datetime
     updated_at: datetime
-    deleted_at: datetime | None
+    deleted_at: datetime | None = Field(
+        None, description="When session was soft-deleted (NULL if active)"
+    )
+    deleted_reason: str | None = Field(
+        None, description="Optional reason for soft deletion"
+    )
+    deleted_by_user_id: uuid.UUID | None = Field(
+        None, description="User who soft-deleted this session"
+    )
+    permanent_delete_after: datetime | None = Field(
+        None,
+        description=(
+            "Date when session will be permanently purged (deleted_at + 30 days)"
+        ),
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -130,10 +152,10 @@ class SessionDraftUpdate(BaseModel):
     No validation on session_date (drafts can be incomplete).
     """
 
-    subjective: str | None = Field(None, max_length=5000)
-    objective: str | None = Field(None, max_length=5000)
-    assessment: str | None = Field(None, max_length=5000)
-    plan: str | None = Field(None, max_length=5000)
+    subjective: str | None = Field(None, max_length=SOAP_FIELD_MAX_LENGTH)
+    objective: str | None = Field(None, max_length=SOAP_FIELD_MAX_LENGTH)
+    assessment: str | None = Field(None, max_length=SOAP_FIELD_MAX_LENGTH)
+    plan: str | None = Field(None, max_length=SOAP_FIELD_MAX_LENGTH)
     duration_minutes: int | None = Field(None, ge=0, le=480)
 
 
@@ -149,5 +171,57 @@ class SessionAttachmentResponse(BaseModel):
     uploaded_by_user_id: uuid.UUID | None
     created_at: datetime
     deleted_at: datetime | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SessionDeleteRequest(BaseModel):
+    """Schema for deleting a session with optional reason."""
+
+    reason: str | None = Field(
+        None,
+        max_length=DELETION_REASON_MAX_LENGTH,
+        description="Optional reason for deletion (logged in audit trail)",
+    )
+
+
+class SessionVersionResponse(BaseModel):
+    """
+    Schema for session version history responses.
+
+    Represents a historical snapshot of a session note at a specific point in time.
+    """
+
+    id: uuid.UUID
+    session_id: uuid.UUID
+    version_number: int = Field(
+        ..., description="Version number (1 = original, 2+ = amendments)"
+    )
+    subjective: str | None = Field(
+        None,
+        max_length=SOAP_FIELD_MAX_LENGTH,
+        description="Subjective snapshot (decrypted PHI)",
+    )
+    objective: str | None = Field(
+        None,
+        max_length=SOAP_FIELD_MAX_LENGTH,
+        description="Objective snapshot (decrypted PHI)",
+    )
+    assessment: str | None = Field(
+        None,
+        max_length=SOAP_FIELD_MAX_LENGTH,
+        description="Assessment snapshot (decrypted PHI)",
+    )
+    plan: str | None = Field(
+        None,
+        max_length=SOAP_FIELD_MAX_LENGTH,
+        description="Plan snapshot (decrypted PHI)",
+    )
+    created_at: datetime = Field(
+        ..., description="When this version was created (finalized or amended)"
+    )
+    created_by_user_id: uuid.UUID = Field(
+        ..., description="User who created this version"
+    )
 
     model_config = ConfigDict(from_attributes=True)

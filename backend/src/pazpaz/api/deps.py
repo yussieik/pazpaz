@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 
 import redis.asyncio as redis
-from fastapi import Cookie, Depends, Header, HTTPException
+from fastapi import Cookie, Depends, HTTPException
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +13,7 @@ from pazpaz.core.logging import get_logger
 from pazpaz.core.redis import get_redis
 from pazpaz.core.security import decode_access_token
 from pazpaz.db.base import get_db
+from pazpaz.models.client import Client
 from pazpaz.models.user import User
 from pazpaz.services.auth_service import get_user_by_id, is_token_blacklisted
 
@@ -147,8 +148,8 @@ async def get_current_user(
 
 # REMOVED: get_current_workspace_id() dependency
 #
-# This dependency was removed on 2025-10-05 as part of a critical security fix.
-# It accepted unauthenticated X-Workspace-ID headers, allowing workspace isolation bypass.
+# This dependency was removed on 2025-10-05 as part of critical security fix.
+# It accepted unauthenticated X-Workspace-ID headers, allowing isolation bypass.
 #
 # VULNERABILITY: CVE-2025-XXXX (CVSS 9.1 - Critical)
 # - Accepted ANY workspace UUID from X-Workspace-ID header without authentication
@@ -170,6 +171,7 @@ async def get_or_404(
     model_class,
     resource_id: uuid.UUID,
     workspace_id: uuid.UUID,
+    include_deleted: bool = False,
 ) -> object:
     """
     Fetch a resource by ID and verify it belongs to the authenticated workspace.
@@ -177,16 +179,21 @@ async def get_or_404(
     This helper enforces workspace isolation at the data access layer.
     Returns generic 404 error to prevent information leakage about resource existence.
 
+    For models with soft delete (deleted_at column), excludes soft-deleted resources
+    by default unless include_deleted=True is specified.
+
     Security Principles:
     - Fail closed: 404 for both "not found" and "wrong workspace"
     - Generic errors: Don't reveal whether resource exists in different workspace
     - Server-side logging: Log actual reason for debugging without exposing to client
+    - Soft delete filtering: Prevents access to deleted resources by default
 
     Args:
         db: Database session
         model_class: SQLAlchemy model class to query
         resource_id: UUID of the resource to fetch
         workspace_id: Authenticated workspace ID
+        include_deleted: If True, includes soft-deleted resources (default: False)
 
     Returns:
         Resource instance if found and belongs to workspace
@@ -196,7 +203,13 @@ async def get_or_404(
 
     Example:
         ```python
+        # Normal usage (excludes soft-deleted)
         client = await get_or_404(db, Client, client_id, workspace_id)
+
+        # Include soft-deleted (for restore operations)
+        session = await get_or_404(
+            db, Session, session_id, workspace_id, include_deleted=True
+        )
         ```
     """
     from sqlalchemy import select
@@ -205,6 +218,12 @@ async def get_or_404(
         model_class.id == resource_id,
         model_class.workspace_id == workspace_id,
     )
+
+    # Filter out soft-deleted resources by default
+    # Only if model has deleted_at column and include_deleted is False
+    if hasattr(model_class, "deleted_at") and not include_deleted:
+        query = query.where(model_class.deleted_at.is_(None))
+
     result = await db.execute(query)
     resource = result.scalar_one_or_none()
 
@@ -215,6 +234,7 @@ async def get_or_404(
             model=model_class.__name__,
             resource_id=str(resource_id),
             workspace_id=str(workspace_id),
+            include_deleted=include_deleted,
         )
         # Return generic error to client (don't reveal existence)
         raise HTTPException(
@@ -225,5 +245,41 @@ async def get_or_404(
     return resource
 
 
+async def verify_client_in_workspace(
+    db: AsyncSession,
+    client_id: uuid.UUID,
+    workspace_id: uuid.UUID,
+) -> Client:
+    """
+    Verify that a client exists and belongs to the workspace.
+
+    This is a shared utility used by both appointments and sessions endpoints
+    to ensure clients are workspace-scoped before operations.
+
+    SECURITY: Returns generic 404 error to prevent information leakage.
+
+    Args:
+        db: Database session
+        client_id: Client ID to verify
+        workspace_id: Expected workspace ID
+
+    Returns:
+        Client instance if found and belongs to workspace
+
+    Raises:
+        HTTPException: 404 if client not found or belongs to different workspace
+
+    Example:
+        ```python
+        client = await verify_client_in_workspace(
+            db=db,
+            client_id=appointment_data.client_id,
+            workspace_id=workspace_id,
+        )
+        ```
+    """
+    return await get_or_404(db, Client, client_id, workspace_id)
+
+
 # Re-export for convenience
-__all__ = ["get_db", "get_current_user", "get_or_404"]
+__all__ = ["get_db", "get_current_user", "get_or_404", "verify_client_in_workspace"]

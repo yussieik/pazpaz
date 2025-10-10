@@ -143,11 +143,41 @@ function handleSessionFinalized() {
 
 // Navigate back
 function goBack() {
-  if (session.value?.client_id) {
-    // Go back to client detail page
+  const state = window.history.state as {
+    from?: string
+    clientId?: string
+    appointmentId?: string
+    returnTo?: string
+  }
+
+  // Return to client detail history tab
+  if (
+    state?.from === 'client-history' &&
+    state?.clientId &&
+    state?.returnTo === 'client-detail'
+  ) {
+    router.push({
+      path: `/clients/${state.clientId}`,
+      query: { tab: 'history' },
+    })
+  }
+  // Return to calendar with appointment modal
+  else if (
+    state?.from === 'appointment' &&
+    state?.appointmentId &&
+    state?.returnTo === 'calendar'
+  ) {
+    router.push({
+      path: '/',
+      query: { appointment: state.appointmentId },
+    })
+  }
+  // Default: Return to client detail
+  else if (session.value?.client_id) {
     router.push(`/clients/${session.value.client_id}`)
-  } else {
-    // Fall back to calendar
+  }
+  // Fallback: Calendar
+  else {
     router.push('/')
   }
 }
@@ -165,10 +195,15 @@ onMounted(() => {
       <button
         type="button"
         @click="goBack"
-        class="inline-flex items-center text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+        class="inline-flex items-center text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 focus:outline-none"
       >
         <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
         </svg>
         Back to {{ session?.client_id ? 'Client' : 'Calendar' }}
       </button>
@@ -186,7 +221,11 @@ onMounted(() => {
       <div class="flex">
         <div class="flex-shrink-0">
           <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            <path
+              fill-rule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+              clip-rule="evenodd"
+            />
           </svg>
         </div>
         <div class="ml-3">
@@ -198,7 +237,7 @@ onMounted(() => {
             <button
               type="button"
               @click="goBack"
-              class="rounded-md bg-red-100 px-3 py-2 text-sm font-semibold text-red-800 transition-colors hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-red-50"
+              class="rounded-md bg-red-100 px-3 py-2 text-sm font-semibold text-red-800 transition-colors hover:bg-red-200 focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-red-50 focus:outline-none"
             >
               Go Back
             </button>
@@ -209,10 +248,7 @@ onMounted(() => {
 
     <!-- Session Editor -->
     <div v-else-if="!isLoadingSession">
-      <SessionEditor
-        :session-id="sessionId"
-        @finalized="handleSessionFinalized"
-      />
+      <SessionEditor :session-id="sessionId" @finalized="handleSessionFinalized" />
     </div>
   </div>
 </template>

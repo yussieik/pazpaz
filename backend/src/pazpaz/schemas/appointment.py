@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from pazpaz.core.constants import DELETION_REASON_MAX_LENGTH
 from pazpaz.models.appointment import AppointmentStatus, LocationType
 
 
@@ -67,7 +69,17 @@ class AppointmentUpdate(BaseModel):
     location_details: str | None = Field(
         None, description="Additional location details"
     )
-    status: AppointmentStatus | None = Field(None, description="Appointment status")
+    status: AppointmentStatus | None = Field(
+        None,
+        description=(
+            "Appointment status. Valid transitions: "
+            "scheduled→completed, scheduled→cancelled, scheduled→no_show, "
+            "completed→no_show, cancelled→scheduled, no_show→scheduled, "
+            "no_show→completed. Cannot cancel completed appointments with "
+            "session notes (delete session first). Cannot revert completed "
+            "appointments to scheduled."
+        ),
+    )
     notes: str | None = Field(None, description="Therapist notes")
 
     @field_validator("scheduled_end")
@@ -79,6 +91,36 @@ class AppointmentUpdate(BaseModel):
             if start is not None and end <= start:
                 raise ValueError("scheduled_end must be after scheduled_start")
         return end
+
+
+class AppointmentDeleteRequest(BaseModel):
+    """
+    Schema for deleting an appointment with optional reason and session note action.
+    """
+
+    reason: str | None = Field(
+        None,
+        max_length=DELETION_REASON_MAX_LENGTH,
+        description="Optional reason for deletion (logged in audit trail)",
+    )
+    session_note_action: Literal["delete", "keep"] | None = Field(
+        None,
+        description=(
+            "Action to take with session notes attached to this appointment. "
+            "'delete' = soft delete the session note with 30-day grace period, "
+            "'keep' = leave the session note unchanged (default if not specified). "
+            "Required if appointment has session notes and you want to delete them."
+        ),
+    )
+    deletion_reason: str | None = Field(
+        None,
+        max_length=DELETION_REASON_MAX_LENGTH,
+        description=(
+            "Optional reason for deleting the session note (only used if "
+            "session_note_action='delete'). This is separate from the appointment "
+            "deletion reason and is stored with the soft-deleted session note."
+        ),
+    )
 
 
 class ClientSummary(BaseModel):
@@ -106,6 +148,12 @@ class AppointmentResponse(BaseModel):
     notes: str | None
     created_at: datetime
     updated_at: datetime
+    edited_at: datetime | None = Field(
+        None, description="When appointment was last edited (NULL if never edited)"
+    )
+    edit_count: int = Field(
+        0, description="Number of times this appointment has been edited"
+    )
     client: ClientSummary | None = Field(
         None, description="Client information (included when requested)"
     )

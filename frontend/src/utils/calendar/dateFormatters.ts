@@ -60,3 +60,42 @@ export function calculateDuration(start: string, end: string): string {
   if (minutes === 0) return `${hours}h`
   return `${hours}h ${minutes}min`
 }
+
+/**
+ * Calculate days remaining between now and a future date
+ * Returns positive number for future dates, negative for past dates
+ * Rounds up to ensure we show at least 1 day if within 24 hours
+ */
+export function getDaysRemaining(futureDate: string): number {
+  const targetDate = new Date(futureDate)
+  const now = new Date()
+  const diffMs = targetDate.getTime() - now.getTime()
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+}
+
+/**
+ * Format relative time from a past date (e.g., "5 days ago", "Deleted today")
+ * Used for displaying deletion timestamps and other historical events
+ */
+export function formatRelativeTime(pastDate: string): string {
+  const past = new Date(pastDate)
+  const now = new Date()
+  const diffMs = now.getTime() - past.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  return `${diffDays} days ago`
+}
+
+/**
+ * Format a date for display in long form
+ * Example: "January 15, 2025"
+ */
+export function formatLongDate(dateString: string): string {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}

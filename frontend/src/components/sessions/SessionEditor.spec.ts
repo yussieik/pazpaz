@@ -288,9 +288,9 @@ describe('SessionEditor', () => {
       await nextTick()
 
       // Find button with "Finalize" text
-      const finalizeButton = wrapper.findAll('button').find((btn) =>
-        btn.text().includes('Finalize')
-      )
+      const finalizeButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Finalize'))
       expect(finalizeButton).toBeDefined()
       expect(finalizeButton?.attributes('disabled')).toBeDefined()
     })
@@ -372,9 +372,9 @@ describe('SessionEditor', () => {
 
       await nextTick()
 
-      const finalizeButton = wrapper.findAll('button').find((btn) =>
-        btn.text().includes('Finalize')
-      )
+      const finalizeButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Finalize'))
       expect(finalizeButton).toBeDefined()
 
       // Button should be disabled, but if we could click it, it would show error
@@ -420,9 +420,9 @@ describe('SessionEditor', () => {
     })
 
     it('hides finalize button for finalized sessions', () => {
-      const finalizeButtons = wrapper.findAll('button').filter((button) =>
-        button.text().includes('Finalize')
-      )
+      const finalizeButtons = wrapper
+        .findAll('button')
+        .filter((button) => button.text().includes('Finalize'))
       expect(finalizeButtons.length).toBe(0)
     })
 

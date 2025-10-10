@@ -175,14 +175,39 @@ export const useAppointmentsStore = defineStore('appointments', () => {
   }
 
   /**
-   * Delete an appointment
+   * Delete an appointment with optional reason and session note handling
+   * @param appointmentId - The ID of the appointment to delete
+   * @param options - Optional deletion options
+   * @param options.reason - Optional reason for appointment deletion (for audit trail)
+   * @param options.session_note_action - What to do with session notes ('delete' | 'keep')
+   * @param options.deletion_reason - Optional reason for session note deletion
    */
-  async function deleteAppointment(appointmentId: string) {
+  async function deleteAppointment(
+    appointmentId: string,
+    options?: {
+      reason?: string
+      session_note_action?: 'delete' | 'keep'
+      deletion_reason?: string
+    }
+  ) {
     loading.value = true
     error.value = null
 
     try {
-      await apiClient.delete(`/appointments/${appointmentId}`)
+      // Send deletion options in request body
+      const payload: {
+        reason?: string
+        session_note_action?: 'delete' | 'keep'
+        deletion_reason?: string
+      } = {}
+
+      if (options?.reason) payload.reason = options.reason
+      if (options?.session_note_action) payload.session_note_action = options.session_note_action
+      if (options?.deletion_reason) payload.deletion_reason = options.deletion_reason
+
+      await apiClient.delete(`/appointments/${appointmentId}`, {
+        data: Object.keys(payload).length > 0 ? payload : undefined,
+      })
 
       // Remove from local state
       appointments.value = appointments.value.filter((a) => a.id !== appointmentId)
@@ -196,6 +221,61 @@ export const useAppointmentsStore = defineStore('appointments', () => {
       throw err
     } finally {
       loading.value = false
+    }
+  }
+
+  /**
+   * Update appointment status only
+   * Used for marking appointments as completed, no-show, etc.
+   */
+  async function updateAppointmentStatus(appointmentId: string, newStatus: string) {
+    const appointment = appointments.value.find((a) => a.id === appointmentId)
+    if (!appointment) {
+      throw new Error('Appointment not found')
+    }
+
+    // Store old status for rollback
+    const oldStatus = appointment.status
+
+    try {
+      // Optimistic update
+      appointment.status = newStatus as AppointmentListItem['status']
+
+      // API call
+      const response = await apiClient.put<AppointmentListItem>(
+        `/appointments/${appointmentId}`,
+        {
+          status: newStatus,
+        }
+      )
+
+      // Update with server response
+      const index = appointments.value.findIndex((a) => a.id === appointmentId)
+      if (index !== -1) {
+        appointments.value[index] = response.data
+      }
+
+      // Trigger calendar refresh
+      await fetchAppointments()
+    } catch (err) {
+      // Rollback on error
+      appointment.status = oldStatus
+
+      // Extract error message
+      let errorMessage = 'Failed to update appointment status'
+      if (err && typeof err === 'object') {
+        if ('response' in err) {
+          const axiosError = err as {
+            response?: { data?: { detail?: string } }
+          }
+          errorMessage = axiosError.response?.data?.detail || errorMessage
+        } else if ('message' in err) {
+          errorMessage = (err as Error).message
+        }
+      }
+
+      console.error('Error updating appointment status:', err)
+      throw new Error(errorMessage)
     }
   }
 
@@ -259,6 +339,7 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     ensureAppointmentsLoaded,
     createAppointment,
     updateAppointment,
+    updateAppointmentStatus,
     deleteAppointment,
     clearAppointments,
   }
