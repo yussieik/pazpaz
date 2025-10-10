@@ -36,9 +36,10 @@ export const useClientsStore = defineStore('clients', () => {
     error.value = null
 
     try {
-      const params: Record<string, string | number> = {
+      const params: Record<string, string | number | boolean> = {
         page,
         page_size: pageSize,
+        include_appointments: true, // Include appointment counts
       }
 
       const response = await apiClient.get<ClientResponse>('/clients', {
