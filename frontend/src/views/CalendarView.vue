@@ -46,17 +46,14 @@ const appointmentsStore = useAppointmentsStore()
 const calendarRef = ref<InstanceType<typeof FullCalendar>>()
 const toolbarRef = ref<InstanceType<typeof CalendarToolbar>>()
 
-// Modal/dialog state
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showCancelDialog = ref(false)
 const appointmentToEdit = ref<AppointmentListItem | null>(null)
 const appointmentToCancel = ref<AppointmentListItem | null>(null)
 
-// Double-click create state
 const createModalPrefillData = ref<{ start: Date; end: Date } | null>(null)
 
-// Drag-and-drop state
 const showDragConflictModal = ref(false)
 const showMobileRescheduleModal = ref(false)
 const dragConflictData = ref<{
@@ -72,25 +69,17 @@ const undoData = ref<{
   originalEnd: string
 } | null>(null)
 
-// Cancellation undo state
 const undoCancelData = ref<{
   appointmentId: string
   originalStatus: AppointmentStatus
   originalNotes?: string
 } | null>(null)
 
-// Success toast state - REMOVED (now using vue-toastification)
-
-// Edit success badge state
 const showEditSuccessBadge = ref(false)
 
-// Screen reader announcements
 const { announcement: screenReaderAnnouncement, announce } = useScreenReader()
-
-// Toast notifications
 const { showSuccess, showAppointmentSuccess, showSuccessWithUndo } = useToast()
 
-// Calendar state and navigation
 const {
   currentView,
   currentDate,
@@ -103,11 +92,9 @@ const {
   buildCalendarOptions,
 } = useCalendar()
 
-// Calendar events and selection
 const { selectedAppointment, calendarEvents, handleEventClick, sessionStatusMap } =
   useCalendarEvents()
 
-// Debounced loading state
 const { showLoadingSpinner } = useCalendarLoading()
 
 /**
@@ -117,7 +104,6 @@ function openCreateModalWithPrefill(prefillData: { start: Date; end: Date }) {
   createModalPrefillData.value = prefillData
   showCreateModal.value = true
 
-  // Screen reader announcement
   const dateStr = prefillData.start.toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -133,16 +119,13 @@ function openCreateModalWithPrefill(prefillData: { start: Date; end: Date }) {
   )
 }
 
-// Initialize calendar creation composable
 const { handleDateClick } = useCalendarCreation(openCreateModalWithPrefill)
 
-// Cell hover highlighting for timeGrid views using overlay
 const hoverOverlayVisible = ref(false)
 const hoverOverlayStyle = ref({ top: '0px', left: '0px', width: '0px', height: '0px' })
 const isHoverInOffHours = ref(false)
 
 function handleCalendarMouseMove(event: MouseEvent) {
-  // Only apply to timeGrid views (week/day)
   if (!currentView.value.includes('timeGrid')) {
     hoverOverlayVisible.value = false
     return
@@ -150,13 +133,9 @@ function handleCalendarMouseMove(event: MouseEvent) {
 
   const target = event.target as HTMLElement
 
-  // Find the time slot lane (horizontal row)
-  // The .fc-non-business overlay sits on top of slots in off-hours, blocking direct access
   let slotLane = target.closest('.fc-timegrid-slot-lane')
 
   if (!slotLane) {
-    // Off-hours: .fc-non-business overlay blocks the slot lane
-    // Use elementsFromPoint to find the slot lane underneath
     const allElements = document.elementsFromPoint(event.clientX, event.clientY)
     slotLane = allElements.find((el) =>
       el.classList.contains('fc-timegrid-slot-lane')
@@ -168,11 +147,6 @@ function handleCalendarMouseMove(event: MouseEvent) {
     return
   }
 
-  // FullCalendar's structure: the background grid and events are in separate layers
-  // We need to find which day column we're in by looking at the mouse X position
-  // and comparing it to the column positions
-
-  // Get all day columns in the current view
   const dayColumns = document.querySelectorAll('.fc-timegrid-col')
 
   if (dayColumns.length === 0) {
@@ -180,7 +154,6 @@ function handleCalendarMouseMove(event: MouseEvent) {
     return
   }
 
-  // Find which column the mouse is over based on X coordinate
   const mouseX = event.clientX
   let targetColumn: HTMLElement | null = null
 
@@ -197,18 +170,14 @@ function handleCalendarMouseMove(event: MouseEvent) {
     return
   }
 
-  // Now we have both the row (slotLane) and column (targetColumn)
   const slotRect = slotLane.getBoundingClientRect()
   const colRect = targetColumn.getBoundingClientRect()
 
-  // Check if there's an event in this cell
-  // Look for events at multiple points within the cell to catch events that don't fill the full width
   const eventsAtPosition = document.elementsFromPoint(event.clientX, event.clientY)
   const hasEventAtCursor = eventsAtPosition.some((el) =>
     el.classList.contains('fc-event')
   )
 
-  // Check center of the cell and left/right edges for events
   const centerX = colRect.left + colRect.width / 2
   const leftX = colRect.left + 10
   const rightX = colRect.right - 10
@@ -221,13 +190,10 @@ function handleCalendarMouseMove(event: MouseEvent) {
   ].some((elements) => elements.some((el) => el.classList.contains('fc-event')))
 
   if (hasEventAtCursor || hasEventInCell) {
-    // Don't show hover effect if there's an event in this cell
     hoverOverlayVisible.value = false
     return
   }
 
-  // Check if we're hovering over an off-hours cell
-  // Off-hours cells have .fc-non-business class overlay
   const isNonBusiness = eventsAtPosition.some((el) =>
     el.classList.contains('fc-non-business')
   )
@@ -238,13 +204,11 @@ function handleCalendarMouseMove(event: MouseEvent) {
   if (calendarContainer) {
     const containerRect = calendarContainer.getBoundingClientRect()
 
-    // Calculate the intersection of the row and column (this is our cell!)
     const cellTop = slotRect.top - containerRect.top
     const cellLeft = colRect.left - containerRect.left
     const cellWidth = colRect.width
     const cellHeight = slotRect.height
 
-    // Update overlay position and size
     hoverOverlayStyle.value = {
       top: `${cellTop}px`,
       left: `${cellLeft}px`,
@@ -261,7 +225,6 @@ function handleCalendarMouseLeave() {
   hoverOverlayVisible.value = false
 }
 
-// Drag-and-drop rescheduling
 const {
   isDragging,
   isKeyboardRescheduleActive,
@@ -280,7 +243,6 @@ const {
   handleAppointmentReschedule
 )
 
-// Button refs for keyboard shortcut visual feedback
 const toolbarButtonRefs = computed(() => ({
   todayButton: toolbarRef.value?.todayButtonRef,
   previousButton: toolbarRef.value?.previousButtonRef,
@@ -290,7 +252,6 @@ const toolbarButtonRefs = computed(() => ({
   monthButton: toolbarRef.value?.monthButtonRef,
 }))
 
-// Keyboard shortcuts with button visual feedback
 useCalendarKeyboardShortcuts({
   onToday: handleToday,
   onPrevious: handlePrev,
@@ -301,8 +262,6 @@ useCalendarKeyboardShortcuts({
   buttonRefs: toolbarButtonRefs,
 })
 
-// Build calendar options with events and handlers
-// Wrap in computed to make it reactive to view/date/event changes
 const calendarOptions = computed(() => ({
   ...buildCalendarOptions(calendarEvents.value, handleEventClick, handleDateClick),
   eventDrop: handleEventDrop as (arg: EventDropArg) => void,
@@ -323,10 +282,8 @@ const calendarOptions = computed(() => ({
     const isDraft = event.extendedProps.isDraft
     const duration = event.extendedProps.duration_minutes
 
-    // Build tooltip text
     let tooltipText = event.title
 
-    // Add session status
     if (hasSession) {
       tooltipText += isDraft
         ? '\n📄 Session note: Draft'
@@ -335,12 +292,10 @@ const calendarOptions = computed(() => ({
       tooltipText += '\n📝 No session note yet'
     }
 
-    // Add duration if available
     if (duration) {
       tooltipText += `\n⏱️ ${duration} minutes`
     }
 
-    // Add location type
     if (event.extendedProps.location_type) {
       const locationEmoji: Record<string, string> = {
         clinic: '🏥',

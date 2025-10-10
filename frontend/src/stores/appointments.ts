@@ -20,7 +20,6 @@ type AppointmentUpdate =
   paths['/api/v1/appointments/{appointment_id}']['put']['requestBody']['content']['application/json']
 
 export const useAppointmentsStore = defineStore('appointments', () => {
-  // State
   const appointments = ref<AppointmentListItem[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -34,10 +33,7 @@ export const useAppointmentsStore = defineStore('appointments', () => {
    */
   const loadedRange = ref<{ startDate: Date; endDate: Date } | null>(null)
 
-  // Getters
   const hasAppointments = computed(() => appointments.value.length > 0)
-
-  // Actions
 
   /**
    * Fetch appointments with optional date range filtering
@@ -68,7 +64,6 @@ export const useAppointmentsStore = defineStore('appointments', () => {
       appointments.value = response.data.items
       total.value = response.data.total
 
-      // Track the loaded range for smart fetching
       if (startDate && endDate) {
         loadedRange.value = {
           startDate: new Date(startDate),
@@ -76,7 +71,6 @@ export const useAppointmentsStore = defineStore('appointments', () => {
         }
       }
     } catch (err: unknown) {
-      // Handle Axios errors with detailed error messages
       if (err && typeof err === 'object' && 'response' in err) {
         const axiosError = err as {
           response?: { status: number; data?: { detail?: string } }
@@ -114,7 +108,6 @@ export const useAppointmentsStore = defineStore('appointments', () => {
         appointmentData
       )
 
-      // Add new appointment to local state (optimistic update)
       appointments.value.push(response.data)
 
       return response.data
@@ -154,7 +147,6 @@ export const useAppointmentsStore = defineStore('appointments', () => {
         { params }
       )
 
-      // Update local state
       const index = appointments.value.findIndex((a) => a.id === appointmentId)
       if (index !== -1) {
         appointments.value[index] = response.data
@@ -194,7 +186,6 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     error.value = null
 
     try {
-      // Send deletion options in request body
       const payload: {
         reason?: string
         session_note_action?: 'delete' | 'keep'
@@ -209,7 +200,6 @@ export const useAppointmentsStore = defineStore('appointments', () => {
         data: Object.keys(payload).length > 0 ? payload : undefined,
       })
 
-      // Remove from local state
       appointments.value = appointments.value.filter((a) => a.id !== appointmentId)
     } catch (err) {
       if (err && typeof err === 'object' && 'message' in err) {
@@ -234,14 +224,11 @@ export const useAppointmentsStore = defineStore('appointments', () => {
       throw new Error('Appointment not found')
     }
 
-    // Store old status for rollback
     const oldStatus = appointment.status
 
     try {
-      // Optimistic update
       appointment.status = newStatus as AppointmentListItem['status']
 
-      // API call
       const response = await apiClient.put<AppointmentListItem>(
         `/appointments/${appointmentId}`,
         {
@@ -249,19 +236,15 @@ export const useAppointmentsStore = defineStore('appointments', () => {
         }
       )
 
-      // Update with server response
       const index = appointments.value.findIndex((a) => a.id === appointmentId)
       if (index !== -1) {
         appointments.value[index] = response.data
       }
 
-      // Trigger calendar refresh
       await fetchAppointments()
     } catch (err) {
-      // Rollback on error
       appointment.status = oldStatus
 
-      // Extract error message
       let errorMessage = 'Failed to update appointment status'
       if (err && typeof err === 'object') {
         if ('response' in err) {
@@ -304,37 +287,30 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     visibleStart: Date,
     visibleEnd: Date
   ): Promise<AppointmentListItem[]> {
-    // If no data loaded yet, fetch the visible range
     if (!loadedRange.value) {
       await fetchAppointments(visibleStart.toISOString(), visibleEnd.toISOString())
       return appointments.value
     }
 
-    // Check if visible range is fully covered by loaded range
     const isFullyCovered =
       visibleStart >= loadedRange.value.startDate &&
       visibleEnd <= loadedRange.value.endDate
 
-    // If visible range is not fully covered, refetch
     if (!isFullyCovered) {
       await fetchAppointments(visibleStart.toISOString(), visibleEnd.toISOString())
       return appointments.value
     }
 
-    // Data already loaded and covers visible range, no fetch needed
     return appointments.value
   }
 
   return {
-    // State
     appointments,
     loading,
     error,
     total,
     loadedRange,
-    // Getters
     hasAppointments,
-    // Actions
     fetchAppointments,
     ensureAppointmentsLoaded,
     createAppointment,

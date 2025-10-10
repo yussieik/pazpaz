@@ -300,9 +300,6 @@ onKeyStroke(['Meta+Enter', 'Control+Enter'], (e) => {
   }
 })
 
-// Note: Removed unsaved changes warning - autosave handles persistence automatically
-// Users can safely navigate away as changes are saved every 5 seconds
-
 // Lifecycle hooks
 onMounted(() => {
   loadSession()

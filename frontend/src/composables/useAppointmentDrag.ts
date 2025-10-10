@@ -61,7 +61,6 @@ export function useAppointmentDrag(
     hasConflict: boolean
   ) => Promise<void>
 ) {
-  // Drag state
   const dragState = ref<DragState>({
     isDragging: false,
     appointmentId: null,
@@ -76,7 +75,6 @@ export function useAppointmentDrag(
     revertFn: null,
   })
 
-  // Keyboard reschedule state
   const keyboardState = ref<KeyboardRescheduleState>({
     active: false,
     appointmentId: null,
@@ -86,13 +84,8 @@ export function useAppointmentDrag(
     originalEnd: null,
   })
 
-  // Drag initiation timer (150ms hold for desktop)
   let dragInitTimer: ReturnType<typeof setTimeout> | null = null
-
-  // Long-press timer for mobile (300ms)
   let longPressTimer: ReturnType<typeof setTimeout> | null = null
-
-  // Touch start position for mobile
   let touchStartPos: { x: number; y: number } | null = null
 
   /**
@@ -162,15 +155,12 @@ export function useAppointmentDrag(
    * Start drag (desktop: mouse)
    */
   function handleEventMouseDown(event: EventApi, mouseEvent: MouseEvent) {
-    // Prevent default to avoid text selection
     mouseEvent.preventDefault()
 
-    // Start 150ms timer for drag initiation
     dragInitTimer = setTimeout(() => {
       initiateDrag(event, mouseEvent)
     }, 150)
 
-    // Add mouse up listener to cancel if released early
     const handleMouseUp = () => {
       if (dragInitTimer) {
         clearTimeout(dragInitTimer)
@@ -190,13 +180,10 @@ export function useAppointmentDrag(
     if (!touch) return
     touchStartPos = { x: touch.clientX, y: touch.clientY }
 
-    // Start 300ms timer for long-press
     longPressTimer = setTimeout(() => {
-      // Trigger mobile modal instead of drag
       triggerMobileReschedule(event)
     }, 300)
 
-    // Add touch end listener to cancel if released early
     const handleTouchEnd = () => {
       if (longPressTimer) {
         clearTimeout(longPressTimer)
@@ -207,7 +194,6 @@ export function useAppointmentDrag(
       document.removeEventListener('touchmove', handleTouchMove)
     }
 
-    // Cancel long-press if finger moves (user is scrolling)
     const handleTouchMove = (e: TouchEvent) => {
       if (!touchStartPos) return
 
@@ -216,7 +202,6 @@ export function useAppointmentDrag(
       const deltaX = Math.abs(touch.clientX - touchStartPos.x)
       const deltaY = Math.abs(touch.clientY - touchStartPos.y)
 
-      // If moved more than 10px, cancel long-press
       if (deltaX > 10 || deltaY > 10) {
         if (longPressTimer) {
           clearTimeout(longPressTimer)
@@ -253,11 +238,8 @@ export function useAppointmentDrag(
       revertFn: null,
     }
 
-    // Add global mouse move and mouse up listeners
     document.addEventListener('mousemove', handleMouseMove)
     document.addEventListener('mouseup', handleMouseUp)
-
-    // Add cursor style
     document.body.style.cursor = 'grabbing'
   }
 
@@ -267,7 +249,6 @@ export function useAppointmentDrag(
   function handleMouseMove(mouseEvent: MouseEvent) {
     if (!dragState.value.isDragging) return
 
-    // Update ghost position
     dragState.value.ghostPosition = {
       x: mouseEvent.clientX,
       y: mouseEvent.clientY,
@@ -280,12 +261,10 @@ export function useAppointmentDrag(
   function handleMouseUp() {
     if (!dragState.value.isDragging) return
 
-    // Remove listeners
     document.removeEventListener('mousemove', handleMouseMove)
     document.removeEventListener('mouseup', handleMouseUp)
     document.body.style.cursor = ''
 
-    // If no actual movement, just cancel
     if (
       !dragState.value.currentStart ||
       !dragState.value.originalStart ||
@@ -295,7 +274,6 @@ export function useAppointmentDrag(
       return
     }
 
-    // Complete the drag
     completeDrag()
   }
 
@@ -315,13 +293,11 @@ export function useAppointmentDrag(
     )
     const newEnd = calculateEndTime(newStart, duration)
 
-    // Update drag state with new times and store revert function
     dragState.value.currentStart = newStart
     dragState.value.currentEnd = newEnd
     dragState.value.appointmentId = info.event.id
     dragState.value.revertFn = info.revert
 
-    // Check for conflicts
     try {
       const result = await checkAppointmentConflicts({
         scheduled_start: toISOString(newStart),
@@ -332,22 +308,16 @@ export function useAppointmentDrag(
       dragState.value.hasConflict = result.has_conflict
       dragState.value.conflictData = result
 
-      // Update event visual position
       info.event.setStart(newStart)
       info.event.setEnd(newEnd)
 
-      // If has conflict, trigger conflict modal via onReschedule
-      // Otherwise, proceed with reschedule immediately
       await onReschedule(info.event.id, newStart, newEnd, result.has_conflict)
 
-      // If no conflict, reset drag state after successful reschedule
       if (!result.has_conflict) {
         resetDragState()
       }
-      // Note: If conflict exists, dragState is preserved for modal to use
     } catch (error) {
       console.error('Failed to reschedule appointment:', error)
-      // Revert the visual change on error
       info.revert()
       resetDragState()
     }
@@ -371,10 +341,7 @@ export function useAppointmentDrag(
     const newEnd = dragState.value.currentEnd
     const hasConflict = dragState.value.hasConflict
 
-    // Reset drag state
     resetDragState()
-
-    // Call reschedule handler
     await onReschedule(appointmentId, newStart, newEnd, hasConflict)
   }
 
@@ -383,7 +350,6 @@ export function useAppointmentDrag(
    */
   function cancelDrag() {
     if (dragState.value.originalEvent && dragState.value.originalStart) {
-      // Revert event to original position
       dragState.value.originalEvent.setStart(dragState.value.originalStart)
       if (dragState.value.originalEnd) {
         dragState.value.originalEvent.setEnd(dragState.value.originalEnd)
@@ -418,8 +384,6 @@ export function useAppointmentDrag(
    * Trigger mobile reschedule modal
    */
   function triggerMobileReschedule(event: EventApi) {
-    // Mobile reschedule functionality to be implemented
-    // This will emit an event to parent component to show mobile modal
     const appointment = appointments.value.find((a) => a.id === event.id)
     if (appointment) {
       // Implementation pending: emit custom event or call callback
@@ -445,7 +409,6 @@ export function useAppointmentDrag(
       originalEnd: end,
     }
 
-    // Announce to screen readers
     announceToScreenReader(`Reschedule mode activated. Use arrow keys to adjust time.`)
   }
 
@@ -464,20 +427,16 @@ export function useAppointmentDrag(
 
     switch (key) {
       case 'ArrowUp':
-        // Move up 15 minutes
         newStart = new Date(keyboardState.value.currentStart.getTime() - 15 * 60000)
         break
       case 'ArrowDown':
-        // Move down 15 minutes
         newStart = new Date(keyboardState.value.currentStart.getTime() + 15 * 60000)
         break
       case 'ArrowLeft':
-        // Move left 1 day
         newStart = new Date(keyboardState.value.currentStart)
         newStart.setDate(newStart.getDate() - 1)
         break
       case 'ArrowRight':
-        // Move right 1 day
         newStart = new Date(keyboardState.value.currentStart)
         newStart.setDate(newStart.getDate() + 1)
         break
@@ -491,10 +450,8 @@ export function useAppointmentDrag(
     keyboardState.value.currentStart = newStart
     keyboardState.value.currentEnd = newEnd
 
-    // Announce new time to screen readers
     announceToScreenReader(`Moved to ${formatDateAndTime(newStart)}`)
 
-    // Check for conflicts
     if (keyboardState.value.appointmentId) {
       debouncedConflictCheck(newStart, newEnd, keyboardState.value.appointmentId)
     }
@@ -516,17 +473,13 @@ export function useAppointmentDrag(
     const newStart = keyboardState.value.currentStart
     const newEnd = keyboardState.value.currentEnd
 
-    // Check for conflicts one final time
     const conflictResult = await checkAppointmentConflicts({
       scheduled_start: toISOString(newStart),
       scheduled_end: toISOString(newEnd),
       exclude_appointment_id: appointmentId,
     })
 
-    // Reset keyboard state
     resetKeyboardState()
-
-    // Call reschedule handler
     await onReschedule(appointmentId, newStart, newEnd, conflictResult.has_conflict)
   }
 
@@ -582,7 +535,6 @@ export function useAppointmentDrag(
   }
 
   return {
-    // State
     dragState,
     keyboardState,
     isDragging,
@@ -590,20 +542,14 @@ export function useAppointmentDrag(
     ghostTimeRange,
     ghostDateTimePreview,
     keyboardTimeRange,
-
-    // Drag handlers
     handleEventMouseDown,
     handleEventTouchStart,
     handleEventDrop,
     cancelDrag,
-
-    // Keyboard handlers
     activateKeyboardReschedule,
     handleKeyboardNavigation,
     confirmKeyboardReschedule,
     cancelKeyboardReschedule,
-
-    // Cleanup
     cleanup,
   }
 }

@@ -17,11 +17,7 @@ import apiClient from '@/api/client'
 export function useCalendarEvents() {
   const appointmentsStore = useAppointmentsStore()
 
-  // Store only the selected appointment ID, not the object reference
-  // This ensures we always get fresh data from the store
   const selectedAppointmentId = ref<string | null>(null)
-
-  // Session status mapping: appointment_id -> session info
   const sessionStatusMap = ref<Map<string, SessionStatus>>(new Map())
 
   // Computed property that always fetches the latest appointment from the store
@@ -30,7 +26,6 @@ export function useCalendarEvents() {
     get: () => {
       if (!selectedAppointmentId.value) return null
 
-      // Always fetch fresh data from store to avoid stale references
       return (
         appointmentsStore.appointments.find(
           (a) => a.id === selectedAppointmentId.value
@@ -50,10 +45,8 @@ export function useCalendarEvents() {
     allAppointments: AppointmentListItem[]
   ): boolean {
     return allAppointments.some((other) => {
-      // Don't compare with self
       if (other.id === appointment.id) return false
 
-      // Ignore cancelled and no-show appointments
       const ignoredStatuses = ['cancelled', 'no_show']
       if (ignoredStatuses.includes(other.status.toLowerCase())) return false
 
@@ -62,10 +55,8 @@ export function useCalendarEvents() {
       const otherStart = new Date(other.scheduled_start)
       const otherEnd = new Date(other.scheduled_end)
 
-      // Check for overlap
       const hasOverlap = otherStart < appointmentEnd && otherEnd > appointmentStart
 
-      // Exclude exact back-to-back (adjacency is OK)
       const isBackToBack =
         otherEnd.getTime() === appointmentStart.getTime() ||
         otherStart.getTime() === appointmentEnd.getTime()
@@ -80,7 +71,6 @@ export function useCalendarEvents() {
    */
   async function fetchSessionStatus() {
     try {
-      // Get unique client IDs from loaded appointments
       const clientIds = [
         ...new Set(
           appointmentsStore.appointments
@@ -90,14 +80,10 @@ export function useCalendarEvents() {
       ]
 
       if (clientIds.length === 0) {
-        // No appointments with clients, nothing to fetch
         sessionStatusMap.value = new Map()
         return
       }
 
-      // Fetch sessions for each client
-      // Note: This makes multiple API calls. For V1 with <100 clients this is acceptable.
-      // V2: Consider backend endpoint to fetch sessions by appointment_ids or all sessions
       const sessionPromises = clientIds.map((clientId) =>
         apiClient
           .get<{
@@ -111,11 +97,10 @@ export function useCalendarEvents() {
             params: {
               client_id: clientId,
               page: 1,
-              page_size: 100, // Max sessions per client for calendar view
+              page_size: 100,
             },
           })
           .catch((error) => {
-            // Log but don't fail - some clients might not have sessions
             console.warn(`Failed to fetch sessions for client ${clientId}:`, error)
             return null
           })
@@ -123,14 +108,12 @@ export function useCalendarEvents() {
 
       const responses = await Promise.all(sessionPromises)
 
-      // Aggregate all sessions from all clients
       const allSessions = responses
         .filter(
           (response): response is NonNullable<typeof response> => response !== null
         )
         .flatMap((response) => response.data.items || [])
 
-      // Create map of appointment_id -> session info
       const statusMap = new Map<string, SessionStatus>()
 
       allSessions.forEach((session) => {
@@ -146,8 +129,6 @@ export function useCalendarEvents() {
       sessionStatusMap.value = statusMap
     } catch (error) {
       console.error('Failed to fetch session status:', error)
-      // Don't throw - gracefully degrade if sessions can't be fetched
-      // Visual indicators will simply not appear
     }
   }
 
@@ -158,7 +139,6 @@ export function useCalendarEvents() {
     () => appointmentsStore.appointments,
     (newAppointments) => {
       if (newAppointments.length > 0) {
-        // Fetch session status whenever appointments are loaded
         fetchSessionStatus()
       }
     },
@@ -172,13 +152,12 @@ export function useCalendarEvents() {
     const now = new Date()
     const isPast = new Date(appointment.scheduled_end) < now
 
-    // Status-based colors with time awareness
     const colors: Record<string, string> = {
-      completed: '#059669', // emerald-600
-      cancelled: '#94a3b8', // slate-400
-      no_show: '#f97316', // orange-500
-      scheduled: isPast ? '#f59e0b' : '#10b981', // amber-500 : emerald-500
-      confirmed: isPast ? '#f59e0b' : '#10b981', // amber-500 : emerald-500
+      completed: '#059669',
+      cancelled: '#94a3b8',
+      no_show: '#f97316',
+      scheduled: isPast ? '#f59e0b' : '#10b981',
+      confirmed: isPast ? '#f59e0b' : '#10b981',
     }
 
     return colors[appointment.status] || colors.scheduled
@@ -188,7 +167,6 @@ export function useCalendarEvents() {
    * Get event title with status and session indicators
    */
   function getEventTitle(appointment: AppointmentListItem): string {
-    // Status emoji indicators
     const statusEmoji: Record<string, string> = {
       completed: '✓',
       cancelled: '✕',
@@ -196,12 +174,8 @@ export function useCalendarEvents() {
     }
 
     const statusIndicator = statusEmoji[appointment.status] || ''
-
-    // Session indicator
     const sessionStatus = sessionStatusMap.value.get(appointment.id)
     const sessionIndicator = sessionStatus?.hasSession ? ' 📄' : ''
-
-    // Client name
     const clientName =
       appointment.client?.full_name || `Client ${appointment.client_id.slice(0, 8)}`
 
@@ -236,8 +210,6 @@ export function useCalendarEvents() {
       // Get session status for this appointment
       const sessionStatus = sessionStatusMap.value.get(appointment.id)
       const hasSession = sessionStatus?.hasSession || false
-
-      // Get event color and title
       const eventColor = getEventColor(appointment)
       const eventTitle = getEventTitle(appointment)
 
@@ -283,18 +255,14 @@ export function useCalendarEvents() {
       (a) => a.id === appointmentId
     )
     if (appointment) {
-      // This will trigger the computed setter, which stores only the ID
       selectedAppointment.value = appointment
     }
   }
 
   return {
-    // State
     selectedAppointment,
     calendarEvents,
     sessionStatusMap,
-
-    // Methods
     handleEventClick,
     fetchSessionStatus,
   }

@@ -15,7 +15,7 @@ export function useCalendarCreation(
 ) {
   const lastClickTime = ref(0)
   const lastClickDate = ref<string | null>(null)
-  const DOUBLE_CLICK_THRESHOLD = 500 // ms
+  const DOUBLE_CLICK_THRESHOLD = 500
 
   /**
    * Round date to nearest 15-minute increment
@@ -35,19 +35,14 @@ export function useCalendarCreation(
     const now = Date.now()
     const dateStr = info.dateStr
 
-    // Check if this is a double-click (within 500ms of last click on same slot)
     if (
       now - lastClickTime.value < DOUBLE_CLICK_THRESHOLD &&
       lastClickDate.value === dateStr
     ) {
-      // Double-click detected - create appointment
       handleDoubleClick(info.date, info.view.type)
-
-      // Reset click tracking
       lastClickTime.value = 0
       lastClickDate.value = null
     } else {
-      // Single click - update tracking for potential double-click
       lastClickTime.value = now
       lastClickDate.value = dateStr
     }
@@ -64,21 +59,15 @@ export function useCalendarCreation(
     let endTime: Date
 
     if (viewType === 'dayGridMonth') {
-      // Month view: clicked a full day, default to 9:00 AM
       startTime = new Date(date)
       startTime.setHours(9, 0, 0, 0)
-
       endTime = new Date(startTime)
-      endTime.setHours(10, 0, 0, 0) // 60-minute default
+      endTime.setHours(10, 0, 0, 0)
     } else {
-      // Week/Day view: clicked a specific timeslot
       startTime = roundToNearestQuarterHour(date)
-
-      // Default 60-minute duration
       endTime = new Date(startTime.getTime() + 60 * 60 * 1000)
     }
 
-    // Open modal with pre-filled data
     openCreateModal({
       start: startTime,
       end: endTime,

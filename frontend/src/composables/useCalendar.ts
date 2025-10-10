@@ -23,7 +23,6 @@ import { useAppointmentsStore } from '@/stores/appointments'
 export function useCalendar() {
   const appointmentsStore = useAppointmentsStore()
 
-  // Core calendar state
   const currentView = ref<ViewType>('timeGridWeek')
   const currentDate = ref<Date>(new Date())
   const currentDateRange = ref<{ start: Date; end: Date }>({
@@ -31,13 +30,7 @@ export function useCalendar() {
     end: new Date(),
   })
 
-  // Note: Removed lastFetchedRange tracking - now handled by store's loadedRange
-  // The store's ensureAppointmentsLoaded() method implements sliding window pattern
-
-  // Track if we're in the middle of a view change to prevent currentDate updates
   const isViewChanging = ref(false)
-
-  // Track last stable formatted date range to prevent flicker during view transitions
   const lastStableDateRange = ref<string>('')
 
   /**
@@ -52,12 +45,10 @@ export function useCalendar() {
       currentDate.value
     )
 
-    // During view changes, keep showing the last stable value to prevent flicker
     if (isViewChanging.value) {
       return lastStableDateRange.value || formatted
     }
 
-    // Update last stable value when not changing views
     lastStableDateRange.value = formatted
     return formatted
   })
@@ -87,21 +78,15 @@ export function useCalendar() {
       end: dateInfo.end,
     }
 
-    // Only update currentDate during user navigation, not during view changes
-    // This prevents the date from drifting to the center of the month when switching to Month view
     if (!isViewChanging.value) {
-      // Update currentDate to center of visible range for user-initiated navigation
       const centerTime = (dateInfo.start.getTime() + dateInfo.end.getTime()) / 2
       currentDate.value = new Date(centerTime)
     }
 
-    // Always reset flag as a safety measure (redundant with nextTick in changeView, but provides defense in depth)
     if (isViewChanging.value) {
       isViewChanging.value = false
     }
 
-    // Fetch appointments for the visible range
-    // This ensures we always have data for what the user is looking at
     appointmentsStore.ensureAppointmentsLoaded(dateInfo.start, dateInfo.end)
   }
 
@@ -166,8 +151,6 @@ export function useCalendar() {
   function changeView(view: ViewType) {
     isViewChanging.value = true
     currentView.value = view
-    // Key change triggers re-mount, isViewChanging prevents date drift
-    // Flag will be reset in handleDatesSet
   }
 
   /**
@@ -202,13 +185,10 @@ export function useCalendar() {
   }
 
   return {
-    // State
     currentView,
     currentDate,
     currentDateRange,
     formattedDateRange,
-
-    // Methods
     changeView,
     handlePrev,
     handleNext,
