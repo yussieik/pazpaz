@@ -253,7 +253,7 @@ onMounted(async () => {
             {{ new Date(client.last_appointment).toLocaleDateString() }}
           </p>
           <p v-if="client.appointment_count !== undefined">
-            <span class="font-medium">Sessions:</span> {{ client.appointment_count }}
+            <span class="font-medium">Appointments:</span> {{ client.appointment_count }}
           </p>
         </div>
       </button>
