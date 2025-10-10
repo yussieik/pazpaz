@@ -61,13 +61,6 @@ function markAsCompleted() {
  * Tertiary action: Mark as no-show
  */
 function markAsNoShow() {
-  // Check if session exists first
-  if (props.sessionStatus?.hasSession) {
-    const confirmed = confirm(
-      'This appointment has a session note. Marking as no-show will keep the note. Continue?'
-    )
-    if (!confirmed) return
-  }
   emit('update-status', 'no_show')
 }
 

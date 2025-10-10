@@ -154,15 +154,9 @@ async function restoreSession(session: SessionResponse) {
 }
 
 /**
- * Permanently delete a session (confirm first)
+ * Permanently delete a session
  */
 async function permanentlyDeleteSession(session: SessionResponse) {
-  const confirmed = confirm(
-    `Are you sure you want to PERMANENTLY delete this session note?\n\nThis action cannot be undone. The note will be immediately and permanently removed from all records.\n\nDeleted on: ${new Date(session.session_date).toLocaleDateString()}\nReason: ${session.deleted_reason || 'None provided'}`
-  )
-
-  if (!confirmed) return
-
   deletingNoteId.value = session.id
 
   try {
