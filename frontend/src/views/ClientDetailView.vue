@@ -9,7 +9,6 @@ import { formatDate } from '@/utils/calendar/dateFormatters'
 import type { AppointmentListItem, AppointmentFormData } from '@/types/calendar'
 import { onKeyStroke } from '@vueuse/core'
 import { format } from 'date-fns'
-import apiClient from '@/api/client'
 import AppointmentFormModal from '@/components/calendar/AppointmentFormModal.vue'
 import SessionTimeline from '@/components/client/SessionTimeline.vue'
 import DeletedNotesSection from '@/components/sessions/DeletedNotesSection.vue'
@@ -242,7 +241,7 @@ function handleBadgePulse() {
 
 /**
  * Keyboard shortcuts handler for Client Detail page
- * Implements P0 shortcuts: Tab switching (1-4), Edit (e), New Note (n), Schedule (s)
+ * Implements P0 shortcuts: Tab switching (1-4), Edit (e), Schedule (s)
  */
 function handleKeydown(e: KeyboardEvent) {
   // Don't trigger shortcuts when typing in input fields
@@ -283,13 +282,6 @@ function handleKeydown(e: KeyboardEvent) {
     return
   }
 
-  // New session note (n)
-  if (e.key === 'n') {
-    e.preventDefault()
-    newSessionNote()
-    return
-  }
-
   // Schedule appointment (s)
   if (e.key === 's') {
     e.preventDefault()
@@ -319,36 +311,6 @@ function dismissBanner() {
 
 function editClient() {
   // TODO (M3): Open edit client modal
-}
-
-async function newSessionNote() {
-  if (!client.value) return
-
-  try {
-    // Announce action immediately
-    announce('Creating new session note...')
-
-    // Create new draft session for this client
-    const response = await apiClient.post('/sessions', {
-      client_id: client.value.id,
-      session_date: new Date().toISOString(), // Current date/time
-      duration_minutes: null, // Therapist can fill in later
-      // SOAP fields will be null/empty by default (draft mode)
-    })
-
-    // Navigate to session editor with state for back navigation
-    router.push({
-      path: `/sessions/${response.data.id}`,
-      state: {
-        from: 'client-detail',
-        clientId: client.value.id,
-        returnTo: 'client-detail',
-      },
-    })
-  } catch (error) {
-    console.error('Failed to create session:', error)
-    announce('Failed to create session note. Please try again.')
-  }
 }
 
 function scheduleAppointment() {
@@ -632,30 +594,6 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
                 class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity group-hover:opacity-100"
               >
                 e
-              </kbd>
-            </button>
-            <button
-              @click="newSessionNote"
-              class="group relative inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition-all hover:bg-blue-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
-            >
-              <svg
-                class="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                />
-              </svg>
-              New Note
-              <kbd
-                class="ml-1 rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs text-blue-600 opacity-0 transition-opacity group-hover:opacity-100"
-              >
-                n
               </kbd>
             </button>
             <button

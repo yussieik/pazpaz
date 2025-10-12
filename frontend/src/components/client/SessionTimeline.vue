@@ -111,15 +111,8 @@ onMounted(async () => {
 
 async function fetchSessions() {
   try {
-    console.log('[SessionTimeline] Fetching sessions for client:', props.clientId)
     const response = await apiClient.get(`/sessions?client_id=${props.clientId}`)
     const fetchedSessions = response.data.items || []
-    console.log('[SessionTimeline] Fetched sessions:', fetchedSessions.map(s => ({
-      id: s.id,
-      date: s.session_date,
-      deleted_at: s.deleted_at,
-      is_draft: s.is_draft
-    })))
     sessions.value = fetchedSessions
   } catch (err) {
     console.error('Failed to fetch sessions:', err)
@@ -257,9 +250,7 @@ defineExpose({
   <div class="session-timeline">
     <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center py-12">
-      <div
-        class="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600"
-      ></div>
+      <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600"></div>
     </div>
 
     <!-- Error State -->
@@ -269,18 +260,9 @@ defineExpose({
 
     <!-- Empty State -->
     <div v-else-if="isEmpty" class="py-12 text-center">
-      <svg
-        class="mx-auto h-12 w-12 text-slate-400"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-        />
+      <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
       <h3 class="mt-2 text-sm font-medium text-slate-900">No sessions yet</h3>
       <p class="mt-1 text-sm text-slate-500">
@@ -289,39 +271,18 @@ defineExpose({
     </div>
 
     <!-- Timeline -->
-    <TransitionGroup
-      v-if="!isEmpty && !loading && !error"
-      name="session-list"
-      tag="div"
-      class="space-y-4"
-    >
+    <TransitionGroup v-if="!isEmpty && !loading && !error" name="session-list" tag="div" class="space-y-4">
       <!-- Session Note -->
-      <SessionCard
-        v-for="item in timeline.filter(isSession)"
-        :key="`session-${item.id}`"
-        :session="item.data"
-        @deleted="handleSessionDeleted"
-        @view="handleViewSession"
-      >
+      <SessionCard v-for="item in timeline.filter(isSession)" :key="`session-${item.id}`" :session="item.data"
+        @deleted="handleSessionDeleted" @view="handleViewSession">
         <template #content>
           <div class="flex items-start gap-3">
             <!-- Icon -->
             <div class="flex-shrink-0">
-              <div
-                class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100"
-              >
-                <svg
-                  class="h-5 w-5 text-blue-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
+              <div class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                <svg class="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
             </div>
@@ -332,23 +293,18 @@ defineExpose({
                 <h4 class="text-sm font-medium text-slate-900">
                   {{ formatDate(item.data.session_date) }}
                 </h4>
-                <span
-                  :class="[
-                    'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-                    item.data.is_draft
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'bg-green-100 text-green-800',
-                  ]"
-                >
+                <span :class="[
+                  'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+                  item.data.is_draft
+                    ? 'bg-blue-100 text-blue-800'
+                    : 'bg-green-100 text-green-800',
+                ]">
                   {{ item.data.is_draft ? 'Draft' : 'Finalized' }}
                 </span>
               </div>
 
               <!-- SOAP Preview -->
-              <p
-                v-if="item.data.subjective"
-                class="mt-1 line-clamp-2 text-sm text-slate-600"
-              >
+              <p v-if="item.data.subjective" class="mt-1 line-clamp-2 text-sm text-slate-600">
                 {{ truncate(item.data.subjective, 150) }}
               </p>
               <p v-else class="mt-1 text-sm text-slate-400 italic">No content yet</p>
@@ -359,10 +315,8 @@ defineExpose({
               </p>
 
               <!-- Action Button -->
-              <button
-                @click="viewSession(item.data.id)"
-                class="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800"
-              >
+              <button @click="viewSession(item.data.id)"
+                class="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800">
                 {{ item.data.is_draft ? 'Continue Editing →' : 'View Full Note →' }}
               </button>
             </div>
@@ -371,29 +325,15 @@ defineExpose({
       </SessionCard>
 
       <!-- Appointment (no session) -->
-      <div
-        v-for="item in timeline.filter(isAppointment)"
-        :key="`appointment-${item.id}`"
-        class="rounded-lg border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300"
-      >
+      <div v-for="item in timeline.filter(isAppointment)" :key="`appointment-${item.id}`"
+        class="rounded-lg border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300">
         <div class="flex items-start gap-3">
           <!-- Icon -->
           <div class="flex-shrink-0">
-            <div
-              class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100"
-            >
-              <svg
-                class="h-5 w-5 text-slate-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
+              <svg class="h-5 w-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
           </div>
@@ -415,10 +355,7 @@ defineExpose({
             </p>
 
             <!-- Action Button -->
-            <button
-              @click="createSession(item.id)"
-              class="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800"
-            >
+            <button @click="createSession(item.id)" class="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800">
               Create Session Note →
             </button>
           </div>
