@@ -205,15 +205,10 @@ function triggerButtonFeedback(button: HTMLButtonElement | null) {
  * Handle session note restoration
  * Refreshes the session timeline when a note is restored from deleted section
  */
-function handleSessionRestored() {
-  // The SessionTimeline component has its own internal fetch logic
-  // We could add a ref method to refresh it, but for now the component
-  // will auto-refresh when switching tabs or remounting
-  // Force re-fetch by temporarily hiding and showing (simple approach)
+async function handleSessionRestored() {
+  // Refresh the session timeline to show the restored session
   if (sessionTimelineRef.value) {
-    // Session timeline will auto-refresh on next mount or
-    // we can trigger a manual refresh if the component exposes a method
-    // For now, user can switch tabs or the component manages its own state
+    await sessionTimelineRef.value.refresh()
   }
 }
 

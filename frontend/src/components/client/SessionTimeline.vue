@@ -228,6 +228,19 @@ function handleSessionDeleted(sessionId: string) {
 function handleViewSession(sessionId: string) {
   viewSession(sessionId)
 }
+
+/**
+ * Refresh the timeline by fetching both sessions and appointments
+ * Exposed to parent components for manual refresh triggers
+ */
+async function refresh() {
+  await Promise.all([fetchSessions(), fetchAppointments()])
+}
+
+// Expose refresh method to parent components
+defineExpose({
+  refresh,
+})
 </script>
 
 <template>

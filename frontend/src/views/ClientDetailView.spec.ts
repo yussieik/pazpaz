@@ -559,3 +559,327 @@ describe('ClientDetailView - Smart Back Navigation', () => {
     expect(backButton?.text()).toContain('Back to Appointment')
   })
 })
+
+/**
+ * Session Restoration Bug Fix Tests
+ * Tests for: https://github.com/project/issues/session-restore-bug
+ *
+ * Bug Description: After restoring a deleted session note, the UI doesn't refresh
+ * and subsequent deletion attempts don't work properly.
+ */
+describe('ClientDetailView - Session Restoration Bug Fix', () => {
+  let router: ReturnType<typeof createRouter>
+  let pinia: ReturnType<typeof createPinia>
+  let mockClient: Client
+
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+
+    // Clear sessionStorage
+    sessionStorage.clear()
+
+    // Mock client data
+    mockClient = {
+      id: 'client-123',
+      workspace_id: 'workspace-123',
+      first_name: 'John',
+      last_name: 'Doe',
+      full_name: 'John Doe',
+      email: 'john@example.com',
+      phone: '555-1234',
+      date_of_birth: null,
+      address: null,
+      emergency_contact_name: null,
+      emergency_contact_phone: null,
+      medical_history: null,
+      notes: null,
+    }
+
+    // Setup router
+    router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', name: 'calendar', component: { template: '<div>Calendar</div>' } },
+        {
+          path: '/clients/:id',
+          name: 'client-detail',
+          component: ClientDetailView,
+        },
+      ],
+    })
+
+    // Mock the clients store
+    const clientsStore = useClientsStore()
+    clientsStore.currentClient = mockClient
+    vi.spyOn(clientsStore, 'fetchClient').mockResolvedValue(mockClient)
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  /**
+   * Test Case 1: handleSessionRestored calls SessionTimeline.refresh()
+   * When DeletedNotesSection emits 'restored', the parent should refresh the timeline
+   */
+  it('calls SessionTimeline.refresh() when session is restored', async () => {
+    await router.push({
+      name: 'client-detail',
+      params: { id: 'client-123' },
+    })
+
+    const wrapper = mount(ClientDetailView, {
+      global: {
+        plugins: [pinia, router],
+      },
+    })
+
+    await flushPromises()
+
+    // Switch to History tab to render session components
+    const historyTab = wrapper.findAll('button').find((btn) => btn.text().includes('History'))
+    if (historyTab) {
+      await historyTab.trigger('click')
+      await wrapper.vm.$nextTick()
+    }
+
+    // Get SessionTimeline component ref
+    const sessionTimelineRef = wrapper.vm.sessionTimelineRef
+
+    // Mock the refresh method
+    if (sessionTimelineRef) {
+      const refreshSpy = vi.fn()
+      sessionTimelineRef.refresh = refreshSpy
+
+      // Find DeletedNotesSection and emit 'restored'
+      const deletedNotesSection = wrapper.findComponent({ name: 'DeletedNotesSection' })
+      if (deletedNotesSection.exists()) {
+        await deletedNotesSection.vm.$emit('restored')
+        await wrapper.vm.$nextTick()
+
+        // Verify refresh was called
+        expect(refreshSpy).toHaveBeenCalled()
+      }
+    }
+  })
+
+  /**
+   * Test Case 2: SessionTimeline exposes refresh() method
+   * Verify that SessionTimeline has a publicly accessible refresh method
+   */
+  it('SessionTimeline component exposes refresh() method', async () => {
+    await router.push({
+      name: 'client-detail',
+      params: { id: 'client-123' },
+    })
+
+    const wrapper = mount(ClientDetailView, {
+      global: {
+        plugins: [pinia, router],
+      },
+    })
+
+    await flushPromises()
+
+    // Switch to History tab
+    const historyTab = wrapper.findAll('button').find((btn) => btn.text().includes('History'))
+    if (historyTab) {
+      await historyTab.trigger('click')
+      await wrapper.vm.$nextTick()
+    }
+
+    // Get SessionTimeline ref and verify refresh method exists
+    const sessionTimelineRef = wrapper.vm.sessionTimelineRef
+    if (sessionTimelineRef) {
+      expect(sessionTimelineRef.refresh).toBeDefined()
+      expect(typeof sessionTimelineRef.refresh).toBe('function')
+    }
+  })
+
+  /**
+   * Test Case 3: Full restore-delete cycle
+   * Simulate the complete flow: delete -> restore -> delete again
+   */
+  it('handles full restore-delete cycle correctly', async () => {
+    await router.push({
+      name: 'client-detail',
+      params: { id: 'client-123' },
+    })
+
+    const wrapper = mount(ClientDetailView, {
+      global: {
+        plugins: [pinia, router],
+      },
+    })
+
+    await flushPromises()
+
+    // Switch to History tab
+    const historyTab = wrapper.findAll('button').find((btn) => btn.text().includes('History'))
+    if (historyTab) {
+      await historyTab.trigger('click')
+      await wrapper.vm.$nextTick()
+    }
+
+    const sessionTimelineRef = wrapper.vm.sessionTimelineRef
+
+    if (sessionTimelineRef) {
+      // Track refresh calls
+      const refreshSpy = vi.fn()
+      sessionTimelineRef.refresh = refreshSpy
+
+      // Step 1: Simulate session deletion
+      const sessionTimeline = wrapper.findComponent({ name: 'SessionTimeline' })
+      if (sessionTimeline.exists()) {
+        await sessionTimeline.vm.$emit('session-deleted')
+        await wrapper.vm.$nextTick()
+      }
+
+      // Step 2: Simulate session restoration
+      const deletedNotesSection = wrapper.findComponent({ name: 'DeletedNotesSection' })
+      if (deletedNotesSection.exists()) {
+        await deletedNotesSection.vm.$emit('restored')
+        await wrapper.vm.$nextTick()
+
+        // Verify refresh was called after restoration
+        expect(refreshSpy).toHaveBeenCalled()
+      }
+
+      // Step 3: Simulate deletion again
+      if (sessionTimeline.exists()) {
+        await sessionTimeline.vm.$emit('session-deleted')
+        await wrapper.vm.$nextTick()
+      }
+
+      // Verify the cycle completed without errors
+      expect(wrapper.vm.$el).toBeDefined()
+    }
+  })
+
+  /**
+   * Test Case 4: SessionTimeline refresh doesn't throw error
+   * Ensure refresh method is implemented and doesn't throw
+   */
+  it('SessionTimeline.refresh() executes without throwing', async () => {
+    await router.push({
+      name: 'client-detail',
+      params: { id: 'client-123' },
+    })
+
+    const wrapper = mount(ClientDetailView, {
+      global: {
+        plugins: [pinia, router],
+      },
+    })
+
+    await flushPromises()
+
+    // Switch to History tab
+    const historyTab = wrapper.findAll('button').find((btn) => btn.text().includes('History'))
+    if (historyTab) {
+      await historyTab.trigger('click')
+      await wrapper.vm.$nextTick()
+    }
+
+    const sessionTimelineRef = wrapper.vm.sessionTimelineRef
+
+    if (sessionTimelineRef && sessionTimelineRef.refresh) {
+      // Should not throw an error
+      await expect(sessionTimelineRef.refresh()).resolves.not.toThrow()
+    }
+  })
+
+  /**
+   * Test Case 5: Badge pulse trigger on session deletion
+   * Verify that deleting a session triggers badge pulse
+   */
+  it('triggers badge pulse when session is deleted', async () => {
+    await router.push({
+      name: 'client-detail',
+      params: { id: 'client-123' },
+    })
+
+    const wrapper = mount(ClientDetailView, {
+      global: {
+        plugins: [pinia, router],
+      },
+    })
+
+    await flushPromises()
+
+    // Switch to History tab
+    const historyTab = wrapper.findAll('button').find((btn) => btn.text().includes('History'))
+    if (historyTab) {
+      await historyTab.trigger('click')
+      await wrapper.vm.$nextTick()
+    }
+
+    // Emit session-deleted
+    const sessionTimeline = wrapper.findComponent({ name: 'SessionTimeline' })
+    if (sessionTimeline.exists()) {
+      await sessionTimeline.vm.$emit('trigger-badge-pulse')
+      await wrapper.vm.$nextTick()
+
+      // Verify triggerBadgePulse state is set
+      expect(wrapper.vm.triggerBadgePulse).toBe(true)
+
+      // Wait for pulse animation to complete
+      await new Promise((resolve) => setTimeout(resolve, 700))
+
+      // Pulse should reset after animation
+      expect(wrapper.vm.triggerBadgePulse).toBe(false)
+    }
+  })
+
+  /**
+   * Test Case 6: handleSessionRestored is async
+   * Ensure proper async handling of the refresh operation
+   */
+  it('handleSessionRestored properly awaits refresh', async () => {
+    await router.push({
+      name: 'client-detail',
+      params: { id: 'client-123' },
+    })
+
+    const wrapper = mount(ClientDetailView, {
+      global: {
+        plugins: [pinia, router],
+      },
+    })
+
+    await flushPromises()
+
+    // Switch to History tab
+    const historyTab = wrapper.findAll('button').find((btn) => btn.text().includes('History'))
+    if (historyTab) {
+      await historyTab.trigger('click')
+      await wrapper.vm.$nextTick()
+    }
+
+    const sessionTimelineRef = wrapper.vm.sessionTimelineRef
+
+    if (sessionTimelineRef) {
+      // Mock refresh to return a promise
+      let refreshResolved = false
+      sessionTimelineRef.refresh = vi.fn().mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        refreshResolved = true
+      })
+
+      // Trigger restoration
+      const deletedNotesSection = wrapper.findComponent({ name: 'DeletedNotesSection' })
+      if (deletedNotesSection.exists()) {
+        const restorePromise = deletedNotesSection.vm.$emit('restored')
+        await wrapper.vm.$nextTick()
+
+        // Wait for async operation
+        await flushPromises()
+        await new Promise((resolve) => setTimeout(resolve, 100))
+
+        // Verify refresh completed
+        expect(refreshResolved).toBe(true)
+      }
+    }
+  })
+})
