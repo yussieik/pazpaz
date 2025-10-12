@@ -1531,31 +1531,36 @@ class TestFinalizeSession:
 
 
 class TestDeleteFinalizedSession:
-    """Tests for preventing deletion of finalized sessions."""
+    """Tests for deletion of finalized sessions (allowed for therapist flexibility)."""
 
-    async def test_delete_finalized_session_blocked(
+    async def test_delete_finalized_session_allowed(
         self,
         authenticated_client: AsyncClient,
         db_session: AsyncSession,
         test_session,
     ):
-        """Test cannot delete finalized session."""
+        """Test therapists can delete finalized sessions for maximum flexibility.
+
+        Design decision: Therapists should have full control over their data,
+        including the ability to delete finalized session notes if needed.
+        This provides maximum flexibility for correcting errors or removing
+        duplicate/incorrect entries.
+        """
         # First finalize the session
         test_session.finalized_at = datetime.now(UTC)
         test_session.is_draft = False
         await db_session.commit()
 
-        # Try to delete
+        # Try to delete - this should succeed
         response = await authenticated_client.delete(
             f"/api/v1/sessions/{test_session.id}",
         )
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        assert "cannot delete finalized sessions" in response.text.lower()
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
-        # Verify session is not deleted
+        # Verify session is soft deleted
         await db_session.refresh(test_session)
-        assert test_session.deleted_at is None
+        assert test_session.deleted_at is not None
 
     async def test_delete_draft_session_allowed(
         self,

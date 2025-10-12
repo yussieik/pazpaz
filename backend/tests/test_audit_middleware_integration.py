@@ -442,7 +442,7 @@ class TestAuditMiddlewareIntegration:
         )
         assert response.status_code == 200
 
-        # Verify UPDATE audit event
+        # Verify UPDATE audit event (should be exactly one from middleware)
         query = select(AuditEvent).where(
             AuditEvent.workspace_id == workspace_1.id,
             AuditEvent.action == AuditAction.UPDATE,
@@ -450,7 +450,7 @@ class TestAuditMiddlewareIntegration:
             AuditEvent.resource_id == uuid.UUID(appointment_id),
         )
         result = await db_session.execute(query)
-        update_event = result.scalar_one()
+        update_event = result.scalar_one()  # Expect exactly one, not multiple
 
         assert update_event.event_type == "appointment.update"
         assert update_event.user_id == test_user_ws1.id

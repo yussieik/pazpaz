@@ -15,6 +15,7 @@ import time
 import uuid
 
 import pytest
+import pytest_asyncio
 from sqlalchemy import ForeignKey, select
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -438,15 +439,30 @@ async def test_encrypted_string_type_update(
     assert retrieved.subjective == "updated value"
 
 
-@pytest.mark.asyncio
-async def test_encrypted_string_versioned_type(
-    db: AsyncSession, workspace_1: Workspace, test_db_engine
-):
-    """Test EncryptedStringVersioned SQLAlchemy type."""
-    # Create test table
+@pytest_asyncio.fixture
+async def versioned_test_table(test_db_engine):
+    """Create and cleanup versioned test model table.
+
+    Ensures table cleanup even if test fails to prevent cascade failures.
+    """
+    # Create table
     async with test_db_engine.begin() as conn:
         await conn.run_sync(VersionedTestModel.__table__.create, checkfirst=True)
 
+    yield
+
+    # Guaranteed cleanup even if test fails
+    async with test_db_engine.begin() as conn:
+        await conn.run_sync(VersionedTestModel.__table__.drop, checkfirst=True)
+
+
+@pytest.mark.asyncio
+async def test_encrypted_string_versioned_type(
+    db: AsyncSession,
+    workspace_1: Workspace,
+    versioned_test_table,  # Use fixture for guaranteed cleanup
+):
+    """Test EncryptedStringVersioned SQLAlchemy type."""
     # Insert record with versioned encryption
     test_record = VersionedTestModel(
         workspace_id=workspace_1.id,
@@ -464,10 +480,7 @@ async def test_encrypted_string_versioned_type(
     retrieved = result.scalar_one()
 
     assert retrieved.versioned_text == "versioned sensitive data"
-
-    # Cleanup
-    async with test_db_engine.begin() as conn:
-        await conn.run_sync(VersionedTestModel.__table__.drop)
+    # Note: Table cleanup handled by fixture teardown
 
 
 # =============================================================================

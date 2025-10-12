@@ -1619,7 +1619,8 @@ class TestDeleteAppointmentMultipleSessions:
             session_ids.append(session_response.json()["id"])
 
         # Delete appointment with session_note_action="delete"
-        response = await client.delete(
+        response = await client.request(
+            "DELETE",
             f"/api/v1/appointments/{appointment_id}",
             headers=headers,
             json={
@@ -1690,7 +1691,8 @@ class TestDeleteAppointmentMultipleSessions:
             session_ids.append(session_response.json()["id"])
 
         # Delete appointment with session_note_action="keep"
-        response = await client.delete(
+        response = await client.request(
+            "DELETE",
             f"/api/v1/appointments/{appointment_id}",
             headers=headers,
             json={
@@ -1731,7 +1733,7 @@ class TestDeleteAppointmentMultipleSessions:
         csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
-        headers = get_auth_headers(workspace_1.id, csrf_token)
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
         headers["X-CSRF-Token"] = csrf_token
 
         # Create appointment in the past
@@ -1785,7 +1787,8 @@ class TestDeleteAppointmentMultipleSessions:
 
         # Try to delete appointment with session_note_action="delete"
         # Should fail because one session has amendments
-        response = await client.delete(
+        response = await client.request(
+            "DELETE",
             f"/api/v1/appointments/{appointment_id}",
             headers=headers,
             json={

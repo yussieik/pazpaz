@@ -748,21 +748,8 @@ async def update_appointment(
     if changes:
         appointment.edited_at = datetime.now()
         appointment.edit_count += 1
-
-        # Create audit log entry with field-level changes
-        await create_audit_event(
-            db=db,
-            user_id=current_user.id,
-            workspace_id=workspace_id,
-            action=AuditAction.UPDATE,
-            resource_type=ResourceType.APPOINTMENT,
-            resource_id=appointment_id,
-            metadata={
-                "appointment_status": appointment.status.value,
-                "changes": changes,
-                "edit_count": appointment.edit_count,
-            },
-        )
+        # Note: Audit logging handled automatically by AuditMiddleware
+        # Field-level changes are tracked in the changes dict above
 
     await db.commit()
     await db.refresh(appointment)
