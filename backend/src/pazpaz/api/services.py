@@ -64,9 +64,7 @@ async def create_service(
     logger.info("service_create_started", workspace_id=str(workspace_id))
 
     # Check if service name already exists in workspace
-    await check_unique_name_in_workspace(
-        db, Service, workspace_id, service_data.name
-    )
+    await check_unique_name_in_workspace(db, Service, workspace_id, service_data.name)
 
     # Create new service instance with injected workspace_id
     service = Service(

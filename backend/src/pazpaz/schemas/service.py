@@ -63,8 +63,3 @@ class ServiceListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
-
-
-# Type alias for cleaner code (can be used instead of ServiceListResponse)
-# from pazpaz.utils.pagination import PaginatedResponse
-# ServiceListResponse = PaginatedResponse[ServiceResponse]

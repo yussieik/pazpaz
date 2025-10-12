@@ -7,6 +7,7 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
+from pazpaz.models.user import User
 from pazpaz.models.workspace import Workspace
 from tests.conftest import get_auth_headers
 

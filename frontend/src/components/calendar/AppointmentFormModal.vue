@@ -10,6 +10,13 @@ import { checkAppointmentConflicts } from '@/api/client'
 import ClientCombobox from '@/components/clients/ClientCombobox.vue'
 import TimePickerDropdown from '@/components/common/TimePickerDropdown.vue'
 import IconClose from '@/components/icons/IconClose.vue'
+import IconWarning from '@/components/icons/IconWarning.vue'
+import {
+  formatDateTimeForInput,
+  addMinutes,
+  getDurationMinutes,
+  extractDate,
+} from '@/utils/calendar/dateFormatters'
 
 interface Props {
   visible: boolean
@@ -58,8 +65,8 @@ const showAvailableIndicator = ref(false)
 const previousStartTime = ref<string>('')
 const DEFAULT_DURATION_MINUTES = 60
 
-// Platform detection for keyboard shortcuts
-const isMac = computed(() => navigator.platform.toUpperCase().indexOf('MAC') >= 0)
+// Platform detection for keyboard shortcuts (using userAgent since platform is deprecated)
+const isMac = computed(() => navigator.userAgent.toUpperCase().indexOf('MAC') >= 0)
 const modifierKey = computed(() => (isMac.value ? '⌘' : 'Ctrl'))
 
 // Watch for appointment changes (edit mode)
@@ -80,35 +87,7 @@ watch(
   { immediate: true }
 )
 
-/**
- * Helper: Format Date to datetime-local input format
- */
-function formatDateTimeForInput(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day}T${hours}:${minutes}`
-}
-
-/**
- * Helper: Add minutes to a datetime string
- */
-function addMinutes(datetimeString: string, minutes: number): string {
-  const date = new Date(datetimeString)
-  date.setMinutes(date.getMinutes() + minutes)
-  return formatDateTimeForInput(date)
-}
-
-/**
- * Helper: Calculate duration in minutes between two datetime strings
- */
-function getDurationMinutes(start: string, end: string): number {
-  const startDate = new Date(start)
-  const endDate = new Date(end)
-  return Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60))
-}
+// Date/time utility functions imported from @/utils/calendar/dateFormatters
 
 // Reset form when modal closes or set defaults when opening
 watch(
@@ -427,17 +406,7 @@ function setDuration(minutes: number) {
   formData.value.scheduled_end = addMinutes(formData.value.scheduled_start, minutes)
 }
 
-/**
- * Extract date in YYYY-MM-DD format from datetime string
- */
-function extractDate(datetimeString: string): string {
-  if (!datetimeString) return ''
-  const date = new Date(datetimeString)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+// extractDate utility function imported from @/utils/calendar/dateFormatters
 
 /**
  * Watch for date changes and update start/end times accordingly
@@ -571,20 +540,7 @@ watch(
               class="rounded-lg border border-amber-200 bg-amber-50 p-3"
             >
               <div class="flex gap-3">
-                <svg
-                  class="h-5 w-5 flex-shrink-0 text-amber-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
+                <IconWarning size="md" class="flex-shrink-0 text-amber-600" />
                 <div class="flex-1">
                   <p class="text-sm font-semibold text-amber-900">
                     Time slot overlap detected
@@ -664,19 +620,7 @@ watch(
                 class="overflow-hidden rounded-md border border-amber-200 bg-amber-50 p-3"
               >
                 <div class="flex gap-2">
-                  <svg
-                    class="h-5 w-5 flex-shrink-0 text-amber-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                    />
-                  </svg>
+                  <IconWarning size="md" class="flex-shrink-0 text-amber-600" />
                   <p class="text-sm text-amber-800">
                     This appointment is in the past. You can still create it if you're
                     logging a past session.

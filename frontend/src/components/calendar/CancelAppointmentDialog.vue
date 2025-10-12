@@ -2,6 +2,8 @@
 import { ref } from 'vue'
 import type { AppointmentListItem } from '@/types/calendar'
 import { formatDate } from '@/utils/calendar/dateFormatters'
+import IconWarning from '@/components/icons/IconWarning.vue'
+import IconClock from '@/components/icons/IconClock.vue'
 
 interface Props {
   visible: boolean
@@ -77,19 +79,7 @@ function handleKeydown(e: KeyboardEvent) {
             <div
               class="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100"
             >
-              <svg
-                class="h-6 w-6 text-amber-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                />
-              </svg>
+              <IconWarning size="lg" class="text-amber-600" />
             </div>
 
             <div class="flex-1">
@@ -147,19 +137,7 @@ function handleKeydown(e: KeyboardEvent) {
 
               <!-- Time -->
               <div class="flex items-center gap-2">
-                <svg
-                  class="h-4 w-4 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
+                <IconClock size="sm" class="text-slate-400" />
                 <span class="text-slate-600">
                   {{ formatDate(appointment.scheduled_start, 'h:mm a') }} -
                   {{ formatDate(appointment.scheduled_end, 'h:mm a') }}

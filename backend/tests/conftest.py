@@ -24,6 +24,7 @@ from pazpaz.db.base import Base, get_db
 from pazpaz.main import app
 from pazpaz.models.appointment import Appointment, AppointmentStatus, LocationType
 from pazpaz.models.client import Client
+from pazpaz.models.session import Session
 from pazpaz.models.user import User, UserRole
 from pazpaz.models.workspace import Workspace
 
@@ -129,7 +130,8 @@ async def test_db_engine():
                     RETURN convert_from(decrypted_bytes, 'UTF8');
                 EXCEPTION
                     WHEN OTHERS THEN
-                        RAISE EXCEPTION 'Decryption failed (invalid key or corrupted data)';
+                        RAISE EXCEPTION
+                            'Decryption failed (invalid key or corrupted data)';
                 END;
                 $$ LANGUAGE plpgsql IMMUTABLE STRICT;
             """)

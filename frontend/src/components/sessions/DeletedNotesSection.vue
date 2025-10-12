@@ -26,6 +26,8 @@ import {
 } from '@/utils/calendar/dateFormatters'
 import { SESSION_DELETION_GRACE_PERIOD_DAYS } from '@/constants/sessions'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import IconClock from '@/components/icons/IconClock.vue'
+import IconDocument from '@/components/icons/IconDocument.vue'
 import type { AxiosError } from 'axios'
 
 interface Props {
@@ -133,7 +135,7 @@ async function restoreSession(session: SessionResponse) {
     id: session.id,
     date: session.session_date,
     deleted_at: session.deleted_at,
-    permanent_delete_after: session.permanent_delete_after
+    permanent_delete_after: session.permanent_delete_after,
   })
 
   // Check if grace period expired
@@ -168,7 +170,10 @@ async function restoreSession(session: SessionResponse) {
     const axiosError = err as AxiosError<{ detail?: string; status?: number }>
 
     console.error('[DeletedNotesSection] Error status:', axiosError.response?.status)
-    console.error('[DeletedNotesSection] Error detail:', axiosError.response?.data?.detail)
+    console.error(
+      '[DeletedNotesSection] Error detail:',
+      axiosError.response?.data?.detail
+    )
 
     if (axiosError.response?.status === 410) {
       showError('Cannot restore - grace period expired')
@@ -308,19 +313,7 @@ function formatDeletionTime(deletedAt: string): string {
           v-if="isEmpty"
           class="rounded-lg border border-slate-200 bg-slate-50 p-8 text-center"
         >
-          <svg
-            class="mx-auto h-12 w-12 text-slate-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
+          <IconDocument size="lg" class="mx-auto text-slate-400" />
           <p class="mt-3 text-sm font-medium text-slate-900">No deleted notes</p>
           <p class="mt-1 text-sm text-slate-600">
             Deleted session notes will appear here for
@@ -355,19 +348,7 @@ function formatDeletionTime(deletedAt: string): string {
                 "
                 class="flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800"
               >
-                <svg
-                  class="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
+                <IconClock size="sm" />
                 <span
                   >{{ getDaysRemaining(session.permanent_delete_after) }} days
                   left</span

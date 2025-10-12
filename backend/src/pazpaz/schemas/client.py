@@ -108,8 +108,3 @@ class ClientListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
-
-
-# Type alias for cleaner code (can be used instead of ClientListResponse)
-# from pazpaz.utils.pagination import PaginatedResponse
-# ClientListResponse = PaginatedResponse[ClientResponse]

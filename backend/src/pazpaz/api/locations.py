@@ -84,9 +84,7 @@ async def create_location(
         )
 
     # Check if location name already exists in workspace
-    await check_unique_name_in_workspace(
-        db, Location, workspace_id, location_data.name
-    )
+    await check_unique_name_in_workspace(db, Location, workspace_id, location_data.name)
 
     # Create new location instance with injected workspace_id
     location = Location(

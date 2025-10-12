@@ -26,6 +26,8 @@ import CalendarLoadingState from '@/components/calendar/CalendarLoadingState.vue
 import DragConflictModal from '@/components/calendar/DragConflictModal.vue'
 import MobileRescheduleModal from '@/components/calendar/MobileRescheduleModal.vue'
 import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentModal.vue'
+import IconWarning from '@/components/icons/IconWarning.vue'
+import IconClock from '@/components/icons/IconClock.vue'
 import { format } from 'date-fns'
 
 /**
@@ -1421,19 +1423,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
           class="rotate-2 rounded-lg border-2 border-blue-400 bg-white px-4 py-3 opacity-95 shadow-2xl ring-2 ring-blue-400/20"
         >
           <div class="flex items-center gap-2">
-            <svg
-              class="h-5 w-5 text-blue-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
+            <IconClock size="md" class="text-blue-600" />
             <span class="text-sm font-semibold text-gray-900">{{
               ghostTimeRange
             }}</span>
@@ -1443,14 +1433,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
             v-if="dragState.hasConflict"
             class="mt-2 flex items-center gap-1 text-xs font-medium text-amber-600"
           >
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
+            <IconWarning size="sm" />
             Conflict detected
           </div>
         </div>

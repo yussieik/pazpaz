@@ -99,3 +99,58 @@ export function formatLongDate(dateString: string): string {
     day: 'numeric',
   })
 }
+
+/**
+ * Format Date to datetime-local input format (YYYY-MM-DDTHH:mm)
+ * Used for datetime-local input fields in forms
+ */
+export function formatDateTimeForInput(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hours = String(d.getHours()).padStart(2, '0')
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+/**
+ * Add minutes to a datetime string
+ * Returns formatted datetime-local string (YYYY-MM-DDTHH:mm)
+ */
+export function addMinutes(datetimeString: string, minutes: number): string {
+  const date = new Date(datetimeString)
+  date.setMinutes(date.getMinutes() + minutes)
+  return formatDateTimeForInput(date)
+}
+
+/**
+ * Calculate duration in minutes between two datetime strings
+ */
+export function getDurationMinutes(start: string, end: string): number {
+  const startDate = new Date(start)
+  const endDate = new Date(end)
+  return Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60))
+}
+
+/**
+ * Extract date in YYYY-MM-DD format from datetime string
+ * Used for date input fields
+ */
+export function extractDate(datetimeString: string): string {
+  if (!datetimeString) return ''
+  const date = new Date(datetimeString)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Parse datetime-local input value to ISO string
+ * Converts YYYY-MM-DDTHH:mm to ISO 8601 format
+ */
+export function parseDateTimeLocal(dateTimeLocal: string): string {
+  const date = new Date(dateTimeLocal)
+  return date.toISOString()
+}

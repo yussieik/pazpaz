@@ -27,11 +27,11 @@ from pazpaz.schemas.appointment import (
     AppointmentListResponse,
     AppointmentResponse,
     AppointmentUpdate,
-    ClientSummary,
     ConflictCheckResponse,
     ConflictingAppointmentDetail,
 )
 from pazpaz.services.audit_service import create_audit_event
+from pazpaz.utils.appointment_helpers import build_appointment_response_with_client
 from pazpaz.utils.pagination import (
     calculate_pagination_offset,
     calculate_total_pages,
@@ -332,14 +332,7 @@ async def create_appointment(
     appointment_with_client = result.scalar_one()
 
     # Build response with client summary
-    response_data = AppointmentResponse.model_validate(appointment_with_client)
-    if appointment_with_client.client:
-        response_data.client = ClientSummary(
-            id=appointment_with_client.client.id,
-            first_name=appointment_with_client.client.first_name,
-            last_name=appointment_with_client.client.last_name,
-            full_name=appointment_with_client.client.full_name,
-        )
+    response_data = build_appointment_response_with_client(appointment_with_client)
 
     logger.info(
         "appointment_created",
@@ -438,17 +431,10 @@ async def list_appointments(
     appointments = result.scalars().all()
 
     # Build response with client summaries
-    items = []
-    for appointment in appointments:
-        response_data = AppointmentResponse.model_validate(appointment)
-        if appointment.client:
-            response_data.client = ClientSummary(
-                id=appointment.client.id,
-                first_name=appointment.client.first_name,
-                last_name=appointment.client.last_name,
-                full_name=appointment.client.full_name,
-            )
-        items.append(response_data)
+    items = [
+        build_appointment_response_with_client(appointment)
+        for appointment in appointments
+    ]
 
     # Calculate total pages using utility
     total_pages = calculate_total_pages(total, page_size)
@@ -600,16 +586,7 @@ async def get_appointment(
     appointment_with_client = result.scalar_one()
 
     # Build response with client summary
-    response_data = AppointmentResponse.model_validate(appointment_with_client)
-    if appointment_with_client.client:
-        response_data.client = ClientSummary(
-            id=appointment_with_client.client.id,
-            first_name=appointment_with_client.client.first_name,
-            last_name=appointment_with_client.client.last_name,
-            full_name=appointment_with_client.client.full_name,
-        )
-
-    return response_data
+    return build_appointment_response_with_client(appointment_with_client)
 
 
 @router.put("/{appointment_id}", response_model=AppointmentResponse)
@@ -764,16 +741,7 @@ async def update_appointment(
     appointment = result.scalar_one()
 
     # Build response with client summary
-    response_data = AppointmentResponse.model_validate(appointment)
-    if appointment.client:
-        response_data.client = ClientSummary(
-            id=appointment.client.id,
-            first_name=appointment.client.first_name,
-            last_name=appointment.client.last_name,
-            full_name=appointment.client.full_name,
-        )
-
-    return response_data
+    return build_appointment_response_with_client(appointment)
 
 
 @router.delete("/{appointment_id}", status_code=204)

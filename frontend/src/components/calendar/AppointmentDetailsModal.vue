@@ -7,7 +7,14 @@ import type {
   SessionStatus,
   AppointmentStatus,
 } from '@/types/calendar'
-import { formatDate } from '@/utils/calendar/dateFormatters'
+import {
+  formatDate,
+  formatDateTimeForInput,
+  addMinutes,
+  getDurationMinutes,
+  extractDate,
+  parseDateTimeLocal,
+} from '@/utils/calendar/dateFormatters'
 import { getStatusBadgeClass } from '@/utils/calendar/appointmentHelpers'
 import { useAppointmentAutoSave } from '@/composables/useAppointmentAutoSave'
 import { useToast } from '@/composables/useToast'
@@ -17,6 +24,8 @@ import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentM
 import AppointmentEditIndicator from '@/components/appointments/AppointmentEditIndicator.vue'
 import TimePickerDropdown from '@/components/common/TimePickerDropdown.vue'
 import IconClose from '@/components/icons/IconClose.vue'
+import IconWarning from '@/components/icons/IconWarning.vue'
+import IconClock from '@/components/icons/IconClock.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { formatDistanceToNow, format as formatDateTime } from 'date-fns'
 
@@ -101,46 +110,9 @@ const lastSavedText = computed(() => {
   return formatDate(lastSaved.value.toISOString(), 'h:mm a')
 })
 
-/**
- * Format datetime-local input value (local timezone)
- * datetime-local inputs expect format: YYYY-MM-DDTHH:mm
- */
-function formatDateTimeLocal(isoString: string): string {
-  const date = new Date(isoString)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day}T${hours}:${minutes}`
-}
-
-/**
- * Helper: Add minutes to a datetime string
- */
-function addMinutes(datetimeString: string, minutes: number): string {
-  const date = new Date(datetimeString)
-  date.setMinutes(date.getMinutes() + minutes)
-  return formatDateTimeLocal(date.toISOString())
-}
-
-/**
- * Helper: Calculate duration in minutes between two datetime strings
- */
-function getDurationMinutes(start: string, end: string): number {
-  const startDate = new Date(start)
-  const endDate = new Date(end)
-  return Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60))
-}
-
-/**
- * Convert datetime-local input to ISO string (preserving local timezone)
- */
-function parseDateTimeLocal(dateTimeLocal: string): string {
-  // Create date from local datetime string
-  const date = new Date(dateTimeLocal)
-  return date.toISOString()
-}
+// Date/time utility functions imported from @/utils/calendar/dateFormatters
+// Using formatDateTimeForInput as formatDateTimeLocal for backward compatibility
+const formatDateTimeLocal = formatDateTimeForInput
 
 // Activate/deactivate focus trap and scroll lock based on visibility
 watch(
@@ -503,17 +475,7 @@ function setDuration(minutes: number) {
   handleDateTimeChange('scheduled_end')
 }
 
-/**
- * Extract date in YYYY-MM-DD format from datetime string
- */
-function extractDate(datetimeString: string): string {
-  if (!datetimeString) return ''
-  const date = new Date(datetimeString)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+// extractDate utility function imported from @/utils/calendar/dateFormatters
 
 /**
  * Watch for date changes and update start/end times accordingly
@@ -532,7 +494,12 @@ watch(appointmentDate, async (newDate, oldDate) => {
   const endTime = new Date(editableData.value.scheduled_end)
 
   // Parse new date components (YYYY-MM-DD format)
-  const [year, month, day] = newDate.split('-').map(Number)
+  const dateParts = newDate.split('-').map(Number)
+  if (dateParts.length !== 3 || dateParts.some(isNaN)) {
+    console.error('Invalid date format:', newDate)
+    return
+  }
+  const [year, month, day] = dateParts as [number, number, number]
 
   // Create new datetime with new date and existing times (using local timezone)
   const newStart = new Date(
@@ -692,28 +659,16 @@ watch(
                   class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900 ring-1 ring-amber-600/20 ring-inset"
                 >
                   <!-- Clock Icon -->
-                  <svg
-                    class="h-3 w-3"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
+                  <IconClock size="sm" />
                   Needs Completion
                 </span>
 
-                <!-- Edit Indicator -->
-                <AppointmentEditIndicator
+                <!-- Edit Indicator (disabled - waiting for backend edit tracking) -->
+                <!-- <AppointmentEditIndicator
                   v-if="appointment.edited_at && appointment.edit_count"
                   :edit-count="appointment.edit_count"
                   :edited-at="appointment.edited_at"
-                />
+                /> -->
 
                 <!-- Save Status Indicator -->
                 <div
@@ -983,19 +938,7 @@ watch(
                   v-if="appointment.status === 'completed'"
                   class="flex items-start gap-3"
                 >
-                  <svg
-                    class="h-5 w-5 shrink-0 text-amber-600"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                    />
-                  </svg>
+                  <IconWarning size="md" class="shrink-0 text-amber-600" />
                   <div>
                     <p class="text-sm font-medium text-slate-900">
                       No session note yet
