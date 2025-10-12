@@ -35,6 +35,7 @@ from typing import Any
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from pazpaz.core.constants import ENCRYPTION_KEY_SIZE, NONCE_SIZE, TAG_SIZE
 from pazpaz.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -50,12 +51,6 @@ class DecryptionError(Exception):
     """Exception raised when decryption or authentication fails."""
 
     pass
-
-
-# Constants
-NONCE_SIZE = 12  # 96-bit nonce (recommended for GCM)
-TAG_SIZE = 16  # 128-bit authentication tag
-KEY_SIZE = 32  # 256-bit key (AES-256)
 
 
 def encrypt_field(plaintext: str | None, key: bytes) -> bytes | None:
@@ -88,8 +83,10 @@ def encrypt_field(plaintext: str | None, key: bytes) -> bytes | None:
         return None
 
     # Validate key size
-    if len(key) != KEY_SIZE:
-        raise ValueError(f"Encryption key must be {KEY_SIZE} bytes, got {len(key)}")
+    if len(key) != ENCRYPTION_KEY_SIZE:
+        raise ValueError(
+            f"Encryption key must be {ENCRYPTION_KEY_SIZE} bytes, got {len(key)}"
+        )
 
     try:
         # Convert string to bytes
@@ -150,8 +147,10 @@ def decrypt_field(ciphertext: bytes | None, key: bytes) -> str | None:
         return None
 
     # Validate key size
-    if len(key) != KEY_SIZE:
-        raise ValueError(f"Encryption key must be {KEY_SIZE} bytes, got {len(key)}")
+    if len(key) != ENCRYPTION_KEY_SIZE:
+        raise ValueError(
+            f"Encryption key must be {ENCRYPTION_KEY_SIZE} bytes, got {len(key)}"
+        )
 
     # Validate ciphertext format
     min_size = NONCE_SIZE + TAG_SIZE

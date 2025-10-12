@@ -27,6 +27,20 @@ vi.mock('vue-router', () => ({
   }),
 }))
 
+// Mock useSecureOfflineBackup
+const mockRestoreDraft = vi.fn()
+const mockSyncToServer = vi.fn()
+const mockClearAllBackups = vi.fn()
+
+vi.mock('@/composables/useSecureOfflineBackup', () => ({
+  useSecureOfflineBackup: () => ({
+    restoreDraft: mockRestoreDraft,
+    syncToServer: mockSyncToServer,
+    clearAllBackups: mockClearAllBackups,
+    backupDraft: vi.fn(),
+  }),
+}))
+
 describe('SessionEditor', () => {
   let wrapper: VueWrapper<any>
   const mockSessionId = 'test-session-123'
@@ -58,6 +72,14 @@ describe('SessionEditor', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers()
+    mockRestoreDraft.mockResolvedValue(null)
+    mockSyncToServer.mockResolvedValue(true)
+
+    // Mock navigator.onLine
+    Object.defineProperty(navigator, 'onLine', {
+      writable: true,
+      value: true,
+    })
   })
 
   afterEach(() => {
@@ -303,7 +325,6 @@ describe('SessionEditor', () => {
     })
 
     it('finalizes session when clicked', async () => {
-
       // Mock finalized response
       vi.mocked(apiClient.get).mockResolvedValue({
         data: mockFinalizedSession,
@@ -326,7 +347,6 @@ describe('SessionEditor', () => {
     })
 
     it('emits finalized event after successful finalization', async () => {
-
       vi.mocked(apiClient.get).mockResolvedValue({
         data: mockFinalizedSession,
       } as AxiosResponse)
@@ -614,6 +634,331 @@ describe('SessionEditor', () => {
       await nextTick()
 
       expect(apiClient.patch).toHaveBeenCalled()
+    })
+  })
+
+  describe('Encrypted localStorage Restore UI', () => {
+    const mockBackupData = {
+      subjective: 'Restored subjective',
+      objective: 'Restored objective',
+      assessment: 'Restored assessment',
+      plan: 'Restored plan',
+      session_date: '2025-10-12T10:00:00Z',
+      duration_minutes: 45,
+    }
+
+    it('shows restore prompt when local backup is newer than server', async () => {
+      const serverTime = new Date('2025-10-12T10:00:00Z').getTime()
+      const backupTime = new Date('2025-10-12T10:30:00Z').getTime() // 30 minutes later
+
+      mockRestoreDraft.mockResolvedValue({
+        draft: mockBackupData,
+        version: 1,
+        timestamp: backupTime,
+      })
+
+      const mockResponse: Partial<AxiosResponse> = {
+        data: {
+          ...mockSessionData,
+          draft_last_saved_at: new Date(serverTime).toISOString(),
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      }
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse as AxiosResponse)
+
+      wrapper = mount(SessionEditor, {
+        props: { sessionId: mockSessionId },
+      })
+
+      await nextTick()
+      await nextTick()
+
+      expect(wrapper.text()).toContain('Restore Unsaved Changes')
+      expect(wrapper.text()).toContain('unsaved changes from a previous session')
+    })
+
+    it('does NOT show restore prompt when server data is newer', async () => {
+      const serverTime = new Date('2025-10-12T10:30:00Z').getTime()
+      const backupTime = new Date('2025-10-12T10:00:00Z').getTime() // Earlier than server
+
+      mockRestoreDraft.mockResolvedValue({
+        draft: mockBackupData,
+        version: 1,
+        timestamp: backupTime,
+      })
+
+      const mockResponse: Partial<AxiosResponse> = {
+        data: {
+          ...mockSessionData,
+          draft_last_saved_at: new Date(serverTime).toISOString(),
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      }
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse as AxiosResponse)
+
+      wrapper = mount(SessionEditor, {
+        props: { sessionId: mockSessionId },
+      })
+
+      await nextTick()
+      await nextTick()
+
+      expect(wrapper.text()).not.toContain('Restore Unsaved Changes')
+      expect(localStorage.removeItem).toHaveBeenCalled()
+    })
+
+    it('does NOT show restore prompt when no backup exists', async () => {
+      mockRestoreDraft.mockResolvedValue(null)
+
+      const mockResponse: Partial<AxiosResponse> = {
+        data: mockSessionData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      }
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse as AxiosResponse)
+
+      wrapper = mount(SessionEditor, {
+        props: { sessionId: mockSessionId },
+      })
+
+      await nextTick()
+      await nextTick()
+
+      expect(wrapper.text()).not.toContain('Restore Unsaved Changes')
+    })
+
+    it('restores changes and syncs to server when "Restore Changes" clicked', async () => {
+      const serverTime = new Date('2025-10-12T10:00:00Z').getTime()
+      const backupTime = new Date('2025-10-12T10:30:00Z').getTime()
+
+      mockRestoreDraft.mockResolvedValue({
+        draft: mockBackupData,
+        version: 1,
+        timestamp: backupTime,
+      })
+
+      const mockResponse: Partial<AxiosResponse> = {
+        data: {
+          ...mockSessionData,
+          draft_last_saved_at: new Date(serverTime).toISOString(),
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      }
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse as AxiosResponse)
+
+      wrapper = mount(SessionEditor, {
+        props: { sessionId: mockSessionId },
+      })
+
+      await nextTick()
+      await nextTick()
+
+      // Find and click "Restore Changes" button
+      const restoreButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Restore Changes'))
+      expect(restoreButton).toBeDefined()
+
+      await restoreButton?.trigger('click')
+      await nextTick()
+
+      // Should sync to server
+      expect(mockSyncToServer).toHaveBeenCalledWith(mockSessionId)
+
+      // Modal should close
+      expect(wrapper.text()).not.toContain('Restore Unsaved Changes')
+    })
+
+    it('discards backup when "Discard" button clicked', async () => {
+      const serverTime = new Date('2025-10-12T10:00:00Z').getTime()
+      const backupTime = new Date('2025-10-12T10:30:00Z').getTime()
+
+      mockRestoreDraft.mockResolvedValue({
+        draft: mockBackupData,
+        version: 1,
+        timestamp: backupTime,
+      })
+
+      const mockResponse: Partial<AxiosResponse> = {
+        data: {
+          ...mockSessionData,
+          draft_last_saved_at: new Date(serverTime).toISOString(),
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      }
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse as AxiosResponse)
+
+      wrapper = mount(SessionEditor, {
+        props: { sessionId: mockSessionId },
+      })
+
+      await nextTick()
+      await nextTick()
+
+      // Find and click "Discard" button
+      const discardButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text() === 'Discard')
+      expect(discardButton).toBeDefined()
+
+      await discardButton?.trigger('click')
+      await nextTick()
+
+      // Should remove backup from localStorage
+      expect(localStorage.removeItem).toHaveBeenCalledWith(`session_${mockSessionId}_backup`)
+
+      // Modal should close
+      expect(wrapper.text()).not.toContain('Restore Unsaved Changes')
+    })
+
+    it('shows offline indicator badge when isOnline is false', async () => {
+      Object.defineProperty(navigator, 'onLine', {
+        writable: true,
+        value: false,
+      })
+
+      const mockResponse: Partial<AxiosResponse> = {
+        data: mockSessionData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      }
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse as AxiosResponse)
+
+      wrapper = mount(SessionEditor, {
+        props: { sessionId: mockSessionId },
+      })
+
+      await nextTick()
+      await nextTick()
+
+      // Simulate offline event
+      window.dispatchEvent(new Event('offline'))
+      await nextTick()
+
+      expect(wrapper.text()).toContain('Offline - Changes saved locally')
+    })
+
+    it('hides offline indicator when isOnline is true', async () => {
+      const mockResponse: Partial<AxiosResponse> = {
+        data: mockSessionData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      }
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse as AxiosResponse)
+
+      wrapper = mount(SessionEditor, {
+        props: { sessionId: mockSessionId },
+      })
+
+      await nextTick()
+      await nextTick()
+
+      expect(wrapper.text()).not.toContain('Offline - Changes saved locally')
+    })
+
+    it('calls restoreDraft on component mount', async () => {
+      mockRestoreDraft.mockResolvedValue(null)
+
+      const mockResponse: Partial<AxiosResponse> = {
+        data: mockSessionData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      }
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse as AxiosResponse)
+
+      wrapper = mount(SessionEditor, {
+        props: { sessionId: mockSessionId },
+      })
+
+      await nextTick()
+      await nextTick()
+
+      expect(mockRestoreDraft).toHaveBeenCalledWith(mockSessionId)
+    })
+
+    it('compares backup timestamp with server timestamp correctly', async () => {
+      // Edge case: backup and server have same timestamp
+      const sameTime = new Date('2025-10-12T10:00:00Z').getTime()
+
+      mockRestoreDraft.mockResolvedValue({
+        draft: mockBackupData,
+        version: 1,
+        timestamp: sameTime,
+      })
+
+      const mockResponse: Partial<AxiosResponse> = {
+        data: {
+          ...mockSessionData,
+          draft_last_saved_at: new Date(sameTime).toISOString(),
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      }
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse as AxiosResponse)
+
+      wrapper = mount(SessionEditor, {
+        props: { sessionId: mockSessionId },
+      })
+
+      await nextTick()
+      await nextTick()
+
+      // Same timestamp = not newer, should not show prompt
+      expect(wrapper.text()).not.toContain('Restore Unsaved Changes')
+    })
+
+    it('handles server with null draft_last_saved_at', async () => {
+      const backupTime = new Date('2025-10-12T10:30:00Z').getTime()
+
+      mockRestoreDraft.mockResolvedValue({
+        draft: mockBackupData,
+        version: 1,
+        timestamp: backupTime,
+      })
+
+      const mockResponse: Partial<AxiosResponse> = {
+        data: {
+          ...mockSessionData,
+          draft_last_saved_at: null, // Never saved to server
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      }
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse as AxiosResponse)
+
+      wrapper = mount(SessionEditor, {
+        props: { sessionId: mockSessionId },
+      })
+
+      await nextTick()
+      await nextTick()
+
+      // Backup is newer than null (0), should show prompt
+      expect(wrapper.text()).toContain('Restore Unsaved Changes')
     })
   })
 })

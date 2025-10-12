@@ -21,11 +21,13 @@ This document describes the UX improvements implemented for appointment time pic
 **Goal**: Preserve appointment duration when start time changes.
 
 **Features**:
+
 - Default duration: 60 minutes for new appointments
 - When start time changes, end time automatically adjusts to maintain duration
 - Duration display shows current appointment length in minutes
 
 **Files Modified**:
+
 - `/frontend/src/components/calendar/AppointmentFormModal.vue`
 - `/frontend/src/components/calendar/AppointmentDetailsModal.vue`
 
@@ -50,6 +52,7 @@ watch(
 ```
 
 **Helper Functions**:
+
 - `addMinutes(datetimeString, minutes)`: Adds specified minutes to a datetime
 - `getDurationMinutes(start, end)`: Calculates duration in minutes between two times
 - `formatDateTimeForInput(date)`: Formats Date object for datetime-local inputs
@@ -59,12 +62,14 @@ watch(
 **Goal**: Provide one-click buttons for common session durations.
 
 **Features**:
+
 - Four pill buttons: 30, 45, 60, and 90 minutes
 - Active state highlights currently selected duration
 - Single click adjusts end time relative to start time
 - Accessible with proper ARIA labels and keyboard support
 
 **UI Design**:
+
 ```vue
 <div class="flex flex-wrap gap-2">
   <button
@@ -87,6 +92,7 @@ watch(
 ```
 
 **Behavior**:
+
 ```typescript
 function setDuration(minutes: number) {
   if (!formData.value.scheduled_start) return
@@ -101,6 +107,7 @@ function setDuration(minutes: number) {
 **Component**: `/frontend/src/components/common/TimePickerDropdown.vue`
 
 **Features**:
+
 1. **15-Minute Intervals**: Only allows selection of times in 15-minute increments
 2. **Time Range**: 6:00 AM to 10:00 PM (configurable via props)
 3. **12-Hour Format**: Displays times with AM/PM for better readability
@@ -119,19 +126,21 @@ function setDuration(minutes: number) {
 7. **Separate Date/Time Inputs**: Date picker (native) + Time pickers (custom)
 
 **Props Interface**:
+
 ```typescript
 interface Props {
-  modelValue: string      // ISO 8601 datetime string
-  label: string           // Field label
-  error?: string          // Validation error message
-  minTime?: string        // e.g., "06:00" (default)
-  maxTime?: string        // e.g., "22:00" (default)
-  interval?: number       // Minutes (default: 15)
-  disabled?: boolean      // Disable interaction
+  modelValue: string // ISO 8601 datetime string
+  label: string // Field label
+  error?: string // Validation error message
+  minTime?: string // e.g., "06:00" (default)
+  maxTime?: string // e.g., "22:00" (default)
+  interval?: number // Minutes (default: 15)
+  disabled?: boolean // Disable interaction
 }
 ```
 
 **Time Options Generation**:
+
 ```typescript
 const timeOptions = computed(() => {
   const options: Array<{ value: string; label: string }> = []
@@ -141,7 +150,11 @@ const timeOptions = computed(() => {
   const startMinutes = minHours * 60 + minMins
   const endMinutes = maxHours * 60 + maxMins
 
-  for (let totalMinutes = startMinutes; totalMinutes <= endMinutes; totalMinutes += props.interval) {
+  for (
+    let totalMinutes = startMinutes;
+    totalMinutes <= endMinutes;
+    totalMinutes += props.interval
+  ) {
     const hours = Math.floor(totalMinutes / 60)
     const mins = totalMinutes % 60
 
@@ -156,6 +169,7 @@ const timeOptions = computed(() => {
 ```
 
 **Integration**:
+
 ```vue
 <!-- AppointmentFormModal.vue -->
 <div>
@@ -191,11 +205,13 @@ const timeOptions = computed(() => {
 ## Accessibility Features (WCAG 2.1 AA Compliant)
 
 ### Keyboard Navigation
+
 - All interactive elements are keyboard-accessible
 - Logical tab order: Date → Start Time → End Time → Duration Pills → Location
 - Clear focus indicators with `focus:ring-2 focus:ring-emerald-500`
 
 ### ARIA Labels
+
 - Date input: `aria-label="Appointment date"`
 - Time pickers: Proper labels via `label` prop
 - Duration pills: `aria-label="Set duration to X minutes"` with `aria-pressed` state
@@ -203,11 +219,13 @@ const timeOptions = computed(() => {
 - Selected state: `aria-selected` attribute
 
 ### Screen Reader Support
+
 - Duration changes announced: "Duration set to 60 minutes"
 - Time adjustments announced via modelValue changes
 - Dropdown state announced via `aria-expanded`
 
 ### Visual Design
+
 - High contrast text (slate-900 on white)
 - Focus rings never removed without replacement
 - Selected state clearly distinguished (emerald-50 background + emerald-900 text)
@@ -216,11 +234,14 @@ const timeOptions = computed(() => {
 ## Edge Cases Handled
 
 ### 1. End Time Before Start Time
+
 **Behavior**: When start time is changed and would result in end time before start time:
+
 - End time auto-adjusts to maintain valid duration
 - No error shown (silent correction)
 
 **Example**:
+
 ```
 Start: 10:00 AM, End: 11:00 AM (60 min duration)
 User changes Start to 11:30 AM
@@ -228,18 +249,23 @@ User changes Start to 11:30 AM
 ```
 
 ### 2. Duration Changes After Manual End Time Edit
+
 **Behavior**: When user manually changes end time:
+
 - Duration display updates to reflect new duration
 - If duration matches a pill (30/45/60/90), that pill highlights
 - Duration is preserved on subsequent start time changes
 
 ### 3. Date Changes
+
 **Behavior**: When date is changed:
+
 - Time portion remains unchanged
 - Start and end times update to reflect new date
 - Duration is preserved
 
 **Implementation**:
+
 ```typescript
 watch(appointmentDate, (newDate) => {
   if (!newDate || !formData.value.scheduled_start) return
@@ -259,7 +285,9 @@ watch(appointmentDate, (newDate) => {
 ```
 
 ### 4. Conflict Detection Integration
+
 **Behavior**: Existing conflict detection continues to work:
+
 - Conflict check triggers when start or end time changes
 - Debounced at 500ms to avoid excessive API calls
 - Works seamlessly with new time pickers
@@ -267,24 +295,28 @@ watch(appointmentDate, (newDate) => {
 ## Performance Considerations
 
 ### Optimizations
+
 1. **Computed Time Options**: Generated once per render, cached via `computed()`
 2. **Debounced Conflict Check**: 500ms debounce prevents API spam
 3. **Minimal Re-renders**: Only affected components update when duration changes
 4. **Event Delegation**: Click handlers on individual options, not list
 
 ### Bundle Size
+
 - TimePickerDropdown component: ~3KB (gzipped)
 - No external dependencies beyond Vue core and VueUse
 
 ## Browser Compatibility
 
 ### Date Picker (Native)
+
 - ✅ Chrome/Edge: Full support
 - ✅ Firefox: Full support
 - ✅ Safari: Full support (iOS 14.5+)
 - ⚠️ Older browsers: Graceful degradation to text input
 
 ### Time Picker (Custom)
+
 - ✅ All modern browsers (Chrome, Firefox, Safari, Edge)
 - ✅ Mobile browsers (iOS Safari, Chrome Mobile)
 - ✅ Keyboard navigation on desktop
@@ -293,6 +325,7 @@ watch(appointmentDate, (newDate) => {
 ## Testing Recommendations
 
 ### Manual Testing Checklist
+
 - [ ] Create appointment with default 60-min duration
 - [ ] Change start time → verify end time shifts to preserve duration
 - [ ] Click duration pills → verify end time updates
@@ -305,7 +338,9 @@ watch(appointmentDate, (newDate) => {
 - [ ] Verify focus indicators visible with keyboard navigation
 
 ### Unit Test Coverage
+
 **Recommended Tests** (not yet implemented):
+
 - `TimePickerDropdown.spec.ts`:
   - Generates correct time options for given interval
   - Formats 12-hour time correctly
@@ -326,6 +361,7 @@ watch(appointmentDate, (newDate) => {
 ## Future Enhancements (Phase 4 - Optional)
 
 ### Mobile Optimization
+
 - **Responsive Design**: Duration pills larger on mobile (`px-4 py-2`)
 - **Native Fallback**: Consider using native `<input type="time">` on mobile with validation rounding:
 
@@ -344,6 +380,7 @@ function validateAndRoundMinutes(timeValue: string) {
 ```
 
 ### Additional Features
+
 - **Favorite Durations**: Allow users to customize duration pill values
 - **Time Zone Support**: Handle appointments across time zones
 - **Recurring Appointments**: Integrate with recurring appointment feature
@@ -352,9 +389,11 @@ function validateAndRoundMinutes(timeValue: string) {
 ## Migration Notes
 
 ### Breaking Changes
+
 None - this is an enhancement that maintains backward compatibility with existing appointment data.
 
 ### Data Format
+
 - **Database**: No changes - continues to use ISO 8601 timestamps
 - **API**: No changes - datetime fields remain unchanged
 - **Frontend State**: Uses datetime-local format internally (YYYY-MM-DDTHH:mm)
@@ -369,6 +408,7 @@ None - this is an enhancement that maintains backward compatibility with existin
 ## Changelog
 
 ### 2025-10-10 - Initial Implementation
+
 - ✅ Phase 1: Smart end time auto-calculation
 - ✅ Phase 2: Duration quick-action pills
 - ✅ Phase 3: Custom TimePickerDropdown component

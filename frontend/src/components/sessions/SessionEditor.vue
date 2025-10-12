@@ -24,6 +24,7 @@ import { useAutosave } from '@/composables/useAutosave'
 import { useSecureOfflineBackup } from '@/composables/useSecureOfflineBackup'
 import { useLocalStorage } from '@vueuse/core'
 import { formatDistanceToNow } from 'date-fns'
+import { formatDateTimeForInput } from '@/utils/calendar/dateFormatters'
 import apiClient from '@/api/client'
 import type { AxiosError } from 'axios'
 import SessionNoteBadges from './SessionNoteBadges.vue'
@@ -355,28 +356,12 @@ onBeforeUnmount(() => {
   stopAutosave()
 })
 
-// Format date for datetime-local input
-function formatDateForInput(dateString: string): string {
-  if (!dateString) return ''
-  try {
-    const date = new Date(dateString)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    return `${year}-${month}-${day}T${hours}:${minutes}`
-  } catch {
-    return ''
-  }
-}
-
 // Watch session_date for formatting
 watch(
   () => session.value?.session_date,
   (newDate) => {
     if (newDate) {
-      formData.value.session_date = formatDateForInput(newDate)
+      formData.value.session_date = formatDateTimeForInput(newDate)
     }
   }
 )

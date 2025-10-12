@@ -72,11 +72,12 @@ PazPaz - Practice Management for Independent Therapists
 
         # Also log to console in debug mode for convenience
         if settings.debug:
-            print(f"\n{'=' * 80}")
-            print(f"✅ Magic link email sent to: {email}")
-            print("   Check MailHog: http://localhost:8025")
-            print(f"   Direct link: {magic_link}")
-            print(f"{'=' * 80}\n")
+            logger.info(
+                "magic_link_debug_info",
+                email=email,
+                mailhog_ui="http://localhost:8025",
+                magic_link=magic_link,
+            )
 
     except Exception as e:
         logger.error(

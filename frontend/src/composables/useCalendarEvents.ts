@@ -26,9 +26,10 @@ export function useCalendarEvents() {
     get: () => {
       if (!selectedAppointmentId.value) return null
 
-      const found = appointmentsStore.appointments.find(
-        (a) => a.id === selectedAppointmentId.value
-      ) || null
+      const found =
+        appointmentsStore.appointments.find(
+          (a) => a.id === selectedAppointmentId.value
+        ) || null
 
       return found
     },
@@ -178,7 +179,9 @@ export function useCalendarEvents() {
     const sessionIndicator = sessionStatus?.hasSession ? ' 📄' : ''
     const clientName =
       appointment.client?.full_name ||
-      (appointment.client_id ? `Client ${appointment.client_id.slice(0, 8)}` : 'Unknown Client')
+      (appointment.client_id
+        ? `Client ${appointment.client_id.slice(0, 8)}`
+        : 'Unknown Client')
 
     return `${statusIndicator}${sessionIndicator} ${clientName}`.trim()
   }

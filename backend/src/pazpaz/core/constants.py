@@ -21,6 +21,19 @@ DELETION_REASON_MAX_LENGTH = 500
 SOAP_FIELD_MAX_LENGTH = 5000
 
 # ============================================================================
+# ENCRYPTION CONFIGURATION
+# ============================================================================
+
+# AES-256 key size (32 bytes = 256 bits)
+ENCRYPTION_KEY_SIZE = 32
+
+# AES-GCM nonce size (12 bytes = 96 bits, recommended for GCM)
+NONCE_SIZE = 12
+
+# AES-GCM authentication tag size (16 bytes = 128 bits)
+TAG_SIZE = 16
+
+# ============================================================================
 # AUDIT LOGGING
 # ============================================================================
 

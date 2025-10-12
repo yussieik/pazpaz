@@ -205,11 +205,9 @@ function triggerButtonFeedback(button: HTMLButtonElement | null) {
  * Refreshes the session timeline when a note is restored from deleted section
  */
 async function handleSessionRestored() {
-  console.log('[ClientDetailView] Session restored, refreshing timeline')
   // Refresh the session timeline to show the restored session
   if (sessionTimelineRef.value) {
     await sessionTimelineRef.value.refresh()
-    console.log('[ClientDetailView] Timeline refresh complete')
   } else {
     console.warn('[ClientDetailView] sessionTimelineRef is null, cannot refresh')
   }

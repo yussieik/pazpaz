@@ -638,7 +638,9 @@ describe('ClientDetailView - Session Restoration Bug Fix', () => {
     await flushPromises()
 
     // Switch to History tab to render session components
-    const historyTab = wrapper.findAll('button').find((btn) => btn.text().includes('History'))
+    const historyTab = wrapper
+      .findAll('button')
+      .find((btn) => btn.text().includes('History'))
     if (historyTab) {
       await historyTab.trigger('click')
       await wrapper.vm.$nextTick()
@@ -683,7 +685,9 @@ describe('ClientDetailView - Session Restoration Bug Fix', () => {
     await flushPromises()
 
     // Switch to History tab
-    const historyTab = wrapper.findAll('button').find((btn) => btn.text().includes('History'))
+    const historyTab = wrapper
+      .findAll('button')
+      .find((btn) => btn.text().includes('History'))
     if (historyTab) {
       await historyTab.trigger('click')
       await wrapper.vm.$nextTick()
@@ -716,7 +720,9 @@ describe('ClientDetailView - Session Restoration Bug Fix', () => {
     await flushPromises()
 
     // Switch to History tab
-    const historyTab = wrapper.findAll('button').find((btn) => btn.text().includes('History'))
+    const historyTab = wrapper
+      .findAll('button')
+      .find((btn) => btn.text().includes('History'))
     if (historyTab) {
       await historyTab.trigger('click')
       await wrapper.vm.$nextTick()
@@ -776,7 +782,9 @@ describe('ClientDetailView - Session Restoration Bug Fix', () => {
     await flushPromises()
 
     // Switch to History tab
-    const historyTab = wrapper.findAll('button').find((btn) => btn.text().includes('History'))
+    const historyTab = wrapper
+      .findAll('button')
+      .find((btn) => btn.text().includes('History'))
     if (historyTab) {
       await historyTab.trigger('click')
       await wrapper.vm.$nextTick()
@@ -809,7 +817,9 @@ describe('ClientDetailView - Session Restoration Bug Fix', () => {
     await flushPromises()
 
     // Switch to History tab
-    const historyTab = wrapper.findAll('button').find((btn) => btn.text().includes('History'))
+    const historyTab = wrapper
+      .findAll('button')
+      .find((btn) => btn.text().includes('History'))
     if (historyTab) {
       await historyTab.trigger('click')
       await wrapper.vm.$nextTick()
@@ -851,7 +861,9 @@ describe('ClientDetailView - Session Restoration Bug Fix', () => {
     await flushPromises()
 
     // Switch to History tab
-    const historyTab = wrapper.findAll('button').find((btn) => btn.text().includes('History'))
+    const historyTab = wrapper
+      .findAll('button')
+      .find((btn) => btn.text().includes('History'))
     if (historyTab) {
       await historyTab.trigger('click')
       await wrapper.vm.$nextTick()

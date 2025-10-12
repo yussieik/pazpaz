@@ -166,7 +166,8 @@ describe('SessionTimeline', () => {
       await new Promise((resolve) => setTimeout(resolve, 10))
 
       // Check for error state (either the error message or the error component)
-      const hasError = wrapper.text().includes('Failed') || wrapper.find('.text-red-800').exists()
+      const hasError =
+        wrapper.text().includes('Failed') || wrapper.find('.text-red-800').exists()
       expect(hasError).toBe(true)
     })
   })

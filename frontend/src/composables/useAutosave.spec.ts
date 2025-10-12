@@ -23,6 +23,7 @@ vi.mock('./useSecureOfflineBackup', () => ({
  */
 describe('useAutosave', () => {
   let mockSaveFn: ReturnType<typeof vi.fn>
+  const mountedWrappers: any[] = []
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -36,9 +37,20 @@ describe('useAutosave', () => {
       writable: true,
       value: true,
     })
+
+    // Clear mounted wrappers array
+    mountedWrappers.length = 0
   })
 
   afterEach(() => {
+    // Unmount all wrappers to prevent event listener interference
+    mountedWrappers.forEach((wrapper) => {
+      if (wrapper && wrapper.unmount) {
+        wrapper.unmount()
+      }
+    })
+    mountedWrappers.length = 0
+
     vi.useRealTimers()
     localStorage.clear()
   })
@@ -47,16 +59,35 @@ describe('useAutosave', () => {
   const createTestComponent = (options = {}) => {
     return defineComponent({
       setup() {
-        const autosave = useAutosave(mockSaveFn, options)
-        return { ...autosave }
+        const result = useAutosave(mockSaveFn, options)
+        // Explicitly return all properties for test access
+        return {
+          isSaving: result.isSaving,
+          lastSavedAt: result.lastSavedAt,
+          saveError: result.saveError,
+          isActive: result.isActive,
+          isOnline: result.isOnline,
+          save: result.save,
+          forceSave: result.forceSave,
+          start: result.start,
+          stop: result.stop,
+          clearError: result.clearError,
+        }
       },
       template: '<div></div>',
     })
   }
 
+  // Helper to mount and track wrappers for auto-cleanup
+  const mountAndTrack = (component: any) => {
+    const wrapper = mount(component)
+    mountedWrappers.push(wrapper)
+    return wrapper
+  }
+
   describe('Basic Autosave Functionality', () => {
     it('saves data after debounce delay (5 seconds default)', async () => {
-      const wrapper = mount(createTestComponent())
+      const wrapper = mountAndTrack(createTestComponent())
       const { save } = wrapper.vm as any
 
       const data = { field: 'value' }
@@ -75,7 +106,7 @@ describe('useAutosave', () => {
     })
 
     it('uses custom debounce delay', async () => {
-      const wrapper = mount(createTestComponent({ debounceMs: 3000 }))
+      const wrapper = mountAndTrack(createTestComponent({ debounceMs: 3000 }))
       const { save } = wrapper.vm as any
 
       save({ field: 'value' })
@@ -88,7 +119,7 @@ describe('useAutosave', () => {
     })
 
     it('debounces multiple rapid saves', async () => {
-      const wrapper = mount(createTestComponent())
+      const wrapper = mountAndTrack(createTestComponent())
       const { save } = wrapper.vm as any
 
       save({ field: 'value1' })
@@ -104,7 +135,7 @@ describe('useAutosave', () => {
     })
 
     it('forceSave bypasses debounce', async () => {
-      const wrapper = mount(createTestComponent())
+      const wrapper = mountAndTrack(createTestComponent())
       const { forceSave } = wrapper.vm as any
 
       await forceSave({ field: 'immediate' })
@@ -118,23 +149,23 @@ describe('useAutosave', () => {
         () => new Promise((resolve) => setTimeout(resolve, 500))
       )
 
-      const wrapper = mount(createTestComponent())
-      const { save, isSaving } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent())
+      const { save } = wrapper.vm as any
 
-      expect(isSaving.value).toBe(false)
+      expect(wrapper.vm.isSaving).toBe(false)
 
       save({ field: 'value' })
       await vi.advanceTimersByTimeAsync(5000)
 
-      expect(isSaving.value).toBe(true)
+      expect(wrapper.vm.isSaving).toBe(true)
 
       await vi.advanceTimersByTimeAsync(500)
-      expect(isSaving.value).toBe(false)
+      expect(wrapper.vm.isSaving).toBe(false)
     })
 
     it('calls onSuccess callback after successful save', async () => {
       const onSuccess = vi.fn()
-      const wrapper = mount(createTestComponent({ onSuccess }))
+      const wrapper = mountAndTrack(createTestComponent({ onSuccess }))
       const { save } = wrapper.vm as any
 
       save({ field: 'value' })
@@ -148,7 +179,7 @@ describe('useAutosave', () => {
       const error = new Error('Save failed')
       mockSaveFn.mockRejectedValue(error)
 
-      const wrapper = mount(createTestComponent({ onError }))
+      const wrapper = mountAndTrack(createTestComponent({ onError }))
       const { save } = wrapper.vm as any
 
       save({ field: 'value' })
@@ -159,11 +190,12 @@ describe('useAutosave', () => {
   })
 
   describe('Online/Offline Detection', () => {
-    it('tracks online status via isOnline ref', () => {
-      const wrapper = mount(createTestComponent())
-      const { isOnline } = wrapper.vm as any
+    it('tracks online status via isOnline ref', async () => {
+      const wrapper = mountAndTrack(createTestComponent())
+      await wrapper.vm.$nextTick()
 
-      expect(isOnline.value).toBe(true) // navigator.onLine is mocked as true
+      // In Vue 3, refs returned from setup() are auto-unwrapped when accessed via wrapper.vm
+      expect(wrapper.vm.isOnline).toBe(true) // navigator.onLine is mocked as true
     })
 
     it('updates isOnline when online event fires', async () => {
@@ -172,10 +204,9 @@ describe('useAutosave', () => {
         value: false,
       })
 
-      const wrapper = mount(createTestComponent())
-      const { isOnline } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent())
 
-      expect(isOnline.value).toBe(false)
+      expect(wrapper.vm.isOnline).toBe(false)
 
       // Simulate coming back online
       Object.defineProperty(navigator, 'onLine', {
@@ -186,14 +217,16 @@ describe('useAutosave', () => {
 
       await vi.runAllTimersAsync()
 
-      expect(isOnline.value).toBe(true)
+      expect(wrapper.vm.isOnline).toBe(true)
+
+      // Clean up to prevent interference with other tests
+      wrapper.unmount()
     })
 
     it('updates isOnline when offline event fires', async () => {
-      const wrapper = mount(createTestComponent())
-      const { isOnline } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent())
 
-      expect(isOnline.value).toBe(true)
+      expect(wrapper.vm.isOnline).toBe(true)
 
       // Simulate going offline
       Object.defineProperty(navigator, 'onLine', {
@@ -204,13 +237,16 @@ describe('useAutosave', () => {
 
       await vi.runAllTimersAsync()
 
-      expect(isOnline.value).toBe(false)
+      expect(wrapper.vm.isOnline).toBe(false)
+
+      // Clean up to prevent interference with other tests
+      wrapper.unmount()
     })
 
     it('cleans up event listeners on unmount', () => {
       const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener')
 
-      const wrapper = mount(createTestComponent())
+      const wrapper = mountAndTrack(createTestComponent())
       wrapper.unmount()
 
       expect(removeEventListenerSpy).toHaveBeenCalledWith('online', expect.any(Function))
@@ -234,7 +270,7 @@ describe('useAutosave', () => {
     }
 
     it('backups to encrypted localStorage on every autosave when sessionId provided', async () => {
-      const wrapper = mount(createTestComponent({ sessionId, version }))
+      const wrapper = mountAndTrack(createTestComponent({ sessionId, version }))
       const { save } = wrapper.vm as any
 
       save(mockDraftData)
@@ -245,7 +281,7 @@ describe('useAutosave', () => {
     })
 
     it('does not backup when sessionId is not provided', async () => {
-      const wrapper = mount(createTestComponent()) // No sessionId
+      const wrapper = mountAndTrack(createTestComponent()) // No sessionId
       const { save } = wrapper.vm as any
 
       save(mockDraftData)
@@ -256,7 +292,7 @@ describe('useAutosave', () => {
     })
 
     it('clears localStorage backup after successful server save', async () => {
-      const wrapper = mount(createTestComponent({ sessionId, version }))
+      const wrapper = mountAndTrack(createTestComponent({ sessionId, version }))
       const { save } = wrapper.vm as any
 
       save(mockDraftData)
@@ -272,21 +308,21 @@ describe('useAutosave', () => {
         request: {}, // Network error (no response)
       })
 
-      const wrapper = mount(createTestComponent({ sessionId, version }))
-      const { save, isOnline } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent({ sessionId, version }))
+      const { save } = wrapper.vm as any
 
       save(mockDraftData)
       await vi.advanceTimersByTimeAsync(5000)
 
       expect(mockBackupDraft).toHaveBeenCalled()
-      expect(isOnline.value).toBe(false) // Should mark as offline
+      expect(wrapper.vm.isOnline).toBe(false) // Should mark as offline
     })
 
     it('saves to backup even when online (safety net)', async () => {
-      const wrapper = mount(createTestComponent({ sessionId, version }))
-      const { save, isOnline } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent({ sessionId, version }))
+      const { save } = wrapper.vm as any
 
-      expect(isOnline.value).toBe(true)
+      expect(wrapper.vm.isOnline).toBe(true)
 
       save(mockDraftData)
       await vi.advanceTimersByTimeAsync(5000)
@@ -306,10 +342,9 @@ describe('useAutosave', () => {
         value: false,
       })
 
-      const wrapper = mount(createTestComponent({ sessionId }))
-      const { isOnline } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent({ sessionId }))
 
-      expect(isOnline.value).toBe(false)
+      expect(wrapper.vm.isOnline).toBe(false)
 
       // Simulate coming back online
       Object.defineProperty(navigator, 'onLine', {
@@ -320,8 +355,11 @@ describe('useAutosave', () => {
 
       await vi.runAllTimersAsync()
 
-      expect(isOnline.value).toBe(true)
+      expect(wrapper.vm.isOnline).toBe(true)
       expect(mockSyncToServer).toHaveBeenCalledWith(sessionId)
+
+      // Clean up to prevent interference with other tests
+      wrapper.unmount()
     })
 
     it('does not auto-sync when sessionId is not provided', async () => {
@@ -330,7 +368,10 @@ describe('useAutosave', () => {
         value: false,
       })
 
-      const wrapper = mount(createTestComponent()) // No sessionId
+      const wrapper = mountAndTrack(createTestComponent()) // No sessionId
+
+      // Clear mocks AFTER mounting to count only THIS component's calls
+      vi.clearAllMocks()
 
       Object.defineProperty(navigator, 'onLine', {
         writable: true,
@@ -340,7 +381,11 @@ describe('useAutosave', () => {
 
       await vi.runAllTimersAsync()
 
+      // This component should not have called syncToServer
       expect(mockSyncToServer).not.toHaveBeenCalled()
+
+      // Clean up
+      wrapper.unmount()
     })
 
     it('handles sync failure gracefully', async () => {
@@ -351,7 +396,7 @@ describe('useAutosave', () => {
         value: false,
       })
 
-      const wrapper = mount(createTestComponent({ sessionId }))
+      const wrapper = mountAndTrack(createTestComponent({ sessionId }))
 
       Object.defineProperty(navigator, 'onLine', {
         writable: true,
@@ -363,26 +408,27 @@ describe('useAutosave', () => {
 
       expect(mockSyncToServer).toHaveBeenCalledWith(sessionId)
       // Should not throw error
+
+      // Clean up
+      wrapper.unmount()
     })
   })
 
   describe('Start/Stop Controls', () => {
     it('starts in active state by default', () => {
-      const wrapper = mount(createTestComponent())
-      const { isActive } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent())
 
-      expect(isActive.value).toBe(true)
+      expect(wrapper.vm.isActive).toBe(true)
     })
 
     it('respects autoStart: false option', () => {
-      const wrapper = mount(createTestComponent({ autoStart: false }))
-      const { isActive } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent({ autoStart: false }))
 
-      expect(isActive.value).toBe(false)
+      expect(wrapper.vm.isActive).toBe(false)
     })
 
     it('does not save when stopped', async () => {
-      const wrapper = mount(createTestComponent())
+      const wrapper = mountAndTrack(createTestComponent())
       const { save, stop } = wrapper.vm as any
 
       stop()
@@ -394,17 +440,17 @@ describe('useAutosave', () => {
     })
 
     it('resumes saving after start', async () => {
-      const wrapper = mount(createTestComponent({ autoStart: false }))
-      const { save, start, isActive } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent({ autoStart: false }))
+      const { save, start } = wrapper.vm as any
 
-      expect(isActive.value).toBe(false)
+      expect(wrapper.vm.isActive).toBe(false)
 
       save({ field: 'value' })
       await vi.advanceTimersByTimeAsync(5000)
       expect(mockSaveFn).not.toHaveBeenCalled()
 
       start()
-      expect(isActive.value).toBe(true)
+      expect(wrapper.vm.isActive).toBe(true)
 
       save({ field: 'value2' })
       await vi.advanceTimersByTimeAsync(5000)
@@ -418,13 +464,13 @@ describe('useAutosave', () => {
         request: {},
       })
 
-      const wrapper = mount(createTestComponent())
-      const { save, saveError } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent())
+      const { save } = wrapper.vm as any
 
       save({ field: 'value' })
       await vi.advanceTimersByTimeAsync(5000)
 
-      expect(saveError.value).toContain('Network error')
+      expect(wrapper.vm.saveError).toContain('Network error')
     })
 
     it('sets saveError on 404 errors', async () => {
@@ -432,13 +478,13 @@ describe('useAutosave', () => {
         response: { status: 404, data: {} },
       })
 
-      const wrapper = mount(createTestComponent())
-      const { save, saveError } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent())
+      const { save } = wrapper.vm as any
 
       save({ field: 'value' })
       await vi.advanceTimersByTimeAsync(5000)
 
-      expect(saveError.value).toContain('Session not found')
+      expect(wrapper.vm.saveError).toContain('Session not found')
     })
 
     it('sets saveError on 422 validation errors', async () => {
@@ -446,13 +492,13 @@ describe('useAutosave', () => {
         response: { status: 422, data: { detail: 'Invalid field' } },
       })
 
-      const wrapper = mount(createTestComponent())
-      const { save, saveError } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent())
+      const { save } = wrapper.vm as any
 
       save({ field: 'value' })
       await vi.advanceTimersByTimeAsync(5000)
 
-      expect(saveError.value).toBe('Invalid field')
+      expect(wrapper.vm.saveError).toBe('Invalid field')
     })
 
     it('sets saveError on 429 rate limit errors', async () => {
@@ -460,13 +506,13 @@ describe('useAutosave', () => {
         response: { status: 429, data: {} },
       })
 
-      const wrapper = mount(createTestComponent())
-      const { save, saveError } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent())
+      const { save } = wrapper.vm as any
 
       save({ field: 'value' })
       await vi.advanceTimersByTimeAsync(5000)
 
-      expect(saveError.value).toContain('Too many save requests')
+      expect(wrapper.vm.saveError).toContain('Too many save requests')
     })
 
     it('sets saveError on 403 permission errors', async () => {
@@ -474,13 +520,13 @@ describe('useAutosave', () => {
         response: { status: 403, data: {} },
       })
 
-      const wrapper = mount(createTestComponent())
-      const { save, saveError } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent())
+      const { save } = wrapper.vm as any
 
       save({ field: 'value' })
       await vi.advanceTimersByTimeAsync(5000)
 
-      expect(saveError.value).toContain('permission')
+      expect(wrapper.vm.saveError).toContain('permission')
     })
 
     it('clears saveError with clearError', async () => {
@@ -488,16 +534,16 @@ describe('useAutosave', () => {
         request: {}, // Network error, doesn't throw
       })
 
-      const wrapper = mount(createTestComponent())
-      const { save, saveError, clearError } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent())
+      const { save, clearError } = wrapper.vm as any
 
       save({ field: 'value' })
       await vi.advanceTimersByTimeAsync(5000)
 
-      expect(saveError.value).toBeTruthy()
+      expect(wrapper.vm.saveError).toBeTruthy()
 
       clearError()
-      expect(saveError.value).toBeNull()
+      expect(wrapper.vm.saveError).toBeNull()
     })
 
     it('marks as offline on network error', async () => {
@@ -505,15 +551,15 @@ describe('useAutosave', () => {
         request: {}, // Network error
       })
 
-      const wrapper = mount(createTestComponent())
-      const { save, isOnline } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent())
+      const { save } = wrapper.vm as any
 
-      expect(isOnline.value).toBe(true)
+      expect(wrapper.vm.isOnline).toBe(true)
 
       save({ field: 'value' })
       await vi.advanceTimersByTimeAsync(5000)
 
-      expect(isOnline.value).toBe(false)
+      expect(wrapper.vm.isOnline).toBe(false)
     })
 
     it('does not throw error when save fails offline (backup exists)', async () => {
@@ -521,7 +567,7 @@ describe('useAutosave', () => {
         request: {}, // Network error
       })
 
-      const wrapper = mount(createTestComponent({ sessionId: 'session-123', version: 1 }))
+      const wrapper = mountAndTrack(createTestComponent({ sessionId: 'session-123', version: 1 }))
       const { save } = wrapper.vm as any
 
       save({ field: 'value' })
@@ -535,7 +581,7 @@ describe('useAutosave', () => {
         response: { status: 500, data: { detail: 'Server error' } },
       })
 
-      const wrapper = mount(createTestComponent())
+      const wrapper = mountAndTrack(createTestComponent())
       const { forceSave } = wrapper.vm as any
 
       await expect(forceSave({ field: 'value' })).rejects.toThrow()
@@ -552,10 +598,10 @@ describe('useAutosave', () => {
         value: false,
       })
 
-      const wrapper = mount(createTestComponent({ sessionId, version }))
-      const { save, isOnline } = wrapper.vm as any
+      const wrapper = mountAndTrack(createTestComponent({ sessionId, version }))
+      const { save } = wrapper.vm as any
 
-      expect(isOnline.value).toBe(false)
+      expect(wrapper.vm.isOnline).toBe(false)
 
       save({ field: 'value' })
       await vi.advanceTimersByTimeAsync(5000)
@@ -571,7 +617,7 @@ describe('useAutosave', () => {
         value: false,
       })
 
-      const wrapper = mount(createTestComponent({ sessionId, version }))
+      const wrapper = mountAndTrack(createTestComponent({ sessionId, version }))
       const { save } = wrapper.vm as any
 
       localStorage.setItem(`session_${sessionId}_backup`, 'encrypted-data')

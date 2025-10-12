@@ -57,13 +57,16 @@ PazPaz implements **application-level encryption** using AES-256-GCM (Galois/Cou
 
 3. **Configuration** (`src/pazpaz/core/config.py`)
    - Local/dev: `ENCRYPTION_MASTER_KEY` environment variable
-   - Staging/prod: AWS Secrets Manager integration (cached)
+   - Staging/prod: AWS Secrets Manager with graceful fallback (cached)
+   - See [AWS Secrets Manager Setup](#aws-secrets-manager-production)
 
 ---
 
 ## Quick Start
 
-### 1. Setting Up Encryption Key (Development)
+### 1. Setting Up Encryption Key
+
+#### Local Development (Environment Variable)
 
 Generate a 32-byte (256-bit) encryption key:
 
@@ -75,8 +78,41 @@ python -c 'import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)
 Add to `.env`:
 
 ```env
+ENVIRONMENT=local
 ENCRYPTION_MASTER_KEY=your-base64-encoded-key-here
 ```
+
+#### Production (AWS Secrets Manager)
+
+For production deployments, use AWS Secrets Manager for enhanced security:
+
+**See detailed guides:**
+- [AWS_SECRETS_MANAGER_SETUP.md](AWS_SECRETS_MANAGER_SETUP.md) - Initial setup
+- [AWS_SECRETS_MANAGER_MIGRATION.md](AWS_SECRETS_MANAGER_MIGRATION.md) - Migration from env vars
+
+**Quick setup:**
+
+```bash
+# Create secret in AWS Secrets Manager
+aws secretsmanager create-secret \
+  --name pazpaz/encryption-key-v1 \
+  --secret-string "$(python -c 'import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())')" \
+  --region us-east-1
+
+# Configure application environment
+export ENVIRONMENT=production
+export AWS_REGION=us-east-1
+export SECRETS_MANAGER_KEY_NAME=pazpaz/encryption-key-v1
+# No ENCRYPTION_MASTER_KEY needed - fetched from AWS
+```
+
+**Benefits:**
+- Automatic key rotation capability
+- CloudTrail audit logs for key access
+- Fine-grained IAM access control
+- KMS encryption at rest
+- Multi-AZ high availability (99.99% SLA)
+- Graceful fallback to environment variable if AWS unavailable
 
 ### 2. Using Encrypted Fields in Models
 
@@ -690,11 +726,290 @@ See [Migration Example](#migration-example) above and `docs/ENCRYPTED_MODELS_EXA
 
 ---
 
+## AWS Secrets Manager (Production)
+
+### Overview
+
+For production deployments, PazPaz uses AWS Secrets Manager for encryption key storage with graceful fallback to environment variables.
+
+**Architecture:**
+
+```
+Application Startup
+      │
+      ▼
+┌─────────────────────┐
+│ Is environment      │
+│ "production"?       │
+└─────┬───────────────┘
+      │
+      ├─ YES ──► Try AWS Secrets Manager
+      │          │
+      │          ├─ Success ──► Use AWS key (cached)
+      │          │
+      │          └─ Failure ──► Fall back to ENCRYPTION_MASTER_KEY env var
+      │
+      └─ NO ───► Use ENCRYPTION_MASTER_KEY env var
+```
+
+### Key Management Flow
+
+**Production Flow:**
+
+1. Application starts
+2. `settings.encryption_key` property called
+3. `pazpaz.utils.secrets_manager.get_encryption_key()` invoked
+4. Try AWS Secrets Manager:
+   - Fetch from `pazpaz/encryption-key-v1`
+   - Decrypt with KMS
+   - Cache with `@lru_cache` (single AWS API call per instance)
+5. If AWS fails (network, IAM, etc.):
+   - Log warning: `aws_unavailable_using_env_fallback`
+   - Fall back to `ENCRYPTION_MASTER_KEY` environment variable
+6. Return 32-byte key to application
+
+**Local Development Flow:**
+
+1. Application starts
+2. `settings.encryption_key` property called
+3. `get_encryption_key()` checks `ENVIRONMENT=local`
+4. Directly use `ENCRYPTION_MASTER_KEY` environment variable
+5. No AWS API calls (faster startup, no AWS credentials needed)
+
+### Configuration
+
+**Environment Variables:**
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ENVIRONMENT` | Yes | `local` | Deployment environment (`local`/`staging`/`production`) |
+| `AWS_REGION` | Production | `us-east-1` | AWS region for Secrets Manager |
+| `SECRETS_MANAGER_KEY_NAME` | Production | `pazpaz/encryption-key-v1` | Secret name in AWS Secrets Manager |
+| `ENCRYPTION_MASTER_KEY` | Local/Fallback | None | Base64-encoded 32-byte key (fallback for production) |
+
+**Example Configurations:**
+
+```bash
+# Local Development (.env)
+ENVIRONMENT=local
+ENCRYPTION_MASTER_KEY=rT8x9kp3QwE7yLmN2oA5vK1uG4hJ6fD9cB8sZ0tX3iY=
+
+# Production (ECS/Kubernetes)
+ENVIRONMENT=production
+AWS_REGION=us-east-1
+SECRETS_MANAGER_KEY_NAME=pazpaz/encryption-key-v1
+# Optional fallback (remove after validating AWS access):
+# ENCRYPTION_MASTER_KEY=...
+```
+
+### Error Handling and Fallback
+
+**Graceful Degradation:**
+
+The application prioritizes **availability** over strict AWS-only access:
+
+1. **AWS Secrets Manager unavailable** → Fall back to environment variable
+2. **IAM permissions error** → Fall back to environment variable
+3. **Network timeout** → Fall back to environment variable
+4. **Invalid secret format** → Try environment variable fallback
+5. **Both sources fail** → Raise `KeyNotFoundError` (application cannot start)
+
+**Logged Events:**
+
+```json
+// Success (AWS)
+{
+  "event": "encryption_key_fetched_from_aws",
+  "secret_id": "pazpaz/encryption-key-v1",
+  "version_id": "12345678-1234-1234-1234-123456789012",
+  "environment": "production"
+}
+
+// Fallback (environment variable)
+{
+  "event": "aws_unavailable_using_env_fallback",
+  "secret_id": "pazpaz/encryption-key-v1",
+  "message": "AWS Secrets Manager unavailable, falling back to environment variable"
+}
+
+// Success (environment variable)
+{
+  "event": "encryption_key_loaded_from_env",
+  "message": "Using ENCRYPTION_MASTER_KEY environment variable"
+}
+```
+
+### Performance Characteristics
+
+**AWS Secrets Manager:**
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| First fetch | 50-200ms | AWS API call latency |
+| Subsequent fetches | <1ms | Cached via `@lru_cache` |
+| Cache scope | Application instance | One fetch per ECS task/pod |
+| Cache invalidation | Never | Restart required for key rotation |
+
+**Environment Variable:**
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| First fetch | <1ms | Direct env var read |
+| Subsequent fetches | <1ms | Not cached (cheap operation) |
+| Cache scope | N/A | Read on every access |
+
+**Recommendation**: Use AWS Secrets Manager for production (minimal performance impact with caching).
+
+### Security Considerations
+
+**AWS Secrets Manager Benefits:**
+
+1. **Encryption at Rest**: Keys encrypted with AWS KMS
+2. **Access Control**: IAM policies restrict who can access keys
+3. **Audit Trail**: CloudTrail logs all `GetSecretValue` calls
+4. **Key Rotation**: Versioned secrets support zero-downtime rotation
+5. **High Availability**: Multi-AZ replication (99.99% SLA)
+
+**Environment Variable Risks:**
+
+1. **Plaintext Storage**: Key stored in plaintext in ECS task definition
+2. **Broad Access**: Anyone with ECS describe permissions can read key
+3. **No Audit Trail**: No logs of who accessed the key
+4. **Manual Rotation**: Requires redeployment for key changes
+
+**Best Practices:**
+
+- ✅ Use AWS Secrets Manager for production
+- ✅ Keep environment variable for local development
+- ✅ Optional: Keep environment variable as fallback in production (short-term)
+- ❌ Never commit keys to version control
+- ❌ Never log keys in application logs
+
+### Monitoring AWS Access
+
+**CloudWatch Insights Queries:**
+
+```sql
+-- Count key fetches by hour
+fields @timestamp, event
+| filter event = "encryption_key_fetched_from_aws"
+| stats count() by bin(@timestamp, 1h)
+
+-- Find fallback events (AWS unavailable)
+fields @timestamp, event, secret_id
+| filter event = "aws_unavailable_using_env_fallback"
+| sort @timestamp desc
+```
+
+**CloudWatch Alarms:**
+
+Set up alarms for:
+
+1. **Excessive key access** (>100/hour) → Potential attack
+2. **Fallback usage** (any occurrence) → AWS availability issue
+3. **Failed access** (AccessDeniedException) → IAM misconfiguration
+
+See [AWS_SECRETS_MANAGER_SETUP.md](AWS_SECRETS_MANAGER_SETUP.md#monitoring-and-alerts) for setup details.
+
+### Troubleshooting AWS Secrets Manager
+
+#### Error: "Access Denied"
+
+```
+botocore.exceptions.ClientError: An error occurred (AccessDeniedException)
+when calling the GetSecretValue operation
+```
+
+**Cause**: ECS task role lacks `secretsmanager:GetSecretValue` permission.
+
+**Solution:**
+
+```bash
+# Verify IAM policy attached
+aws iam list-attached-role-policies --role-name PazPazECSTaskRole
+
+# Attach missing policy
+aws iam attach-role-policy \
+  --role-name PazPazECSTaskRole \
+  --policy-arn arn:aws:iam::123456789012:policy/PazPazSecretsReadOnly
+```
+
+#### Error: "Secret Not Found"
+
+```
+botocore.exceptions.ClientError: An error occurred (ResourceNotFoundException)
+```
+
+**Cause**: Secret name mismatch or wrong region.
+
+**Solution:**
+
+```bash
+# List secrets in region
+aws secretsmanager list-secrets --region us-east-1
+
+# Verify secret exists
+aws secretsmanager describe-secret \
+  --secret-id pazpaz/encryption-key-v1 \
+  --region us-east-1
+```
+
+#### Application Uses Fallback (aws_unavailable_using_env_fallback)
+
+**Symptom**: Application logs show repeated fallback to environment variable.
+
+**Causes**:
+
+1. IAM role not attached to ECS task
+2. Network connectivity issue (VPC, security groups)
+3. Wrong AWS region configured
+4. AWS service outage
+
+**Diagnosis:**
+
+```bash
+# Check ECS task role
+aws ecs describe-task-definition \
+  --task-definition pazpaz-api-production \
+  --query 'taskDefinition.taskRoleArn'
+
+# Test AWS connectivity from container
+aws ecs execute-command \
+  --cluster pazpaz-production \
+  --task <task-id> \
+  --container pazpaz-api \
+  --interactive \
+  --command "/bin/sh"
+
+# Inside container:
+curl https://secretsmanager.us-east-1.amazonaws.com
+```
+
+### Migration to AWS Secrets Manager
+
+**See comprehensive guide:** [AWS_SECRETS_MANAGER_MIGRATION.md](AWS_SECRETS_MANAGER_MIGRATION.md)
+
+**Quick Migration Steps:**
+
+1. Create secret in AWS Secrets Manager with current key
+2. Configure IAM permissions (ECS task role)
+3. Deploy application with AWS Secrets Manager config (keep env var fallback)
+4. Validate AWS access for 24+ hours
+5. Remove environment variable from production
+
+**Zero Downtime**: Graceful fallback ensures no downtime during migration.
+
+---
+
 ## Additional Resources
 
+- **AWS Secrets Manager Setup**: [AWS_SECRETS_MANAGER_SETUP.md](AWS_SECRETS_MANAGER_SETUP.md)
+- **AWS Migration Guide**: [AWS_SECRETS_MANAGER_MIGRATION.md](AWS_SECRETS_MANAGER_MIGRATION.md)
+- **Key Rotation Procedure**: [KEY_ROTATION_PROCEDURE.md](KEY_ROTATION_PROCEDURE.md)
 - **Code Examples**: `docs/ENCRYPTED_MODELS_EXAMPLE.py`
 - **Test Suite**: `tests/test_encryption.py` (17+ comprehensive tests)
 - **Encryption Utilities**: `src/pazpaz/utils/encryption.py`
+- **Secrets Manager Module**: `src/pazpaz/utils/secrets_manager.py`
 - **SQLAlchemy Types**: `src/pazpaz/db/types.py`
 
 ---
@@ -707,3 +1022,4 @@ For questions or issues:
 2. Review test suite for usage patterns
 3. Check audit logs for PHI access patterns
 4. Consult security team for key rotation or compliance questions
+5. For AWS Secrets Manager issues, see [AWS_SECRETS_MANAGER_SETUP.md](AWS_SECRETS_MANAGER_SETUP.md#troubleshooting)

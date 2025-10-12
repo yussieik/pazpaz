@@ -1085,7 +1085,10 @@ async def permanently_delete_session(
         )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Session must be soft-deleted before permanent deletion. Use DELETE /sessions/{id} first.",
+            detail=(
+                "Session must be soft-deleted before permanent deletion. "
+                "Use DELETE /sessions/{id} first."
+            ),
         )
 
     logger.info(

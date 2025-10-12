@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import uuid
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
@@ -27,6 +28,15 @@ from pazpaz.models.client import Client
 from pazpaz.models.session import Session
 from pazpaz.models.user import User, UserRole
 from pazpaz.models.workspace import Workspace
+
+# Ensure .env file is loaded for tests (if not already set via environment)
+# This allows tests to run with: pytest tests/ (without explicit env vars)
+if not os.getenv("ENCRYPTION_MASTER_KEY"):
+    from dotenv import load_dotenv
+
+    # Load .env from backend directory
+    env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+    load_dotenv(dotenv_path=env_path)
 
 # Test database URL - use separate test database
 TEST_DATABASE_URL = "postgresql+asyncpg://pazpaz:pazpaz@localhost:5432/pazpaz_test"

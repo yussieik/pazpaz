@@ -1,8 +1,6 @@
 """Application configuration."""
 
-import base64
 import os
-from functools import lru_cache
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -12,80 +10,9 @@ from pazpaz.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-@lru_cache(maxsize=1)
-def _fetch_encryption_key_from_aws(
-    aws_region: str,
-    secrets_manager_key_name: str,
-    environment: str,
-) -> bytes:
-    """
-    Fetch and cache encryption key from AWS Secrets Manager.
-
-    This function is cached to avoid repeated AWS API calls. The key is fetched
-    once per application instance and reused for all encryption operations.
-
-    Args:
-        aws_region: AWS region for Secrets Manager
-        secrets_manager_key_name: Name of the secret in Secrets Manager
-        environment: Current environment (for logging)
-
-    Returns:
-        32-byte encryption key for AES-256-GCM
-
-    Raises:
-        ImportError: If boto3 not installed
-        RuntimeError: If key not found or AWS error
-        ValueError: If key is not 32 bytes
-    """
-    try:
-        import boto3
-    except ImportError:
-        raise RuntimeError("boto3 not installed. Install with: uv add boto3") from None
-
-    try:
-        client = boto3.client("secretsmanager", region_name=aws_region)
-        response = client.get_secret_value(SecretId=secrets_manager_key_name)
-
-        # Audit key access
-        logger.info(
-            "encryption_key_accessed",
-            secret_id=secrets_manager_key_name,
-            version_id=response.get("VersionId"),
-            environment=environment,
-        )
-
-        key_b64 = response["SecretString"]
-        key = base64.b64decode(key_b64)
-
-        if len(key) != 32:
-            raise ValueError(
-                f"Encryption key from Secrets Manager must be 32 bytes, got {len(key)}"
-            )
-
-        return key
-
-    except Exception as e:
-        # Check for specific AWS errors
-        error_name = type(e).__name__
-        if error_name == "ResourceNotFoundException":
-            raise RuntimeError(
-                f"Encryption key not found in AWS Secrets Manager: "
-                f"{secrets_manager_key_name}. "
-                "Create with: aws secretsmanager create-secret "
-                "--name pazpaz/encryption-key-v1 "
-                "--secret-string $(openssl rand -base64 32)"
-            ) from e
-
-        logger.error(
-            "failed_to_fetch_encryption_key",
-            error=str(e),
-            error_type=error_name,
-            secret_id=secrets_manager_key_name,
-            exc_info=True,
-        )
-        raise RuntimeError(
-            f"Critical: Encryption key unavailable from AWS Secrets Manager: {e}"
-        ) from e
+# Note: AWS Secrets Manager key fetching is now handled by
+# pazpaz.utils.secrets_manager module with improved error handling
+# and graceful fallback to environment variables.
 
 
 class Settings(BaseSettings):
@@ -148,13 +75,12 @@ class Settings(BaseSettings):
 
         # Check not default value (only in production/staging)
         environment = os.getenv("ENVIRONMENT", "local")
-        if environment in ("production", "staging"):
-            if "change-me" in v.lower():
-                raise ValueError(
-                    "SECRET_KEY cannot be default value in production. "
-                    "Set a secure random key in environment variables. "
-                    "Generate with: openssl rand -hex 32"
-                )
+        if environment in ("production", "staging") and "change-me" in v.lower():
+            raise ValueError(
+                "SECRET_KEY cannot be default value in production. "
+                "Set a secure random key in environment variables. "
+                "Generate with: openssl rand -hex 32"
+            )
 
         # Check for weak patterns (all same character)
         if len(set(v)) < 10:
@@ -195,41 +121,30 @@ class Settings(BaseSettings):
         Fetch encryption key from secure storage (cached).
 
         - Local/Development: Environment variable (ENCRYPTION_MASTER_KEY)
-        - Staging/Production: AWS Secrets Manager (cached via @lru_cache)
+        - Staging/Production: AWS Secrets Manager with env var fallback
+          (cached via @lru_cache)
 
         The AWS Secrets Manager key is cached after first access to avoid
         repeated API calls (50-200ms latency). The cache persists for the
         lifetime of the application instance.
 
+        Graceful fallback strategy:
+        1. Try AWS Secrets Manager (if not local environment)
+        2. Fall back to ENCRYPTION_MASTER_KEY environment variable
+        3. Raise error if both fail
+
         Returns:
             32-byte encryption key for AES-256-GCM
 
         Raises:
-            ValueError: If key not found or invalid format
-            RuntimeError: If AWS Secrets Manager unavailable (production)
+            KeyNotFoundError: If key not found in AWS or environment
+            ValueError: If key format is invalid
         """
-        if self.environment == "local":
-            # Development mode: Use environment variable (not cached - cheap operation)
-            if not self.encryption_master_key:
-                raise ValueError(
-                    "ENCRYPTION_MASTER_KEY not set in .env file. "
-                    "Generate with: python -c 'import secrets,base64; "
-                    "print(base64.b64encode(secrets.token_bytes(32)).decode())'"
-                )
+        from pazpaz.utils.secrets_manager import get_encryption_key
 
-            try:
-                key = base64.b64decode(self.encryption_master_key)
-                if len(key) != 32:
-                    raise ValueError(f"Encryption key must be 32 bytes, got {len(key)}")
-                logger.debug("encryption_key_loaded_from_env")
-                return key
-            except Exception as e:
-                raise ValueError(f"Invalid ENCRYPTION_MASTER_KEY format: {e}") from e
-
-        # Production/Staging: Fetch from AWS Secrets Manager (cached)
-        return _fetch_encryption_key_from_aws(
-            aws_region=self.aws_region,
-            secrets_manager_key_name=self.secrets_manager_key_name,
+        return get_encryption_key(
+            secret_name=self.secrets_manager_key_name,
+            region=self.aws_region,
             environment=self.environment,
         )
 

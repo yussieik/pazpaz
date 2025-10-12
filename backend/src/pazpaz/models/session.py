@@ -184,7 +184,8 @@ class Session(Base):
             "client_id",
             sa.text("session_date DESC"),
         ),
-        # Index 2: Draft list query (workspace + is_draft + draft_last_saved_at DESC, WHERE is_draft = true)
+        # Index 2: Draft list query
+        # (workspace + is_draft + draft_last_saved_at DESC, WHERE is_draft = true)
         Index(
             "ix_sessions_workspace_draft",
             "workspace_id",
@@ -192,7 +193,8 @@ class Session(Base):
             sa.text("draft_last_saved_at DESC"),
             postgresql_where=sa.text("is_draft = true"),
         ),
-        # Index 3: Appointment linkage (appointment_id, WHERE appointment_id IS NOT NULL)
+        # Index 3: Appointment linkage
+        # (appointment_id, WHERE appointment_id IS NOT NULL)
         Index(
             "ix_sessions_appointment",
             "appointment_id",

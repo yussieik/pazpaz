@@ -96,21 +96,12 @@ function cancelDelete() {
  * Confirm and execute deletion
  */
 async function confirmDelete() {
-  console.log('[SessionCard] Attempting to delete session:', props.session.id)
-  console.log('[SessionCard] Session data:', {
-    id: props.session.id,
-    date: props.session.session_date,
-    is_draft: props.session.is_draft,
-  })
   isDeleting.value = true
 
   try {
     // Soft delete the session (30-day grace period)
-    const deleteUrl = `/sessions/${props.session.id}`
-    console.log('[SessionCard] DELETE request to:', deleteUrl)
-    await apiClient.delete(deleteUrl)
+    await apiClient.delete(`/sessions/${props.session.id}`)
 
-    console.log('[SessionCard] Delete successful')
     // Notify parent to remove from list
     emit('deleted', props.session.id)
 
@@ -123,9 +114,6 @@ async function confirmDelete() {
     const axiosError = error as AxiosError<{ detail?: string; status?: number }>
     const status = axiosError.response?.status
     const detail = axiosError.response?.data?.detail
-
-    console.error('[SessionCard] Error status:', status)
-    console.error('[SessionCard] Error detail:', detail)
 
     if (status === 404) {
       showError('Session note no longer exists')

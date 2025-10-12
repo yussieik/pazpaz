@@ -395,7 +395,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
             ip_address: Client IP address
             user_agent: User agent string
             db_session: Database session (for test mode)
-            additional_metadata: Additional metadata from endpoint (e.g., deleted_reason)
+            additional_metadata: Additional metadata from endpoint
+                (e.g., deleted_reason)
         """
         # Determine action from HTTP method
         action = self.METHOD_TO_ACTION.get(method)

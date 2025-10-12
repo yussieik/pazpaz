@@ -77,6 +77,81 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to add security headers to all responses.
+
+    Security Headers:
+    -----------------
+    1. Content-Security-Policy (CSP):
+       - Prevents XSS attacks by controlling resource loading
+       - Restricts inline scripts and styles
+       - Note: Vue 3 requires 'unsafe-inline' and 'unsafe-eval' in development
+       - Future improvement: Use nonce-based CSP in production for stricter security
+
+    2. X-Content-Type-Options:
+       - Prevents MIME type sniffing attacks
+       - Forces browsers to respect declared Content-Type
+
+    3. X-XSS-Protection:
+       - Legacy XSS filter for older browsers
+       - Modern browsers rely on CSP instead
+
+    4. X-Frame-Options:
+       - Prevents clickjacking attacks
+       - Disallows embedding site in iframes
+
+    5. Strict-Transport-Security (HSTS):
+       - Forces HTTPS connections for future requests
+       - Only enabled for non-localhost domains (production)
+       - Protects against protocol downgrade attacks
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        """Add security headers to response."""
+        response: Response = await call_next(request)
+
+        # Content Security Policy (XSS prevention)
+        # Restricts resource loading to same origin and trusted sources
+        # Vue 3 requires 'unsafe-inline' and 'unsafe-eval' for development builds
+        # Production builds should use nonce-based CSP with stricter policies
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "  # Default: only same origin
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "  # Vue requires these
+            "style-src 'self' 'unsafe-inline'; "  # Allow inline styles for Vue
+            "img-src 'self' data: https:; "  # Allow images from self, data URIs, HTTPS
+            "font-src 'self'; "  # Fonts only from same origin
+            "connect-src 'self'; "  # API calls only to same origin
+            "frame-ancestors 'none';"  # Disallow framing (same as X-Frame-Options)
+        )
+
+        # Prevent MIME type sniffing
+        # Browsers must respect the declared Content-Type header
+        # Prevents attackers from disguising malicious files as safe types
+        response.headers["X-Content-Type-Options"] = "nosniff"
+
+        # XSS Protection for legacy browsers
+        # Modern browsers use CSP instead, but this provides defense-in-depth
+        # Mode 'block' stops page rendering on XSS detection
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+
+        # Clickjacking protection
+        # Prevents site from being embedded in iframes
+        # DENY = no framing allowed at all
+        response.headers["X-Frame-Options"] = "DENY"
+
+        # HTTP Strict Transport Security (HSTS)
+        # Forces browsers to use HTTPS for all future requests
+        # Only enable for production domains, not localhost or test environments
+        # max-age=31536000 = 1 year; includeSubDomains = apply to all subdomains
+        if request.url.hostname not in ["localhost", "127.0.0.1", "testserver"]:
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
+
+        return response
+
+
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Middleware for structured request/response logging."""
 
@@ -140,6 +215,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             # Clear context to avoid leaking between requests
             clear_context()
 
+
+# Add security headers middleware (applies to all responses)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Add request logging middleware
 app.add_middleware(RequestLoggingMiddleware)
