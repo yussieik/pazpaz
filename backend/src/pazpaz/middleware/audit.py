@@ -88,6 +88,12 @@ class AuditMiddleware(BaseHTTPMiddleware):
         "/api/v1/users": ResourceType.USER,
     }
 
+    # Special handling for nested routes (attachments under sessions)
+    # Format: /api/v1/sessions/{session_id}/attachments
+    NESTED_RESOURCE_PATTERNS: dict[str, ResourceType] = {
+        "/attachments": ResourceType.SESSION_ATTACHMENT,
+    }
+
     # HTTP method to AuditAction mapping
     METHOD_TO_ACTION: dict[str, AuditAction] = {
         "POST": AuditAction.CREATE,
@@ -330,8 +336,30 @@ class AuditMiddleware(BaseHTTPMiddleware):
             - POST /api/v1/clients -> {resource_type: CLIENT, resource_id: None}
             - PUT /api/v1/clients/{uuid} -> {resource_type: CLIENT, resource_id: uuid}
             - GET /api/v1/clients/{uuid} -> {resource_type: CLIENT, resource_id: uuid}
+            - POST /api/v1/sessions/{uuid}/attachments -> {resource_type: SESSION_ATTACHMENT, resource_id: None}
         """
         path = request.url.path
+
+        # Check for nested resources first (e.g., /sessions/{id}/attachments)
+        for pattern, res_type in self.NESTED_RESOURCE_PATTERNS.items():
+            if pattern in path:
+                # Extract resource ID from last path segment if present
+                path_parts = path.split("/")
+                resource_id = None
+
+                # Last part might be UUID (attachment ID)
+                if len(path_parts) > 0:
+                    potential_id = path_parts[-1]
+                    try:
+                        resource_id = uuid.UUID(potential_id)
+                    except ValueError:
+                        # Not a UUID, might be the word "attachments" or "download"
+                        resource_id = None
+
+                return {
+                    "resource_type": res_type,
+                    "resource_id": resource_id,
+                }
 
         # Match resource type from path
         resource_type = None

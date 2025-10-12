@@ -24,6 +24,7 @@ import {
   formatRelativeTime,
   formatLongDate,
 } from '@/utils/calendar/dateFormatters'
+import { truncate } from '@/utils/textFormatters'
 import { SESSION_DELETION_GRACE_PERIOD_DAYS } from '@/constants/sessions'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import IconClock from '@/components/icons/IconClock.vue'
@@ -123,7 +124,7 @@ function getPreviewText(session: SessionResponse): string {
     .filter(Boolean)
     .join(' ')
 
-  return content.trim().substring(0, 100) + (content.length > 100 ? '...' : '')
+  return truncate(content.trim(), 100)
 }
 
 /**

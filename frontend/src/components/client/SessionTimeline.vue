@@ -23,8 +23,11 @@ import { useRouter } from 'vue-router'
 import { format } from 'date-fns'
 import apiClient from '@/api/client'
 import type { AxiosError } from 'axios'
+import type { SessionResponse } from '@/types/sessions'
 import SessionCard from '@/components/sessions/SessionCard.vue'
 import IconDocument from '@/components/icons/IconDocument.vue'
+import { truncate } from '@/utils/textFormatters'
+import { getDurationMinutes } from '@/utils/calendar/dateFormatters'
 
 interface Props {
   clientId: string
@@ -39,22 +42,6 @@ interface Emits {
 
 const emit = defineEmits<Emits>()
 const router = useRouter()
-
-// Session data interface
-interface SessionItem {
-  id: string
-  client_id: string
-  appointment_id: string | null
-  subjective: string | null
-  objective: string | null
-  assessment: string | null
-  plan: string | null
-  session_date: string
-  duration_minutes: number | null
-  is_draft: boolean
-  draft_last_saved_at: string | null
-  finalized_at: string | null
-}
 
 // Appointment data interface
 interface AppointmentItem {
@@ -73,11 +60,11 @@ interface TimelineItem {
   id: string
   type: 'session' | 'appointment'
   sortDate: Date
-  data: SessionItem | AppointmentItem
+  data: SessionResponse | AppointmentItem
 }
 
 // State
-const sessions = ref<SessionItem[]>([])
+const sessions = ref<SessionResponse[]>([])
 const appointments = ref<AppointmentItem[]>([])
 const sessionAppointments = ref<Map<string, AppointmentItem>>(new Map())
 const loading = ref(true)
@@ -122,7 +109,7 @@ async function fetchSessions() {
 
     // Fetch appointment details for sessions that have appointment_id
     const appointmentIds = fetchedSessions
-      .map((s: SessionItem) => s.appointment_id)
+      .map((s: SessionResponse) => s.appointment_id)
       .filter(Boolean) as string[]
 
     if (appointmentIds.length > 0) {
@@ -192,7 +179,7 @@ async function createSession(appointmentId: string) {
       client_id: props.clientId,
       appointment_id: appointmentId,
       session_date: appointment.scheduled_start,
-      duration_minutes: calculateDuration(
+      duration_minutes: getDurationMinutes(
         appointment.scheduled_start,
         appointment.scheduled_end
       ),
@@ -213,21 +200,11 @@ async function createSession(appointmentId: string) {
   }
 }
 
-function calculateDuration(start: string, end: string): number {
-  const diffMs = new Date(end).getTime() - new Date(start).getTime()
-  return Math.max(0, Math.round(diffMs / (1000 * 60)))
-}
-
 function formatDate(date: string): string {
   return format(new Date(date), 'MMM d, yyyy • h:mm a')
 }
 
-function truncate(text: string | null, length: number): string {
-  if (!text) return ''
-  return text.length > length ? text.substring(0, length) + '...' : text
-}
-
-function isSession(item: TimelineItem): item is TimelineItem & { data: SessionItem } {
+function isSession(item: TimelineItem): item is TimelineItem & { data: SessionResponse } {
   return item.type === 'session'
 }
 
@@ -264,7 +241,7 @@ function formatAppointmentContext(appointment: AppointmentItem): string {
     parts.push(locationLabel[appointment.location_type] || appointment.location_type)
   }
 
-  const duration = calculateDuration(
+  const duration = getDurationMinutes(
     appointment.scheduled_start,
     appointment.scheduled_end
   )
@@ -486,7 +463,7 @@ defineExpose({
             </h4>
             <p class="mt-1 text-sm text-slate-600">
               {{
-                calculateDuration(item.data.scheduled_start, item.data.scheduled_end)
+                getDurationMinutes(item.data.scheduled_start, item.data.scheduled_end)
               }}
               minutes •
               {{ item.data.service_name || 'Appointment' }}

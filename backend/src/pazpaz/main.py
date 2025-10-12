@@ -59,6 +59,29 @@ async def lifespan(app: FastAPI):
         version="0.1.0",
         debug=settings.debug,
     )
+
+    # Initialize S3/MinIO storage (create bucket if not exists)
+    try:
+        from pazpaz.core.storage import verify_bucket_exists
+
+        logger.info("Initializing S3/MinIO storage...")
+        verify_bucket_exists()
+        logger.info(
+            "S3/MinIO storage ready",
+            extra={
+                "endpoint": settings.s3_endpoint_url,
+                "bucket": settings.s3_bucket_name,
+            },
+        )
+    except Exception as e:
+        logger.error(
+            "Failed to initialize S3/MinIO storage. "
+            "Run 'python scripts/create_storage_buckets.py' to create bucket.",
+            extra={"error": str(e)},
+        )
+        # Don't crash on startup - allow app to start but log error
+        # File upload endpoints will fail until bucket is created
+
     yield
     # Shutdown
     logger.info("application_shutdown", app_name=settings.app_name)

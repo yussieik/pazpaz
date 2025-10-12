@@ -19,30 +19,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { onKeyStroke } from '@vueuse/core'
 import apiClient from '@/api/client'
 import type { AxiosError } from 'axios'
+import type { SessionResponse } from '@/types/sessions'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SessionEditor from '@/components/sessions/SessionEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
-
-// Session and client data interfaces
-interface SessionData {
-  id: string
-  client_id: string
-  workspace_id: string
-  subjective: string | null
-  objective: string | null
-  assessment: string | null
-  plan: string | null
-  session_date: string
-  duration_minutes: number | null
-  is_draft: boolean
-  draft_last_saved_at: string | null
-  finalized_at: string | null
-  version: number
-  created_at: string
-  updated_at: string
-}
 
 interface ClientData {
   id: string
@@ -56,7 +38,7 @@ interface ClientData {
 }
 
 // State
-const session = ref<SessionData | null>(null)
+const session = ref<SessionResponse | null>(null)
 const client = ref<ClientData | null>(null)
 const isLoadingSession = ref(true)
 const isLoadingClient = ref(false)
@@ -98,7 +80,7 @@ async function loadSession() {
   loadError.value = null
 
   try {
-    const response = await apiClient.get<SessionData>(`/sessions/${sessionId.value}`)
+    const response = await apiClient.get<SessionResponse>(`/sessions/${sessionId.value}`)
     session.value = response.data
 
     // Load client data

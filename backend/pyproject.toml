@@ -26,6 +26,9 @@ dependencies = [
     "boto3>=1.40.45",
     "prometheus-client>=0.23.1",
     "aiosmtplib>=4.0.2",
+    "python-magic>=0.4.27",
+    "pillow>=11.3.0",
+    "pypdf>=6.1.1",
 ]
 
 [tool.hatch.build.targets.wheel]

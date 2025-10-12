@@ -27,6 +27,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { formatDateTimeForInput } from '@/utils/calendar/dateFormatters'
 import apiClient from '@/api/client'
 import type { AxiosError } from 'axios'
+import type { SessionResponse } from '@/types/sessions'
 import SessionNoteBadges from './SessionNoteBadges.vue'
 import SessionVersionHistory from './SessionVersionHistory.vue'
 import SessionAmendmentIndicator from './SessionAmendmentIndicator.vue'
@@ -43,27 +44,6 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-// Session data interface matching backend SessionResponse
-interface SessionData {
-  id: string
-  client_id: string
-  workspace_id: string
-  subjective: string | null
-  objective: string | null
-  assessment: string | null
-  plan: string | null
-  session_date: string
-  duration_minutes: number | null
-  is_draft: boolean
-  draft_last_saved_at: string | null
-  finalized_at: string | null
-  amended_at?: string | null
-  amendment_count?: number
-  version: number
-  created_at: string
-  updated_at: string
-}
-
 // Local form state
 const formData = ref({
   subjective: '',
@@ -78,7 +58,7 @@ const formData = ref({
 const originalData = ref({ ...formData.value })
 
 // Session metadata
-const session = ref<SessionData | null>(null)
+const session = ref<SessionResponse | null>(null)
 const isLoading = ref(true)
 const loadError = ref<string | null>(null)
 
@@ -206,7 +186,7 @@ async function loadSession(silent = false) {
   loadError.value = null
 
   try {
-    const response = await apiClient.get<SessionData>(`/sessions/${props.sessionId}`)
+    const response = await apiClient.get<SessionResponse>(`/sessions/${props.sessionId}`)
     session.value = response.data
 
     // Populate form

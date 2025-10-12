@@ -39,6 +39,7 @@ class ResourceType(str, enum.Enum):
     CLIENT = "Client"
     APPOINTMENT = "Appointment"
     SESSION = "Session"
+    SESSION_ATTACHMENT = "SessionAttachment"
     PLAN_OF_CARE = "PlanOfCare"
     SERVICE = "Service"
     LOCATION = "Location"

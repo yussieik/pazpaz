@@ -26,24 +26,10 @@ import IconWarning from '@/components/icons/IconWarning.vue'
 import { useToast } from '@/composables/useToast'
 import apiClient from '@/api/client'
 import type { AxiosError } from 'axios'
-
-interface SessionItem {
-  id: string
-  client_id: string
-  appointment_id: string | null
-  subjective: string | null
-  objective: string | null
-  assessment: string | null
-  plan: string | null
-  session_date: string
-  duration_minutes: number | null
-  is_draft: boolean
-  draft_last_saved_at: string | null
-  finalized_at: string | null
-}
+import type { SessionResponse } from '@/types/sessions'
 
 interface Props {
-  session: SessionItem
+  session: SessionResponse
 }
 
 interface Emits {

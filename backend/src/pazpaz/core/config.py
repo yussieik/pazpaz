@@ -108,6 +108,28 @@ class Settings(BaseSettings):
     # Frontend
     frontend_url: str = "http://localhost:5173"
 
+    # S3/MinIO Storage Configuration
+    s3_endpoint_url: str = Field(
+        default="http://localhost:9000",
+        description="S3/MinIO endpoint URL (use https:// in production)",
+    )
+    s3_access_key: str = Field(
+        default="minioadmin",
+        description="S3/MinIO access key (root user)",
+    )
+    s3_secret_key: str = Field(
+        default="minioadmin123",
+        description="S3/MinIO secret key (root password)",
+    )
+    s3_bucket_name: str = Field(
+        default="pazpaz-attachments",
+        description="S3 bucket name for session attachments",
+    )
+    s3_region: str = Field(
+        default="us-east-1",
+        description="S3 region (MinIO uses us-east-1 by default)",
+    )
+
     # Email
     smtp_host: str = "localhost"
     smtp_port: int = 1025
