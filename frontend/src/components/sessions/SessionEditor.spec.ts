@@ -302,22 +302,7 @@ describe('SessionEditor', () => {
       expect(finalizeButton.attributes('disabled')).toBeUndefined()
     })
 
-    it('shows confirmation dialog before finalizing', async () => {
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
-
-      const finalizeButton = wrapper.find('button[type="button"]')
-      await finalizeButton.trigger('click')
-
-      expect(confirmSpy).toHaveBeenCalledWith(
-        'Finalize this session? You will not be able to edit it after finalizing.'
-      )
-      expect(apiClient.post).not.toHaveBeenCalled()
-
-      confirmSpy.mockRestore()
-    })
-
-    it('finalizes session when user confirms', async () => {
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    it('finalizes session when clicked', async () => {
 
       // Mock finalized response
       vi.mocked(apiClient.get).mockResolvedValue({
@@ -338,12 +323,9 @@ describe('SessionEditor', () => {
         duration_minutes: mockSessionData.duration_minutes,
       })
       expect(apiClient.post).toHaveBeenCalledWith(`/sessions/${mockSessionId}/finalize`)
-
-      confirmSpy.mockRestore()
     })
 
     it('emits finalized event after successful finalization', async () => {
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
 
       vi.mocked(apiClient.get).mockResolvedValue({
         data: mockFinalizedSession,
@@ -359,8 +341,6 @@ describe('SessionEditor', () => {
       await nextTick()
 
       expect(wrapper.emitted('finalized')).toBeTruthy()
-
-      confirmSpy.mockRestore()
     })
 
     it('shows error if trying to finalize empty session', async () => {

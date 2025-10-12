@@ -242,11 +242,6 @@ async function finalizeSession() {
     return
   }
 
-  if (
-    !confirm('Finalize this session? You will not be able to edit it after finalizing.')
-  ) {
-    return
-  }
 
   isFinalizing.value = true
   finalizeError.value = null
