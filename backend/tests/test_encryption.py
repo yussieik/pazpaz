@@ -441,19 +441,19 @@ async def test_encrypted_string_type_update(
 
 @pytest_asyncio.fixture
 async def versioned_test_table(test_db_engine):
-    """Create and cleanup versioned test model table.
+    """Create versioned test model table.
 
-    Ensures table cleanup even if test fails to prevent cascade failures.
+    Table data is automatically cleaned by truncate_tables autouse fixture.
+    Table will be dropped at end of test session by test_db_engine cleanup.
     """
-    # Create table
+    # Create table (checkfirst prevents errors if already exists)
     async with test_db_engine.begin() as conn:
         await conn.run_sync(VersionedTestModel.__table__.create, checkfirst=True)
 
     yield
 
-    # Guaranteed cleanup even if test fails
-    async with test_db_engine.begin() as conn:
-        await conn.run_sync(VersionedTestModel.__table__.drop, checkfirst=True)
+    # No cleanup needed - truncate_tables handles data cleanup
+    # Session-scoped test_db_engine will drop table at end of session
 
 
 @pytest.mark.asyncio
