@@ -427,8 +427,6 @@ describe('SessionEditor', () => {
     })
 
     it('does not trigger autosave for finalized sessions', async () => {
-      const subjectiveInput = wrapper.find('#subjective')
-
       // Try to change value (should fail because disabled)
       // Just verify autosave is not called
       await vi.advanceTimersByTimeAsync(10000)

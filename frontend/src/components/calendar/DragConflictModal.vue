@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { ConflictingAppointment } from '@/api/client'
 import { formatTimeRange } from '@/utils/dragHelpers'
+import IconClose from '@/components/icons/IconClose.vue'
 
 /**
  * Drag Conflict Modal
@@ -165,19 +166,7 @@ function handleKeydown(event: KeyboardEvent) {
               @click="handleCancel"
               aria-label="Close dialog"
             >
-              <svg
-                class="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <IconClose class="h-5 w-5" />
             </button>
           </div>
         </div>

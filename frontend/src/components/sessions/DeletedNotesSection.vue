@@ -14,8 +14,7 @@
  *   <DeletedNotesSection :client-id="clientId" @restored="handleRestore" />
  */
 
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useToast } from '@/composables/useToast'
 import apiClient from '@/api/client'
 import type { SessionResponse } from '@/types/sessions'
@@ -31,6 +30,7 @@ import type { AxiosError } from 'axios'
 
 interface Props {
   clientId: string
+  triggerPulse?: boolean
 }
 
 interface Emits {
@@ -39,7 +39,6 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
-const router = useRouter()
 const { showSuccess, showError, showInfo } = useToast()
 
 // State
@@ -53,6 +52,27 @@ const deletingNoteId = ref<string | null>(null)
 // Computed
 const deletedNotesCount = computed(() => deletedNotes.value.length)
 const isEmpty = computed(() => deletedNotes.value.length === 0)
+
+// Badge pulse state
+const badgeRef = ref<HTMLElement | null>(null)
+
+// Watch for pulse trigger (when session deleted and section collapsed)
+watch(
+  () => props.triggerPulse,
+  (shouldPulse) => {
+    if (shouldPulse && !isExpanded.value && badgeRef.value) {
+      // Apply pulse animation class
+      badgeRef.value.classList.add('pulse-animation')
+      // Remove class after animation completes
+      setTimeout(() => {
+        badgeRef.value?.classList.remove('pulse-animation')
+      }, 600)
+
+      // Also refresh the deleted notes list to show new deletion
+      fetchDeletedNotes()
+    }
+  }
+)
 
 // Fetch deleted sessions
 onMounted(async () => {
@@ -75,8 +95,7 @@ async function fetchDeletedNotes() {
   } catch (err) {
     console.error('Failed to fetch deleted sessions:', err)
     const axiosError = err as AxiosError<{ detail?: string }>
-    error.value =
-      axiosError.response?.data?.detail || 'Failed to load deleted notes'
+    error.value = axiosError.response?.data?.detail || 'Failed to load deleted notes'
   } finally {
     loading.value = false
   }
@@ -140,13 +159,9 @@ async function restoreSession(session: SessionResponse) {
       // Refresh to update UI
       await fetchDeletedNotes()
     } else if (axiosError.response?.status === 422) {
-      showError(
-        'Cannot delete amended notes due to medical-legal requirements'
-      )
+      showError('Cannot delete amended notes due to medical-legal requirements')
     } else {
-      showError(
-        axiosError.response?.data?.detail || 'Failed to restore session note'
-      )
+      showError(axiosError.response?.data?.detail || 'Failed to restore session note')
     }
   } finally {
     restoringNoteId.value = null
@@ -170,8 +185,7 @@ async function permanentlyDeleteSession(session: SessionResponse) {
     const axiosError = err as AxiosError<{ detail?: string }>
 
     showError(
-      axiosError.response?.data?.detail ||
-        'Failed to permanently delete session note'
+      axiosError.response?.data?.detail || 'Failed to permanently delete session note'
     )
   } finally {
     deletingNoteId.value = null
@@ -200,7 +214,8 @@ function formatDeletionTime(deletedAt: string): string {
         <h3 class="text-lg font-semibold text-slate-900">Deleted Notes</h3>
         <span
           v-if="deletedNotesCount > 0"
-          class="rounded-full bg-slate-100 px-2.5 py-0.5 text-sm font-medium text-slate-700"
+          ref="badgeRef"
+          class="deleted-notes-badge rounded-full bg-slate-100 px-2.5 py-0.5 text-sm font-medium text-slate-700"
         >
           {{ deletedNotesCount }}
         </span>
@@ -230,10 +245,7 @@ function formatDeletionTime(deletedAt: string): string {
     </div>
 
     <!-- Error state -->
-    <div
-      v-else-if="error"
-      class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4"
-    >
+    <div v-else-if="error" class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
       <div class="flex gap-3">
         <svg
           class="h-5 w-5 flex-shrink-0 text-red-600"
@@ -270,9 +282,16 @@ function formatDeletionTime(deletedAt: string): string {
       leave-from-class="max-h-[2000px] opacity-100"
       leave-to-class="max-h-0 opacity-0"
     >
-      <div v-if="isExpanded && !loading && !error" id="deleted-notes-content" class="mt-4 overflow-hidden">
+      <div
+        v-if="isExpanded && !loading && !error"
+        id="deleted-notes-content"
+        class="mt-4 overflow-hidden"
+      >
         <!-- Empty state -->
-        <div v-if="isEmpty" class="rounded-lg border border-slate-200 bg-slate-50 p-8 text-center">
+        <div
+          v-if="isEmpty"
+          class="rounded-lg border border-slate-200 bg-slate-50 p-8 text-center"
+        >
           <svg
             class="mx-auto h-12 w-12 text-slate-400"
             fill="none"
@@ -288,7 +307,8 @@ function formatDeletionTime(deletedAt: string): string {
           </svg>
           <p class="mt-3 text-sm font-medium text-slate-900">No deleted notes</p>
           <p class="mt-1 text-sm text-slate-600">
-            Deleted session notes will appear here for {{ SESSION_DELETION_GRACE_PERIOD_DAYS }}
+            Deleted session notes will appear here for
+            {{ SESSION_DELETION_GRACE_PERIOD_DAYS }}
             days
           </p>
         </div>
@@ -313,7 +333,10 @@ function formatDeletionTime(deletedAt: string): string {
 
               <!-- Days remaining badge -->
               <div
-                v-if="session.permanent_delete_after && !isGracePeriodExpired(session.permanent_delete_after)"
+                v-if="
+                  session.permanent_delete_after &&
+                  !isGracePeriodExpired(session.permanent_delete_after)
+                "
                 class="flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800"
               >
                 <svg
@@ -329,12 +352,18 @@ function formatDeletionTime(deletedAt: string): string {
                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <span>{{ getDaysRemaining(session.permanent_delete_after) }} days left</span>
+                <span
+                  >{{ getDaysRemaining(session.permanent_delete_after) }} days
+                  left</span
+                >
               </div>
 
               <!-- Expired badge -->
               <div
-                v-else-if="session.permanent_delete_after && isGracePeriodExpired(session.permanent_delete_after)"
+                v-else-if="
+                  session.permanent_delete_after &&
+                  isGracePeriodExpired(session.permanent_delete_after)
+                "
                 class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"
               >
                 Permanently deleted
@@ -359,7 +388,10 @@ function formatDeletionTime(deletedAt: string): string {
             <div class="mt-4 flex items-center justify-end gap-3">
               <!-- Restore button -->
               <button
-                v-if="session.permanent_delete_after && !isGracePeriodExpired(session.permanent_delete_after)"
+                v-if="
+                  session.permanent_delete_after &&
+                  !isGracePeriodExpired(session.permanent_delete_after)
+                "
                 @click="restoreSession(session)"
                 :disabled="restoringNoteId === session.id"
                 class="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -383,7 +415,9 @@ function formatDeletionTime(deletedAt: string): string {
                     d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                   />
                 </svg>
-                <span>{{ restoringNoteId === session.id ? 'Restoring...' : 'Restore' }}</span>
+                <span>{{
+                  restoringNoteId === session.id ? 'Restoring...' : 'Restore'
+                }}</span>
               </button>
 
               <!-- Delete permanently button -->
@@ -392,7 +426,11 @@ function formatDeletionTime(deletedAt: string): string {
                 :disabled="deletingNoteId === session.id"
                 class="flex items-center gap-1.5 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <LoadingSpinner v-if="deletingNoteId === session.id" size="sm" color="red" />
+                <LoadingSpinner
+                  v-if="deletingNoteId === session.id"
+                  size="sm"
+                  color="red"
+                />
                 <svg
                   v-else
                   class="h-4 w-4"
@@ -407,7 +445,9 @@ function formatDeletionTime(deletedAt: string): string {
                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                   />
                 </svg>
-                <span>{{ deletingNoteId === session.id ? 'Deleting...' : 'Delete Forever' }}</span>
+                <span>{{
+                  deletingNoteId === session.id ? 'Deleting...' : 'Delete Forever'
+                }}</span>
               </button>
             </div>
           </div>
@@ -434,8 +474,9 @@ function formatDeletionTime(deletedAt: string): string {
                 {{ SESSION_DELETION_GRACE_PERIOD_DAYS }}-day recovery period
               </p>
               <p class="mt-1 text-blue-800">
-                Deleted session notes are kept for {{ SESSION_DELETION_GRACE_PERIOD_DAYS }} days
-                before permanent deletion. You can restore them at any time during this period.
+                Deleted session notes are kept for
+                {{ SESSION_DELETION_GRACE_PERIOD_DAYS }} days before permanent deletion.
+                You can restore them at any time during this period.
               </p>
             </div>
           </div>
@@ -444,3 +485,22 @@ function formatDeletionTime(deletedAt: string): string {
     </Transition>
   </div>
 </template>
+
+<style scoped>
+/* Badge pulse animation when session deleted */
+@keyframes badgePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.pulse-animation {
+  animation: badgePulse 600ms ease-out;
+}
+</style>

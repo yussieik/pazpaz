@@ -122,19 +122,6 @@ const hasContent = computed(() => {
   )
 })
 
-const hasUnsavedChanges = computed(() => {
-  if (isFinalized.value) return false
-
-  return (
-    formData.value.subjective !== originalData.value.subjective ||
-    formData.value.objective !== originalData.value.objective ||
-    formData.value.assessment !== originalData.value.assessment ||
-    formData.value.plan !== originalData.value.plan ||
-    formData.value.session_date !== originalData.value.session_date ||
-    formData.value.duration_minutes !== originalData.value.duration_minutes
-  )
-})
-
 // Autosave setup
 const {
   isSaving,
@@ -444,7 +431,7 @@ watch(
             v-if="session?.amended_at"
             @click="showVersionHistory = true"
             type="button"
-            class="text-sm text-blue-600 hover:text-blue-700 focus:outline-none focus:underline"
+            class="text-sm text-blue-600 hover:text-blue-700 focus:underline focus:outline-none"
           >
             View Original Version
           </button>
@@ -472,7 +459,6 @@ watch(
           @click="finalizeSession"
           class="group inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 focus:ring-2 focus:ring-green-600 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
         >
-
           <svg
             v-if="isFinalizing"
             class="mr-2 h-4 w-4 animate-spin"

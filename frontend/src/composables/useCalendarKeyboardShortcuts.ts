@@ -55,6 +55,17 @@ export function useCalendarKeyboardShortcuts(handlers: KeyboardShortcutHandlers)
       return
     }
 
+    // Don't handle Escape if it's coming from within a modal
+    // Modals have their own Escape handlers and we shouldn't interfere
+    if (event.key === 'Escape') {
+      const target = event.target as HTMLElement
+      const isInsideModal = target.closest('[role="dialog"]') !== null
+
+      if (isInsideModal) {
+        return
+      }
+    }
+
     const buttonRefs = handlers.buttonRefs?.value
 
     switch (event.key) {

@@ -9,6 +9,7 @@ import type {
 import { checkAppointmentConflicts } from '@/api/client'
 import ClientCombobox from '@/components/clients/ClientCombobox.vue'
 import TimePickerDropdown from '@/components/common/TimePickerDropdown.vue'
+import IconClose from '@/components/icons/IconClose.vue'
 
 interface Props {
   visible: boolean
@@ -378,7 +379,10 @@ const isPastAppointment = computed(() => {
 
 const calculatedDuration = computed(() => {
   if (!formData.value.scheduled_start || !formData.value.scheduled_end) return 0
-  return getDurationMinutes(formData.value.scheduled_start, formData.value.scheduled_end)
+  return getDurationMinutes(
+    formData.value.scheduled_start,
+    formData.value.scheduled_end
+  )
 })
 
 // Helper functions for formatting conflict details in status area
@@ -522,19 +526,7 @@ watch(
               class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
               aria-label="Close dialog"
             >
-              <svg
-                class="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <IconClose class="h-5 w-5" />
             </button>
           </div>
 
@@ -704,7 +696,10 @@ watch(
 
             <!-- Date -->
             <div>
-              <label for="appointment-date" class="block text-sm font-medium text-slate-700">
+              <label
+                for="appointment-date"
+                class="block text-sm font-medium text-slate-700"
+              >
                 Date <span class="text-red-500">*</span>
               </label>
               <input
@@ -749,7 +744,7 @@ watch(
 
               <!-- Quick Duration Pills -->
               <div>
-                <label class="block text-sm font-medium text-slate-700 mb-2">
+                <label class="mb-2 block text-sm font-medium text-slate-700">
                   Quick Duration:
                 </label>
                 <div class="flex flex-wrap gap-2">
@@ -761,9 +756,9 @@ watch(
                     :aria-label="`Set duration to ${duration} minutes`"
                     :aria-pressed="calculatedDuration === duration"
                     :class="[
-                      'px-3 py-1.5 text-sm rounded-full transition-all',
+                      'rounded-full px-3 py-1.5 text-sm transition-all',
                       calculatedDuration === duration
-                        ? 'border border-emerald-600 bg-emerald-50 text-emerald-900 font-medium'
+                        ? 'border border-emerald-600 bg-emerald-50 font-medium text-emerald-900'
                         : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
                     ]"
                   >

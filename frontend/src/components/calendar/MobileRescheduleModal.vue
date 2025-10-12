@@ -6,6 +6,7 @@ import {
   getAppointmentDuration,
   calculateEndTime,
 } from '@/utils/dragHelpers'
+import IconClose from '@/components/icons/IconClose.vue'
 
 /**
  * Mobile Reschedule Modal
@@ -153,19 +154,7 @@ function getTodayDate(): string {
               @click="handleClose"
               aria-label="Close dialog"
             >
-              <svg
-                class="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <IconClose class="h-6 w-6" />
             </button>
           </div>
         </div>

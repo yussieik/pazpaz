@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { useFocusTrap } from '@vueuse/integrations/useFocusTrap'
-import { useScrollLock } from '@vueuse/core'
-import type { AppointmentListItem, SessionStatus, AppointmentStatus } from '@/types/calendar'
+import { useScrollLock, onKeyStroke } from '@vueuse/core'
+import type {
+  AppointmentListItem,
+  SessionStatus,
+  AppointmentStatus,
+} from '@/types/calendar'
 import { formatDate } from '@/utils/calendar/dateFormatters'
 import { getStatusBadgeClass } from '@/utils/calendar/appointmentHelpers'
 import { useAppointmentAutoSave } from '@/composables/useAppointmentAutoSave'
@@ -12,6 +16,8 @@ import AppointmentStatusCard from './AppointmentStatusCard.vue'
 import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentModal.vue'
 import AppointmentEditIndicator from '@/components/appointments/AppointmentEditIndicator.vue'
 import TimePickerDropdown from '@/components/common/TimePickerDropdown.vue'
+import IconClose from '@/components/icons/IconClose.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { formatDistanceToNow, format as formatDateTime } from 'date-fns'
 
 const appointmentsStore = useAppointmentsStore()
@@ -47,10 +53,12 @@ const emit = defineEmits<Emits>()
 const modalRef = ref<HTMLElement>()
 
 // H9: Focus trap for accessibility (WCAG 2.1 AA compliance)
+// Disable Escape key handling by focus trap - we'll handle it manually
+// Disable click outside when delete modal is open to prevent closing parent modal
 const { activate, deactivate } = useFocusTrap(modalRef, {
   immediate: false,
-  escapeDeactivates: true,
-  clickOutsideDeactivates: true,
+  escapeDeactivates: false, // Disable - we'll handle Escape manually
+  clickOutsideDeactivates: () => !showDeleteModal.value, // Disable when delete modal is open
   allowOutsideClick: true,
 })
 
@@ -185,7 +193,10 @@ watch(
     }
 
     // Calculate current duration from old start to end
-    const currentDuration = getDurationMinutes(oldStart, editableData.value.scheduled_end)
+    const currentDuration = getDurationMinutes(
+      oldStart,
+      editableData.value.scheduled_end
+    )
 
     // Apply same duration to new start time
     editableData.value.scheduled_end = addMinutes(newStart, currentDuration)
@@ -200,6 +211,11 @@ watch(
  * Auto-save will complete in the background
  */
 function closeModal() {
+  // Don't close if delete modal is open
+  if (showDeleteModal.value) {
+    return
+  }
+
   // Force blur on active element to trigger auto-save
   // Auto-save will complete in background after modal closes
   if (document.activeElement instanceof HTMLElement) {
@@ -253,6 +269,7 @@ const hasBeenEdited = computed(() => {
 
 /**
  * Handle date/time change - convert to ISO and save immediately (no debounce)
+ * When start time changes, also save end time to preserve duration
  */
 async function handleDateTimeChange(field: 'scheduled_start' | 'scheduled_end') {
   if (!props.appointment || !autoSave.value) return
@@ -264,8 +281,25 @@ async function handleDateTimeChange(field: 'scheduled_start' | 'scheduled_end') 
   const isoValue = parseDateTimeLocal(localDateTimeValue)
 
   try {
-    // Save the ISO value to the API
-    await autoSave.value.saveField(field, isoValue, false)
+    // If changing start time, also save end time to preserve duration
+    // (the watcher updates end time locally, but we need to save both to API)
+    if (field === 'scheduled_start') {
+      // Wait for watcher to update end time (preserves duration)
+      await nextTick()
+
+      const startISO = isoValue
+      const endISO = parseDateTimeLocal(editableData.value.scheduled_end)
+
+      // Save both start and end together
+      await appointmentsStore.updateAppointment(props.appointment.id, {
+        scheduled_start: startISO,
+        scheduled_end: endISO,
+      })
+    } else {
+      // For end time changes, just save the single field
+      await autoSave.value.saveField(field, isoValue, false)
+    }
+
     // Emit refresh to update parent component's appointment data
     emit('refresh')
   } catch {
@@ -403,11 +437,12 @@ async function handleDeleteConfirm(payload: {
     showDeleteModal.value = false
 
     // Show appropriate success message
-    const message = payload.session_note_action === 'delete'
-      ? 'Appointment and session note deleted'
-      : payload.session_note_action === 'keep'
-      ? 'Appointment deleted (session note kept)'
-      : 'Appointment deleted'
+    const message =
+      payload.session_note_action === 'delete'
+        ? 'Appointment and session note deleted'
+        : payload.session_note_action === 'keep'
+          ? 'Appointment deleted (session note kept)'
+          : 'Appointment deleted'
 
     showSuccess(message)
     emit('refresh')
@@ -427,11 +462,31 @@ function handleDeleteCancel() {
 }
 
 /**
+ * Handle Escape key for AppointmentDetailsModal
+ * Only close this modal if delete modal is NOT open
+ */
+onKeyStroke('Escape', (e) => {
+  // Don't handle if modal is not visible
+  if (!props.visible) return
+
+  // Don't handle if delete modal is open (let DeleteAppointmentModal handle it)
+  if (showDeleteModal.value) {
+    return
+  }
+
+  e.preventDefault()
+  closeModal()
+})
+
+/**
  * Computed property for calculated duration
  */
 const calculatedDuration = computed(() => {
   if (!editableData.value.scheduled_start || !editableData.value.scheduled_end) return 0
-  return getDurationMinutes(editableData.value.scheduled_start, editableData.value.scheduled_end)
+  return getDurationMinutes(
+    editableData.value.scheduled_start,
+    editableData.value.scheduled_end
+  )
 })
 
 /**
@@ -440,7 +495,10 @@ const calculatedDuration = computed(() => {
 function setDuration(minutes: number) {
   if (!editableData.value.scheduled_start) return
 
-  editableData.value.scheduled_end = addMinutes(editableData.value.scheduled_start, minutes)
+  editableData.value.scheduled_end = addMinutes(
+    editableData.value.scheduled_start,
+    minutes
+  )
   // Trigger auto-save for end time
   handleDateTimeChange('scheduled_end')
 }
@@ -477,8 +535,24 @@ watch(appointmentDate, async (newDate, oldDate) => {
   const [year, month, day] = newDate.split('-').map(Number)
 
   // Create new datetime with new date and existing times (using local timezone)
-  const newStart = new Date(year, month - 1, day, startTime.getHours(), startTime.getMinutes(), 0, 0)
-  const newEnd = new Date(year, month - 1, day, endTime.getHours(), endTime.getMinutes(), 0, 0)
+  const newStart = new Date(
+    year,
+    month - 1,
+    day,
+    startTime.getHours(),
+    startTime.getMinutes(),
+    0,
+    0
+  )
+  const newEnd = new Date(
+    year,
+    month - 1,
+    day,
+    endTime.getHours(),
+    endTime.getMinutes(),
+    0,
+    0
+  )
 
   // Format as datetime-local (YYYY-MM-DDTHH:mm)
   editableData.value.scheduled_start = formatDateTimeLocal(newStart.toISOString())
@@ -648,26 +722,7 @@ watch(
                 >
                   <!-- Saving -->
                   <template v-if="isSaving">
-                    <svg
-                      class="h-3 w-3 animate-spin text-slate-400"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        class="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        stroke-width="4"
-                      ></circle>
-                      <path
-                        class="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
+                    <LoadingSpinner size="sm" color="slate" />
                     <span class="text-slate-600">Saving...</span>
                   </template>
 
@@ -691,19 +746,7 @@ watch(
 
                   <!-- Error -->
                   <template v-else-if="saveError">
-                    <svg
-                      class="h-3 w-3 text-red-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
+                    <IconClose class="h-3 w-3 text-red-600" />
                     <span class="text-red-600">{{ saveError }}</span>
                   </template>
                 </div>
@@ -714,19 +757,7 @@ watch(
               class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
               aria-label="Close dialog"
             >
-              <svg
-                class="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <IconClose class="h-5 w-5" />
             </button>
           </div>
 
@@ -783,7 +814,7 @@ watch(
 
                 <!-- Quick Duration Pills -->
                 <div>
-                  <label class="block text-xs text-slate-500 mb-2">
+                  <label class="mb-2 block text-xs text-slate-500">
                     Quick Duration:
                   </label>
                   <div class="flex flex-wrap gap-2">
@@ -795,9 +826,9 @@ watch(
                       :aria-label="`Set duration to ${duration} minutes`"
                       :aria-pressed="calculatedDuration === duration"
                       :class="[
-                        'px-3 py-1.5 text-sm rounded-full transition-all',
+                        'rounded-full px-3 py-1.5 text-sm transition-all',
                         calculatedDuration === duration
-                          ? 'border border-emerald-600 bg-emerald-50 text-emerald-900 font-medium'
+                          ? 'border border-emerald-600 bg-emerald-50 font-medium text-emerald-900'
                           : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
                       ]"
                     >
@@ -902,9 +933,7 @@ watch(
                 @blur="handleTextFieldBlur('notes')"
                 class="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               ></textarea>
-              <p class="mt-1 text-xs text-slate-400">
-                Changes are saved automatically
-              </p>
+              <p class="mt-1 text-xs text-slate-400">Changes are saved automatically</p>
             </div>
 
             <!-- Appointment Status Management Card -->
@@ -1082,7 +1111,7 @@ watch(
               <div class="flex items-center gap-2">
                 <!-- Delete button - always enabled -->
                 <button
-                  @click="handleDeleteClick"
+                  @click.stop="handleDeleteClick"
                   title="Delete this appointment"
                   class="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
                 >
@@ -1129,13 +1158,14 @@ watch(
               <div
                 v-if="hasBeenEdited"
                 class="flex items-center gap-1.5 text-slate-600"
-                :title="
-                  formatAbsoluteTime(
-                    (appointment as any).edited_at
-                  )
-                "
+                :title="formatAbsoluteTime((appointment as any).edited_at)"
               >
-                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg
+                  class="h-3 w-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -1144,11 +1174,7 @@ watch(
                   />
                 </svg>
                 Edited
-                {{
-                  formatRelativeTime(
-                    (appointment as any).edited_at
-                  )
-                }}
+                {{ formatRelativeTime((appointment as any).edited_at) }}
               </div>
             </div>
           </div>

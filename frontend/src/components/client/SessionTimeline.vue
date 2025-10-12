@@ -23,12 +23,20 @@ import { useRouter } from 'vue-router'
 import { format } from 'date-fns'
 import apiClient from '@/api/client'
 import type { AxiosError } from 'axios'
+import SessionCard from '@/components/sessions/SessionCard.vue'
 
 interface Props {
   clientId: string
 }
 
 const props = defineProps<Props>()
+
+interface Emits {
+  (e: 'session-deleted'): void
+  (e: 'trigger-badge-pulse'): void
+}
+
+const emit = defineEmits<Emits>()
 const router = useRouter()
 
 // Session data interface
@@ -198,6 +206,28 @@ function isAppointment(
 ): item is TimelineItem & { data: AppointmentItem } {
   return item.type === 'appointment'
 }
+
+/**
+ * Handle session deletion from SessionCard
+ * Remove from local array and notify parent
+ */
+function handleSessionDeleted(sessionId: string) {
+  // Remove from local sessions array (optimistic update)
+  sessions.value = sessions.value.filter((s) => s.id !== sessionId)
+
+  // Notify parent to refresh DeletedNotesSection
+  emit('session-deleted')
+
+  // Trigger badge pulse if Deleted Notes section is collapsed
+  emit('trigger-badge-pulse')
+}
+
+/**
+ * Handle view session from SessionCard
+ */
+function handleViewSession(sessionId: string) {
+  viewSession(sessionId)
+}
 </script>
 
 <template>
@@ -236,79 +266,94 @@ function isAppointment(
     </div>
 
     <!-- Timeline -->
-    <div v-else class="space-y-4">
+    <TransitionGroup
+      v-if="!isEmpty && !loading && !error"
+      name="session-list"
+      tag="div"
+      class="space-y-4"
+    >
+      <!-- Session Note -->
+      <SessionCard
+        v-for="item in timeline.filter(isSession)"
+        :key="`session-${item.id}`"
+        :session="item.data"
+        @deleted="handleSessionDeleted"
+        @view="handleViewSession"
+      >
+        <template #content>
+          <div class="flex items-start gap-3">
+            <!-- Icon -->
+            <div class="flex-shrink-0">
+              <div
+                class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100"
+              >
+                <svg
+                  class="h-5 w-5 text-blue-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <!-- Content -->
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-2">
+                <h4 class="text-sm font-medium text-slate-900">
+                  {{ formatDate(item.data.session_date) }}
+                </h4>
+                <span
+                  :class="[
+                    'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+                    item.data.is_draft
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-green-100 text-green-800',
+                  ]"
+                >
+                  {{ item.data.is_draft ? 'Draft' : 'Finalized' }}
+                </span>
+              </div>
+
+              <!-- SOAP Preview -->
+              <p
+                v-if="item.data.subjective"
+                class="mt-1 line-clamp-2 text-sm text-slate-600"
+              >
+                {{ truncate(item.data.subjective, 150) }}
+              </p>
+              <p v-else class="mt-1 text-sm text-slate-400 italic">No content yet</p>
+
+              <!-- Duration -->
+              <p v-if="item.data.duration_minutes" class="mt-1 text-xs text-slate-500">
+                {{ item.data.duration_minutes }} minutes
+              </p>
+
+              <!-- Action Button -->
+              <button
+                @click="viewSession(item.data.id)"
+                class="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+              >
+                {{ item.data.is_draft ? 'Continue Editing →' : 'View Full Note →' }}
+              </button>
+            </div>
+          </div>
+        </template>
+      </SessionCard>
+
+      <!-- Appointment (no session) -->
       <div
-        v-for="item in timeline"
-        :key="`${item.type}-${item.id}`"
+        v-for="item in timeline.filter(isAppointment)"
+        :key="`appointment-${item.id}`"
         class="rounded-lg border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300"
       >
-        <!-- Session Note -->
-        <div v-if="isSession(item)" class="flex items-start gap-3">
-          <!-- Icon -->
-          <div class="flex-shrink-0">
-            <div
-              class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100"
-            >
-              <svg
-                class="h-5 w-5 text-blue-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-            </div>
-          </div>
-
-          <!-- Content -->
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center justify-between gap-2">
-              <h4 class="text-sm font-medium text-slate-900">
-                {{ formatDate(item.data.session_date) }}
-              </h4>
-              <span
-                :class="[
-                  'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-                  item.data.is_draft
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-green-100 text-green-800',
-                ]"
-              >
-                {{ item.data.is_draft ? 'Draft' : 'Finalized' }}
-              </span>
-            </div>
-
-            <!-- SOAP Preview -->
-            <p
-              v-if="item.data.subjective"
-              class="mt-1 line-clamp-2 text-sm text-slate-600"
-            >
-              {{ truncate(item.data.subjective, 150) }}
-            </p>
-            <p v-else class="mt-1 text-sm text-slate-400 italic">No content yet</p>
-
-            <!-- Duration -->
-            <p v-if="item.data.duration_minutes" class="mt-1 text-xs text-slate-500">
-              {{ item.data.duration_minutes }} minutes
-            </p>
-
-            <!-- Action Button -->
-            <button
-              @click="viewSession(item.id)"
-              class="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800"
-            >
-              {{ item.data.is_draft ? 'Continue Editing →' : 'View Full Note →' }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Appointment (no session) -->
-        <div v-else-if="isAppointment(item)" class="flex items-start gap-3">
+        <div class="flex items-start gap-3">
           <!-- Icon -->
           <div class="flex-shrink-0">
             <div
@@ -356,7 +401,7 @@ function isAppointment(
           </div>
         </div>
       </div>
-    </div>
+    </TransitionGroup>
   </div>
 </template>
 
@@ -374,5 +419,19 @@ function isAppointment(
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+/* Session card deletion animation */
+.session-list-leave-active {
+  transition: all 0.3s ease-in-out;
+}
+
+.session-list-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+  max-height: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 </style>
