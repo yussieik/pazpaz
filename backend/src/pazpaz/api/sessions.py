@@ -886,22 +886,15 @@ async def delete_session(
         deletion_reason=deletion_reason,
     )
 
-    # Create audit log entry with context
-    await create_audit_event(
-        db=db,
-        user_id=current_user.id,
-        workspace_id=workspace_id,
-        action=AuditAction.DELETE,
-        resource_type=ResourceType.SESSION,
-        resource_id=session_id,
-        metadata={
-            "soft_delete": True,
-            "was_finalized": session.finalized_at is not None,
-            "had_amendments": session.amendment_count > 0,
-            "amendment_count": session.amendment_count,
-            "deleted_reason": deletion_reason,
-        },
-    )
+    # Store deletion metadata in request state for audit middleware
+    # This allows middleware to include deleted_reason in audit event metadata
+    request.state.audit_metadata = {
+        "soft_delete": True,
+        "was_finalized": session.finalized_at is not None,
+        "had_amendments": session.amendment_count > 0,
+        "amendment_count": session.amendment_count,
+        "deleted_reason": deletion_reason,
+    }
 
     await db.commit()
 

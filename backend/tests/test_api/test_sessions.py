@@ -2204,7 +2204,8 @@ class TestSoftDeleteFixes:
         """P1 FIX: Verify DELETE accepts deletion reason in request body."""
         deletion_reason = "Incorrect session data, will recreate"
 
-        response = await authenticated_client.delete(
+        response = await authenticated_client.request(
+            "DELETE",
             f"/api/v1/sessions/{test_session.id}",
             json={"reason": deletion_reason},
         )
@@ -2243,7 +2244,8 @@ class TestSoftDeleteFixes:
         # Create reason that exceeds 500 chars
         long_reason = "a" * 501
 
-        response = await authenticated_client.delete(
+        response = await authenticated_client.request(
+            "DELETE",
             f"/api/v1/sessions/{test_session.id}",
             json={"reason": long_reason},
         )
@@ -2262,7 +2264,8 @@ class TestSoftDeleteFixes:
         """P1 FIX: Verify deletion reason is logged in audit trail."""
         deletion_reason = "Test deletion reason"
 
-        response = await authenticated_client.delete(
+        response = await authenticated_client.request(
+            "DELETE",
             f"/api/v1/sessions/{test_session.id}",
             json={"reason": deletion_reason},
         )
@@ -2350,7 +2353,8 @@ class TestDeleteAppointmentWithSessionIntegration:
         # Step 4: Delete appointment with session_note_action="delete"
         # Note: This requires the appointment delete endpoint to support this parameter
         # For now, we'll verify the session can be deleted independently
-        delete_session_response = await authenticated_client.delete(
+        delete_session_response = await authenticated_client.request(
+            "DELETE",
             f"/api/v1/sessions/{session_id}",
             json={
                 "reason": "Test deletion via appointment delete",

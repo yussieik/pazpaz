@@ -156,6 +156,9 @@ class AuditMiddleware(BaseHTTPMiddleware):
             # Get db_session from request state if available (test mode)
             db_session = getattr(request.state, "db_session", None)
 
+            # Get additional metadata from request state if provided by endpoint
+            additional_metadata = getattr(request.state, "audit_metadata", None)
+
             # Log audit event immediately (synchronously)
             # This ensures the audit event is logged in the same request context
             # Performance impact is minimal (<10ms per the requirements)
@@ -169,6 +172,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 ip_address=ip_address,
                 user_agent=user_agent,
                 db_session=db_session,
+                additional_metadata=additional_metadata,
             )
 
         return response
@@ -370,6 +374,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         ip_address: str | None,
         user_agent: str | None,
         db_session=None,
+        additional_metadata: dict[str, Any] | None = None,
     ) -> None:
         """
         Background task to create audit event in database with metrics tracking.
@@ -389,6 +394,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
             status_code: Response status code
             ip_address: Client IP address
             user_agent: User agent string
+            db_session: Database session (for test mode)
+            additional_metadata: Additional metadata from endpoint (e.g., deleted_reason)
         """
         # Determine action from HTTP method
         action = self.METHOD_TO_ACTION.get(method)
@@ -406,6 +413,10 @@ class AuditMiddleware(BaseHTTPMiddleware):
         # Add query params for GET requests (sanitized by create_audit_event)
         if method == "GET" and query_params:
             metadata["query_params"] = query_params
+
+        # Merge additional metadata from endpoint if provided
+        if additional_metadata:
+            metadata.update(additional_metadata)
 
         # Track latency
         start_time = time.time()
