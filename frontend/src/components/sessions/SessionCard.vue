@@ -95,24 +95,36 @@ function cancelDelete() {
  * Confirm and execute deletion
  */
 async function confirmDelete() {
+  console.log('[SessionCard] Attempting to delete session:', props.session.id)
+  console.log('[SessionCard] Session data:', {
+    id: props.session.id,
+    date: props.session.session_date,
+    is_draft: props.session.is_draft
+  })
   isDeleting.value = true
 
   try {
     // Soft delete the session (30-day grace period)
-    await apiClient.delete(`/api/v1/sessions/${props.session.id}`)
+    const deleteUrl = `/sessions/${props.session.id}`
+    console.log('[SessionCard] DELETE request to:', deleteUrl)
+    await apiClient.delete(deleteUrl)
 
+    console.log('[SessionCard] Delete successful')
     // Notify parent to remove from list
     emit('deleted', props.session.id)
 
     // Show success toast
     showSuccess('Session note deleted. Undo available for 30 days.')
   } catch (error) {
-    console.error('Failed to delete session:', error)
+    console.error('[SessionCard] Delete failed:', error)
 
     // Handle specific error cases
     const axiosError = error as AxiosError<{ detail?: string; status?: number }>
     const status = axiosError.response?.status
     const detail = axiosError.response?.data?.detail
+
+    console.error('[SessionCard] Error status:', status)
+    console.error('[SessionCard] Error detail:', detail)
 
     if (status === 404) {
       showError('Session note no longer exists')

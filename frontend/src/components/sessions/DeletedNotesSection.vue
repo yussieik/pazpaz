@@ -128,6 +128,14 @@ function getPreviewText(session: SessionResponse): string {
  * Restore a soft-deleted session
  */
 async function restoreSession(session: SessionResponse) {
+  console.log('[DeletedNotesSection] Attempting to restore session:', session.id)
+  console.log('[DeletedNotesSection] Session data:', {
+    id: session.id,
+    date: session.session_date,
+    deleted_at: session.deleted_at,
+    permanent_delete_after: session.permanent_delete_after
+  })
+
   // Check if grace period expired
   if (
     session.permanent_delete_after &&
@@ -140,7 +148,11 @@ async function restoreSession(session: SessionResponse) {
   restoringNoteId.value = session.id
 
   try {
-    await apiClient.post(`/sessions/${session.id}/restore`)
+    const restoreUrl = `/sessions/${session.id}/restore`
+    console.log('[DeletedNotesSection] POST request to:', restoreUrl)
+    await apiClient.post(restoreUrl)
+
+    console.log('[DeletedNotesSection] Restore successful')
 
     // Show success
     showSuccess('Session note restored successfully')
@@ -148,11 +160,15 @@ async function restoreSession(session: SessionResponse) {
     // Remove from local list
     deletedNotes.value = deletedNotes.value.filter((s) => s.id !== session.id)
 
+    console.log('[DeletedNotesSection] Emitting "restored" event to parent')
     // Notify parent to refresh main timeline
     emit('restored')
   } catch (err) {
-    console.error('Failed to restore session:', err)
+    console.error('[DeletedNotesSection] Restore failed:', err)
     const axiosError = err as AxiosError<{ detail?: string; status?: number }>
+
+    console.error('[DeletedNotesSection] Error status:', axiosError.response?.status)
+    console.error('[DeletedNotesSection] Error detail:', axiosError.response?.data?.detail)
 
     if (axiosError.response?.status === 410) {
       showError('Cannot restore - grace period expired')

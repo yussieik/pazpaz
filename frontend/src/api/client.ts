@@ -9,7 +9,7 @@ import type { paths } from './schema'
  *
  * Usage:
  *   import apiClient from '@/api/client'
- *   const response = await apiClient.get('/api/v1/clients')
+ *   const response = await apiClient.get('/clients')  // baseURL already includes /api/v1
  */
 
 // Create axios instance with default configuration

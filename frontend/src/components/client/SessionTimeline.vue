@@ -111,8 +111,16 @@ onMounted(async () => {
 
 async function fetchSessions() {
   try {
+    console.log('[SessionTimeline] Fetching sessions for client:', props.clientId)
     const response = await apiClient.get(`/sessions?client_id=${props.clientId}`)
-    sessions.value = response.data.items || []
+    const fetchedSessions = response.data.items || []
+    console.log('[SessionTimeline] Fetched sessions:', fetchedSessions.map(s => ({
+      id: s.id,
+      date: s.session_date,
+      deleted_at: s.deleted_at,
+      is_draft: s.is_draft
+    })))
+    sessions.value = fetchedSessions
   } catch (err) {
     console.error('Failed to fetch sessions:', err)
     const axiosError = err as AxiosError<{ detail?: string }>
@@ -234,7 +242,9 @@ function handleViewSession(sessionId: string) {
  * Exposed to parent components for manual refresh triggers
  */
 async function refresh() {
+  console.log('[SessionTimeline] refresh() called')
   await Promise.all([fetchSessions(), fetchAppointments()])
+  console.log('[SessionTimeline] refresh() complete')
 }
 
 // Expose refresh method to parent components

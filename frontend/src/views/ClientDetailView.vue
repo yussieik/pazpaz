@@ -206,9 +206,13 @@ function triggerButtonFeedback(button: HTMLButtonElement | null) {
  * Refreshes the session timeline when a note is restored from deleted section
  */
 async function handleSessionRestored() {
+  console.log('[ClientDetailView] Session restored, refreshing timeline')
   // Refresh the session timeline to show the restored session
   if (sessionTimelineRef.value) {
     await sessionTimelineRef.value.refresh()
+    console.log('[ClientDetailView] Timeline refresh complete')
+  } else {
+    console.warn('[ClientDetailView] sessionTimelineRef is null, cannot refresh')
   }
 }
 
@@ -325,7 +329,7 @@ async function newSessionNote() {
     announce('Creating new session note...')
 
     // Create new draft session for this client
-    const response = await apiClient.post('/api/v1/sessions', {
+    const response = await apiClient.post('/sessions', {
       client_id: client.value.id,
       session_date: new Date().toISOString(), // Current date/time
       duration_minutes: null, // Therapist can fill in later
