@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
 from pydantic import ValidationError
 
@@ -71,7 +69,9 @@ class TestSecretKeyValidation:
         """Verify default SECRET_KEY is rejected in production."""
         # Set environment to production
         monkeypatch.setenv("ENVIRONMENT", "production")
-        monkeypatch.setenv("SECRET_KEY", "change-me-in-production-but-make-it-longer-than-32")
+        monkeypatch.setenv(
+            "SECRET_KEY", "change-me-in-production-but-make-it-longer-than-32"
+        )
 
         with pytest.raises(ValidationError) as exc_info:
             Settings()
@@ -83,7 +83,9 @@ class TestSecretKeyValidation:
         """Verify default SECRET_KEY is rejected in staging."""
         # Set environment to staging
         monkeypatch.setenv("ENVIRONMENT", "staging")
-        monkeypatch.setenv("SECRET_KEY", "change-me-in-production-but-make-it-longer-than-32")
+        monkeypatch.setenv(
+            "SECRET_KEY", "change-me-in-production-but-make-it-longer-than-32"
+        )
 
         with pytest.raises(ValidationError) as exc_info:
             Settings()

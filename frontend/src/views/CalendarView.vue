@@ -25,6 +25,7 @@ import CancelAppointmentDialog from '@/components/calendar/CancelAppointmentDial
 import CalendarLoadingState from '@/components/calendar/CalendarLoadingState.vue'
 import DragConflictModal from '@/components/calendar/DragConflictModal.vue'
 import MobileRescheduleModal from '@/components/calendar/MobileRescheduleModal.vue'
+import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentModal.vue'
 import { format } from 'date-fns'
 
 /**
@@ -49,8 +50,10 @@ const toolbarRef = ref<InstanceType<typeof CalendarToolbar>>()
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showCancelDialog = ref(false)
+const showDeleteModal = ref(false)
 const appointmentToEdit = ref<AppointmentListItem | null>(null)
 const appointmentToCancel = ref<AppointmentListItem | null>(null)
+const appointmentToDelete = ref<AppointmentListItem | null>(null)
 
 const createModalPrefillData = ref<{ start: Date; end: Date } | null>(null)
 
@@ -78,7 +81,8 @@ const undoCancelData = ref<{
 const showEditSuccessBadge = ref(false)
 
 const { announcement: screenReaderAnnouncement, announce } = useScreenReader()
-const { showSuccess, showAppointmentSuccess, showSuccessWithUndo } = useToast()
+const { showSuccess, showAppointmentSuccess, showSuccessWithUndo, showError } =
+  useToast()
 
 const {
   currentView,
@@ -262,25 +266,174 @@ useCalendarKeyboardShortcuts({
   buttonRefs: toolbarButtonRefs,
 })
 
+/**
+ * Add hover-revealed quick action buttons to calendar events
+ * Buttons appear on hover (desktop) or always visible (mobile/tablet)
+ */
+function addQuickActionButtons(
+  eventEl: HTMLElement,
+  event: {
+    id: string
+    start: Date | null
+    end: Date | null
+    extendedProps: {
+      status: string
+      hasSession: boolean
+    }
+  }
+) {
+  // Check if appointment can be completed (past scheduled appointments only)
+  const now = new Date()
+  const canComplete =
+    event.extendedProps.status === 'scheduled' && event.end && new Date(event.end) < now
+
+  // Don't add buttons if none are applicable (though delete is always shown)
+  // Keep this simple - always add the action container
+
+  // Create action buttons container
+  const actionsContainer = document.createElement('div')
+  actionsContainer.className =
+    'calendar-quick-actions absolute top-1 right-1 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150 z-10'
+
+  // Complete button (only for past scheduled appointments)
+  if (canComplete) {
+    const completeBtn = document.createElement('button')
+    completeBtn.className =
+      'p-1 rounded bg-white/90 hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 shadow-sm'
+    completeBtn.title = 'Mark completed (C)'
+    completeBtn.setAttribute('aria-label', 'Mark appointment as completed')
+    completeBtn.innerHTML = `
+      <svg class="h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+      </svg>
+    `
+
+    completeBtn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      handleQuickComplete(event.id)
+    })
+
+    actionsContainer.appendChild(completeBtn)
+  }
+
+  // Delete button (always shown)
+  const deleteBtn = document.createElement('button')
+  deleteBtn.className =
+    'p-1 rounded bg-white/90 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 shadow-sm'
+  deleteBtn.title = 'Delete (Del)'
+  deleteBtn.setAttribute('aria-label', 'Delete appointment')
+  deleteBtn.innerHTML = `
+    <svg class="h-3.5 w-3.5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+  `
+
+  deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    handleQuickDelete(event.id)
+  })
+
+  actionsContainer.appendChild(deleteBtn)
+
+  // Make event container position relative and add group class for hover
+  eventEl.style.position = 'relative'
+  eventEl.classList.add('group')
+
+  // Append to event element
+  eventEl.appendChild(actionsContainer)
+}
+
+/**
+ * Quick complete action handler
+ * Marks a past scheduled appointment as completed
+ */
+async function handleQuickComplete(appointmentId: string) {
+  const appointment = appointmentsStore.appointments.find(
+    (a: AppointmentListItem) => a.id === appointmentId
+  )
+  if (!appointment) return
+
+  try {
+    await appointmentsStore.updateAppointmentStatus(appointmentId, 'completed')
+
+    // Show success toast with client name
+    const clientName = appointment.client?.first_name || 'Appointment'
+    showSuccess(`${clientName} completed`, {
+      toastId: `completion-${appointmentId}-${Date.now()}`,
+    })
+
+    // Screen reader announcement
+    announce(`Appointment marked as completed`)
+  } catch (error) {
+    console.error('Failed to mark appointment as completed:', error)
+    showError('Failed to mark appointment as completed')
+  }
+}
+
+/**
+ * Quick delete action handler
+ * Opens delete modal for confirmation
+ */
+function handleQuickDelete(appointmentId: string) {
+  const appointment = appointmentsStore.appointments.find(
+    (a: AppointmentListItem) => a.id === appointmentId
+  )
+  if (!appointment) return
+
+  // Open delete modal with the appointment
+  appointmentToDelete.value = appointment
+  showDeleteModal.value = true
+}
+
+/**
+ * Handle delete confirmation from modal
+ */
+async function handleDeleteConfirm(payload: {
+  reason?: string
+  session_note_action?: 'delete' | 'keep'
+  deletion_reason?: string
+}) {
+  if (!appointmentToDelete.value) return
+
+  try {
+    await appointmentsStore.deleteAppointment(appointmentToDelete.value.id, payload)
+    showDeleteModal.value = false
+
+    // Show appropriate success message
+    const message =
+      payload.session_note_action === 'delete'
+        ? 'Appointment and session note deleted'
+        : payload.session_note_action === 'keep'
+          ? 'Appointment deleted (session note kept)'
+          : 'Appointment deleted'
+
+    showSuccess(message)
+
+    // Close the modal and clear state
+    appointmentToDelete.value = null
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to delete appointment'
+    showError(errorMessage)
+  }
+}
+
+/**
+ * Handle delete cancellation
+ */
+function handleDeleteCancel() {
+  showDeleteModal.value = false
+  appointmentToDelete.value = null
+}
+
 const calendarOptions = computed(() => ({
   ...buildCalendarOptions(calendarEvents.value, handleEventClick, handleDateClick),
   eventDrop: handleEventDrop as (arg: EventDropArg) => void,
-  eventDidMount: (info: {
-    event: {
-      title: string
-      extendedProps: {
-        hasSession: boolean
-        isDraft: boolean
-        duration_minutes?: number
-        status: string
-      }
-    }
-    el: HTMLElement
-  }) => {
+  eventDidMount: (info: any) => {
     const event = info.event
-    const hasSession = event.extendedProps.hasSession
-    const isDraft = event.extendedProps.isDraft
-    const duration = event.extendedProps.duration_minutes
+    const hasSession = event.extendedProps?.hasSession
+    const isDraft = event.extendedProps?.isDraft
+    const duration = event.extendedProps?.duration_minutes
 
     let tooltipText = event.title
 
@@ -288,7 +441,7 @@ const calendarOptions = computed(() => ({
       tooltipText += isDraft
         ? '\n📄 Session note: Draft'
         : '\n📄 Session note: Finalized'
-    } else if (event.extendedProps.status === 'completed') {
+    } else if (event.extendedProps?.status === 'completed') {
       tooltipText += '\n📝 No session note yet'
     }
 
@@ -296,7 +449,7 @@ const calendarOptions = computed(() => ({
       tooltipText += `\n⏱️ ${duration} minutes`
     }
 
-    if (event.extendedProps.location_type) {
+    if (event.extendedProps?.location_type) {
       const locationEmoji: Record<string, string> = {
         clinic: '🏥',
         home: '🏠',
@@ -307,6 +460,17 @@ const calendarOptions = computed(() => ({
     }
 
     info.el.title = tooltipText
+
+    // Add quick action buttons to event
+    addQuickActionButtons(info.el, {
+      id: event.id,
+      start: event.start,
+      end: event.end,
+      extendedProps: {
+        status: event.extendedProps?.status || '',
+        hasSession: event.extendedProps?.hasSession || false,
+      },
+    })
   },
 }))
 
@@ -967,9 +1131,37 @@ onUnmounted(() => {
 })
 
 /**
- * Global keydown handler for reschedule mode
+ * Global keydown handler for reschedule mode and quick actions
  */
 function handleGlobalKeydown(event: KeyboardEvent) {
+  // Quick action: Complete appointment with 'C' key (when appointment is selected)
+  if ((event.key === 'c' || event.key === 'C') && !event.ctrlKey && !event.metaKey) {
+    if (selectedAppointment.value) {
+      // Check if appointment can be completed
+      const now = new Date()
+      const canComplete =
+        selectedAppointment.value.status === 'scheduled' &&
+        new Date(selectedAppointment.value.scheduled_end) < now
+
+      if (canComplete) {
+        event.preventDefault()
+        handleQuickComplete(selectedAppointment.value.id)
+        selectedAppointment.value = null // Close detail modal
+        return
+      }
+    }
+  }
+
+  // Quick action: Delete appointment with 'Delete' or 'Backspace' key (when appointment is selected)
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    if (selectedAppointment.value && !isKeyboardRescheduleActive.value) {
+      event.preventDefault()
+      handleQuickDelete(selectedAppointment.value.id)
+      selectedAppointment.value = null // Close detail modal
+      return
+    }
+  }
+
   // Activate reschedule mode with 'R' key (when appointment is selected)
   if (event.key === 'r' || event.key === 'R') {
     if (selectedAppointment.value && !isKeyboardRescheduleActive.value) {
@@ -1159,6 +1351,19 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       :appointment="mobileRescheduleAppointment"
       @update:visible="showMobileRescheduleModal = $event"
       @reschedule="handleMobileReschedule"
+    />
+
+    <!-- Delete Appointment Modal -->
+    <DeleteAppointmentModal
+      :appointment="appointmentToDelete"
+      :session-status="
+        appointmentToDelete
+          ? sessionStatusMap.get(appointmentToDelete.id) || null
+          : null
+      "
+      :open="showDeleteModal"
+      @confirm="handleDeleteConfirm"
+      @cancel="handleDeleteCancel"
     />
 
     <!-- Screen Reader Announcements -->

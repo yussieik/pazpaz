@@ -152,9 +152,7 @@ class Session(Base):
     )
 
     # Relationships
-    workspace: Mapped[Workspace] = relationship(
-        "Workspace", back_populates="sessions"
-    )
+    workspace: Mapped[Workspace] = relationship("Workspace", back_populates="sessions")
     client: Mapped[Client] = relationship("Client", back_populates="sessions")
     appointment: Mapped[Appointment | None] = relationship(
         "Appointment", back_populates="session"

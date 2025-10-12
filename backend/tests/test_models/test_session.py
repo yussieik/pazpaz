@@ -47,7 +47,9 @@ async def test_session_encryption_roundtrip(
 
     # Verify encrypted in database (raw SQL check)
     result = await db_session.execute(
-        text("SELECT subjective, objective, assessment, plan FROM sessions WHERE id = :id"),
+        text(
+            "SELECT subjective, objective, assessment, plan FROM sessions WHERE id = :id"
+        ),
         {"id": session_id},
     )
     raw_row = result.fetchone()
@@ -61,14 +63,24 @@ async def test_session_encryption_roundtrip(
     # Verify plaintext is not visible in raw bytes
     # Use latin1 encoding to decode bytes without errors for checking
     subjective_raw = raw_row[0].decode("latin1", errors="ignore")
-    assert "back pain" not in subjective_raw, "Plaintext should not be visible in encrypted data"
+    assert "back pain" not in subjective_raw, (
+        "Plaintext should not be visible in encrypted data"
+    )
 
     # Verify decrypted on retrieval via ORM
     retrieved = await db_session.get(Session, session_id)
     assert retrieved is not None
-    assert retrieved.subjective == "Patient reports lower back pain radiating to left leg"
-    assert retrieved.objective == "Reduced ROM in lumbar flexion, positive straight leg raise"
-    assert retrieved.assessment == "Acute lumbar radiculopathy, likely L5-S1 disc herniation"
+    assert (
+        retrieved.subjective == "Patient reports lower back pain radiating to left leg"
+    )
+    assert (
+        retrieved.objective
+        == "Reduced ROM in lumbar flexion, positive straight leg raise"
+    )
+    assert (
+        retrieved.assessment
+        == "Acute lumbar radiculopathy, likely L5-S1 disc herniation"
+    )
     assert retrieved.plan == "PT 2x/week for 6 weeks, reassess if no improvement"
 
 
@@ -292,7 +304,10 @@ async def test_session_unicode_encrypted_fields(
     # Retrieve and verify unicode preserved
     retrieved = await db_session.get(Session, session_id)
     assert retrieved is not None
-    assert retrieved.subjective == "Patient reports: עברית - Hebrew, 中文 - Chinese, Español 🔐"
+    assert (
+        retrieved.subjective
+        == "Patient reports: עברית - Hebrew, 中文 - Chinese, Español 🔐"
+    )
     assert retrieved.objective == "Unicode test with emojis 🏥 and symbols ñ é"
 
 

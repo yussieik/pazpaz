@@ -20,7 +20,9 @@ export function useSessionQuery() {
    * @param appointmentId - The appointment ID to query
    * @returns Promise<SessionResponse | null>
    */
-  async function fetchByAppointmentId(appointmentId: string): Promise<SessionResponse | null> {
+  async function fetchByAppointmentId(
+    appointmentId: string
+  ): Promise<SessionResponse | null> {
     loading.value = true
     error.value = null
     session.value = null

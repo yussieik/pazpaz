@@ -68,7 +68,11 @@ const timeOptions = computed(() => {
   const endMinutes = maxHours * 60 + maxMins
   const interval = props.interval
 
-  for (let totalMinutes = startMinutes; totalMinutes <= endMinutes; totalMinutes += interval) {
+  for (
+    let totalMinutes = startMinutes;
+    totalMinutes <= endMinutes;
+    totalMinutes += interval
+  ) {
     const hours = Math.floor(totalMinutes / 60)
     const mins = totalMinutes % 60
 
@@ -353,7 +357,7 @@ onUnmounted(() => {
 <template>
   <div class="relative">
     <!-- Label -->
-    <label v-if="label" class="block text-sm font-medium text-slate-700 mb-1">
+    <label v-if="label" class="mb-1 block text-sm font-medium text-slate-700">
       {{ label }}
     </label>
 
@@ -368,13 +372,15 @@ onUnmounted(() => {
       :aria-expanded="isOpen"
       :aria-haspopup="true"
       :class="[
-        'w-full flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-all',
+        'flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-all',
         error
           ? 'border-red-500 focus:ring-red-500'
           : isOpen
-          ? 'border-emerald-500 ring-2 ring-emerald-500'
-          : 'border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500',
-        disabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-900',
+            ? 'border-emerald-500 ring-2 ring-emerald-500'
+            : 'border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500',
+        disabled
+          ? 'cursor-not-allowed bg-slate-100 text-slate-400'
+          : 'bg-white text-slate-900',
       ]"
       class="focus:outline-none"
     >
@@ -387,7 +393,12 @@ onUnmounted(() => {
         viewBox="0 0 24 24"
         aria-hidden="true"
       >
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M19 9l-7 7-7-7"
+        />
       </svg>
     </button>
 
@@ -408,7 +419,7 @@ onUnmounted(() => {
       <div
         v-if="isOpen"
         ref="dropdownRef"
-        class="absolute z-50 mt-1 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg max-h-60"
+        class="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"
         role="listbox"
         :aria-label="`${label} options`"
       >
@@ -426,8 +437,8 @@ onUnmounted(() => {
             highlightedIndex === index
               ? 'bg-slate-100'
               : option.value === selectedTime
-              ? 'bg-emerald-50 text-emerald-900 font-medium'
-              : 'text-slate-700 hover:bg-slate-50',
+                ? 'bg-emerald-50 font-medium text-emerald-900'
+                : 'text-slate-700 hover:bg-slate-50',
           ]"
         >
           {{ option.label }}

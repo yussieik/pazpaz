@@ -193,7 +193,8 @@ export const useAppointmentsStore = defineStore('appointments', () => {
       } = {}
 
       if (options?.reason) payload.reason = options.reason
-      if (options?.session_note_action) payload.session_note_action = options.session_note_action
+      if (options?.session_note_action)
+        payload.session_note_action = options.session_note_action
       if (options?.deletion_reason) payload.deletion_reason = options.deletion_reason
 
       await apiClient.delete(`/appointments/${appointmentId}`, {

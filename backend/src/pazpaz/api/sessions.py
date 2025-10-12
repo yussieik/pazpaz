@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import math
 import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.api.deps import (
@@ -34,6 +33,11 @@ from pazpaz.schemas.session import (
     SessionVersionResponse,
 )
 from pazpaz.services.audit_service import create_audit_event
+from pazpaz.utils.pagination import (
+    calculate_pagination_offset,
+    calculate_total_pages,
+    get_query_total_count,
+)
 from pazpaz.utils.session_helpers import (
     apply_soft_delete,
     clear_soft_delete_metadata,
@@ -320,13 +324,11 @@ async def list_sessions(
     if is_draft is not None:
         base_query = base_query.where(Session.is_draft == is_draft)
 
-    # Calculate offset
-    offset = (page - 1) * page_size
+    # Calculate offset using utility
+    offset = calculate_pagination_offset(page, page_size)
 
-    # Get total count
-    count_query = select(func.count()).select_from(base_query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar_one()
+    # Get total count using utility
+    total = await get_query_total_count(db, base_query)
 
     # Get paginated results ordered by session_date descending
     query = (
@@ -338,8 +340,8 @@ async def list_sessions(
     # Build response items (PHI automatically decrypted)
     items = [SessionResponse.model_validate(session) for session in sessions]
 
-    # Calculate total pages
-    total_pages = math.ceil(total / page_size) if total > 0 else 0
+    # Calculate total pages using utility
+    total_pages = calculate_total_pages(total, page_size)
 
     logger.debug(
         "session_list_completed",

@@ -254,7 +254,12 @@ async def client(
         yield ac
 
     # Remove test middleware and clear overrides
-    app.user_middleware = [m for m in app.user_middleware if not isinstance(m.cls, type) or m.cls.__name__ != 'DBSessionInjectorMiddleware']
+    app.user_middleware = [
+        m
+        for m in app.user_middleware
+        if not isinstance(m.cls, type)
+        or m.cls.__name__ != "DBSessionInjectorMiddleware"
+    ]
     app.middleware_stack = None  # Force rebuild
     app.dependency_overrides.clear()
 
@@ -512,7 +517,7 @@ async def test_session(
     workspace_1: Workspace,
     sample_client_ws1: Client,
     test_user_ws1: User,
-) -> "Session":
+) -> Session:
     """
     Create a test session in workspace 1.
 
@@ -545,7 +550,7 @@ async def test_session2(
     workspace_2: Workspace,
     sample_client_ws2: Client,
     test_user_ws2: User,
-) -> "Session":
+) -> Session:
     """
     Create a test session in workspace 2.
 
@@ -619,7 +624,12 @@ async def auth_headers(workspace_1: Workspace, test_user_ws1: User) -> dict[str,
 # Helper functions for tests
 
 
-def get_auth_headers(workspace_id: uuid.UUID, user_id: uuid.UUID | None = None, email: str = "test@example.com", csrf_cookie: str | None = None) -> dict[str, str]:
+def get_auth_headers(
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID | None = None,
+    email: str = "test@example.com",
+    csrf_cookie: str | None = None,
+) -> dict[str, str]:
     """
     DEPRECATED: Use get_auth_cookies() instead for JWT authentication.
 
@@ -684,9 +694,10 @@ async def authenticated_client(
             response = authenticated_client.get("/api/v1/clients")
             assert response.status_code == 200
     """
+    from starlette.middleware.base import BaseHTTPMiddleware
+
     from pazpaz.core.security import create_access_token
     from pazpaz.middleware.csrf import generate_csrf_token
-    from starlette.middleware.base import BaseHTTPMiddleware
 
     # Middleware to inject db_session into request.state for audit middleware
     class DBSessionInjectorMiddleware(BaseHTTPMiddleware):
@@ -742,7 +753,12 @@ async def authenticated_client(
         yield ac
 
     # Remove test middleware and clear overrides
-    app.user_middleware = [m for m in app.user_middleware if not isinstance(m.cls, type) or m.cls.__name__ != 'DBSessionInjectorMiddleware']
+    app.user_middleware = [
+        m
+        for m in app.user_middleware
+        if not isinstance(m.cls, type)
+        or m.cls.__name__ != "DBSessionInjectorMiddleware"
+    ]
     app.middleware_stack = None  # Force rebuild
     app.dependency_overrides.clear()
 

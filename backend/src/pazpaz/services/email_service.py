@@ -74,7 +74,7 @@ PazPaz - Practice Management for Independent Therapists
         if settings.debug:
             print(f"\n{'=' * 80}")
             print(f"✅ Magic link email sent to: {email}")
-            print(f"   Check MailHog: http://localhost:8025")
+            print("   Check MailHog: http://localhost:8025")
             print(f"   Direct link: {magic_link}")
             print(f"{'=' * 80}\n")
 

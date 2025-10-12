@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import math
 import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -33,6 +32,11 @@ from pazpaz.schemas.appointment import (
     ConflictingAppointmentDetail,
 )
 from pazpaz.services.audit_service import create_audit_event
+from pazpaz.utils.pagination import (
+    calculate_pagination_offset,
+    calculate_total_pages,
+    get_query_total_count,
+)
 from pazpaz.utils.session_helpers import (
     apply_soft_delete,
     get_active_sessions_for_appointment,
@@ -400,8 +404,8 @@ async def list_appointments(
         },
     )
 
-    # Calculate offset
-    offset = (page - 1) * page_size
+    # Calculate offset using utility
+    offset = calculate_pagination_offset(page, page_size)
 
     # Build base query with workspace scoping
     base_query = select(Appointment).where(Appointment.workspace_id == workspace_id)
@@ -420,10 +424,8 @@ async def list_appointments(
     if status:
         base_query = base_query.where(Appointment.status == status)
 
-    # Get total count
-    count_query = select(func.count()).select_from(base_query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar_one()
+    # Get total count using utility
+    total = await get_query_total_count(db, base_query)
 
     # Get paginated results ordered by scheduled_start descending
     query = (
@@ -448,8 +450,8 @@ async def list_appointments(
             )
         items.append(response_data)
 
-    # Calculate total pages
-    total_pages = math.ceil(total / page_size) if total > 0 else 0
+    # Calculate total pages using utility
+    total_pages = calculate_total_pages(total, page_size)
 
     return AppointmentListResponse(
         items=items,

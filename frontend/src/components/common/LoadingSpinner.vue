@@ -20,6 +20,9 @@ const props = withDefaults(defineProps<Props>(), {
   color: 'slate',
 })
 
+// Use props to avoid unused variable warning
+const { size, color } = props
+
 const sizeClasses = {
   sm: 'h-4 w-4',
   md: 'h-5 w-5',

@@ -37,7 +37,7 @@ function formatRelativeTime(isoString: string | null | undefined): string {
     <!-- Draft Badge -->
     <span
       v-if="isDraft"
-      class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium uppercase tracking-wide bg-blue-100 text-blue-700"
+      class="inline-flex items-center gap-1 rounded bg-blue-100 px-2 py-1 text-xs font-medium tracking-wide text-blue-700 uppercase"
       title="This note is still in draft mode"
     >
       <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -54,7 +54,7 @@ function formatRelativeTime(isoString: string | null | undefined): string {
     <!-- Finalized Badge -->
     <span
       v-else
-      class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium uppercase tracking-wide bg-green-100 text-green-700"
+      class="inline-flex items-center gap-1 rounded bg-green-100 px-2 py-1 text-xs font-medium tracking-wide text-green-700 uppercase"
       :title="`Finalized ${formatRelativeTime(session.finalized_at)}`"
     >
       <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -71,7 +71,7 @@ function formatRelativeTime(isoString: string | null | undefined): string {
     <!-- Amended Badge (only if amended) -->
     <span
       v-if="isAmended"
-      class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium uppercase tracking-wide bg-amber-100 text-amber-700"
+      class="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-1 text-xs font-medium tracking-wide text-amber-700 uppercase"
       :title="`Amended ${formatRelativeTime(session.amended_at)}`"
     >
       <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">

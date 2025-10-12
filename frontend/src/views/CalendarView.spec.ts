@@ -19,6 +19,7 @@ vi.mock('@/api/client', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
     patch: vi.fn(),
     delete: vi.fn(),
   },
@@ -593,6 +594,323 @@ describe('CalendarView.vue', () => {
         // Check it doesn't have plural 's' or has singular form
         expect(summary).toMatch(/1 appointment(?!s)/)
       }
+    })
+  })
+
+  describe('Quick Action Buttons', () => {
+    it('should show delete modal when handleQuickDelete is called', async () => {
+      vi.mocked(apiClient.get).mockResolvedValue({
+        data: {
+          items: mockAppointments,
+          total: mockAppointments.length,
+          page: 1,
+          page_size: 100,
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as Record<string, unknown>,
+      })
+
+      const wrapper = await createWrapper()
+      await flushPromises()
+
+      // Fetch appointments first to populate store
+      const store = useAppointmentsStore()
+      await store.fetchAppointments()
+      await flushPromises()
+
+      // Get the component instance
+      const vm = wrapper.vm as any
+
+      // Call handleQuickDelete with the first appointment ID
+      vm.handleQuickDelete(mockAppointments[0].id)
+      await flushPromises()
+
+      // Verify delete modal is open
+      expect(vm.showDeleteModal).toBe(true)
+      expect(vm.appointmentToDelete?.id).toBe(mockAppointments[0].id)
+    })
+
+    it('should complete appointment when handleQuickComplete is called', async () => {
+      // Create a past scheduled appointment that can be completed
+      const pastAppointment = {
+        ...mockAppointments[0],
+        id: 'apt-past',
+        scheduled_start: '2023-01-01T09:00:00Z', // Past date
+        scheduled_end: '2023-01-01T10:00:00Z',
+        status: 'scheduled' as const,
+      }
+
+      vi.mocked(apiClient.get).mockResolvedValue({
+        data: {
+          items: [pastAppointment],
+          total: 1,
+          page: 1,
+          page_size: 100,
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as Record<string, unknown>,
+      })
+
+      // Mock PUT for status update (store uses PUT, not PATCH)
+      vi.mocked(apiClient.put).mockResolvedValue({
+        data: {
+          ...pastAppointment,
+          status: 'completed',
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as Record<string, unknown>,
+      })
+
+      const wrapper = await createWrapper()
+      await flushPromises()
+
+      // Fetch appointments first to populate store
+      const store = useAppointmentsStore()
+      await store.fetchAppointments()
+      await flushPromises()
+
+      const vm = wrapper.vm as any
+
+      // Call handleQuickComplete
+      await vm.handleQuickComplete(pastAppointment.id)
+      await flushPromises()
+
+      // Verify PUT was called with correct parameters
+      expect(apiClient.put).toHaveBeenCalledWith(
+        `/appointments/${pastAppointment.id}`,
+        {
+          status: 'completed',
+        }
+      )
+    })
+
+    it('should not show complete button for future appointments', () => {
+      // This is tested via the addQuickActionButtons function
+      // The function checks if appointment.end < now before showing complete button
+      const futureEvent = {
+        id: 'apt-future',
+        start: new Date('2099-01-01T09:00:00Z'),
+        end: new Date('2099-01-01T10:00:00Z'),
+        extendedProps: {
+          status: 'scheduled',
+          hasSession: false,
+        },
+      }
+
+      // Create a mock element
+      const mockEl = document.createElement('div')
+
+      // Create wrapper to access component instance
+      const pinia = createPinia()
+      setActivePinia(pinia)
+
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [{ path: '/calendar', name: 'calendar', component: CalendarView }],
+      })
+
+      const wrapper = mount(CalendarView, {
+        global: {
+          plugins: [pinia, router],
+        },
+      })
+
+      const vm = wrapper.vm as any
+
+      // Call the function
+      vm.addQuickActionButtons(mockEl, futureEvent)
+
+      // Verify complete button is NOT added (only delete button should exist)
+      const buttons = mockEl.querySelectorAll('button')
+      expect(buttons.length).toBe(1) // Only delete button
+
+      const deleteBtn = buttons[0]
+      expect(deleteBtn.title).toContain('Delete')
+    })
+
+    it('should show complete button for past scheduled appointments', () => {
+      const pastEvent = {
+        id: 'apt-past',
+        start: new Date('2023-01-01T09:00:00Z'),
+        end: new Date('2023-01-01T10:00:00Z'),
+        extendedProps: {
+          status: 'scheduled',
+          hasSession: false,
+        },
+      }
+
+      const mockEl = document.createElement('div')
+
+      const pinia = createPinia()
+      setActivePinia(pinia)
+
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [{ path: '/calendar', name: 'calendar', component: CalendarView }],
+      })
+
+      const wrapper = mount(CalendarView, {
+        global: {
+          plugins: [pinia, router],
+        },
+      })
+
+      const vm = wrapper.vm as any
+
+      vm.addQuickActionButtons(mockEl, pastEvent)
+
+      // Verify both buttons are added
+      const buttons = mockEl.querySelectorAll('button')
+      expect(buttons.length).toBe(2) // Complete + Delete
+
+      const completeBtn = buttons[0]
+      const deleteBtn = buttons[1]
+
+      expect(completeBtn.title).toContain('completed')
+      expect(deleteBtn.title).toContain('Delete')
+    })
+  })
+
+  describe('Keyboard Shortcuts for Quick Actions', () => {
+    it('should complete appointment when C key is pressed with selected appointment', async () => {
+      // Create a past scheduled appointment
+      const pastAppointment = {
+        ...mockAppointments[0],
+        id: 'apt-past',
+        scheduled_start: '2023-01-01T09:00:00Z',
+        scheduled_end: '2023-01-01T10:00:00Z',
+        status: 'scheduled' as const,
+      }
+
+      vi.mocked(apiClient.get).mockResolvedValue({
+        data: {
+          items: [pastAppointment],
+          total: 1,
+          page: 1,
+          page_size: 100,
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as Record<string, unknown>,
+      })
+
+      vi.mocked(apiClient.put).mockResolvedValue({
+        data: { ...pastAppointment, status: 'completed' },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as Record<string, unknown>,
+      })
+
+      const wrapper = await createWrapper()
+      await flushPromises()
+
+      // Fetch appointments first to populate store
+      const store = useAppointmentsStore()
+      await store.fetchAppointments()
+      await flushPromises()
+
+      const vm = wrapper.vm as any
+
+      // Select the appointment
+      vm.selectedAppointment = pastAppointment
+
+      // Trigger C key press
+      const event = new KeyboardEvent('keydown', { key: 'c' })
+      document.dispatchEvent(event)
+      await flushPromises()
+
+      // Verify PUT was called
+      expect(apiClient.put).toHaveBeenCalledWith(
+        `/appointments/${pastAppointment.id}`,
+        {
+          status: 'completed',
+        }
+      )
+
+      // Verify modal was closed
+      expect(vm.selectedAppointment).toBeNull()
+    })
+
+    it('should open delete modal when Delete key is pressed with selected appointment', async () => {
+      vi.mocked(apiClient.get).mockResolvedValue({
+        data: {
+          items: mockAppointments,
+          total: mockAppointments.length,
+          page: 1,
+          page_size: 100,
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as Record<string, unknown>,
+      })
+
+      const wrapper = await createWrapper()
+      await flushPromises()
+
+      // Fetch appointments first to populate store
+      const store = useAppointmentsStore()
+      await store.fetchAppointments()
+      await flushPromises()
+
+      const vm = wrapper.vm as any
+
+      // Select the appointment
+      vm.selectedAppointment = mockAppointments[0]
+
+      // Trigger Delete key press
+      const event = new KeyboardEvent('keydown', { key: 'Delete' })
+      document.dispatchEvent(event)
+      await flushPromises()
+
+      // Verify delete modal is open
+      expect(vm.showDeleteModal).toBe(true)
+      expect(vm.appointmentToDelete?.id).toBe(mockAppointments[0].id)
+
+      // Verify appointment detail modal was closed
+      expect(vm.selectedAppointment).toBeNull()
+    })
+
+    it('should not complete appointment when C key is pressed for future appointment', async () => {
+      vi.mocked(apiClient.get).mockResolvedValue({
+        data: {
+          items: mockAppointments,
+          total: mockAppointments.length,
+          page: 1,
+          page_size: 100,
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as Record<string, unknown>,
+      })
+
+      const wrapper = await createWrapper()
+      await flushPromises()
+
+      const vm = wrapper.vm as any
+
+      // Select a future appointment
+      vm.selectedAppointment = mockAppointments[0] // Future appointment
+
+      // Clear any previous calls
+      vi.clearAllMocks()
+
+      // Trigger C key press
+      const event = new KeyboardEvent('keydown', { key: 'c' })
+      document.dispatchEvent(event)
+      await flushPromises()
+
+      // Verify PATCH was NOT called (future appointments can't be completed)
+      expect(apiClient.patch).not.toHaveBeenCalled()
     })
   })
 })

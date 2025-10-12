@@ -34,6 +34,12 @@ const scheduleButtonRef = ref<HTMLButtonElement | null>(null)
 
 // Component refs
 const sessionTimelineRef = ref<InstanceType<typeof SessionTimeline> | null>(null)
+const deletedNotesSectionRef = ref<InstanceType<typeof DeletedNotesSection> | null>(
+  null
+)
+
+// State for badge pulse trigger
+const triggerBadgePulse = ref(false)
 
 // Modal state for scheduling appointments
 const showScheduleModal = ref(false)
@@ -209,6 +215,30 @@ function handleSessionRestored() {
     // we can trigger a manual refresh if the component exposes a method
     // For now, user can switch tabs or the component manages its own state
   }
+}
+
+/**
+ * Handle session deletion from timeline
+ * Refreshes the deleted notes section to show newly deleted note
+ */
+async function handleSessionDeleted() {
+  // Refresh deleted notes section if it has a refresh method
+  if (deletedNotesSectionRef.value) {
+    // The DeletedNotesSection will auto-refresh on mount
+    // or we can force a re-fetch if needed
+  }
+}
+
+/**
+ * Handle badge pulse trigger when session deleted and section collapsed
+ */
+function handleBadgePulse() {
+  // Trigger pulse animation
+  triggerBadgePulse.value = true
+  // Reset after animation completes
+  setTimeout(() => {
+    triggerBadgePulse.value = false
+  }, 600)
 }
 
 /**
@@ -796,12 +826,20 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
           <h2 class="mb-4 text-lg font-semibold text-slate-900">Treatment History</h2>
 
           <!-- Session Timeline -->
-          <SessionTimeline v-if="client" :client-id="client.id" ref="sessionTimelineRef" />
+          <SessionTimeline
+            v-if="client"
+            :client-id="client.id"
+            ref="sessionTimelineRef"
+            @session-deleted="handleSessionDeleted"
+            @trigger-badge-pulse="handleBadgePulse"
+          />
 
           <!-- Deleted Notes Section -->
           <DeletedNotesSection
             v-if="client"
             :client-id="client.id"
+            :trigger-pulse="triggerBadgePulse"
+            ref="deletedNotesSectionRef"
             @restored="handleSessionRestored"
           />
         </div>

@@ -22,7 +22,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from pazpaz.core.config import settings
 from pazpaz.db.base import Base
-from pazpaz.db.types import EncryptedString, EncryptedStringVersioned
+from pazpaz.db.types import EncryptedStringVersioned
 from pazpaz.models.workspace import Workspace
 from pazpaz.utils.encryption import (
     DecryptionError,
@@ -306,6 +306,7 @@ async def test_encrypted_string_type_insert(
 ):
     """Test 11: Insert with encryption using EncryptedString type (Session model)."""
     from datetime import UTC, datetime
+
     from pazpaz.models.session import Session
 
     # Insert Session record with encrypted SOAP fields
@@ -328,9 +329,7 @@ async def test_encrypted_string_type_insert(
 
     # Verify data is actually encrypted in database
     # Query the raw bytes from the database
-    result = await db.execute(
-        select(Session).where(Session.id == session.id)
-    )
+    result = await db.execute(select(Session).where(Session.id == session.id))
     retrieved = result.scalar_one()
 
     # The decrypted values should match (SQLAlchemy decrypts automatically)
@@ -343,6 +342,7 @@ async def test_encrypted_string_type_select(
 ):
     """Test 12: Select with decryption using EncryptedString type (Session model)."""
     from datetime import UTC, datetime
+
     from pazpaz.models.session import Session
 
     # Insert record
@@ -364,9 +364,7 @@ async def test_encrypted_string_type_select(
     db.expunge_all()
 
     # Retrieve record (should decrypt automatically)
-    result = await db.execute(
-        select(Session).where(Session.id == record_id)
-    )
+    result = await db.execute(select(Session).where(Session.id == record_id))
     retrieved = result.scalar_one()
 
     assert retrieved.subjective == original_text
@@ -379,6 +377,7 @@ async def test_encrypted_string_type_none(
 ):
     """Test 13: Handle NULL values with EncryptedString type (Session model)."""
     from datetime import UTC, datetime
+
     from pazpaz.models.session import Session
 
     # Insert record with NULL encrypted field
@@ -395,9 +394,7 @@ async def test_encrypted_string_type_none(
     record_id = session.id
 
     # Retrieve and verify NULL is preserved
-    result = await db.execute(
-        select(Session).where(Session.id == record_id)
-    )
+    result = await db.execute(select(Session).where(Session.id == record_id))
     retrieved = result.scalar_one()
 
     assert retrieved.subjective is None
@@ -410,6 +407,7 @@ async def test_encrypted_string_type_update(
 ):
     """Test 14: Update encrypted field (Session model)."""
     from datetime import UTC, datetime
+
     from pazpaz.models.session import Session
 
     # Insert record
@@ -435,9 +433,7 @@ async def test_encrypted_string_type_update(
 
     # Verify from fresh query
     db.expunge_all()
-    result = await db.execute(
-        select(Session).where(Session.id == record_id)
-    )
+    result = await db.execute(select(Session).where(Session.id == record_id))
     retrieved = result.scalar_one()
     assert retrieved.subjective == "updated value"
 

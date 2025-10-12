@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import math
 import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.api.deps import get_current_user, get_db
@@ -15,6 +14,11 @@ from pazpaz.core.logging import get_logger
 from pazpaz.models.audit_event import AuditAction, AuditEvent, ResourceType
 from pazpaz.models.user import User, UserRole
 from pazpaz.schemas.audit import AuditEventListResponse, AuditEventResponse
+from pazpaz.utils.pagination import (
+    calculate_pagination_offset,
+    calculate_total_pages,
+    get_query_total_count,
+)
 
 router = APIRouter(prefix="/audit-events", tags=["audit"])
 logger = get_logger(__name__)
@@ -117,8 +121,8 @@ async def list_audit_events(
         },
     )
 
-    # Calculate offset
-    offset = (page - 1) * page_size
+    # Calculate offset using utility
+    offset = calculate_pagination_offset(page, page_size)
 
     # Build base query with workspace scoping
     base_query = select(AuditEvent).where(AuditEvent.workspace_id == workspace_id)
@@ -154,10 +158,8 @@ async def list_audit_events(
             AuditEvent.resource_type.in_(phi_resources),
         )
 
-    # Get total count
-    count_query = select(func.count()).select_from(base_query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar_one()
+    # Get total count using utility
+    total = await get_query_total_count(db, base_query)
 
     # Get paginated results ordered by created_at descending
     # Uses ix_audit_events_workspace_created index for performance
@@ -172,8 +174,8 @@ async def list_audit_events(
     # Build response
     items = [AuditEventResponse.model_validate(event) for event in audit_events]
 
-    # Calculate total pages
-    total_pages = math.ceil(total / page_size) if total > 0 else 0
+    # Calculate total pages using utility
+    total_pages = calculate_total_pages(total, page_size)
 
     logger.debug(
         "audit_events_list_completed",

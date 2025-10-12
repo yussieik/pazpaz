@@ -127,7 +127,9 @@ class TestUnauthenticatedRequestRejection:
         the server must use the workspace_id from the JWT token.
         """
         # Authenticate as workspace 1 user (JWT cookie)
-        headers_ws1 = get_auth_headers(workspace_1.id, test_user_ws1.id, test_user_ws1.email)
+        headers_ws1 = get_auth_headers(
+            workspace_1.id, test_user_ws1.id, test_user_ws1.email
+        )
 
         # But send workspace 2's ID in the X-Workspace-ID header (attack attempt)
         headers_ws1["X-Workspace-ID"] = str(workspace_2.id)
@@ -167,7 +169,9 @@ class TestClientWorkspaceIsolation:
         Must return 404 (not 403) to avoid information leakage.
         """
         # Try to access workspace 1's client with workspace 2 credentials
-        headers = get_auth_headers(workspace_2.id, test_user_ws2.id, test_user_ws2.email)
+        headers = get_auth_headers(
+            workspace_2.id, test_user_ws2.id, test_user_ws2.email
+        )
         response = await client.get(
             f"/api/v1/clients/{sample_client_ws1.id}",
             headers=headers,
@@ -194,7 +198,9 @@ class TestClientWorkspaceIsolation:
         their own clients.
         """
         # List clients in workspace 1 - should see only workspace 1's client
-        headers_ws1 = get_auth_headers(workspace_1.id, test_user_ws1.id, test_user_ws1.email)
+        headers_ws1 = get_auth_headers(
+            workspace_1.id, test_user_ws1.id, test_user_ws1.email
+        )
         response_ws1 = await client.get("/api/v1/clients", headers=headers_ws1)
 
         assert response_ws1.status_code == 200
@@ -205,7 +211,9 @@ class TestClientWorkspaceIsolation:
         assert data_ws1["items"][0]["first_name"] == "John"
 
         # List clients in workspace 2 - should see only workspace 2's client
-        headers_ws2 = get_auth_headers(workspace_2.id, test_user_ws2.id, test_user_ws2.email)
+        headers_ws2 = get_auth_headers(
+            workspace_2.id, test_user_ws2.id, test_user_ws2.email
+        )
         response_ws2 = await client.get("/api/v1/clients", headers=headers_ws2)
 
         assert response_ws2.status_code == 200
@@ -239,6 +247,7 @@ class TestClientWorkspaceIsolation:
         # Try to update workspace 1's client with workspace 2 credentials
         # Set JWT cookie on client
         from pazpaz.core.security import create_access_token
+
         jwt_token = create_access_token(
             user_id=test_user_ws2.id,
             workspace_id=workspace_2.id,
@@ -258,7 +267,9 @@ class TestClientWorkspaceIsolation:
         assert response.json()["detail"] == "Resource not found"
 
         # Verify client was not modified
-        headers_ws1 = get_auth_headers(workspace_1.id, test_user_ws1.id, test_user_ws1.email)
+        headers_ws1 = get_auth_headers(
+            workspace_1.id, test_user_ws1.id, test_user_ws1.email
+        )
         verify_response = await client.get(
             f"/api/v1/clients/{sample_client_ws1.id}",
             headers=headers_ws1,
@@ -290,6 +301,7 @@ class TestClientWorkspaceIsolation:
         # Try to delete workspace 1's client with workspace 2 credentials
         # Set JWT cookie on client
         from pazpaz.core.security import create_access_token
+
         jwt_token = create_access_token(
             user_id=test_user_ws2.id,
             workspace_id=workspace_2.id,
@@ -308,7 +320,9 @@ class TestClientWorkspaceIsolation:
         assert response.json()["detail"] == "Resource not found"
 
         # Verify client still exists
-        headers_ws1 = get_auth_headers(workspace_1.id, test_user_ws1.id, test_user_ws1.email)
+        headers_ws1 = get_auth_headers(
+            workspace_1.id, test_user_ws1.id, test_user_ws1.email
+        )
         verify_response = await client.get(
             f"/api/v1/clients/{sample_client_ws1.id}",
             headers=headers_ws1,
@@ -336,7 +350,9 @@ class TestAppointmentWorkspaceIsolation:
         Must return 404.
         """
         # Try to access workspace 1's appointment with workspace 2 credentials
-        headers = get_auth_headers(workspace_2.id, test_user_ws2.id, test_user_ws2.email)
+        headers = get_auth_headers(
+            workspace_2.id, test_user_ws2.id, test_user_ws2.email
+        )
         response = await client.get(
             f"/api/v1/appointments/{sample_appointment_ws1.id}",
             headers=headers,
@@ -363,7 +379,9 @@ class TestAppointmentWorkspaceIsolation:
         sees their own appointments.
         """
         # List appointments in workspace 1 - should see only workspace 1's appointment
-        headers_ws1 = get_auth_headers(workspace_1.id, test_user_ws1.id, test_user_ws1.email)
+        headers_ws1 = get_auth_headers(
+            workspace_1.id, test_user_ws1.id, test_user_ws1.email
+        )
         response_ws1 = await client.get("/api/v1/appointments", headers=headers_ws1)
 
         assert response_ws1.status_code == 200
@@ -373,7 +391,9 @@ class TestAppointmentWorkspaceIsolation:
         assert data_ws1["items"][0]["id"] == str(sample_appointment_ws1.id)
 
         # List appointments in workspace 2 - should see only workspace 2's appointment
-        headers_ws2 = get_auth_headers(workspace_2.id, test_user_ws2.id, test_user_ws2.email)
+        headers_ws2 = get_auth_headers(
+            workspace_2.id, test_user_ws2.id, test_user_ws2.email
+        )
         response_ws2 = await client.get("/api/v1/appointments", headers=headers_ws2)
 
         assert response_ws2.status_code == 200
@@ -406,6 +426,7 @@ class TestAppointmentWorkspaceIsolation:
         # Try to update workspace 1's appointment with workspace 2 credentials
         # Set JWT cookie on client
         from pazpaz.core.security import create_access_token
+
         jwt_token = create_access_token(
             user_id=test_user_ws2.id,
             workspace_id=workspace_2.id,
@@ -425,7 +446,9 @@ class TestAppointmentWorkspaceIsolation:
         assert response.json()["detail"] == "Resource not found"
 
         # Verify appointment was not modified
-        headers_ws1 = get_auth_headers(workspace_1.id, test_user_ws1.id, test_user_ws1.email)
+        headers_ws1 = get_auth_headers(
+            workspace_1.id, test_user_ws1.id, test_user_ws1.email
+        )
         verify_response = await client.get(
             f"/api/v1/appointments/{sample_appointment_ws1.id}",
             headers=headers_ws1,
@@ -457,6 +480,7 @@ class TestAppointmentWorkspaceIsolation:
         # Try to delete workspace 1's appointment with workspace 2 credentials
         # Set JWT cookie on client
         from pazpaz.core.security import create_access_token
+
         jwt_token = create_access_token(
             user_id=test_user_ws2.id,
             workspace_id=workspace_2.id,
@@ -475,7 +499,9 @@ class TestAppointmentWorkspaceIsolation:
         assert response.json()["detail"] == "Resource not found"
 
         # Verify appointment still exists
-        headers_ws1 = get_auth_headers(workspace_1.id, test_user_ws1.id, test_user_ws1.email)
+        headers_ws1 = get_auth_headers(
+            workspace_1.id, test_user_ws1.id, test_user_ws1.email
+        )
         verify_response = await client.get(
             f"/api/v1/appointments/{sample_appointment_ws1.id}",
             headers=headers_ws1,
@@ -508,6 +534,7 @@ class TestAppointmentWorkspaceIsolation:
         # Try to create appointment in workspace 2 with workspace 1's client
         # Set JWT cookie on client
         from pazpaz.core.security import create_access_token
+
         jwt_token = create_access_token(
             user_id=test_user_ws2.id,
             workspace_id=workspace_2.id,
@@ -557,7 +584,9 @@ class TestAppointmentWorkspaceIsolation:
 
         # Check conflicts in workspace 2 for the same time slot
         # Should not report workspace 1's appointment as a conflict
-        headers = get_auth_headers(workspace_2.id, test_user_ws2.id, test_user_ws2.email)
+        headers = get_auth_headers(
+            workspace_2.id, test_user_ws2.id, test_user_ws2.email
+        )
         response = await client.get(
             "/api/v1/appointments/conflicts",
             headers=headers,
@@ -594,7 +623,9 @@ class TestWorkspaceIsolationWithFilters:
         Should return empty list, not an error or workspace 1's appointments.
         """
         # Try to list appointments in workspace 2 filtered by workspace 1's client
-        headers = get_auth_headers(workspace_2.id, test_user_ws2.id, test_user_ws2.email)
+        headers = get_auth_headers(
+            workspace_2.id, test_user_ws2.id, test_user_ws2.email
+        )
         response = await client.get(
             "/api/v1/appointments",
             headers=headers,

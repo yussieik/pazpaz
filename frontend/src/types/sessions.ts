@@ -63,7 +63,12 @@ export function hasSubstantialContent(session: {
   assessment?: string | null
   plan?: string | null
 }): boolean {
-  const content = [session.subjective, session.objective, session.assessment, session.plan]
+  const content = [
+    session.subjective,
+    session.objective,
+    session.assessment,
+    session.plan,
+  ]
     .filter(Boolean)
     .join('')
   return content.trim().length > SUBSTANTIAL_CONTENT_THRESHOLD

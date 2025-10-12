@@ -320,8 +320,7 @@ class TestListSessions:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert (
-            "must provide either client_id or appointment_id"
-            in response.text.lower()
+            "must provide either client_id or appointment_id" in response.text.lower()
         )
 
     async def test_list_sessions_pagination(
@@ -2105,7 +2104,8 @@ class TestSessionSoftDelete:
 
         # Find the restore audit event
         restore_events = [
-            e for e in audit_events
+            e
+            for e in audit_events
             if e.event_metadata and e.event_metadata.get("action") == "restore"
         ]
         assert len(restore_events) > 0

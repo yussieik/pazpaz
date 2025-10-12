@@ -1580,6 +1580,7 @@ class TestDeleteAppointmentMultipleSessions:
     ):
         """P1 FIX: Verify DELETE with multiple sessions deletes all when action=delete."""
         from sqlalchemy import select
+
         from pazpaz.models.session import Session
 
         csrf_token = await add_csrf_to_client(
@@ -1612,7 +1613,7 @@ class TestDeleteAppointmentMultipleSessions:
                     "client_id": str(sample_client_ws1.id),
                     "appointment_id": appointment_id,
                     "session_date": yesterday.isoformat(),
-                    "subjective": f"Test note {i+1}",
+                    "subjective": f"Test note {i + 1}",
                 },
             )
             session_ids.append(session_response.json()["id"])
@@ -1635,7 +1636,9 @@ class TestDeleteAppointmentMultipleSessions:
                 select(Session).where(Session.id == uuid.UUID(session_id))
             )
             session = result.scalar_one()
-            assert session.deleted_at is not None, f"Session {session_id} should be soft-deleted"
+            assert session.deleted_at is not None, (
+                f"Session {session_id} should be soft-deleted"
+            )
 
     async def test_delete_appointment_with_multiple_sessions_keep_action(
         self,
@@ -1648,6 +1651,7 @@ class TestDeleteAppointmentMultipleSessions:
     ):
         """P1 FIX: Verify DELETE with multiple sessions keeps all when action=keep."""
         from sqlalchemy import select
+
         from pazpaz.models.session import Session
 
         csrf_token = await add_csrf_to_client(
@@ -1680,7 +1684,7 @@ class TestDeleteAppointmentMultipleSessions:
                     "client_id": str(sample_client_ws1.id),
                     "appointment_id": appointment_id,
                     "session_date": yesterday.isoformat(),
-                    "subjective": f"Test note {i+1}",
+                    "subjective": f"Test note {i + 1}",
                 },
             )
             session_ids.append(session_response.json()["id"])
@@ -1703,8 +1707,12 @@ class TestDeleteAppointmentMultipleSessions:
                 select(Session).where(Session.id == uuid.UUID(session_id))
             )
             session = result.scalar_one()
-            assert session.deleted_at is None, f"Session {session_id} should NOT be deleted"
-            assert session.appointment_id is None, f"Session {session_id} should be unlinked from appointment"
+            assert session.deleted_at is None, (
+                f"Session {session_id} should NOT be deleted"
+            )
+            assert session.appointment_id is None, (
+                f"Session {session_id} should be unlinked from appointment"
+            )
 
     async def test_delete_appointment_multiple_sessions_one_amended_blocks_all(
         self,
@@ -1717,6 +1725,7 @@ class TestDeleteAppointmentMultipleSessions:
     ):
         """P1 FIX: Verify DELETE blocked if ANY session has amendments."""
         from sqlalchemy import select
+
         from pazpaz.models.session import Session
 
         csrf_token = await add_csrf_to_client(
@@ -1749,7 +1758,7 @@ class TestDeleteAppointmentMultipleSessions:
                     "client_id": str(sample_client_ws1.id),
                     "appointment_id": appointment_id,
                     "session_date": yesterday.isoformat(),
-                    "subjective": f"Test note {i+1}",
+                    "subjective": f"Test note {i + 1}",
                 },
             )
             session_ids.append(session_response.json()["id"])

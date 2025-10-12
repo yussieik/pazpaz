@@ -180,7 +180,9 @@ class TestValidAuthentication:
         assert response.status_code == 200
         assert "items" in response.json()
 
-    async def test_nonexistent_workspace_id_format_valid(self, client: AsyncClient, db_session):
+    async def test_nonexistent_workspace_id_format_valid(
+        self, client: AsyncClient, db_session
+    ):
         """
         Non-existent but valid UUID should authenticate but return no data.
 
@@ -188,8 +190,8 @@ class TestValidAuthentication:
         The workspace validation happens at the data access layer.
         """
         # Create a workspace and user for testing, but use a different workspace ID in the JWT
-        from pazpaz.models.workspace import Workspace
         from pazpaz.models.user import User, UserRole
+        from pazpaz.models.workspace import Workspace
 
         nonexistent_workspace_id = uuid.UUID("99999999-9999-9999-9999-999999999999")
         nonexistent_user_id = uuid.UUID("99999999-9999-9999-9999-999999999991")
@@ -210,7 +212,9 @@ class TestValidAuthentication:
         db_session.add(user)
         await db_session.commit()
 
-        headers = get_auth_headers(nonexistent_workspace_id, nonexistent_user_id, "nonexistent@example.com")
+        headers = get_auth_headers(
+            nonexistent_workspace_id, nonexistent_user_id, "nonexistent@example.com"
+        )
 
         response = await client.get("/api/v1/clients", headers=headers)
 

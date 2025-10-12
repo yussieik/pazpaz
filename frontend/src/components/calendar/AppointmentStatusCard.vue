@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { onKeyStroke } from '@vueuse/core'
-import type { AppointmentListItem, AppointmentStatus, SessionStatus } from '@/types/calendar'
+import type {
+  AppointmentListItem,
+  AppointmentStatus,
+  SessionStatus,
+} from '@/types/calendar'
 import { formatDistanceToNow } from 'date-fns'
 
 interface Props {

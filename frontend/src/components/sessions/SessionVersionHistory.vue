@@ -209,7 +209,7 @@ watch(
           <!-- Error State -->
           <div
             v-else-if="error"
-            class="rounded-lg border border-red-200 bg-red-50 p-4 m-6"
+            class="m-6 rounded-lg border border-red-200 bg-red-50 p-4"
           >
             <div class="flex gap-3">
               <svg
@@ -241,7 +241,7 @@ watch(
             >
               <button
                 @click="toggleVersion('current')"
-                class="w-full flex items-center justify-between p-4 text-left transition-colors hover:bg-emerald-100"
+                class="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-emerald-100"
               >
                 <div class="flex-1">
                   <div class="flex items-center gap-2">
@@ -255,7 +255,10 @@ watch(
                   <p v-if="session.amended_at" class="mt-1 text-sm text-slate-600">
                     Amended {{ formatRelativeTime(session.amended_at) }}
                   </p>
-                  <p v-else-if="session.finalized_at" class="mt-1 text-sm text-slate-600">
+                  <p
+                    v-else-if="session.finalized_at"
+                    class="mt-1 text-sm text-slate-600"
+                  >
                     Finalized {{ formatRelativeTime(session.finalized_at) }}
                   </p>
                 </div>
@@ -276,22 +279,22 @@ watch(
               </button>
               <div
                 v-if="expandedVersion === 'current'"
-                class="border-t border-emerald-200 bg-white p-4 space-y-4"
+                class="space-y-4 border-t border-emerald-200 bg-white p-4"
               >
                 <div v-if="session.subjective">
-                  <p class="text-xs font-medium uppercase text-slate-500">Subjective</p>
+                  <p class="text-xs font-medium text-slate-500 uppercase">Subjective</p>
                   <p class="mt-1 text-sm text-slate-900">{{ session.subjective }}</p>
                 </div>
                 <div v-if="session.objective">
-                  <p class="text-xs font-medium uppercase text-slate-500">Objective</p>
+                  <p class="text-xs font-medium text-slate-500 uppercase">Objective</p>
                   <p class="mt-1 text-sm text-slate-900">{{ session.objective }}</p>
                 </div>
                 <div v-if="session.assessment">
-                  <p class="text-xs font-medium uppercase text-slate-500">Assessment</p>
+                  <p class="text-xs font-medium text-slate-500 uppercase">Assessment</p>
                   <p class="mt-1 text-sm text-slate-900">{{ session.assessment }}</p>
                 </div>
                 <div v-if="session.plan">
-                  <p class="text-xs font-medium uppercase text-slate-500">Plan</p>
+                  <p class="text-xs font-medium text-slate-500 uppercase">Plan</p>
                   <p class="mt-1 text-sm text-slate-900">{{ session.plan }}</p>
                 </div>
               </div>
@@ -305,7 +308,7 @@ watch(
             >
               <button
                 @click="toggleVersion(version.id)"
-                class="w-full flex items-center justify-between p-4 text-left transition-colors hover:bg-slate-100"
+                class="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-slate-100"
               >
                 <div class="flex-1">
                   <div class="flex items-center gap-2">
@@ -340,22 +343,22 @@ watch(
               </button>
               <div
                 v-if="expandedVersion === version.id"
-                class="border-t border-slate-200 bg-white p-4 space-y-4"
+                class="space-y-4 border-t border-slate-200 bg-white p-4"
               >
                 <div v-if="version.subjective">
-                  <p class="text-xs font-medium uppercase text-slate-500">Subjective</p>
+                  <p class="text-xs font-medium text-slate-500 uppercase">Subjective</p>
                   <p class="mt-1 text-sm text-slate-700">{{ version.subjective }}</p>
                 </div>
                 <div v-if="version.objective">
-                  <p class="text-xs font-medium uppercase text-slate-500">Objective</p>
+                  <p class="text-xs font-medium text-slate-500 uppercase">Objective</p>
                   <p class="mt-1 text-sm text-slate-700">{{ version.objective }}</p>
                 </div>
                 <div v-if="version.assessment">
-                  <p class="text-xs font-medium uppercase text-slate-500">Assessment</p>
+                  <p class="text-xs font-medium text-slate-500 uppercase">Assessment</p>
                   <p class="mt-1 text-sm text-slate-700">{{ version.assessment }}</p>
                 </div>
                 <div v-if="version.plan">
-                  <p class="text-xs font-medium uppercase text-slate-500">Plan</p>
+                  <p class="text-xs font-medium text-slate-500 uppercase">Plan</p>
                   <p class="mt-1 text-sm text-slate-700">{{ version.plan }}</p>
                 </div>
               </div>
@@ -364,16 +367,14 @@ watch(
             <!-- Empty State -->
             <div
               v-if="!session && versions.length === 0"
-              class="text-center py-12 text-slate-500"
+              class="py-12 text-center text-slate-500"
             >
               <p>No version history available</p>
             </div>
           </div>
 
           <!-- Footer -->
-          <div
-            class="sticky bottom-0 border-t border-slate-200 bg-slate-50 px-6 py-4"
-          >
+          <div class="sticky bottom-0 border-t border-slate-200 bg-slate-50 px-6 py-4">
             <div class="flex justify-end">
               <button
                 @click="closeModal"

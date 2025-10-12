@@ -70,7 +70,9 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             # This avoids Python 3.13 ExceptionGroup issues in middleware
             return JSONResponse(
                 status_code=403,
-                content={"detail": "CSRF token missing. Both cookie and header required."},
+                content={
+                    "detail": "CSRF token missing. Both cookie and header required."
+                },
             )
 
         # Tokens must match
@@ -86,7 +88,9 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             # Return JSONResponse directly instead of raising HTTPException
             return JSONResponse(
                 status_code=403,
-                content={"detail": "CSRF token mismatch. Cookie and header must match."},
+                content={
+                    "detail": "CSRF token mismatch. Cookie and header must match."
+                },
             )
 
         logger.debug(

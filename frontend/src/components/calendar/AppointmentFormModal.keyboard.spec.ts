@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import AppointmentFormModal from './AppointmentFormModal.vue'
-import type { AppointmentFormData } from '@/types/calendar'
 
 // Mock the API client
 vi.mock('@/api/client', () => ({
