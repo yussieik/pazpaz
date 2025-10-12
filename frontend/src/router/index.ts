@@ -40,8 +40,6 @@ const router = createRouter({
       name: 'session-detail',
       component: () => import('@/views/SessionView.vue'),
     },
-    // TODO: Add more routes as features are implemented
-    // - /sessions - Session list view
   ],
 })
 

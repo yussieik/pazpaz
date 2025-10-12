@@ -13,6 +13,7 @@ from __future__ import annotations
 import uuid
 from datetime import timedelta
 
+import redis.asyncio as redis
 from fastapi import (
     APIRouter,
     Depends,
@@ -27,6 +28,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.api.deps import get_current_user, get_db, get_or_404
 from pazpaz.core.logging import get_logger
+from pazpaz.core.rate_limiting import check_rate_limit_redis
+from pazpaz.core.redis import get_redis
 from pazpaz.models.session import Session
 from pazpaz.models.session_attachment import SessionAttachment
 from pazpaz.models.user import User
@@ -66,6 +69,7 @@ async def upload_session_attachment(
     request: Request = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    redis_client: redis.Redis = Depends(get_redis),
 ) -> SessionAttachmentResponse:
     """
     Upload file attachment for a session note.
@@ -76,6 +80,7 @@ async def upload_session_attachment(
     - File size limits (10 MB per file, 50 MB total per session)
     - Secure S3 key generation (UUID-based, no user-controlled names)
     - Workspace isolation (verified before upload)
+    - Rate limiting (10 uploads per minute per user)
     - Audit logging (automatic via middleware)
 
     Supported file types:
@@ -88,6 +93,7 @@ async def upload_session_attachment(
         request: FastAPI request object (for audit logging)
         current_user: Authenticated user (from JWT token)
         db: Database session
+        redis_client: Redis client (for rate limiting)
 
     Returns:
         Created attachment metadata (id, filename, size, content_type, created_at)
@@ -99,6 +105,7 @@ async def upload_session_attachment(
             - 413 if file too large or total attachments exceed limit
             - 415 if unsupported file type or validation fails
             - 422 if validation error (MIME mismatch, corrupted file)
+            - 429 if rate limit exceeded (10 uploads/minute)
 
     Example:
         POST /api/v1/sessions/{uuid}/attachments
@@ -107,6 +114,35 @@ async def upload_session_attachment(
         file: (binary data)
     """
     workspace_id = current_user.workspace_id
+
+    # Rate limiting: 10 uploads per minute per user
+    rate_limit_key = f"attachment_upload:{current_user.id}"
+    max_uploads_per_minute = 10
+    rate_limit_window_seconds = 60
+
+    is_allowed = await check_rate_limit_redis(
+        redis_client=redis_client,
+        key=rate_limit_key,
+        max_requests=max_uploads_per_minute,
+        window_seconds=rate_limit_window_seconds,
+    )
+
+    if not is_allowed:
+        logger.warning(
+            "attachment_upload_rate_limit_exceeded",
+            user_id=str(current_user.id),
+            workspace_id=str(workspace_id),
+            session_id=str(session_id),
+            max_uploads=max_uploads_per_minute,
+            window_seconds=rate_limit_window_seconds,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"Upload rate limit exceeded. "
+                f"Maximum {max_uploads_per_minute} uploads per minute."
+            ),
+        )
 
     logger.info(
         "attachment_upload_started",
@@ -117,7 +153,7 @@ async def upload_session_attachment(
     )
 
     # Verify session exists and belongs to workspace
-    session = await get_or_404(db, Session, session_id, workspace_id)
+    await get_or_404(db, Session, session_id, workspace_id)
 
     # Read file content
     try:
@@ -137,13 +173,10 @@ async def upload_session_attachment(
     file_size = len(file_content)
 
     # Calculate current total attachment size for this session
-    query = (
-        select(SessionAttachment)
-        .where(
-            SessionAttachment.session_id == session_id,
-            SessionAttachment.workspace_id == workspace_id,
-            SessionAttachment.deleted_at.is_(None),
-        )
+    query = select(SessionAttachment).where(
+        SessionAttachment.session_id == session_id,
+        SessionAttachment.workspace_id == workspace_id,
+        SessionAttachment.deleted_at.is_(None),
     )
     result = await db.execute(query)
     existing_attachments = result.scalars().all()
@@ -248,7 +281,7 @@ async def upload_session_attachment(
 
     # Upload to S3/MinIO
     try:
-        upload_metadata = upload_file_to_s3(
+        _ = upload_file_to_s3(
             file_content=sanitized_content,
             s3_key=s3_key,
             content_type=file_type.value,
@@ -391,20 +424,25 @@ async def get_attachment_download_url(
     attachment_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    expires_in_minutes: int = 60,
+    expires_in_minutes: int = 15,
 ) -> dict:
     """
     Generate pre-signed download URL for attachment.
 
     Returns a temporary pre-signed URL that allows downloading the file from S3.
-    URL expires after specified time (default: 1 hour).
+    URL expires after specified time (default: 15 minutes, max: 60 minutes).
+
+    Security:
+    - URLs expire after 15 minutes by default (configurable, max 60 minutes)
+    - Short expiration reduces risk of URL sharing or interception
+    - Each download requires re-authentication and workspace verification
 
     Args:
         session_id: UUID of the session
         attachment_id: UUID of the attachment
         current_user: Authenticated user (from JWT token)
         db: Database session
-        expires_in_minutes: URL expiration time in minutes (default: 60)
+        expires_in_minutes: URL expiration time in minutes (default: 15, max: 60)
 
     Returns:
         Dict with download_url and expires_at timestamp
@@ -413,15 +451,41 @@ async def get_attachment_download_url(
         HTTPException:
             - 401 if not authenticated
             - 404 if session/attachment not found or wrong workspace
+            - 400 if expires_in_minutes exceeds maximum (60)
 
     Example:
         GET /api/v1/sessions/{uuid}/attachments/{uuid}/download?expires_in_minutes=30
         Response: {
             "download_url": "https://s3.../file?X-Amz-...",
-            "expires_in_seconds": 3600
+            "expires_in_seconds": 1800
         }
     """
     workspace_id = current_user.workspace_id
+
+    # Validate expiration time (max 60 minutes for security)
+    max_expiration_minutes = 60
+    if expires_in_minutes > max_expiration_minutes:
+        logger.warning(
+            "download_url_expiration_too_long",
+            requested_minutes=expires_in_minutes,
+            max_minutes=max_expiration_minutes,
+            user_id=str(current_user.id),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Expiration time cannot exceed {max_expiration_minutes} minutes",
+        )
+
+    if expires_in_minutes < 1:
+        logger.warning(
+            "download_url_expiration_too_short",
+            requested_minutes=expires_in_minutes,
+            user_id=str(current_user.id),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Expiration time must be at least 1 minute",
+        )
 
     # Verify session exists and belongs to workspace
     await get_or_404(db, Session, session_id, workspace_id)

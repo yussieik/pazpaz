@@ -13,6 +13,7 @@ backend/uv.lock
 *.egg-info/
 .pytest_cache/
 .coverage
+coverage.json
 htmlcov/
 
 # Node
