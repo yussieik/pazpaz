@@ -172,7 +172,7 @@ class Session(Base):
         "SessionVersion",
         back_populates="session",
         cascade="all, delete-orphan",
-        order_by="SessionVersion.version_number.desc()",
+        # order_by handled in query when needed
     )
 
     # Indexes for performance (must match migration exactly)
