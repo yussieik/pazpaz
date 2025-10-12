@@ -78,6 +78,7 @@ interface TimelineItem {
 // State
 const sessions = ref<SessionItem[]>([])
 const appointments = ref<AppointmentItem[]>([])
+const sessionAppointments = ref<Map<string, AppointmentItem>>(new Map())
 const loading = ref(true)
 const error = ref<string | null>(null)
 
@@ -106,7 +107,10 @@ const isEmpty = computed(
 
 // Fetch data
 onMounted(async () => {
-  await Promise.all([fetchSessions(), fetchAppointments()])
+  // IMPORTANT: Must fetch sessions FIRST before appointments
+  // fetchAppointments() depends on sessions.value to filter out appointments with existing sessions
+  await fetchSessions()
+  await fetchAppointments()
 })
 
 async function fetchSessions() {
@@ -114,6 +118,27 @@ async function fetchSessions() {
     const response = await apiClient.get(`/sessions?client_id=${props.clientId}`)
     const fetchedSessions = response.data.items || []
     sessions.value = fetchedSessions
+
+    // Fetch appointment details for sessions that have appointment_id
+    const appointmentIds = fetchedSessions
+      .map((s: SessionItem) => s.appointment_id)
+      .filter(Boolean) as string[]
+
+    if (appointmentIds.length > 0) {
+      // Fetch appointments in parallel
+      const appointmentPromises = appointmentIds.map((id) =>
+        apiClient.get(`/appointments/${id}`).catch(() => null)
+      )
+      const appointmentResponses = await Promise.all(appointmentPromises)
+
+      // Build map of session_id -> appointment
+      sessionAppointments.value.clear()
+      fetchedSessions.forEach((session: SessionItem, index: number) => {
+        if (session.appointment_id && appointmentResponses[index]?.data) {
+          sessionAppointments.value.set(session.id, appointmentResponses[index].data)
+        }
+      })
+    }
   } catch (err) {
     console.error('Failed to fetch sessions:', err)
     const axiosError = err as AxiosError<{ detail?: string }>
@@ -129,13 +154,16 @@ async function fetchAppointments() {
     const response = await apiClient.get(
       `/appointments?client_id=${props.clientId}&status=completed`
     )
+
     // Filter out appointments that already have sessions
     const sessionAppointmentIds = new Set(
       sessions.value.map((s) => s.appointment_id).filter(Boolean)
     )
-    appointments.value = (response.data.items || []).filter(
+
+    const filteredAppointments = (response.data.items || []).filter(
       (appt: AppointmentItem) => !sessionAppointmentIds.has(appt.id)
     )
+    appointments.value = filteredAppointments
   } catch (err) {
     console.error('Failed to fetch appointments:', err)
     // Don't set error - appointments are supplementary
@@ -209,6 +237,41 @@ function isAppointment(
 }
 
 /**
+ * Get appointment details for a session
+ */
+function getAppointmentForSession(sessionId: string): AppointmentItem | undefined {
+  return sessionAppointments.value.get(sessionId)
+}
+
+/**
+ * Format appointment context for display
+ * Format: "Service Name • Location • Duration"
+ */
+function formatAppointmentContext(appointment: AppointmentItem): string {
+  const parts: string[] = []
+
+  if (appointment.service_name) {
+    parts.push(appointment.service_name)
+  }
+
+  if (appointment.location_type) {
+    const locationLabel: Record<string, string> = {
+      clinic: 'Clinic',
+      home: 'Home Visit',
+      online: 'Online',
+    }
+    parts.push(locationLabel[appointment.location_type] || appointment.location_type)
+  }
+
+  const duration = calculateDuration(appointment.scheduled_start, appointment.scheduled_end)
+  if (duration > 0) {
+    parts.push(`${duration} min`)
+  }
+
+  return parts.join(' • ')
+}
+
+/**
  * Handle session deletion from SessionCard
  * Remove from local array and notify parent
  */
@@ -233,11 +296,11 @@ function handleViewSession(sessionId: string) {
 /**
  * Refresh the timeline by fetching both sessions and appointments
  * Exposed to parent components for manual refresh triggers
+ * IMPORTANT: Must fetch sessions FIRST before appointments (fetchAppointments depends on sessions.value)
  */
 async function refresh() {
-  console.log('[SessionTimeline] refresh() called')
-  await Promise.all([fetchSessions(), fetchAppointments()])
-  console.log('[SessionTimeline] refresh() complete')
+  await fetchSessions()
+  await fetchAppointments()
 }
 
 // Expose refresh method to parent components
@@ -301,6 +364,37 @@ defineExpose({
                 ]">
                   {{ item.data.is_draft ? 'Draft' : 'Finalized' }}
                 </span>
+              </div>
+
+              <!-- Appointment Context (if appointment exists) -->
+              <div
+                v-if="getAppointmentForSession(item.data.id)"
+                class="mt-1 text-sm text-slate-600"
+              >
+                <span class="inline-flex items-center gap-1">
+                  <svg
+                    class="h-3.5 w-3.5 text-slate-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                    />
+                  </svg>
+                  {{ formatAppointmentContext(getAppointmentForSession(item.data.id)!) }}
+                </span>
+              </div>
+
+              <!-- Standalone session label -->
+              <div
+                v-else-if="item.data.appointment_id === null"
+                class="mt-1 text-sm italic text-slate-500"
+              >
+                Standalone session
               </div>
 
               <!-- SOAP Preview -->
