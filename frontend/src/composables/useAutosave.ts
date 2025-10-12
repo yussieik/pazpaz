@@ -1,6 +1,7 @@
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import type { AxiosError } from 'axios'
+import { useSecureOfflineBackup } from './useSecureOfflineBackup'
 
 /**
  * Composable for auto-saving content with debounced updates
@@ -47,6 +48,18 @@ export interface AutosaveOptions {
    * @default true
    */
   autoStart?: boolean
+
+  /**
+   * Session ID for encrypted localStorage backup
+   * Required for offline support
+   */
+  sessionId?: string
+
+  /**
+   * Session version for optimistic locking
+   * Used to detect conflicts when syncing offline changes
+   */
+  version?: number
 }
 
 export interface AutosaveState {
@@ -71,13 +84,58 @@ export function useAutosave<T = Record<string, unknown>>(
   saveFn: (data: T) => Promise<void>,
   options: AutosaveOptions = {}
 ) {
-  const { debounceMs = 5000, onSuccess, onError, autoStart = true } = options
+  const {
+    debounceMs = 5000,
+    onSuccess,
+    onError,
+    autoStart = true,
+    sessionId,
+    version,
+  } = options
 
   // State
   const isSaving = ref(false)
   const lastSavedAt = ref<Date | null>(null)
   const saveError = ref<string | null>(null)
   const isActive = ref(autoStart)
+  const isOnline = ref(navigator.onLine)
+
+  // Initialize offline backup if session ID provided
+  const { backupDraft, syncToServer } = useSecureOfflineBackup()
+
+  /**
+   * Network status event handlers
+   * Auto-sync when coming back online
+   */
+  const handleOnline = () => {
+    isOnline.value = true
+    console.info('[Autosave] Network connection restored')
+
+    // Auto-sync when coming back online
+    if (sessionId) {
+      syncToServer(sessionId).then((synced) => {
+        if (synced) {
+          console.info('[Autosave] Auto-synced offline changes to server')
+        }
+      })
+    }
+  }
+
+  const handleOffline = () => {
+    isOnline.value = false
+    console.warn('[Autosave] Network connection lost - changes will be saved locally')
+  }
+
+  // Setup network status listeners
+  onMounted(() => {
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+  })
+
+  onBeforeUnmount(() => {
+    window.removeEventListener('online', handleOnline)
+    window.removeEventListener('offline', handleOffline)
+  })
 
   /**
    * Perform the actual save operation
@@ -92,11 +150,40 @@ export function useAutosave<T = Record<string, unknown>>(
     saveError.value = null
 
     try {
-      await saveFn(data)
-      lastSavedAt.value = new Date()
+      // Always backup to encrypted localStorage first (even when online)
+      // This provides a safety net in case the network request fails
+      if (sessionId && version !== undefined) {
+        // Cast to SessionDraft type for backup
+        await backupDraft(
+          sessionId,
+          data as {
+            subjective: string | null
+            objective: string | null
+            assessment: string | null
+            plan: string | null
+            session_date: string
+            duration_minutes: number | null
+          },
+          version
+        )
+      }
 
-      if (onSuccess) {
-        onSuccess()
+      // Try to save to server if online
+      if (isOnline.value) {
+        await saveFn(data)
+        lastSavedAt.value = new Date()
+
+        // Clear localStorage after successful server save
+        if (sessionId) {
+          localStorage.removeItem(`session_${sessionId}_backup`)
+        }
+
+        if (onSuccess) {
+          onSuccess()
+        }
+      } else {
+        // Offline: backup exists, show offline indicator
+        console.info('[Autosave] Offline - changes saved to encrypted localStorage')
       }
     } catch (error) {
       console.error('Autosave failed:', error)
@@ -124,6 +211,8 @@ export function useAutosave<T = Record<string, unknown>>(
         }
       } else if (axiosError.request) {
         errorMessage = 'Network error. Please check your connection.'
+        // Mark as offline
+        isOnline.value = false
       }
 
       saveError.value = errorMessage
@@ -132,7 +221,14 @@ export function useAutosave<T = Record<string, unknown>>(
         onError(error as Error)
       }
 
-      throw error
+      // Don't throw error - we have a local backup
+      if (!isOnline.value) {
+        console.info(
+          '[Autosave] Network error caught - changes preserved in local backup'
+        )
+      } else {
+        throw error
+      }
     } finally {
       isSaving.value = false
     }
@@ -207,6 +303,7 @@ export function useAutosave<T = Record<string, unknown>>(
     lastSavedAt,
     saveError,
     isActive,
+    isOnline, // NEW: Network status for offline indicator
 
     // Methods
     save,

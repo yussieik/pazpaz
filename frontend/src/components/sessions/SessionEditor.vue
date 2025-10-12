@@ -21,6 +21,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { onKeyStroke } from '@vueuse/core'
 import { useAutosave } from '@/composables/useAutosave'
+import { useSecureOfflineBackup } from '@/composables/useSecureOfflineBackup'
 import { useLocalStorage } from '@vueuse/core'
 import { formatDistanceToNow } from 'date-fns'
 import apiClient from '@/api/client'
@@ -94,6 +95,18 @@ function dismissSoapGuide() {
 // Version history modal state
 const showVersionHistory = ref(false)
 
+// Restore prompt state (encrypted localStorage backup)
+const { restoreDraft, syncToServer } = useSecureOfflineBackup()
+const showRestorePrompt = ref(false)
+const localBackupData = ref<{
+  subjective: string | null
+  objective: string | null
+  assessment: string | null
+  plan: string | null
+  session_date: string
+  duration_minutes: number | null
+} | null>(null)
+
 // Character limits
 const CHAR_LIMIT = 5000
 
@@ -122,10 +135,11 @@ const hasContent = computed(() => {
   )
 })
 
-// Autosave setup
+// Autosave setup with encrypted localStorage backup
 const {
   isSaving,
   saveError,
+  isOnline,
   save: triggerAutosave,
   forceSave,
   stop: stopAutosave,
@@ -146,6 +160,8 @@ const {
   },
   {
     debounceMs: 5000,
+    sessionId: props.sessionId, // Enable encrypted localStorage backup
+    version: computed(() => session.value?.version).value, // For optimistic locking
     onSuccess: () => {
       // Reload session to get updated draft_last_saved_at
       loadSession(true) // silent reload
@@ -242,7 +258,6 @@ async function finalizeSession() {
     return
   }
 
-
   isFinalizing.value = true
   finalizeError.value = null
 
@@ -282,9 +297,57 @@ onKeyStroke(['Meta+Enter', 'Control+Enter'], (e) => {
   }
 })
 
+// Restore encrypted backup prompt functions
+async function restoreFromBackup() {
+  if (!localBackupData.value) return
+
+  // Restore form data (convert null to empty string for form fields)
+  formData.value = {
+    subjective: localBackupData.value.subjective || '',
+    objective: localBackupData.value.objective || '',
+    assessment: localBackupData.value.assessment || '',
+    plan: localBackupData.value.plan || '',
+    session_date: localBackupData.value.session_date || '',
+    duration_minutes: localBackupData.value.duration_minutes,
+  }
+
+  // Sync to server immediately
+  await syncToServer(props.sessionId)
+
+  showRestorePrompt.value = false
+  localBackupData.value = null
+
+  // Reload session to get updated server state
+  await loadSession(true)
+}
+
+function discardBackup() {
+  localStorage.removeItem(`session_${props.sessionId}_backup`)
+  showRestorePrompt.value = false
+  localBackupData.value = null
+}
+
 // Lifecycle hooks
-onMounted(() => {
-  loadSession()
+onMounted(async () => {
+  await loadSession()
+
+  // After loading session, check for encrypted localStorage backup
+  const backup = await restoreDraft(props.sessionId)
+  if (backup && backup.draft) {
+    // Compare timestamps: only prompt if backup is newer than server
+    const backupTime = backup.timestamp || 0
+    const serverTime = session.value?.draft_last_saved_at
+      ? new Date(session.value.draft_last_saved_at).getTime()
+      : 0
+
+    if (backupTime > serverTime) {
+      showRestorePrompt.value = true
+      localBackupData.value = backup.draft
+    } else {
+      // Server is newer, discard local backup
+      localStorage.removeItem(`session_${props.sessionId}_backup`)
+    }
+  }
 })
 
 onBeforeUnmount(() => {
@@ -421,6 +484,22 @@ watch(
           <!-- Session Note Badges Component -->
           <SessionNoteBadges v-if="session" :session="session" />
 
+          <!-- Offline Indicator -->
+          <span
+            v-if="!isOnline"
+            class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800"
+          >
+            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3"
+              />
+            </svg>
+            Offline - Changes saved locally
+          </span>
+
           <!-- View Version History Button (if amended) -->
           <button
             v-if="session?.amended_at"
@@ -435,9 +514,10 @@ watch(
           <span
             class="text-sm"
             :class="{
-              'text-slate-600': !isSaving && !saveError,
+              'text-slate-600': !isSaving && !saveError && isOnline,
               'text-blue-600': isSaving,
               'text-red-600': saveError,
+              'text-amber-600': !isOnline && !isSaving,
             }"
             aria-live="polite"
             aria-atomic="true"
@@ -658,6 +738,58 @@ watch(
       :open="showVersionHistory"
       @close="showVersionHistory = false"
     />
+
+    <!-- Restore Unsaved Changes Prompt (Encrypted localStorage backup) -->
+    <Teleport to="body">
+      <div
+        v-if="showRestorePrompt"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        @click.self="discardBackup"
+      >
+        <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+          <div class="mb-4 flex items-start gap-3">
+            <svg
+              class="mt-0.5 h-6 w-6 flex-shrink-0 text-blue-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            <div>
+              <h3 class="text-lg font-semibold text-slate-900">
+                Restore Unsaved Changes?
+              </h3>
+              <p class="mt-2 text-sm text-slate-600">
+                You have unsaved changes from a previous session that were saved
+                locally. Would you like to restore them?
+              </p>
+            </div>
+          </div>
+          <div class="mt-6 flex justify-end gap-3">
+            <button
+              @click="discardBackup"
+              type="button"
+              class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:outline-none"
+            >
+              Discard
+            </button>
+            <button
+              @click="restoreFromBackup"
+              type="button"
+              class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 focus:outline-none"
+            >
+              Restore Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
