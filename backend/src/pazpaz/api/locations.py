@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import math
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.api.deps import get_current_user, get_db, get_or_404
@@ -19,6 +18,16 @@ from pazpaz.schemas.location import (
     LocationListResponse,
     LocationResponse,
     LocationUpdate,
+)
+from pazpaz.utils.crud_helpers import (
+    apply_partial_update,
+    check_unique_name_in_workspace,
+    soft_delete_with_fk_check,
+)
+from pazpaz.utils.pagination import (
+    calculate_pagination_offset,
+    calculate_total_pages,
+    get_query_total_count,
 )
 
 router = APIRouter(prefix="/locations", tags=["locations"])
@@ -74,25 +83,10 @@ async def create_location(
             detail=f"Address is required for {location_type} locations",
         )
 
-    # Check if location name already exists in workspace (unique constraint)
-    existing_query = select(Location).where(
-        Location.workspace_id == workspace_id,
-        Location.name == location_data.name,
+    # Check if location name already exists in workspace
+    await check_unique_name_in_workspace(
+        db, Location, workspace_id, location_data.name
     )
-    existing_result = await db.execute(existing_query)
-    existing_location = existing_result.scalar_one_or_none()
-
-    if existing_location:
-        logger.info(
-            "location_create_conflict",
-            workspace_id=str(workspace_id),
-            location_name=location_data.name,
-        )
-        location_name = location_data.name
-        raise HTTPException(
-            status_code=409,
-            detail=f"Location with name '{location_name}' already exists",
-        )
 
     # Create new location instance with injected workspace_id
     location = Location(
@@ -137,7 +131,8 @@ async def list_locations(
     Returns a paginated list of locations, ordered by name.
     All results are scoped to the authenticated workspace.
 
-    SECURITY: Only returns locations belonging to the authenticated user's workspace (from JWT).
+    SECURITY: Only returns locations belonging to the authenticated user's
+    workspace (from JWT).
 
     Args:
         current_user: Authenticated user (from JWT token)
@@ -163,8 +158,8 @@ async def list_locations(
         location_type=location_type.value if location_type else None,
     )
 
-    # Calculate offset
-    offset = (page - 1) * page_size
+    # Calculate offset using utility
+    offset = calculate_pagination_offset(page, page_size)
 
     # Build base query with workspace scoping
     base_query = select(Location).where(Location.workspace_id == workspace_id)
@@ -177,18 +172,16 @@ async def list_locations(
     if location_type is not None:
         base_query = base_query.where(Location.location_type == location_type)
 
-    # Get total count
-    count_query = select(func.count()).select_from(base_query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar_one()
+    # Get total count using utility
+    total = await get_query_total_count(db, base_query)
 
     # Get paginated results ordered by name
     query = base_query.order_by(Location.name).offset(offset).limit(page_size)
     result = await db.execute(query)
     locations = result.scalars().all()
 
-    # Calculate total pages
-    total_pages = math.ceil(total / page_size) if total > 0 else 0
+    # Calculate total pages using utility
+    total_pages = calculate_total_pages(total, page_size)
 
     logger.debug(
         "location_list_completed",
@@ -218,7 +211,8 @@ async def get_location(
     Retrieves a location by ID, ensuring it belongs to the authenticated workspace.
 
     SECURITY: Returns 404 for non-existent locations and locations in
-    other workspaces to prevent information leakage. workspace_id is derived from JWT token.
+    other workspaces to prevent information leakage. workspace_id is derived
+    from JWT token.
 
     Args:
         location_id: UUID of the location
@@ -270,8 +264,8 @@ async def update_location(
     # Fetch existing location with workspace scoping (raises 404 if not found)
     location = await get_or_404(db, Location, location_id, workspace_id)
 
-    # Update only provided fields
-    update_data = location_data.model_dump(exclude_unset=True)
+    # Apply partial update and get updated fields
+    update_data = apply_partial_update(location, location_data)
 
     # Determine final location_type for validation
     final_location_type = update_data.get("location_type", location.location_type)
@@ -298,29 +292,9 @@ async def update_location(
 
     # Check for name conflicts if name is being updated
     if "name" in update_data and update_data["name"] != location.name:
-        existing_query = select(Location).where(
-            Location.workspace_id == workspace_id,
-            Location.name == update_data["name"],
-            Location.id != location_id,
+        await check_unique_name_in_workspace(
+            db, Location, workspace_id, update_data["name"], exclude_id=location_id
         )
-        existing_result = await db.execute(existing_query)
-        existing_location = existing_result.scalar_one_or_none()
-
-        if existing_location:
-            logger.info(
-                "location_update_conflict",
-                location_id=str(location_id),
-                workspace_id=str(workspace_id),
-                location_name=update_data["name"],
-            )
-            location_name = update_data["name"]
-            raise HTTPException(
-                status_code=409,
-                detail=f"Location with name '{location_name}' already exists",
-            )
-
-    for field, value in update_data.items():
-        setattr(location, field, value)
 
     await db.commit()
     await db.refresh(location)
@@ -366,31 +340,13 @@ async def delete_location(
     # Fetch existing location with workspace scoping (raises 404 if not found)
     location = await get_or_404(db, Location, location_id, workspace_id)
 
-    # Check if location is referenced by any appointments
-    appointments_query = select(func.count()).where(
-        Appointment.location_id == location_id
+    # Smart deletion: soft delete if referenced, hard delete if not
+    await soft_delete_with_fk_check(
+        db,
+        location,
+        location_id,
+        workspace_id,
+        Appointment,
+        "location_id",
+        "location",
     )
-    appointments_result = await db.execute(appointments_query)
-    appointments_count = appointments_result.scalar_one()
-
-    if appointments_count > 0:
-        # Soft delete: set is_active to False instead of deleting
-        location.is_active = False
-        await db.commit()
-
-        logger.info(
-            "location_soft_deleted",
-            location_id=str(location_id),
-            workspace_id=str(workspace_id),
-            appointments_count=appointments_count,
-        )
-    else:
-        # Hard delete: no appointments reference this location
-        await db.delete(location)
-        await db.commit()
-
-        logger.info(
-            "location_hard_deleted",
-            location_id=str(location_id),
-            workspace_id=str(workspace_id),
-        )

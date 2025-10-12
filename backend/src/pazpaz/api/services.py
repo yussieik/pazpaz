@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import math
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.api.deps import get_current_user, get_db, get_or_404
@@ -19,6 +18,16 @@ from pazpaz.schemas.service import (
     ServiceListResponse,
     ServiceResponse,
     ServiceUpdate,
+)
+from pazpaz.utils.crud_helpers import (
+    apply_partial_update,
+    check_unique_name_in_workspace,
+    soft_delete_with_fk_check,
+)
+from pazpaz.utils.pagination import (
+    calculate_pagination_offset,
+    calculate_total_pages,
+    get_query_total_count,
 )
 
 router = APIRouter(prefix="/services", tags=["services"])
@@ -54,25 +63,10 @@ async def create_service(
     workspace_id = current_user.workspace_id
     logger.info("service_create_started", workspace_id=str(workspace_id))
 
-    # Check if service name already exists in workspace (unique constraint)
-    existing_query = select(Service).where(
-        Service.workspace_id == workspace_id,
-        Service.name == service_data.name,
+    # Check if service name already exists in workspace
+    await check_unique_name_in_workspace(
+        db, Service, workspace_id, service_data.name
     )
-    existing_result = await db.execute(existing_query)
-    existing_service = existing_result.scalar_one_or_none()
-
-    if existing_service:
-        logger.info(
-            "service_create_conflict",
-            workspace_id=str(workspace_id),
-            service_name=service_data.name,
-        )
-        service_name = service_data.name
-        raise HTTPException(
-            status_code=409,
-            detail=f"Service with name '{service_name}' already exists",
-        )
 
     # Create new service instance with injected workspace_id
     service = Service(
@@ -112,7 +106,8 @@ async def list_services(
     Returns a paginated list of services, ordered by name.
     All results are scoped to the authenticated workspace.
 
-    SECURITY: Only returns services belonging to the authenticated user's workspace (from JWT).
+    SECURITY: Only returns services belonging to the authenticated user's
+    workspace (from JWT).
 
     Args:
         current_user: Authenticated user (from JWT token)
@@ -136,8 +131,8 @@ async def list_services(
         is_active=is_active,
     )
 
-    # Calculate offset
-    offset = (page - 1) * page_size
+    # Calculate offset using utility
+    offset = calculate_pagination_offset(page, page_size)
 
     # Build base query with workspace scoping
     base_query = select(Service).where(Service.workspace_id == workspace_id)
@@ -146,18 +141,16 @@ async def list_services(
     if is_active is not None:
         base_query = base_query.where(Service.is_active == is_active)
 
-    # Get total count
-    count_query = select(func.count()).select_from(base_query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar_one()
+    # Get total count using utility
+    total = await get_query_total_count(db, base_query)
 
     # Get paginated results ordered by name
     query = base_query.order_by(Service.name).offset(offset).limit(page_size)
     result = await db.execute(query)
     services = result.scalars().all()
 
-    # Calculate total pages
-    total_pages = math.ceil(total / page_size) if total > 0 else 0
+    # Calculate total pages using utility
+    total_pages = calculate_total_pages(total, page_size)
 
     logger.debug(
         "service_list_completed",
@@ -187,7 +180,8 @@ async def get_service(
     Retrieves a service by ID, ensuring it belongs to the authenticated workspace.
 
     SECURITY: Returns 404 for non-existent services and services in
-    other workspaces to prevent information leakage. workspace_id is derived from JWT token.
+    other workspaces to prevent information leakage. workspace_id is derived
+    from JWT token.
 
     Args:
         service_id: UUID of the service
@@ -239,34 +233,14 @@ async def update_service(
     # Fetch existing service with workspace scoping (raises 404 if not found)
     service = await get_or_404(db, Service, service_id, workspace_id)
 
-    # Update only provided fields
-    update_data = service_data.model_dump(exclude_unset=True)
+    # Apply partial update and get updated fields
+    update_data = apply_partial_update(service, service_data)
 
     # Check for name conflicts if name is being updated
     if "name" in update_data and update_data["name"] != service.name:
-        existing_query = select(Service).where(
-            Service.workspace_id == workspace_id,
-            Service.name == update_data["name"],
-            Service.id != service_id,
+        await check_unique_name_in_workspace(
+            db, Service, workspace_id, update_data["name"], exclude_id=service_id
         )
-        existing_result = await db.execute(existing_query)
-        existing_service = existing_result.scalar_one_or_none()
-
-        if existing_service:
-            logger.info(
-                "service_update_conflict",
-                service_id=str(service_id),
-                workspace_id=str(workspace_id),
-                service_name=update_data["name"],
-            )
-            service_name = update_data["name"]
-            raise HTTPException(
-                status_code=409,
-                detail=f"Service with name '{service_name}' already exists",
-            )
-
-    for field, value in update_data.items():
-        setattr(service, field, value)
 
     await db.commit()
     await db.refresh(service)
@@ -312,31 +286,13 @@ async def delete_service(
     # Fetch existing service with workspace scoping (raises 404 if not found)
     service = await get_or_404(db, Service, service_id, workspace_id)
 
-    # Check if service is referenced by any appointments
-    appointments_query = select(func.count()).where(
-        Appointment.service_id == service_id
+    # Smart deletion: soft delete if referenced, hard delete if not
+    await soft_delete_with_fk_check(
+        db,
+        service,
+        service_id,
+        workspace_id,
+        Appointment,
+        "service_id",
+        "service",
     )
-    appointments_result = await db.execute(appointments_query)
-    appointments_count = appointments_result.scalar_one()
-
-    if appointments_count > 0:
-        # Soft delete: set is_active to False instead of deleting
-        service.is_active = False
-        await db.commit()
-
-        logger.info(
-            "service_soft_deleted",
-            service_id=str(service_id),
-            workspace_id=str(workspace_id),
-            appointments_count=appointments_count,
-        )
-    else:
-        # Hard delete: no appointments reference this service
-        await db.delete(service)
-        await db.commit()
-
-        logger.info(
-            "service_hard_deleted",
-            service_id=str(service_id),
-            workspace_id=str(workspace_id),
-        )

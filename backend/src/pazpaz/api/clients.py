@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 import uuid
 from datetime import UTC, datetime
 
@@ -20,6 +19,12 @@ from pazpaz.schemas.client import (
     ClientListResponse,
     ClientResponse,
     ClientUpdate,
+)
+from pazpaz.utils.crud_helpers import apply_partial_update
+from pazpaz.utils.pagination import (
+    calculate_pagination_offset,
+    calculate_total_pages,
+    get_query_total_count,
 )
 
 router = APIRouter(prefix="/clients", tags=["clients"])
@@ -175,7 +180,8 @@ async def list_clients(
     By default, only active clients are returned. Use include_inactive=true
     to see archived clients as well.
 
-    SECURITY: Only returns clients belonging to the authenticated user's workspace (from JWT).
+    SECURITY: Only returns clients belonging to the authenticated user's
+    workspace (from JWT).
 
     Args:
         current_user: Authenticated user (from JWT token)
@@ -202,8 +208,8 @@ async def list_clients(
         include_appointments=include_appointments,
     )
 
-    # Calculate offset
-    offset = (page - 1) * page_size
+    # Calculate offset using utility
+    offset = calculate_pagination_offset(page, page_size)
 
     # Build base query with workspace scoping
     base_query = select(Client).where(Client.workspace_id == workspace_id)
@@ -212,10 +218,8 @@ async def list_clients(
     if not include_inactive:
         base_query = base_query.where(Client.is_active == True)  # noqa: E712
 
-    # Get total count
-    count_query = select(func.count()).select_from(base_query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar_one()
+    # Get total count using utility
+    total = await get_query_total_count(db, base_query)
 
     # Get paginated results ordered by name
     query = (
@@ -226,8 +230,8 @@ async def list_clients(
     result = await db.execute(query)
     clients = result.scalars().all()
 
-    # Calculate total pages
-    total_pages = math.ceil(total / page_size) if total > 0 else 0
+    # Calculate total pages using utility
+    total_pages = calculate_total_pages(total, page_size)
 
     # Conditionally enrich with appointment data
     if include_appointments:
@@ -265,8 +269,9 @@ async def get_client(
     Retrieves a client by ID, ensuring it belongs to the authenticated workspace.
     Includes computed fields: next_appointment, last_appointment, appointment_count.
 
-    SECURITY: Returns 404 for both non-existent clients and clients in other workspaces
-    to prevent information leakage. workspace_id is derived from JWT token (server-side).
+    SECURITY: Returns 404 for both non-existent clients and clients in other
+    workspaces to prevent information leakage. workspace_id is derived from
+    JWT token (server-side).
 
     PHI ACCESS: This endpoint accesses Protected Health Information (PHI).
     All access is automatically logged by AuditMiddleware for HIPAA compliance.
@@ -325,10 +330,8 @@ async def update_client(
     # Fetch existing client with workspace scoping (raises 404 if not found)
     client = await get_or_404(db, Client, client_id, workspace_id)
 
-    # Update only provided fields
-    update_data = client_data.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(client, field, value)
+    # Apply partial update and get updated fields
+    update_data = apply_partial_update(client, client_data)
 
     await db.commit()
     await db.refresh(client)
