@@ -181,6 +181,9 @@ assert len(pdf_reader.pages) <= max_pages
 
 # Verify first page readable
 _first_page = pdf_reader.pages[0]
+
+# Note: PDF metadata stripping is also implemented
+# See: /docs/backend/PDF_METADATA_SANITIZATION_IMPLEMENTATION.md
 ```
 
 **Blocked threats**:
@@ -737,7 +740,7 @@ curl -X POST ... -F "file=@large.jpg"
 
 1. **Virus scanning**: Integrate ClamAV for malware detection
 2. **Image optimization**: Auto-resize large images to reduce storage
-3. **PDF metadata stripping**: Remove PDF metadata (author, keywords)
+3. **PDF metadata stripping**: Remove PDF metadata (author, keywords) - **Already implemented!** See [PDF Metadata Sanitization](/docs/backend/PDF_METADATA_SANITIZATION_IMPLEMENTATION.md)
 4. **OCR integration**: Extract text from uploaded images/PDFs
 5. **Thumbnails**: Generate thumbnails for image attachments
 6. **Video support**: Add MP4 video attachments for treatment demos

@@ -1,5 +1,26 @@
 # Flexible Record Management
 
+**Last Updated**: 2025-01-13
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+  - [1. Completed Appointment Deletion](#1-completed-appointment-deletion)
+  - [2. Appointment Field-Level Edit Tracking](#2-appointment-field-level-edit-tracking)
+  - [3. Session Note Version History & Amendments](#3-session-note-version-history--amendments)
+- [Database Schema](#database-schema)
+- [Security Guarantees](#security-guarantees)
+- [Performance Considerations](#performance-considerations)
+- [Edge Cases Handled](#edge-cases-handled)
+- [Migration Guide](#migration-guide)
+- [Testing Strategy](#testing-strategy)
+- [Frontend Integration](#frontend-integration)
+- [Compliance & Legal Considerations](#compliance--legal-considerations)
+- [Frequently Asked Questions](#frequently-asked-questions)
+- [Future Enhancements](#future-enhancements-out-of-scope)
+- [See Also](#see-also)
+
 ## Overview
 
 PazPaz implements a "Trust with Transparency" approach to medical record management. Independent therapists have full autonomy to edit and delete their own records, while maintaining comprehensive audit trails for their protection.
@@ -618,9 +639,18 @@ interface SessionVersionResponse {
 - **Export Audit Trail**: Generate compliance reports
 - **Version Expiry**: Auto-delete old versions after N years (legal requirement?)
 
-## Related Documentation
+## See Also
 
-- [Audit System](../audit/AUDIT_SYSTEM.md)
-- [PHI Encryption](../encryption/PHI_ENCRYPTION.md)
-- [API Documentation](../api/)
-- [Security First Implementation Plan](../../docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md)
+### API Documentation
+- [API Endpoint Reference](./API.md) - Complete endpoint documentation
+- [Rate Limiting Implementation](./RATE_LIMITING_IMPLEMENTATION.md) - Rate limiting patterns
+
+### Backend Documentation
+- [Audit System](/backend/docs/audit/) - Audit logging patterns
+- [PHI Encryption](/backend/docs/encryption/) - Encryption implementation
+- [Database Schema](/backend/docs/database/) - Schema and migrations
+- [Testing Strategy](/backend/docs/testing/) - Testing patterns
+
+### Security & Compliance
+- [Security First Implementation Plan](/docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md) - Security roadmap
+- [HIPAA Compliance](/docs/security/HIPAA_COMPLIANCE.md) - HIPAA requirements

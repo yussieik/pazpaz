@@ -1,159 +1,183 @@
 # Backend Documentation
 
-This directory contains backend-specific technical documentation for the PazPaz practice management system.
+This directory contains backend-specific technical documentation for the PazPaz practice management system. This serves as the central navigation hub for all backend-related documentation.
+
+## 🚀 Getting Started
+
+### Quick Start for Backend Development
+
+1. **Setup Development Environment**
+   ```bash
+   cd backend
+   cp .env.example .env
+   # Edit .env with your configuration
+
+   # Install dependencies (Python 3.13.5)
+   uv python install 3.13.5
+   uv python pin 3.13.5
+   uv sync
+   ```
+
+2. **Start Services**
+   ```bash
+   # From project root
+   docker-compose up -d db redis minio
+
+   # From backend directory
+   uv run alembic upgrade head
+   uv run python -m pazpaz.main
+   ```
+
+3. **Run Tests**
+   ```bash
+   uv run pytest tests/
+   ```
+
+4. **Key Resources**
+   - [API Patterns & Conventions](api/README.md)
+   - [Database Schema](database/README.md)
+   - [Storage Configuration](storage/STORAGE_CONFIGURATION.md)
+   - [Testing Guide](/docs/testing/backend/PYTEST_CONFIGURATION_GUIDE.md)
 
 ## 📁 Directory Structure
 
 ```
-backend/docs/
-├── README.md                    # This file
-│
-├── encryption/                  # PHI Encryption
-│   ├── ENCRYPTION_ARCHITECTURE.md
-│   ├── ENCRYPTION_IMPLEMENTATION_GUIDE.md
-│   ├── ENCRYPTION_USAGE_GUIDE.md
-│   ├── KEY_ROTATION_PROCEDURE.md
-│   ├── DATABASE_ENCRYPTION_MIGRATION_TEMPLATE.md
-│   ├── DAY3_AFTERNOON_ENCRYPTION_DESIGN_SUMMARY.md
-│   ├── DAY4_DATABASE_ENCRYPTION_PERFORMANCE.md
-│   ├── DATABASE_ARCHITECTURE_REVIEW_DAY4_ENCRYPTION.md
-│   ├── WEEK1_DAY4_ENCRYPTION_IMPLEMENTATION_SUMMARY.md
-│   └── ENCRYPTED_MODELS_EXAMPLE.py
-│
-├── testing/                     # Test Infrastructure
-│   ├── PYTEST_CONFIGURATION_GUIDE.md
-│   ├── TEST_FIXTURE_ANALYSIS.md
-│   └── TEST_FIXTURE_QUICK_REFERENCE.md
+docs/backend/                    # Backend documentation root
+├── README.md                    # This file - navigation hub
 │
 ├── api/                         # API Implementation
-│   └── README.md (Coming in Week 2+)
+│   ├── README.md               # API patterns and conventions
+│   ├── API.md                  # Detailed API implementation guide
+│   ├── RATE_LIMITING_IMPLEMENTATION.md
+│   └── FLEXIBLE_RECORD_MANAGEMENT.md
 │
 ├── database/                    # Database Schema & Migrations
-│   └── README.md (Coming in Week 2+)
+│   ├── README.md               # Database overview
+│   ├── DATABASE_ARCHITECTURE_REVIEW.md
+│   ├── SESSIONS_SCHEMA.md
+│   └── WEEK2_DAY1_MORNING_SESSIONS_MIGRATION_REPORT.md
 │
-└── performance/                 # Performance Benchmarks
-    └── README.md (Coming in Week 5)
+├── storage/                     # S3/MinIO File Storage
+│   ├── STORAGE_CONFIGURATION.md
+│   ├── FILE_UPLOAD_SECURITY.md
+│   ├── S3_CREDENTIAL_MANAGEMENT.md
+│   └── WEEK3_DAY11_STORAGE_IMPLEMENTATION_SUMMARY.md
+│
+├── PDF_METADATA_SANITIZATION_IMPLEMENTATION.md  # PDF PHI protection
+└── SOFT_DELETE_PURGE_JOB.md                    # Soft delete implementation
 ```
 
 ## 📚 Documentation Categories
 
-### Encryption (`encryption/`)
-
-**PHI encryption implementation, key management, and security controls.**
-
-#### Core Guides
-- **ENCRYPTION_ARCHITECTURE.md** (41 KB) - Encryption system design and architecture
-- **ENCRYPTION_IMPLEMENTATION_GUIDE.md** (33 KB) - Step-by-step implementation guide
-- **ENCRYPTION_USAGE_GUIDE.md** (19 KB) - How to use encryption in your code
-- **KEY_ROTATION_PROCEDURE.md** (31 KB) - Routine and emergency key rotation procedures
-
-#### Database Integration
-- **DATABASE_ENCRYPTION_MIGRATION_TEMPLATE.md** (29 KB) - Migration template for encrypted columns
-- **ENCRYPTED_MODELS_EXAMPLE.py** (16 KB) - SQLAlchemy models with encryption examples
-
-#### Implementation Reports
-- **DAY3_AFTERNOON_ENCRYPTION_DESIGN_SUMMARY.md** (15 KB) - Day 3 design decisions
-- **DAY4_DATABASE_ENCRYPTION_PERFORMANCE.md** (18 KB) - Performance benchmarks and analysis
-- **DATABASE_ARCHITECTURE_REVIEW_DAY4_ENCRYPTION.md** (50 KB) - Architecture review and validation
-- **WEEK1_DAY4_ENCRYPTION_IMPLEMENTATION_SUMMARY.md** (9 KB) - Week 1 Day 4 summary
-
-### Testing (`testing/`)
-
-**pytest configuration, test fixtures, and testing best practices.**
-
-- **PYTEST_CONFIGURATION_GUIDE.md** (22 KB) - Comprehensive pytest configuration reference
-- **TEST_FIXTURE_ANALYSIS.md** (15 KB) - Test fixture architecture and troubleshooting
-- **TEST_FIXTURE_QUICK_REFERENCE.md** (6 KB) - Quick reference for common test patterns
-
 ### API (`api/`)
 
-**FastAPI endpoint implementation guides (Coming in Week 2+).**
+**FastAPI endpoint implementation, patterns, and conventions.**
 
-- Endpoint patterns and best practices
-- Request/response schema design
-- Authentication guards and workspace scoping
-- Error handling and validation
+- [**README.md**](api/README.md) - API design patterns and best practices
+- [**API.md**](api/API.md) - Comprehensive API implementation guide
+- [**RATE_LIMITING_IMPLEMENTATION.md**](api/RATE_LIMITING_IMPLEMENTATION.md) - Redis-based sliding window rate limiting
+- [**FLEXIBLE_RECORD_MANAGEMENT.md**](api/FLEXIBLE_RECORD_MANAGEMENT.md) - Soft delete and record lifecycle management
 
 ### Database (`database/`)
 
-**PostgreSQL schema and migration documentation (Coming in Week 2+).**
+**PostgreSQL schema, migrations, and database architecture.**
 
-- Entity relationship diagrams
-- Alembic migration patterns
-- Index strategy and optimization
-- Query performance analysis
+- [**README.md**](database/README.md) - Database schema overview
+- [**DATABASE_ARCHITECTURE_REVIEW.md**](database/DATABASE_ARCHITECTURE_REVIEW.md) - Comprehensive architecture review
+- [**SESSIONS_SCHEMA.md**](database/SESSIONS_SCHEMA.md) - SOAP session notes schema with encryption
+- [**Migration Report**](database/WEEK2_DAY1_MORNING_SESSIONS_MIGRATION_REPORT.md) - Sessions table migration implementation
 
-### Performance (`performance/`)
+### Storage (`storage/`)
 
-**Performance benchmarks and optimization (Coming in Week 5).**
+**S3/MinIO file storage, security, and credential management.**
 
-- API response time benchmarks
-- Load testing results
-- Profiling and optimization guides
-- Monitoring and alerts
+- [**STORAGE_CONFIGURATION.md**](storage/STORAGE_CONFIGURATION.md) - Complete S3/MinIO configuration guide
+- [**FILE_UPLOAD_SECURITY.md**](storage/FILE_UPLOAD_SECURITY.md) - Triple validation, EXIF stripping, security
+- [**S3_CREDENTIAL_MANAGEMENT.md**](storage/S3_CREDENTIAL_MANAGEMENT.md) - 840+ line credential management guide
+- [**Implementation Summary**](storage/WEEK3_DAY11_STORAGE_IMPLEMENTATION_SUMMARY.md) - Week 3 Day 11 storage implementation
 
----
+### Security & Compliance
+
+**PHI protection, data sanitization, and compliance features.**
+
+- [**PDF_METADATA_SANITIZATION_IMPLEMENTATION.md**](PDF_METADATA_SANITIZATION_IMPLEMENTATION.md) - PDF metadata stripping for PHI protection
+- [**SOFT_DELETE_PURGE_JOB.md**](SOFT_DELETE_PURGE_JOB.md) - 30-day soft delete and automated purge implementation
+
+### Testing
+
+**Backend testing infrastructure and patterns.**
+
+- [**pytest Configuration Guide**](/docs/testing/backend/PYTEST_CONFIGURATION_GUIDE.md) - Comprehensive pytest setup
+- [**Test Fixture Analysis**](/docs/testing/backend/TEST_FIXTURE_ANALYSIS.md) - Fixture architecture deep dive
+- [**Quick Reference**](/docs/testing/backend/TEST_FIXTURE_QUICK_REFERENCE.md) - Common test patterns
+- [**CSRF Testing**](/docs/testing/backend/CSRF_TEST_GUIDE.md) - CSRF protection testing guide
 
 ## 📖 Reading Guide
 
-### For Implementing PHI Encryption
+### For Implementing New API Endpoints
 
 **Read in this order:**
 
-1. **ENCRYPTION_ARCHITECTURE.md** - Understand the design decisions
-   - AES-256-GCM encryption
-   - Application-level vs database-level
-   - Key management strategy (AWS Secrets Manager)
+1. [**API Patterns**](api/README.md) - Understand FastAPI patterns
+   - Request/response models with Pydantic
+   - Workspace scoping requirements
+   - Error handling patterns
 
-2. **ENCRYPTION_USAGE_GUIDE.md** - Quick start guide
-   - How to encrypt/decrypt fields
-   - Using `EncryptedString` SQLAlchemy type
-   - Performance considerations
+2. [**Database Schema**](database/README.md) - Review relevant database models
+   - SQLAlchemy model definitions
+   - Relationship patterns
+   - Query optimization
 
-3. **ENCRYPTION_IMPLEMENTATION_GUIDE.md** - Detailed implementation
-   - Step-by-step migration guide
-   - Code examples
-   - Testing encrypted models
+3. [**Testing Guide**](/docs/testing/backend/TEST_FIXTURE_QUICK_REFERENCE.md) - Write comprehensive tests
+   - Common fixtures and patterns
+   - Authentication testing
+   - CSRF token handling
 
-4. **ENCRYPTED_MODELS_EXAMPLE.py** - Working code examples
-   - Session model with encrypted SOAP notes
-   - Treatment plan with encrypted goals
-   - Best practices
-
-### For Key Rotation
+### For File Upload Implementation
 
 **Read in this order:**
 
-1. **KEY_ROTATION_PROCEDURE.md** - Complete procedures
-   - Routine rotation (every 90 days)
-   - Emergency rotation (within 24 hours)
-   - Zero-downtime migration
+1. [**Storage Configuration**](storage/STORAGE_CONFIGURATION.md) - S3/MinIO setup
+   - Environment configuration
+   - Bucket management
+   - Access policies
 
-2. **DATABASE_ENCRYPTION_MIGRATION_TEMPLATE.md** - Migration template
-   - Alembic migration for key rotation
-   - Dual-write pattern
-   - Cleanup procedures
+2. [**File Upload Security**](storage/FILE_UPLOAD_SECURITY.md) - Security implementation
+   - Triple validation (magic bytes, extension, MIME)
+   - EXIF metadata stripping
+   - Virus scanning integration
+
+3. [**PDF Metadata Sanitization**](PDF_METADATA_SANITIZATION_IMPLEMENTATION.md) - PHI protection
+   - Automatic metadata stripping
+   - HIPAA compliance
+
+### For Implementing Soft Delete
+
+**Read in this order:**
+
+1. [**Soft Delete Implementation**](SOFT_DELETE_PURGE_JOB.md) - Complete guide
+   - Database schema with soft delete columns
+   - 30-day grace period logic
+   - Restore functionality
+
+2. [**Flexible Record Management**](api/FLEXIBLE_RECORD_MANAGEMENT.md) - API patterns
+   - Soft delete endpoints
+   - Query filtering
+   - Audit logging
 
 ### For Writing Tests
 
 **Read in this order:**
 
-1. **TEST_FIXTURE_QUICK_REFERENCE.md** - Quick patterns
-   - Common fixtures (`test_user_ws1`, `workspace_1`)
-   - JWT authentication patterns
-   - CSRF token handling
+1. [**Quick Reference**](/docs/testing/backend/TEST_FIXTURE_QUICK_REFERENCE.md) - Common patterns
+   - Fixture usage (`test_user_ws1`, `workspace_1`)
+   - JWT authentication
+   - CSRF tokens
 
-2. **PYTEST_CONFIGURATION_GUIDE.md** - Comprehensive reference
-   - pytest configuration (`pytest.ini`)
-   - Fixture architecture
-   - Database setup/teardown
+2. [**pytest Configuration**](/docs/testing/backend/PYTEST_CONFIGURATION_GUIDE.md) - Deep dive
+   - Configuration options
+   - Database transactions
    - Troubleshooting
-
-3. **TEST_FIXTURE_ANALYSIS.md** - Deep dive
-   - Architecture decisions
-   - Why function-scoped fixtures
-   - Transaction rollback strategy
-   - Stability verification
 
 ---
 
@@ -161,7 +185,7 @@ backend/docs/
 
 ### PHI Encryption Requirements
 
-All PHI (Protected Health Information) fields **MUST** be encrypted at rest:
+All PHI (Protected Health Information) fields **MUST** be encrypted at rest. See [Encryption Architecture](/docs/security/encryption/ENCRYPTION_ARCHITECTURE.md) for implementation details.
 
 - ✅ **Session notes:** Subjective, Objective, Assessment, Plan (SOAP)
 - ✅ **Treatment plans:** Goals, progress notes
@@ -173,41 +197,55 @@ All PHI (Protected Health Information) fields **MUST** be encrypted at rest:
 from pazpaz.db.types import EncryptedString
 
 class Session(Base):
-    subjective = Column(EncryptedString)  # Encrypted PHI
-    objective = Column(EncryptedString)   # Encrypted PHI
-    assessment = Column(EncryptedString)  # Encrypted PHI
-    plan = Column(EncryptedString)        # Encrypted PHI
+    subjective = Column(EncryptedString(5000))  # Encrypted PHI
+    objective = Column(EncryptedString(5000))   # Encrypted PHI
+    assessment = Column(EncryptedString(5000))  # Encrypted PHI
+    plan = Column(EncryptedString(5000))        # Encrypted PHI
 ```
 
 ### Performance Targets
 
+- **API response time:** p95 <150ms (including encryption) ✅
 - **Encryption overhead:** <10ms per field (actual: 0.001-0.003ms ✅)
 - **Decryption overhead:** <10ms per field (actual: 0.001-0.003ms ✅)
-- **API response time:** p95 <150ms (including encryption) ✅
 - **Storage overhead:** ~38% (acceptable for HIPAA compliance) ✅
+
+### Security Checklist
+
+- [ ] All endpoints validate workspace access
+- [ ] PHI fields use `EncryptedString` type
+- [ ] File uploads sanitize metadata (EXIF, PDF)
+- [ ] Audit logging captures all data modifications
+- [ ] CSRF protection on state-changing requests
+- [ ] Input validation on all user-supplied data
 
 ---
 
-## 📝 Quick Links
+## 🔗 Related Documentation
 
-### Encryption
+### Security & Encryption
 
-- [Architecture Overview](encryption/ENCRYPTION_ARCHITECTURE.md)
-- [Quick Start Guide](encryption/ENCRYPTION_USAGE_GUIDE.md)
-- [Implementation Guide](encryption/ENCRYPTION_IMPLEMENTATION_GUIDE.md)
-- [Key Rotation Procedures](encryption/KEY_ROTATION_PROCEDURE.md)
-- [Code Examples](encryption/ENCRYPTED_MODELS_EXAMPLE.py)
+- [**Encryption Architecture**](/docs/security/encryption/ENCRYPTION_ARCHITECTURE.md) - AES-256-GCM design
+- [**Encryption Usage Guide**](/docs/security/encryption/ENCRYPTION_USAGE_GUIDE.md) - How to encrypt PHI
+- [**Key Rotation Procedures**](/docs/security/encryption/KEY_ROTATION_PROCEDURE.md) - 90-day rotation
+- [**Audit Logging Schema**](/docs/security/AUDIT_LOGGING_SCHEMA.md) - Immutable audit trail
 
-### Testing
+### Architecture
 
-- [Quick Reference](testing/TEST_FIXTURE_QUICK_REFERENCE.md)
-- [pytest Configuration Guide](testing/PYTEST_CONFIGURATION_GUIDE.md)
-- [Fixture Architecture](testing/TEST_FIXTURE_ANALYSIS.md)
+- [**Backend Architecture**](/docs/architecture/BACKEND_ARCHITECTURE_DESIGN.md) - FastAPI + SQLAlchemy design
+- [**System Architecture**](/docs/architecture/ARCHITECTURE_SUMMARY.md) - High-level overview
+- [**Project Overview**](/docs/PROJECT_OVERVIEW.md) - Product requirements
 
-### Performance Reports
+### Frontend Integration
 
-- [Encryption Performance](encryption/DAY4_DATABASE_ENCRYPTION_PERFORMANCE.md)
-- [Architecture Review](encryption/DATABASE_ARCHITECTURE_REVIEW_DAY4_ENCRYPTION.md)
+- [**Frontend Documentation**](/docs/frontend/README.md) - Vue 3 application
+- [**API Client**](/docs/frontend/API_CLIENT.md) - OpenAPI client usage
+
+### Reports & Audits
+
+- [**QA Reports**](/docs/reports/qa/) - Quality assurance reports
+- [**Security Audits**](/docs/reports/security/) - Security audit findings
+- [**Implementation Summaries**](/docs/reports/implementation/) - Feature implementations
 
 ---
 
@@ -215,36 +253,43 @@ class Session(Base):
 
 ### When to Update
 
-- **After Encryption Changes:** Update guides and examples
-- **After Test Fixture Changes:** Update pytest configuration guide
-- **Performance Regressions:** Update performance reports
-- **New Features:** Add examples to ENCRYPTED_MODELS_EXAMPLE.py
+- **After API Changes:** Update API documentation and OpenAPI spec
+- **After Database Schema Changes:** Update database documentation and migration guides
+- **After Security Implementation:** Update security guides and audit reports
+- **After Performance Testing:** Update benchmarks and optimization guides
+- **After Bug Fixes:** Document lessons learned and update relevant guides
 
 ### Documentation Standards
 
-- All code examples must be valid Python/SQLAlchemy
-- Include performance benchmarks for encryption operations
+- All code examples must be valid Python/SQLAlchemy/FastAPI
+- Include performance benchmarks for critical operations
 - Document security rationale (HIPAA, OWASP)
 - Keep migration templates up-to-date with current schema
+- Link to related documentation
+- Include "Last Updated" dates where relevant
 
 ---
 
 ## 🚀 Next Steps
 
-### For Week 2 (SOAP Notes Implementation)
+### Current Implementation Status
 
-1. Review **ENCRYPTION_USAGE_GUIDE.md** for encrypting SOAP fields
-2. Use **ENCRYPTED_MODELS_EXAMPLE.py** as reference for Session model
-3. Follow **DATABASE_ENCRYPTION_MIGRATION_TEMPLATE.md** for Alembic migration
-4. Run performance tests (target: <10ms encryption overhead)
+- ✅ **Week 1:** Security foundation (encryption, audit logging, Redis)
+- ✅ **Week 2:** SOAP notes and sessions
+- ✅ **Week 3:** File uploads with security
+- ⏳ **Week 4:** Plan of Care (in progress)
+- ⏳ **Week 5:** Background jobs and deployment
 
-### For Key Rotation (Quarterly)
+### For New Features
 
-1. Follow **KEY_ROTATION_PROCEDURE.md** routine procedure
-2. Use **DATABASE_ENCRYPTION_MIGRATION_TEMPLATE.md** for migration
-3. Verify dual-write pattern during transition
-4. Monitor performance during rotation
+1. Review relevant API patterns in [api/](api/)
+2. Check database schema in [database/](database/)
+3. Implement with security requirements (encryption, audit logging)
+4. Write comprehensive tests using [testing guides](/docs/testing/backend/)
+5. Update documentation
 
 ---
 
-For project-wide documentation, see [/docs/README.md](../../docs/README.md)
+**Last Updated:** 2025-10-13
+
+For project-wide documentation, see [/docs/README.md](/docs/README.md)

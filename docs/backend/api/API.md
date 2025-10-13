@@ -3,15 +3,33 @@
 **Base URL**: `http://localhost:8000`
 **API Version**: v1
 **OpenAPI Docs**: http://localhost:8000/docs
+**Last Updated**: 2025-01-13
+
+## Table of Contents
+
+- [Authentication](#authentication)
+- [Endpoints](#endpoints)
+  - [Health Checks](#health-checks)
+  - [Clients](#clients)
+  - [Appointments](#appointments)
+  - [Services](#services)
+  - [Locations](#locations)
+  - [Sessions (SOAP Notes)](#sessions-soap-notes)
+  - [Session Attachments](#session-attachments)
+  - [Authentication](#authentication-1)
+  - [Audit Logs](#audit-logs)
+- [Error Responses](#error-responses)
+- [Performance](#performance)
+- [Development](#development)
 
 ## Authentication
 
-All API endpoints require workspace authentication via header:
+All API endpoints (except auth endpoints) require JWT authentication:
 ```
-X-Workspace-ID: <workspace-uuid>
+Authorization: Bearer <jwt-token>
 ```
 
-**Note**: Current implementation is for M1 development/testing only. Production requires JWT-based authentication.
+The JWT token contains workspace_id for automatic workspace scoping. Obtain a token via the magic link authentication flow (see [Authentication endpoints](#authentication-1)).
 
 ## Endpoints
 
@@ -234,6 +252,218 @@ Delete location (soft delete if in use, hard delete otherwise)
 
 ---
 
+### Sessions (SOAP Notes)
+
+#### POST /api/v1/sessions
+Create new session note for appointment
+
+**Request Body**:
+```json
+{
+  "appointment_id": "uuid",
+  "subjective": "Patient reports feeling better...",
+  "objective": "ROM improved to 120 degrees...",
+  "assessment": "Good progress with treatment plan...",
+  "plan": "Continue current protocol...",
+  "is_draft": true
+}
+```
+
+**Response**: `201 Created`
+
+#### GET /api/v1/sessions
+List session notes (paginated, filterable)
+
+**Query Parameters**:
+- `page`, `page_size` (pagination)
+- `client_id` (filter by client)
+- `is_draft` (filter by draft status)
+- `start_date`, `end_date` (filter by date range)
+
+**Response**: `200 OK`
+
+#### GET /api/v1/sessions/{session_id}
+Get session note by ID
+
+**Response**: `200 OK` or `404 Not Found`
+
+#### PUT /api/v1/sessions/{session_id}
+Update session note (creates version if finalized)
+
+**Request Body**: Same as POST (all fields optional)
+
+**Response**: `200 OK` or `404 Not Found`
+
+#### PATCH /api/v1/sessions/{session_id}/draft
+Autosave draft updates (rate limited to 1 per 5 seconds)
+
+**Request Body**:
+```json
+{
+  "subjective": "Updated subjective text..."
+}
+```
+
+**Response**: `200 OK` or `429 Too Many Requests`
+
+#### POST /api/v1/sessions/{session_id}/finalize
+Finalize session note (creates version 1)
+
+**Response**: `200 OK` or `422 Unprocessable Entity` (if already finalized)
+
+#### GET /api/v1/sessions/{session_id}/versions
+Get version history of finalized session
+
+**Response**: `200 OK` (array of versions in reverse chronological order)
+
+#### DELETE /api/v1/sessions/{session_id}
+Soft delete session note
+
+**Response**: `204 No Content` or `404 Not Found`
+
+#### POST /api/v1/sessions/{session_id}/restore
+Restore soft-deleted session note
+
+**Response**: `200 OK` or `404 Not Found`
+
+#### DELETE /api/v1/sessions/{session_id}/permanent
+Permanently delete session note (hard delete)
+
+**Response**: `204 No Content` or `404 Not Found`
+
+---
+
+### Session Attachments
+
+#### POST /api/v1/sessions/{session_id}/attachments
+Upload attachment to session (max 10MB, images/PDFs only)
+
+**Request**: Multipart form data
+- `file` - File upload (image/jpeg, image/png, image/webp, application/pdf)
+- `description` (optional) - File description
+
+**Response**: `201 Created`
+```json
+{
+  "id": "attachment-uuid",
+  "session_id": "session-uuid",
+  "file_name": "xray-front.jpg",
+  "mime_type": "image/jpeg",
+  "file_size": 2048576,
+  "description": "Front view X-ray",
+  "storage_path": "encrypted-path",
+  "created_at": "2025-01-15T10:00:00Z"
+}
+```
+
+#### GET /api/v1/sessions/{session_id}/attachments
+List attachments for session
+
+**Response**: `200 OK` (array of attachment metadata)
+
+#### GET /api/v1/attachments/{attachment_id}
+Download attachment file
+
+**Response**: `200 OK` (file stream) or `404 Not Found`
+
+#### DELETE /api/v1/attachments/{attachment_id}
+Delete attachment
+
+**Response**: `204 No Content` or `404 Not Found`
+
+---
+
+### Authentication
+
+#### POST /api/v1/auth/request-magic-link
+Request magic link for passwordless login
+
+**Request Body**:
+```json
+{
+  "email": "therapist@example.com"
+}
+```
+
+**Response**: `200 OK` (always succeeds to prevent email enumeration)
+
+**Rate Limit**: 3 requests per hour per IP
+
+#### GET /api/v1/auth/verify-magic-link
+Verify magic link token and get JWT
+
+**Query Parameters**:
+- `token` (required) - Magic link token from email
+
+**Response**: `200 OK`
+```json
+{
+  "access_token": "jwt-token",
+  "token_type": "bearer",
+  "user": {
+    "id": "user-uuid",
+    "email": "therapist@example.com",
+    "workspace_id": "workspace-uuid"
+  }
+}
+```
+
+#### POST /api/v1/auth/logout
+Logout and blacklist JWT token
+
+**Headers**:
+- `Authorization: Bearer {jwt-token}`
+
+**Response**: `200 OK`
+
+---
+
+### Audit Logs
+
+#### GET /api/v1/audit
+List audit events (paginated, filterable)
+
+**Query Parameters**:
+- `page`, `page_size` (pagination)
+- `resource_type` (filter by type: Client, Appointment, Session)
+- `resource_id` (filter by specific resource)
+- `event_type` (filter by event: created, updated, deleted)
+- `start_date`, `end_date` (filter by date range)
+- `user_id` (filter by user who performed action)
+
+**Response**: `200 OK`
+```json
+{
+  "items": [
+    {
+      "id": "audit-uuid",
+      "workspace_id": "workspace-uuid",
+      "event_type": "appointment.deleted",
+      "resource_type": "Appointment",
+      "resource_id": "appt-uuid",
+      "action": "DELETE",
+      "user_id": "user-uuid",
+      "metadata": {
+        "appointment_status": "completed",
+        "had_session_note": true,
+        "deletion_reason": "Duplicate entry"
+      },
+      "created_at": "2025-01-15T10:00:00Z"
+    }
+  ],
+  "total": 1234,
+  "page": 1,
+  "page_size": 50
+}
+```
+
+#### GET /api/v1/audit/{audit_event_id}
+Get specific audit event
+
+**Response**: `200 OK` or `404 Not Found`
+
+---
+
 ## Error Responses
 
 All error responses follow this format:
@@ -297,9 +527,21 @@ uv run pytest -m performance -v
 
 ---
 
-## Next Steps (M2)
+## See Also
 
-- [ ] Generate TypeScript API client from OpenAPI
-- [ ] Build Vue 3 calendar UI
-- [ ] Implement drag-and-drop scheduling
-- [ ] Add email reminder service
+### Implementation Guides
+- [Flexible Record Management](./FLEXIBLE_RECORD_MANAGEMENT.md) - Appointment/session editing patterns
+- [Rate Limiting Implementation](./RATE_LIMITING_IMPLEMENTATION.md) - Rate limiting patterns
+- [API Documentation Index](./README.md) - API documentation overview
+
+### Related Documentation
+- [Backend Architecture](/backend/docs/README.md) - Overall backend structure
+- [Database Schema](/backend/docs/database/) - Database design
+- [PHI Encryption](/backend/docs/encryption/) - Encryption patterns
+- [Security Patterns](/docs/security/) - HIPAA compliance
+- [Testing Strategy](/backend/docs/testing/) - Testing patterns
+
+### Source Code
+- [API Implementations](/backend/src/pazpaz/api/) - Endpoint source code
+- [Pydantic Schemas](/backend/src/pazpaz/schemas/) - Request/response models
+- [Database Models](/backend/src/pazpaz/models/) - SQLAlchemy models

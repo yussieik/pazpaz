@@ -1,10 +1,56 @@
-# Magic Link Rate Limiting Refactoring Summary
+# Rate Limiting Implementation
+
+**Last Updated**: 2025-01-13
 
 ## Overview
 
-Successfully refactored magic link authentication rate limiting to use the new Redis sliding window rate limiter utility for code reuse and consistency.
+PazPaz implements rate limiting using a Redis-based sliding window algorithm to prevent abuse and ensure fair resource usage. This document covers the rate limiting patterns used across the API.
 
-## Changes Made
+## Table of Contents
+
+- [Overview](#overview)
+- [Current Rate Limits](#current-rate-limits)
+- [Sliding Window Algorithm](#sliding-window-algorithm)
+- [Implementation Details](#implementation-details)
+- [Benefits](#benefits)
+- [Magic Link Refactoring](#magic-link-refactoring)
+- [Testing](#testing)
+- [See Also](#see-also)
+
+## Current Rate Limits
+
+### Authentication
+- **Magic Link Requests**: 3 per hour per IP address
+- **JWT Verification**: No limit (tokens expire after 30 days)
+
+### Session Management
+- **Draft Autosave**: 1 request per 5 seconds per session
+- **Session Updates**: Standard API rate limits apply
+
+### General API
+- **Default**: 1000 requests per minute per authenticated user
+- **Burst**: Allow short bursts up to 100 requests in 10 seconds
+
+## Sliding Window Algorithm
+
+The sliding window algorithm provides more accurate rate limiting compared to fixed window approaches:
+
+### How It Works
+1. Each request is stored with a timestamp in a Redis sorted set
+2. Old requests outside the window are automatically removed
+3. The count of requests in the current window determines if limit is exceeded
+4. Provides smooth rate limiting without boundary issues
+
+### Redis Data Structure
+```
+rate_limit_key = {
+    "request_uuid_1": timestamp_1,
+    "request_uuid_2": timestamp_2,
+    "request_uuid_3": timestamp_3
+}  # Stored as Redis sorted set (zset)
+```
+
+## Magic Link Refactoring
 
 ### File: `/backend/src/pazpaz/services/auth_service.py`
 
@@ -172,6 +218,23 @@ No database migration required. The change is transparent to existing functional
 - [x] No diagnostics errors
 - [x] Existing tests still valid
 
+## Implementation Details
+
+The core rate limiting utility is implemented in:
+- `/backend/src/pazpaz/core/rate_limiting.py` - Redis sliding window implementation
+
+Rate limiting is applied in:
+- `/backend/src/pazpaz/services/auth_service.py` - Magic link rate limiting
+- `/backend/src/pazpaz/api/sessions.py` - Draft autosave rate limiting
+- `/backend/src/pazpaz/middleware/rate_limit.py` - General API rate limiting
+
+## See Also
+
+- [API Endpoint Reference](./API.md) - Complete API documentation
+- [Flexible Record Management](./FLEXIBLE_RECORD_MANAGEMENT.md) - Medical record patterns
+- [Redis Configuration](/backend/docs/infrastructure/REDIS.md) - Redis setup
+- [Security Patterns](/docs/security/) - Security implementation
+
 ## Conclusion
 
-The magic link authentication rate limiting has been successfully refactored to use the centralized Redis sliding window rate limiter. The codebase now has a single, consistent rate limiting implementation that is more accurate, secure, and maintainable.
+PazPaz uses a centralized Redis sliding window rate limiter for consistent rate limiting across all endpoints. This approach provides accurate rate limiting, prevents burst attacks, and maintains high performance while protecting the system from abuse.

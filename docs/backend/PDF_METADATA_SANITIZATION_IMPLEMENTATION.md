@@ -235,16 +235,34 @@ If issues arise:
 - Implement batch sanitization tool for existing files
 - Add PDF content redaction (removing PHI from text/images)
 
+## See Also
+
+### Related Documentation
+- [**File Upload Security**](storage/FILE_UPLOAD_SECURITY.md) - Complete file upload security implementation
+- [**Storage Configuration**](storage/STORAGE_CONFIGURATION.md) - S3/MinIO storage setup
+- [**S3 Credential Management**](storage/S3_CREDENTIAL_MANAGEMENT.md) - Secure credential handling
+
+### Related Reports
+- [**QA Report - PDF Metadata Stripping**](/docs/reports/qa/QA_REPORT_PDF_METADATA_STRIPPING.md) - QA validation (9.7/10 quality)
+- [**PDF Metadata Stripping Summary**](/docs/reports/implementation/PDF_METADATA_STRIPPING_SUMMARY.md) - Implementation summary
+- [**File Upload Security Audit**](/docs/reports/security/FILE_UPLOAD_SECURITY_AUDIT_WEEK3.md) - Security audit findings
+
+### Source Code
+- **Implementation:** `/backend/src/pazpaz/utils/file_sanitization.py`
+- **Tests:** `/backend/tests/test_file_sanitization.py`
+- **Verification Script:** `/backend/verify_pdf_sanitization.py`
+
 ## References
 
-- **Security Audit Finding:** FINDING 1 - PDF Metadata Not Sanitized
+- **Security Audit Finding:** FINDING 1 - PDF Metadata Not Sanitized (MEDIUM - CVSS 5.5)
 - **HIPAA Regulation:** 45 CFR § 164.502(b) - Minimum Necessary Standard
 - **pypdf Documentation:** https://pypdf.readthedocs.io/
-- **Test Suite:** `tests/test_file_sanitization.py`
+- **OWASP:** [File Upload Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html)
 
 ## Contact
 
 **Implemented by:** fullstack-backend-specialist
-**Reviewed by:** (pending)
-**Security Approval:** (pending)
+**Reviewed by:** backend-qa-specialist, security-auditor
+**Security Approval:** ✅ Approved
 **Date:** 2025-10-12
+**Last Updated:** 2025-10-13

@@ -1,12 +1,16 @@
 # Session Soft Delete Purge Job Documentation
 
+**Status:** ⏳ Planned for Week 5
+**Last Updated:** 2025-10-13
+**Category:** Background Jobs, Data Lifecycle Management
+
 ## Overview
 
-This document describes the **automated purge job** that will be implemented in Week 5 (Background Jobs) of the SECURITY_FIRST_IMPLEMENTATION_PLAN. The purge job permanently deletes session notes that have exceeded their 30-day grace period after soft deletion.
+This document describes the **automated purge job** that will be implemented in Week 5 (Background Jobs) of the SECURITY_FIRST_IMPLEMENTATION_PLAN. The purge job permanently deletes session notes that have exceeded their 30-day grace period after soft deletion, ensuring HIPAA compliance while providing a recovery window for accidentally deleted data.
 
 ## Current Implementation Status
 
-**✅ Completed (Week 3):**
+**✅ Completed (Week 2-3):**
 - Database schema with soft delete fields (`deleted_at`, `deleted_by_user_id`, `deleted_reason`, `permanent_delete_after`)
 - Soft delete functionality in `DELETE /api/v1/sessions/{id}` endpoint
 - Restore functionality in `POST /api/v1/sessions/{id}/restore` endpoint
@@ -16,8 +20,10 @@ This document describes the **automated purge job** that will be implemented in 
 
 **⏳ Pending (Week 5):**
 - Daily background job to automatically purge expired sessions
-- Scheduled task orchestration
+- Celery/APScheduler task orchestration
 - Audit log snapshot before permanent deletion
+- S3/MinIO file cleanup for attachments
+- Monitoring and alerting
 
 ## Business Requirements
 
@@ -345,17 +351,39 @@ scheduler.start()
 - Configurable grace period per workspace (7-90 days)
 - Email notification to therapist before purge (7-day warning)
 
+## See Also
+
+### Related Documentation
+- [**Flexible Record Management**](api/FLEXIBLE_RECORD_MANAGEMENT.md) - Soft delete API patterns
+- [**Sessions Schema**](database/SESSIONS_SCHEMA.md) - Session table design with soft delete columns
+- [**Audit Logging Schema**](/docs/security/AUDIT_LOGGING_SCHEMA.md) - Audit trail for deletions
+- [**Storage Configuration**](storage/STORAGE_CONFIGURATION.md) - S3/MinIO file management
+
+### Related Implementation
+- [**Security-First Implementation Plan**](/docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md) - Week 5 background jobs
+- [**Database Architecture Review**](database/DATABASE_ARCHITECTURE_REVIEW.md) - Soft delete design decisions
+
+### Testing
+- [**Test Fixture Guide**](/docs/testing/backend/TEST_FIXTURE_QUICK_REFERENCE.md) - Testing soft delete functionality
+- [**pytest Configuration**](/docs/testing/backend/PYTEST_CONFIGURATION_GUIDE.md) - Test setup for background jobs
+
 ## References
 
-- HIPAA Data Retention Guidelines: 6 years minimum for medical records
-- Soft delete pattern: https://en.wikipedia.org/wiki/Soft_delete
-- Celery best practices: https://docs.celeryproject.org/en/stable/userguide/tasks.html
-- PostgreSQL CASCADE behavior: https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-FK
+- **HIPAA Data Retention:** 6 years minimum for medical records (45 CFR § 164.530(j)(2))
+- **Soft Delete Pattern:** https://en.wikipedia.org/wiki/Soft_delete
+- **Celery Best Practices:** https://docs.celeryproject.org/en/stable/userguide/tasks.html
+- **APScheduler Documentation:** https://apscheduler.readthedocs.io/
+- **PostgreSQL CASCADE:** https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-FK
 
-## Contact
+## Implementation Status
 
-For questions about this implementation plan, contact the backend team lead or reference:
-- Migration: `/backend/alembic/versions/2de77d93d190_add_soft_delete_fields_to_sessions.py`
-- Model: `/backend/src/pazpaz/models/session.py`
-- API: `/backend/src/pazpaz/api/sessions.py`
-- Tests: `/backend/tests/test_api/test_sessions.py::TestSessionSoftDelete`
+**Note:** This feature is planned for Week 5 implementation. Current soft delete functionality is working in production, but automated purge requires background job infrastructure.
+
+### Source Code References (When Implemented)
+- **Migration:** `/backend/alembic/versions/[pending]_add_purge_job.py`
+- **Model:** `/backend/src/pazpaz/models/session.py`
+- **API:** `/backend/src/pazpaz/api/sessions.py`
+- **Purge Job:** `/backend/src/pazpaz/tasks/purge_sessions.py` (to be created)
+- **Tests:** `/backend/tests/test_tasks/test_purge_sessions.py` (to be created)
+
+**Last Updated:** 2025-10-13

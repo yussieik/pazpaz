@@ -7,7 +7,7 @@
 **Related Documentation:**
 - [Storage Configuration Guide](STORAGE_CONFIGURATION.md)
 - [File Upload Security](FILE_UPLOAD_SECURITY.md)
-- [Encryption Architecture](/backend/docs/encryption/ENCRYPTION_ARCHITECTURE.md)
+- [Encryption Architecture](/docs/security/encryption/ENCRYPTION_ARCHITECTURE.md)
 
 ---
 

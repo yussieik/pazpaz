@@ -810,7 +810,7 @@ pytest tests/test_storage.py -v
 ### Related PazPaz Docs
 - **[S3 Credential Management Guide](S3_CREDENTIAL_MANAGEMENT.md)** - MUST READ before deployment
 - [File Upload Security](FILE_UPLOAD_SECURITY.md)
-- [Encryption Architecture](/backend/docs/encryption/ENCRYPTION_ARCHITECTURE.md)
+- [Encryption Architecture](/docs/security/encryption/ENCRYPTION_ARCHITECTURE.md)
 - [Security Audit Week 2](/docs/SECURITY_AUDIT_WEEK2_DAY10.md)
 - [API Implementation Guide](/backend/docs/api/)
 
