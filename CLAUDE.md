@@ -204,7 +204,8 @@ Before starting any implementation, ask yourself:
 
 ### Documentation Structure
 
-**Main Documentation (`/docs/`)** - Project-wide documentation
+**All documentation is now consolidated under `/docs/`** - Single source of truth
+
 ```
 docs/
 ├── README.md                              # Navigation guide
@@ -214,34 +215,35 @@ docs/
 ├── AGENT_ROUTING_GUIDE.md                 # Agent delegation guide
 │
 ├── security/                              # Security & HIPAA compliance
+│   └── encryption/                        # PHI encryption implementation
 ├── architecture/                          # System design & decisions
-├── testing/                               # Testing strategy
+├── backend/                               # Backend implementation docs
+│   ├── api/                               # API patterns & implementation
+│   ├── database/                          # Schema & migrations
+│   └── storage/                           # S3/MinIO file storage
 ├── frontend/                              # Vue 3 frontend docs
-├── backend/                               # High-level backend docs
+├── testing/                               # Testing strategy
+│   └── backend/                           # pytest configuration & fixtures
+├── reports/                               # QA & security audit reports
+│   ├── qa/                                # Quality assurance reports
+│   └── security/                          # Security audit reports
+├── performance/                           # Performance benchmarks
+│   └── backend/                           # Backend performance
 ├── deployment/                            # Infrastructure & CI/CD
 └── operations/                            # Runbooks & procedures
 ```
 
-**Backend Documentation (`/backend/docs/`)** - Technical implementation
-```
-backend/docs/
-├── README.md                              # Navigation guide
-├── encryption/                            # PHI encryption guides
-├── testing/                               # pytest configuration
-├── api/                                   # API implementation patterns
-├── database/                              # Schema & migrations
-└── performance/                           # Benchmarks & optimization
-```
+**Note:** There are no separate `backend/docs` or `frontend/docs` folders. All documentation is centralized.
 
 ### Agent-Specific Documentation Duties
 
 **database-architect:**
-- **MUST READ:** `/docs/architecture/`, `/backend/docs/database/`, `/backend/docs/encryption/`
+- **MUST READ:** `/docs/architecture/`, `/docs/backend/database/`, `/docs/security/encryption/`
 - **MUST UPDATE:** Schema designs, migration guides, index strategies
 - **MUST CREATE:** ERD diagrams, query optimization guides
 
 **fullstack-backend-specialist:**
-- **MUST READ:** `/docs/backend/`, `/backend/docs/api/`, `/backend/docs/encryption/`, `/docs/security/`
+- **MUST READ:** `/docs/backend/`, `/docs/backend/api/`, `/docs/security/encryption/`, `/docs/security/`
 - **MUST UPDATE:** API patterns, authentication flows, endpoint documentation
 - **MUST CREATE:** Implementation guides, code examples, integration patterns
 
@@ -251,13 +253,13 @@ backend/docs/
 - **MUST CREATE:** Component examples, API client usage, routing patterns
 
 **security-auditor:**
-- **MUST READ:** `/docs/security/`, `/backend/docs/encryption/`, `/docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md`
-- **MUST UPDATE:** Security audit reports, vulnerability assessments
+- **MUST READ:** `/docs/security/`, `/docs/security/encryption/`, `/docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md`
+- **MUST UPDATE:** Security audit reports (add to `/docs/reports/security/`), vulnerability assessments
 - **MUST CREATE:** Threat models, security guidelines, incident procedures
 
 **backend-qa-specialist:**
-- **MUST READ:** `/backend/docs/testing/`, `/backend/docs/performance/`, `/docs/testing/`
-- **MUST UPDATE:** Test patterns, QA reports, performance benchmarks
+- **MUST READ:** `/docs/testing/backend/`, `/docs/performance/backend/`, `/docs/testing/`
+- **MUST UPDATE:** Test patterns, QA reports (add to `/docs/reports/qa/`), performance benchmarks
 - **MUST CREATE:** Testing guides, regression reports, quality standards
 
 **ux-design-consultant:**
@@ -274,7 +276,11 @@ backend/docs/
 
 **Before Starting Any Task:**
 1. Read `/docs/README.md` to find relevant documentation
-2. Read `/backend/docs/README.md` for technical details
+2. Navigate to appropriate subdirectories based on task:
+   - Security/encryption: `/docs/security/encryption/`
+   - Backend implementation: `/docs/backend/`
+   - Frontend: `/docs/frontend/`
+   - Testing: `/docs/testing/`
 3. Review existing documentation in your area of responsibility
 4. Note any inaccuracies or gaps
 

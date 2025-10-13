@@ -2,20 +2,23 @@
 
 This module provides functions to sanitize uploaded files by:
 1. Stripping EXIF metadata from images (GPS, camera info, timestamps)
-2. Re-encoding images to remove embedded scripts or malicious content
-3. Normalizing file content for safe storage
+2. Stripping PDF metadata (author, title, subject, keywords, creator, producer, dates)
+3. Re-encoding images to remove embedded scripts or malicious content
+4. Normalizing file content for safe storage
 
 Security principles:
 - Privacy protection: Remove location data (GPS coordinates)
 - Metadata removal: Strip camera info, software tags, author info
 - Re-encoding: Ensures clean image data without hidden payloads
 - Format normalization: Standardize image encoding
+- PHI protection: Remove metadata that may contain identifying information
 
-Privacy concerns with EXIF data:
+Privacy concerns with metadata:
 - GPS coordinates can reveal patient home addresses or treatment locations
 - Camera serial numbers and timestamps can be used for correlation attacks
 - Software tags may reveal versions with known vulnerabilities
-- Author/copyright info may contain PHI
+- Author/copyright/title info may contain PHI
+- PDF metadata fields may contain therapist or patient identifying information
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ from __future__ import annotations
 import io
 
 from PIL import Image
+from pypdf import PdfReader, PdfWriter
 
 from pazpaz.core.logging import get_logger
 from pazpaz.utils.file_validation import FILE_TYPE_TO_PIL_FORMAT, FileType
@@ -76,16 +80,9 @@ def strip_exif_metadata(
         )
         ```
     """
-    # PDFs don't have EXIF metadata (different metadata structure)
-    # For now, pass through PDFs without sanitization
-    # TODO: Implement PDF metadata stripping in future iteration
+    # PDFs have different metadata structure - use dedicated stripping function
     if file_type == FileType.PDF:
-        logger.debug(
-            "pdf_sanitization_skipped",
-            filename=filename,
-            reason="pdf_metadata_stripping_not_implemented",
-        )
-        return file_content
+        return strip_pdf_metadata(file_content, filename)
 
     # Only sanitize images
     if file_type not in (FileType.JPEG, FileType.PNG, FileType.WEBP):
@@ -182,6 +179,118 @@ def strip_exif_metadata(
             exc_info=True,
         )
         raise SanitizationError(f"Failed to strip metadata from {filename}: {e}") from e
+
+
+def strip_pdf_metadata(file_content: bytes, filename: str) -> bytes:
+    """
+    Strip metadata from PDF file for privacy protection.
+
+    Removes metadata fields that may contain PHI or identifying information:
+    - /Author - May contain therapist or patient name
+    - /Title - May contain sensitive document titles
+    - /Subject - May contain PHI descriptions
+    - /Keywords - May contain sensitive search terms
+    - /Creator - Application/software used
+    - /Producer - PDF generation software
+    - /CreationDate - Original creation timestamp
+    - /ModDate - Last modification timestamp
+
+    Process:
+    1. Read PDF with pypdf
+    2. Create new PDF writer
+    3. Copy all pages without metadata
+    4. Save without metadata fields
+
+    Args:
+        file_content: Raw PDF file bytes
+        filename: Original filename (for logging)
+
+    Returns:
+        Sanitized PDF bytes without metadata
+
+    Raises:
+        SanitizationError: If PDF processing fails
+
+    Example:
+        ```python
+        sanitized_bytes = strip_pdf_metadata(
+            file_content=uploaded_pdf_bytes,
+            filename="consent_form.pdf"
+        )
+        ```
+    """
+    try:
+        logger.info(
+            "pdf_metadata_stripping_started",
+            filename=filename,
+            original_size=len(file_content),
+        )
+
+        # Read PDF
+        pdf_input = io.BytesIO(file_content)
+        reader = PdfReader(pdf_input)
+
+        # Log metadata before stripping (for audit purposes)
+        metadata_before = reader.metadata
+        if metadata_before:
+            # Count non-None metadata fields (don't log values for privacy)
+            metadata_field_count = sum(1 for v in metadata_before.values() if v)
+            logger.info(
+                "pdf_metadata_detected",
+                filename=filename,
+                metadata_field_count=metadata_field_count,
+            )
+        else:
+            logger.debug("no_pdf_metadata_found", filename=filename)
+
+        # Create new PDF writer without metadata
+        writer = PdfWriter()
+
+        # Copy all pages from original PDF
+        for page in reader.pages:
+            writer.add_page(page)
+
+        # Explicitly set empty metadata to override pypdf's default Producer field
+        # This ensures no metadata is written to the output PDF
+        writer.add_metadata({})
+
+        # Write sanitized PDF to bytes
+        output = io.BytesIO()
+        writer.write(output)
+        sanitized_bytes = output.getvalue()
+
+        # Log size comparison
+        original_size = len(file_content)
+        sanitized_size = len(sanitized_bytes)
+        size_reduction = original_size - sanitized_size
+        reduction_percent = (
+            (size_reduction / original_size * 100) if original_size > 0 else 0
+        )
+
+        logger.info(
+            "pdf_metadata_stripping_completed",
+            filename=filename,
+            original_size=original_size,
+            sanitized_size=sanitized_size,
+            size_reduction=size_reduction,
+            reduction_percent=f"{reduction_percent:.1f}%",
+            page_count=len(reader.pages),
+            had_metadata=bool(metadata_before),
+        )
+
+        return sanitized_bytes
+
+    except Exception as e:
+        logger.error(
+            "pdf_metadata_stripping_failed",
+            filename=filename,
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True,
+        )
+        raise SanitizationError(
+            f"Failed to strip PDF metadata from {filename}: {e}"
+        ) from e
 
 
 def sanitize_filename(original_filename: str, max_length: int = 255) -> str:

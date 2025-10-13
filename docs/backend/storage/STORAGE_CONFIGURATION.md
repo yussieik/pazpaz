@@ -30,6 +30,8 @@ PazPaz uses S3-compatible object storage for session attachment files (photos, P
 - **Workspace-scoped paths** for multi-tenant isolation
 - **Presigned URLs** for temporary authenticated access
 
+**SECURITY NOTE:** Before deployment, review the [S3 Credential Management Guide](S3_CREDENTIAL_MANAGEMENT.md) to ensure secure credential configuration. Never use default credentials in production.
+
 ### Key Features
 
 ✅ **HIPAA Compliant**
@@ -110,7 +112,13 @@ S3_BUCKET_NAME=pazpaz-attachments
 S3_REGION=us-east-1
 ```
 
-**Note:** The default credentials (`minioadmin` / `minioadmin123`) are for **development only**. Change these in production.
+**SECURITY WARNING:** The default credentials (`minioadmin` / `minioadmin123`) are for **local development only**. These credentials are INSECURE and must NEVER be used in production or any network-accessible environment.
+
+**Before deployment:**
+1. Generate strong credentials (20+ characters): `openssl rand -base64 32`
+2. Review [S3 Credential Management Guide](S3_CREDENTIAL_MANAGEMENT.md)
+3. Use AWS Secrets Manager or IAM roles in production
+4. Run validation: `python scripts/validate_s3_credentials.py`
 
 ### 3. Create Storage Bucket
 
@@ -251,10 +259,12 @@ S3_REGION=us-west-2
 
 **Security Best Practices:**
 - Store credentials in AWS Secrets Manager or environment variables (never commit to Git)
-- Use IAM roles (EC2/ECS/EKS) instead of access keys when possible
+- Use IAM roles (EC2/ECS/EKS) instead of access keys when possible (recommended)
 - Enable CloudTrail for S3 audit logging
 - Enable S3 versioning for compliance (optional)
 - Configure S3 lifecycle policies to transition old files to Glacier
+- Rotate credentials every 90 days (see [S3 Credential Management Guide](S3_CREDENTIAL_MANAGEMENT.md))
+- Validate credentials before deployment: `python scripts/validate_s3_credentials.py`
 
 ---
 
@@ -798,6 +808,8 @@ pytest tests/test_storage.py -v
 - [Boto3 S3 Documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html)
 
 ### Related PazPaz Docs
+- **[S3 Credential Management Guide](S3_CREDENTIAL_MANAGEMENT.md)** - MUST READ before deployment
+- [File Upload Security](FILE_UPLOAD_SECURITY.md)
 - [Encryption Architecture](/backend/docs/encryption/ENCRYPTION_ARCHITECTURE.md)
 - [Security Audit Week 2](/docs/SECURITY_AUDIT_WEEK2_DAY10.md)
 - [API Implementation Guide](/backend/docs/api/)
