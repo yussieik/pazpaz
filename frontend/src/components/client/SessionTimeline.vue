@@ -26,7 +26,7 @@ import type { AxiosError } from 'axios'
 import type { SessionResponse } from '@/types/sessions'
 import SessionCard from '@/components/sessions/SessionCard.vue'
 import IconDocument from '@/components/icons/IconDocument.vue'
-import { truncate } from '@/utils/textFormatters'
+import { smartTruncate } from '@/utils/textFormatters'
 import { getDurationMinutes } from '@/utils/calendar/dateFormatters'
 
 interface Props {
@@ -121,7 +121,7 @@ async function fetchSessions() {
 
       // Build map of session_id -> appointment
       sessionAppointments.value.clear()
-      fetchedSessions.forEach((session: SessionItem, index: number) => {
+      fetchedSessions.forEach((session: SessionResponse, index: number) => {
         if (session.appointment_id && appointmentResponses[index]?.data) {
           sessionAppointments.value.set(session.id, appointmentResponses[index].data)
         }
@@ -275,6 +275,54 @@ function handleViewSession(sessionId: string) {
 }
 
 /**
+ * Format full SOAP preview for timeline display
+ * Shows all 4 SOAP fields with labels and intelligent truncation
+ * @param session - Session data with SOAP fields
+ * @param isMobile - Whether to use mobile truncation (40 chars) or desktop (60 chars)
+ * @returns Formatted SOAP preview string or "Draft - incomplete" if empty
+ */
+function formatSOAPPreview(session: SessionResponse, isMobile: boolean = false): string {
+  const maxLength = isMobile ? 40 : 60
+  const fields = [
+    { label: 'S', value: session.subjective },
+    { label: 'O', value: session.objective },
+    { label: 'A', value: session.assessment },
+    { label: 'P', value: session.plan },
+  ]
+
+  // Check if all fields are empty
+  const hasContent = fields.some((field) => field.value && field.value.trim().length > 0)
+  if (!hasContent) {
+    return ''
+  }
+
+  // Format each field with label and truncated value
+  const formattedFields = fields
+    .map((field) => {
+      if (!field.value || field.value.trim().length === 0) {
+        return `${field.label}: —`
+      }
+      const truncated = smartTruncate(field.value, maxLength)
+      return `${field.label}: ${truncated}`
+    })
+    .join(' | ')
+
+  return formattedFields
+}
+
+/**
+ * Check if session has any SOAP content
+ */
+function hasSOAPContent(session: SessionResponse): boolean {
+  return !!(
+    session.subjective ||
+    session.objective ||
+    session.assessment ||
+    session.plan
+  )
+}
+
+/**
  * Refresh the timeline by fetching both sessions and appointments
  * Exposed to parent components for manual refresh triggers
  * IMPORTANT: Must fetch sessions FIRST before appointments (fetchAppointments depends on sessions.value)
@@ -318,13 +366,18 @@ defineExpose({
       v-if="!isEmpty && !loading && !error"
       name="session-list"
       tag="div"
-      class="space-y-4"
+      class="space-y-3"
     >
       <!-- Session Note -->
       <SessionCard
         v-for="item in timeline.filter(isSession)"
         :key="`session-${item.id}`"
         :session="item.data"
+        :class="[
+          'border-l-4',
+          item.data.is_draft ? 'border-l-blue-500' : 'border-l-green-500',
+        ]"
+        :style="{ paddingLeft: '1rem' }"
         @deleted="handleSessionDeleted"
         @view="handleViewSession"
       >
@@ -354,7 +407,7 @@ defineExpose({
             <!-- Content -->
             <div class="min-w-0 flex-1">
               <div class="flex items-center justify-between gap-2">
-                <h4 class="text-sm font-medium text-slate-900">
+                <h4 class="text-sm font-semibold text-slate-900">
                   {{ formatDate(item.data.session_date) }}
                 </h4>
                 <span
@@ -402,14 +455,26 @@ defineExpose({
                 Standalone session
               </div>
 
-              <!-- SOAP Preview -->
-              <p
-                v-if="item.data.subjective"
-                class="mt-1 line-clamp-2 text-sm text-slate-600"
-              >
-                {{ truncate(item.data.subjective, 150) }}
-              </p>
-              <p v-else class="mt-1 text-sm text-slate-400 italic">No content yet</p>
+              <!-- Full SOAP Preview (all 4 fields) -->
+              <div v-if="hasSOAPContent(item.data)" class="mt-2">
+                <!-- Desktop: 60 chars per field -->
+                <p class="hidden text-xs text-slate-600 sm:block">
+                  {{ formatSOAPPreview(item.data, false) }}
+                </p>
+                <!-- Mobile: 40 chars per field -->
+                <p class="text-xs text-slate-600 sm:hidden">
+                  {{ formatSOAPPreview(item.data, true) }}
+                </p>
+              </div>
+
+              <!-- Empty state for drafts with no content -->
+              <div v-else>
+                <span
+                  class="mt-2 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-500"
+                >
+                  Draft - incomplete
+                </span>
+              </div>
 
               <!-- Duration -->
               <p v-if="item.data.duration_minutes" class="mt-1 text-xs text-slate-500">
@@ -432,7 +497,7 @@ defineExpose({
       <div
         v-for="item in timeline.filter(isAppointment)"
         :key="`appointment-${item.id}`"
-        class="rounded-lg border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300"
+        class="rounded-lg border border-slate-200 bg-slate-50 p-3.5 transition-colors hover:border-slate-300 hover:bg-slate-100"
       >
         <div class="flex items-start gap-3">
           <!-- Icon -->
@@ -469,7 +534,7 @@ defineExpose({
               {{ item.data.service_name || 'Appointment' }}
             </p>
             <p v-if="item.data.notes" class="mt-1 line-clamp-1 text-sm text-slate-500">
-              {{ truncate(item.data.notes, 100) }}
+              {{ smartTruncate(item.data.notes, 100) }}
             </p>
 
             <!-- Action Button -->

@@ -25,7 +25,7 @@ const { announcement, announce } = useScreenReader()
 const { showAppointmentSuccess } = useToast()
 
 // Local state
-const activeTab = ref<'overview' | 'history' | 'plan-of-care' | 'files'>('overview')
+const activeTab = ref<'overview' | 'history' | 'files'>('overview')
 
 // Button refs for keyboard feedback
 const editButtonRef = ref<HTMLButtonElement | null>(null)
@@ -128,8 +128,8 @@ onMounted(() => {
 
   // Handle tab query parameter (e.g., from SessionView back navigation)
   const tabParam = route.query.tab as string | undefined
-  if (tabParam && ['overview', 'history', 'plan-of-care', 'files'].includes(tabParam)) {
-    activeTab.value = tabParam as 'overview' | 'history' | 'plan-of-care' | 'files'
+  if (tabParam && ['overview', 'history', 'files'].includes(tabParam)) {
+    activeTab.value = tabParam as 'overview' | 'history' | 'files'
   }
 
   // Fetch client data
@@ -248,20 +248,18 @@ function handleKeydown(e: KeyboardEvent) {
   // Only process shortcuts when client data is loaded
   if (!client.value) return
 
-  // Tab switching (1-4)
-  if (['1', '2', '3', '4'].includes(e.key)) {
+  // Tab switching (1-3)
+  if (['1', '2', '3'].includes(e.key)) {
     e.preventDefault()
-    const tabMap: Record<string, 'overview' | 'history' | 'plan-of-care' | 'files'> = {
+    const tabMap: Record<string, 'overview' | 'history' | 'files'> = {
       '1': 'overview',
       '2': 'history',
-      '3': 'plan-of-care',
-      '4': 'files',
+      '3': 'files',
     }
     const tabLabels: Record<string, string> = {
       '1': 'Overview',
       '2': 'History',
-      '3': 'Plan of Care',
-      '4': 'Files',
+      '3': 'Files',
     }
     const newTab = tabMap[e.key]
     if (newTab) {
@@ -369,7 +367,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div class="container mx-auto px-5 py-6 sm:px-4 sm:py-8">
     <!-- Screen Reader Announcements -->
     <div role="status" aria-live="polite" aria-atomic="true" class="sr-only">
       {{ announcement }}
@@ -379,9 +377,9 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
     <button
       @click="backDestination.action"
       data-focus-target="back-button"
-      class="group mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+      class="group mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 min-h-[44px] px-2 -ml-2 sm:min-h-0 sm:px-0 sm:ml-0"
     >
-      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="h-5 w-5 sm:h-4 sm:w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -391,7 +389,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
       </svg>
       <span>{{ backDestination.label }}</span>
       <kbd
-        class="ml-2 rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity group-hover:opacity-100"
+        class="hidden sm:inline ml-2 rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity group-hover:opacity-100"
       >
         Esc
       </kbd>
@@ -402,14 +400,14 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
       v-if="sourceAppointment"
       class="mb-6 rounded-lg border-l-4 border-blue-500 bg-blue-50 p-4 shadow-sm"
     >
-      <div class="flex items-center justify-between">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex items-center gap-3">
           <!-- Icon -->
           <div
-            class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600"
+            class="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-blue-600 flex-shrink-0"
           >
             <svg
-              class="h-6 w-6 text-white"
+              class="h-4 w-4 sm:h-6 sm:w-6 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -424,9 +422,9 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
           </div>
 
           <!-- Content -->
-          <div>
+          <div class="flex-1 min-w-0">
             <p class="text-sm font-semibold text-blue-900">Viewing from appointment</p>
-            <p class="text-sm text-blue-700">
+            <p class="text-xs sm:text-sm text-blue-700 truncate">
               {{ formatDate(sourceAppointment.scheduled_start, "MMM d 'at' h:mm a") }}
               •
               {{
@@ -441,12 +439,12 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
         </div>
 
         <!-- Actions -->
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 w-full sm:w-auto">
           <button
             @click="backDestination.action()"
-            class="inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50"
+            class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50 min-h-[44px]"
           >
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -454,16 +452,17 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
                 d="M10 19l-7-7m0 0l7-7m-7 7h18"
               />
             </svg>
-            Back to Appointment
+            <span class="hidden sm:inline">Back to Appointment</span>
+            <span class="inline sm:hidden">Back</span>
             <kbd
-              class="ml-1 rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs text-blue-700"
+              class="hidden sm:inline ml-1 rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs text-blue-700"
             >
               Esc
             </kbd>
           </button>
           <button
             @click="dismissBanner"
-            class="rounded-lg p-2 text-blue-400 transition-colors hover:bg-blue-100 hover:text-blue-600"
+            class="p-2.5 rounded-lg text-blue-400 transition-colors hover:bg-blue-100 hover:text-blue-600 min-h-[44px] min-w-[44px]"
             aria-label="Dismiss banner"
           >
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -483,7 +482,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
     <div v-if="clientsStore.loading" class="flex items-center justify-center py-12">
       <div class="text-center">
         <div
-          class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-emerald-600 border-r-transparent"
+          class="inline-block h-10 w-10 sm:h-8 sm:w-8 animate-spin rounded-full border-4 border-solid border-emerald-600 border-r-transparent"
         ></div>
         <p class="mt-4 text-sm text-slate-600">Loading client...</p>
       </div>
@@ -538,10 +537,10 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
             <a
               v-if="client.emergency_contact_phone"
               :href="`tel:${client.emergency_contact_phone}`"
-              class="mt-1 inline-flex items-center gap-2 text-lg font-bold text-red-700 hover:text-red-800 focus:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+              class="mt-1 inline-flex items-center gap-2 text-base sm:text-lg font-bold text-red-700 hover:text-red-800 focus:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 min-h-[44px]"
             >
               <svg
-                class="h-5 w-5"
+                class="h-5 w-5 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -553,7 +552,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
                   d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                 />
               </svg>
-              {{ client.emergency_contact_phone }}
+              <span class="break-all sm:break-normal">{{ client.emergency_contact_phone }}</span>
             </a>
           </div>
         </div>
@@ -565,31 +564,31 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
           <!-- Client Info -->
           <div class="flex items-start gap-4">
             <div
-              class="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-2xl font-semibold text-emerald-700"
+              class="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-emerald-100 text-xl sm:text-2xl font-semibold text-emerald-700 flex-shrink-0"
             >
               {{ client.first_name[0] }}{{ client.last_name[0] }}
             </div>
-            <div class="flex-1">
-              <h1 class="text-3xl font-bold tracking-tight text-slate-900">
+            <div class="flex-1 min-w-0">
+              <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
                 {{ client.full_name }}
               </h1>
               <div class="mt-1 space-y-0.5 text-sm text-slate-600">
-                <p v-if="client.email">{{ client.email }}</p>
+                <p v-if="client.email" class="truncate">{{ client.email }}</p>
                 <p v-if="client.phone">{{ client.phone }}</p>
               </div>
             </div>
           </div>
 
           <!-- Action Buttons -->
-          <div class="flex gap-2">
+          <div class="flex gap-2 w-full sm:w-auto">
             <button
               ref="editButtonRef"
               @click="editClient"
-              class="group relative inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
+              class="group relative inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none min-h-[44px] flex-1 sm:flex-none"
             >
               Edit
               <kbd
-                class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity group-hover:opacity-100"
+                class="hidden sm:inline ml-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity group-hover:opacity-100"
               >
                 e
               </kbd>
@@ -597,10 +596,10 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
             <button
               ref="scheduleButtonRef"
               @click="scheduleAppointment"
-              class="group relative inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
+              class="group relative inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none min-h-[44px] flex-1 sm:flex-none"
             >
               <svg
-                class="h-4 w-4"
+                class="h-4 w-4 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -614,7 +613,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
               </svg>
               Schedule
               <kbd
-                class="ml-1 rounded bg-emerald-700 px-1.5 py-0.5 font-mono text-xs text-emerald-100 opacity-0 transition-opacity group-hover:opacity-100"
+                class="hidden sm:inline ml-1 rounded bg-emerald-700 px-1.5 py-0.5 font-mono text-xs text-emerald-100 opacity-0 transition-opacity group-hover:opacity-100"
               >
                 s
               </kbd>
@@ -625,82 +624,69 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
 
       <!-- Tabs -->
       <div class="mb-6 border-b border-slate-200">
-        <nav class="flex space-x-8" aria-label="Tabs">
+        <nav class="flex space-x-4 sm:space-x-8" aria-label="Tabs">
           <button
             @click="activeTab = 'overview'"
             :class="[
-              'border-b-2 px-1 py-4 text-sm font-medium transition-colors',
+              'border-b-2 px-3 py-4 text-sm font-medium transition-colors sm:px-1',
               activeTab === 'overview'
                 ? 'border-emerald-600 text-emerald-600'
                 : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
             ]"
           >
-            Overview
-            <kbd
-              :class="[
-                'ml-1 font-mono text-xs',
-                activeTab === 'overview' ? 'opacity-60' : 'opacity-40',
-              ]"
-            >
-              1
-            </kbd>
+            <span class="flex items-center gap-1.5">
+              Overview
+              <kbd
+                :class="[
+                  'hidden sm:inline font-mono text-xs',
+                  activeTab === 'overview' ? 'bg-emerald-100 text-emerald-700 rounded px-1.5 py-0.5' : 'bg-slate-100 text-slate-500 rounded px-1.5 py-0.5',
+                ]"
+              >
+                1
+              </kbd>
+            </span>
           </button>
           <button
             @click="activeTab = 'history'"
             :class="[
-              'border-b-2 px-1 py-4 text-sm font-medium transition-colors',
+              'border-b-2 px-3 py-4 text-sm font-medium transition-colors sm:px-1',
               activeTab === 'history'
                 ? 'border-emerald-600 text-emerald-600'
                 : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
             ]"
           >
-            History
-            <kbd
-              :class="[
-                'ml-1 font-mono text-xs',
-                activeTab === 'history' ? 'opacity-60' : 'opacity-40',
-              ]"
-            >
-              2
-            </kbd>
-          </button>
-          <button
-            @click="activeTab = 'plan-of-care'"
-            :class="[
-              'border-b-2 px-1 py-4 text-sm font-medium transition-colors',
-              activeTab === 'plan-of-care'
-                ? 'border-emerald-600 text-emerald-600'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
-            ]"
-          >
-            Plan of Care
-            <kbd
-              :class="[
-                'ml-1 font-mono text-xs',
-                activeTab === 'plan-of-care' ? 'opacity-60' : 'opacity-40',
-              ]"
-            >
-              3
-            </kbd>
+            <span class="flex items-center gap-1.5">
+              History
+              <kbd
+                :class="[
+                  'hidden sm:inline font-mono text-xs',
+                  activeTab === 'history' ? 'bg-emerald-100 text-emerald-700 rounded px-1.5 py-0.5' : 'bg-slate-100 text-slate-500 rounded px-1.5 py-0.5',
+                ]"
+              >
+                2
+              </kbd>
+            </span>
           </button>
           <button
             @click="activeTab = 'files'"
             :class="[
-              'border-b-2 px-1 py-4 text-sm font-medium transition-colors',
+              'border-b-2 px-3 py-4 text-sm font-medium transition-colors sm:px-1',
               activeTab === 'files'
                 ? 'border-emerald-600 text-emerald-600'
                 : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
             ]"
           >
-            Files
-            <kbd
-              :class="[
-                'ml-1 font-mono text-xs',
-                activeTab === 'files' ? 'opacity-60' : 'opacity-40',
-              ]"
-            >
-              4
-            </kbd>
+            <span class="flex items-center gap-1.5">
+              Files
+              <kbd
+                :class="[
+                  'hidden sm:inline font-mono text-xs',
+                  activeTab === 'files' ? 'bg-emerald-100 text-emerald-700 rounded px-1.5 py-0.5' : 'bg-slate-100 text-slate-500 rounded px-1.5 py-0.5',
+                ]"
+              >
+                3
+              </kbd>
+            </span>
           </button>
         </nav>
       </div>
@@ -710,10 +696,10 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
         <!-- Overview Tab -->
         <div v-if="activeTab === 'overview'">
           <h2 class="mb-4 text-lg font-semibold text-slate-900">Client Information</h2>
-          <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
+          <dl class="grid grid-cols-1 gap-6 sm:gap-4 sm:grid-cols-2">
+            <div class="pb-4 border-b border-slate-100 sm:pb-0 sm:border-b-0">
               <dt class="text-sm font-medium text-slate-500">Date of Birth</dt>
-              <dd class="mt-1 text-sm text-slate-900">
+              <dd class="mt-1.5 text-base sm:text-sm text-slate-900">
                 {{
                   client.date_of_birth
                     ? new Date(client.date_of_birth).toLocaleDateString()
@@ -721,15 +707,15 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
                 }}
               </dd>
             </div>
-            <div>
+            <div class="pb-4 border-b border-slate-100 sm:pb-0 sm:border-b-0">
               <dt class="text-sm font-medium text-slate-500">Address</dt>
-              <dd class="mt-1 text-sm text-slate-900">
+              <dd class="mt-1.5 text-base sm:text-sm text-slate-900">
                 {{ client.address || 'Not provided' }}
               </dd>
             </div>
-            <div>
+            <div class="pb-4 border-b border-slate-100 sm:pb-0 sm:border-b-0">
               <dt class="text-sm font-medium text-slate-500">Emergency Contact</dt>
-              <dd class="mt-1 text-sm text-slate-900">
+              <dd class="mt-1.5 text-base sm:text-sm text-slate-900">
                 {{ client.emergency_contact_name || 'Not provided' }}
                 <span
                   v-if="client.emergency_contact_phone"
@@ -741,18 +727,22 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
             </div>
           </dl>
 
-          <div v-if="client.medical_history" class="mt-6">
-            <h3 class="text-sm font-medium text-slate-500">Medical History</h3>
-            <p class="mt-2 text-sm whitespace-pre-wrap text-slate-900">
-              {{ client.medical_history }}
-            </p>
+          <div v-if="client.medical_history" class="mt-8 sm:mt-6">
+            <h3 class="text-sm font-semibold text-slate-700 mb-2">Medical History</h3>
+            <div class="bg-slate-50 rounded-lg p-4">
+              <p class="text-base sm:text-sm leading-relaxed whitespace-pre-wrap text-slate-900">
+                {{ client.medical_history }}
+              </p>
+            </div>
           </div>
 
-          <div v-if="client.notes" class="mt-6">
-            <h3 class="text-sm font-medium text-slate-500">Notes</h3>
-            <p class="mt-2 text-sm whitespace-pre-wrap text-slate-900">
-              {{ client.notes }}
-            </p>
+          <div v-if="client.notes" class="mt-8 sm:mt-6">
+            <h3 class="text-sm font-semibold text-slate-700 mb-2">Notes</h3>
+            <div class="bg-slate-50 rounded-lg p-4">
+              <p class="text-base sm:text-sm leading-relaxed whitespace-pre-wrap text-slate-900">
+                {{ client.notes }}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -777,14 +767,6 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
             ref="deletedNotesSectionRef"
             @restored="handleSessionRestored"
           />
-        </div>
-
-        <!-- Plan of Care Tab -->
-        <div v-else-if="activeTab === 'plan-of-care'">
-          <h2 class="mb-4 text-lg font-semibold text-slate-900">Plan of Care</h2>
-          <p class="text-sm text-slate-600">
-            Coming in M4 - Treatment plans, goals, and milestones
-          </p>
         </div>
 
         <!-- Files Tab -->

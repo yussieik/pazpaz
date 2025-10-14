@@ -1,17 +1,25 @@
 # 🛡️ Security-First Implementation Plan
-## PazPaz Features 1-3: SOAP Notes, Plan of Care, Email Reminders
+## PazPaz Features 1-2: SOAP Notes, Email Reminders
 
 **Created:** 2025-10-03
-**Status:** Week 2 Day 7 - COMPLETED ✅
+**Status:** Week 3 Day 12 - File Attachments COMPLETED ✅
 **Approach:** Security-First with Parallel Agent Execution
-**Total Duration:** 5 weeks (25 days)
-**Last Updated:** 2025-10-09 (Week 2 Day 7 completed - SOAP Notes CRUD API with 100% test coverage)
+**Total Duration:** 5+ weeks (26 days)
+**Last Updated:** 2025-10-13
+
+**Scope Changes:**
+- Plan of Care removed (deferred to V2 based on UX evaluation)
+- Session goals removed from V1 (deferred to V2 based on UX evaluation)
+- Week 3 completes at Day 12 with production-ready file upload API
+- Day 13 focuses on Timeline UX Polish (visual hierarchy and SOAP preview enhancements)
 
 ---
 
 ## 📋 Executive Summary
 
-This plan implements three critical features (SOAP Notes, Plan of Care, Email Reminders) with **security and HIPAA compliance as the foundation**. We address all CRITICAL vulnerabilities BEFORE implementing PHI-handling features.
+This plan implements two critical features (SOAP Notes with File Attachments, Email Reminders) with **security and HIPAA compliance as the foundation**. We address all CRITICAL vulnerabilities BEFORE implementing PHI-handling features.
+
+**Scope Revision (Week 3):** Plan of Care feature removed based on UX consultant evaluation. Replaces duplicate functionality (SOAP "Plan" field already supports treatment goals) with enhanced timeline view (goal detection + filtering). This simplification maintains V1 "simplicity first" principle while deferring formal treatment planning to V2 based on real user feedback.
 
 ### Key Principles
 1. **No PHI storage without encryption at rest**
@@ -39,13 +47,14 @@ This plan implements three critical features (SOAP Notes, Plan of Care, Email Re
 **Goal:** Implement session documentation with encryption
 **Progress:** Day 6 Complete ✅ | Day 7 Complete ✅
 
-### **WEEK 3: SOAP Notes Complete + Plan of Care (Days 11-15)**
-**Goal:** File attachments + treatment planning
+### **WEEK 3: SOAP Notes Complete + File Attachments (Days 11-12)** ✅ COMPLETED
+**Goal:** File attachments with security validation
+**Duration:** 2 days (Days 13-15 moved to Week 4)
 
-### **WEEK 4: Email Reminders (Days 16-20)**
-**Goal:** Notification system with security controls
+### **WEEK 4: Timeline UX + File Attachments + Email Reminders (Days 13-21)**
+**Goal:** Enhanced timeline UX, file attachment UI, notification system with security controls
 
-### **WEEK 5: Integration + QA (Days 21-25)**
+### **WEEK 5: Integration + QA (Days 22-26)**
 **Goal:** End-to-end testing, security audit, production prep
 
 ---
@@ -1223,10 +1232,12 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 
 ---
 
-## 📅 WEEK 3: File Attachments + Plan of Care (Days 11-15)
+## 📅 WEEK 3: SOAP Notes Complete + File Attachments (Days 11-12) ✅ COMPLETED
 
 ### Objective
-Complete SOAP Notes with file attachments, then implement Plan of Care feature.
+Complete SOAP Notes with secure file attachment capabilities.
+
+**Scope Change:** Plan of Care feature removed based on UX evaluation (deferred to V2). Days 13-15 removed after second UX evaluation determined enhanced timeline was over-engineered. Week 3 completes at Day 12 with production-ready file upload API. File attachment UI implementation moved to Week 4.
 
 ### Day 11: S3/MinIO Integration ✅ COMPLETED
 
@@ -1483,156 +1494,381 @@ Complete SOAP Notes with file attachments, then implement Plan of Care feature.
 - ✅ HIPAA compliance: FULL ("minimum necessary" satisfied)
 - ✅ Production readiness: APPROVED FOR DEPLOYMENT
 
+**Week 3 Summary:**
+- **Day 11:** S3/MinIO Integration - COMPLETED ✅
+- **Day 12:** File Upload API - COMPLETED ✅ (Production-ready, 9.5/10 quality, 49/49 tests passing)
+- **Days 13-15:** Removed after UX evaluation (over-engineered, duplicated Day 14 tasks)
+
+**Ready for Week 4:** File attachment backend complete. UI implementation and QA moved to Week 4 Days 13-15.
+
 ---
 
-### Day 13: Plan of Care Database & API
+## 📅 WEEK 4: Timeline UX Polish + File Attachments + Email Reminders (Days 13-21)
 
-#### Morning Session (4 hours)
-**Agent: `database-architect`**
+### Objective
+Polish session timeline UX with visual hierarchy improvements, complete file attachment UI, then implement email notification system with template security and delivery tracking.
 
-**Task:** Create Plan of Care Tables
-- Design `plans_of_care` table with encrypted fields
-- Design `plan_of_care_progress_notes` table
-- Create Alembic migration
-- Add performance indexes
+**Week 4 Structure:**
+- **Day 13:** Timeline UX Polish (4 hours)
+- **Days 14-16:** File Attachment UI + QA
+- **Days 17-21:** Email Reminders
+
+**Note:** Session goals feature deferred to V2 based on UX evaluation. V1 focuses on SOAP notes simplicity-first principle, with goal tracking to be informed by real usage patterns.
+
+### Day 13: Timeline UX Polish + Session Context (8 hours)
+
+**Context:** Based on comprehensive UX evaluation, session goals feature has been deferred to V2. However, therapists need **contextual awareness** to track treatment progression—the ability to reference previous session details when creating new notes. Day 13 focuses on visual hierarchy improvements and a minimal Previous Session Context Panel to solve the core progression tracking need without adding formal structure.
+
+**Design Rationale (from UX Evaluation):**
+- Separate goal field would create clutter (33% more fields: 6→8)
+- Goal duplicates Plan field in 50-60% of use cases
+- Adds 4 micro-decisions per session (decision fatigue)
+- No industry precedent for separate goal field in EMR systems
+- V1 should validate core SOAP workflow before adding structure
+- **NEW**: #1 therapist pain point is contextual awareness—"What did I do last session?"
+- **NEW**: Previous Session Context Panel solves 80% of progression tracking needs with minimal UX addition
+
+**Total Effort:** 8 hours (full day: morning = timeline polish, afternoon = context panel)
+
+---
+
+#### Morning Session: Timeline Visual Hierarchy (4 hours)
+**Agent: `fullstack-frontend-specialist`**
+
+**Task 1: Enhanced Visual Hierarchy (2 hours)**
+- Add border-left accent to session cards (blue for draft, green for finalized)
+- Change appointment cards to gray background (slate-50)
+- Increase session card padding slightly (more visual weight)
+- Bold session timestamps
+- Improve spacing between timeline items
 
 **Deliverables:**
-- Migration: `[timestamp]_create_plan_of_care_tables.py`
-- Indexes: (workspace_id, client_id, start_date), (workspace_id, status)
-- Encrypted fields: treatment_goals, progress_notes
-- JSONB column for flexible goal tracking
+- Updated SessionTimeline.vue with visual hierarchy CSS
+- Session cards: white bg + left border (border-l-4 border-blue-500 or border-green-500)
+- Appointment cards: gray bg (bg-slate-50 border border-slate-200)
+- Padding: sessions p-4, appointments p-3.5
+- Increased gap between timeline items (space-y-3)
 
 **Acceptance Criteria:**
-- [ ] Tables created with workspace scoping
-- [ ] PHI columns encrypted
-- [ ] Indexes support timeline queries
-- [ ] Migration tested
+- [ ] Sessions have 4px colored left border (blue=draft, green=finalized)
+- [ ] Appointments have gray background (visually recessed)
+- [ ] Session timestamps are bold (font-semibold)
+- [ ] Visual scanning is faster (sessions stand out from appointments)
+- [ ] Improved vertical rhythm with consistent spacing
 
-#### Afternoon Session (4 hours)
+**Task 2: SOAP Preview Enhancement (2 hours)**
+- Show preview of ALL SOAP fields (not just Subjective)
+- Format preview as: "S: [40 chars] | O: [40 chars] | A: [40 chars] | P: [40 chars]"
+- Truncate each field intelligently (preserve words, add ellipsis)
+- Style with subtle color coding per field (optional: S=blue, O=green, A=amber, P=purple)
+- Show "Draft - incomplete" badge if SOAP fields are empty
+
+**Deliverables:**
+- Updated timeline session card with full SOAP preview
+- Truncation logic (40 chars per field mobile, 60 chars desktop)
+- Color-coded field labels (S:/O:/A:/P: prefixes)
+- "Draft - incomplete" badge for sessions with empty SOAP fields
+- Tooltip showing full field text on hover (optional enhancement)
+
+**Acceptance Criteria:**
+- [ ] Timeline shows preview of all 4 SOAP fields (not just Subjective)
+- [ ] Each field truncated intelligently (preserves words, adds "...")
+- [ ] Field labels clearly distinguish S/O/A/P sections
+- [ ] Empty SOAP fields show "Draft - incomplete" badge
+- [ ] Mobile: 40 chars per field; Desktop: 60 chars per field
+- [ ] Preview is scannable and informative at a glance
+
+---
+
+#### Afternoon Session: Previous Session Context Panel (4 hours)
+**Agent: `fullstack-frontend-specialist`** (frontend) + **`fullstack-backend-specialist`** (API endpoint - 1 hour)
+
+**Problem Statement:**
+Therapists need to track treatment progression across sessions. Key questions:
+- "What did I do last session?"
+- "Is this a continuation of Plan A or Plan B?"
+- "What was the patient's ROM measurement last time?"
+
+**Solution:**
+Show previous session's SOAP fields in a collapsible sidebar panel when creating/editing session notes. This provides contextual awareness without forcing formal treatment plan structure.
+
+**Task 3: Backend API Endpoint (1 hour)**
 **Agent: `fullstack-backend-specialist`**
 
-**Task:** Implement Plan of Care API
-- Create plan (POST /plans-of-care)
-- Get plan (GET /plans-of-care/{id})
-- Update plan (PUT /plans-of-care/{id})
-- Add progress note (POST /plans-of-care/{id}/progress-notes)
-- Get client timeline (GET /clients/{id}/timeline)
+Create new endpoint: `GET /api/v1/clients/{client_id}/sessions/latest-finalized`
+
+**Specification:**
+- Returns most recent finalized session for given client (exclude drafts)
+- Returns full decrypted SOAP fields (subjective, objective, assessment, plan)
+- Includes session metadata (date, duration, finalized_at timestamp)
+- Workspace scoping enforced (403 if client not in user's workspace)
+- Returns 404 if no finalized sessions exist
+
+**Response Schema:**
+```json
+{
+  "id": "uuid",
+  "session_date": "2025-10-06T14:00:00Z",
+  "duration_minutes": 60,
+  "is_draft": false,
+  "finalized_at": "2025-10-06T15:05:00Z",
+  "subjective": "Patient reports neck pain radiating to left shoulder...",
+  "objective": "ROM 90° shoulder abduction. Tender trapezius palpation...",
+  "assessment": "Muscle tension pattern consistent with postural dysfunction...",
+  "plan": "Continue trapezius protocol (session 3/6). Review in 1 week.",
+  "created_at": "2025-10-06T14:05:00Z"
+}
+```
 
 **Deliverables:**
-- 5 Plan of Care endpoints
-- SQLAlchemy models with encrypted fields
-- Timeline aggregation query (sessions + plans)
-- Pydantic schemas
+- New API endpoint with OpenAPI documentation
+- Integration test verifying workspace scoping
+- Performance test: <50ms p95 response time
 
 **Acceptance Criteria:**
-- [ ] All endpoints authenticated and CSRF protected
-- [ ] PHI encrypted at rest
-- [ ] Timeline query < 500ms p95
-- [ ] Audit logging integrated
+- [ ] Endpoint returns latest finalized session (not drafts)
+- [ ] SOAP fields are decrypted and returned
+- [ ] Workspace scoping enforced (403 for unauthorized access)
+- [ ] Returns 404 if client has no finalized sessions
+- [ ] Performance <50ms p95
+
+**Task 4: Frontend Context Panel Component (3 hours)**
+**Agent: `fullstack-frontend-specialist`**
+
+Create `PreviousSessionPanel.vue` component and integrate into SessionEditor.
+
+**UI Specifications:**
+
+**Desktop Layout:**
+- Right sidebar (400px width, sticky, full height)
+- Collapsible via chevron toggle
+- Gray background (bg-gray-50) to distinguish from main form
+
+**Mobile Layout:**
+- Bottom drawer (max height 384px)
+- Default: collapsed (show header only)
+- Expand on tap
+
+**Panel Header:**
+- Title: "Previous Session"
+- Date: "[Month Day, Year] ([X days ago])"
+- Collapse/expand toggle button
+
+**Panel Content (when expanded):**
+- Display all 4 SOAP fields (S, O, A, P)
+- Each field labeled clearly
+- Scrollable if content exceeds panel height
+- Link: "Open full session →" (opens in new tab)
+
+**When to Show:**
+- Show panel when creating NEW session OR editing DRAFT session
+- Only show if client has ≥1 finalized session
+- Auto-fetch on component mount
+
+**Interaction Details:**
+- Default state: Expanded on desktop, collapsed on mobile
+- Persist collapse state in localStorage (per-user preference)
+- Click field text to copy (helpful for referencing previous values)
+
+**Deliverables:**
+- `components/sessions/PreviousSessionPanel.vue`
+- Integration into SessionEditor.vue (conditional rendering)
+- Composable: `composables/usePreviousSession.ts` (API integration)
+- Responsive layout (desktop sidebar, mobile drawer)
+- Loading state (skeleton) and error state (empty message)
+
+**Acceptance Criteria:**
+- [ ] Panel shows previous session SOAP fields when creating/editing session
+- [ ] Only displays if client has ≥1 finalized session
+- [ ] Desktop: Right sidebar (400px, sticky, collapsible)
+- [ ] Mobile: Bottom drawer (collapsed by default)
+- [ ] Shows "X days ago" relative timestamp
+- [ ] Link to open previous session in new tab works
+- [ ] Loading state displays while fetching
+- [ ] Error state: "No previous sessions" if 404 from API
+- [ ] Collapse state persists in localStorage
+- [ ] Click-to-copy functionality for field text (optional enhancement)
 
 ---
 
-### Day 14: Frontend for Attachments & Plan of Care
+#### Day 13 Summary
+
+**Total Implementation Time:** 8 hours (full day)
+
+**Morning Session (4h):** Timeline Visual Hierarchy
+- Task 1: Enhanced visual hierarchy (2h)
+- Task 2: SOAP preview enhancement (2h)
+
+**Afternoon Session (4h):** Previous Session Context Panel
+- Task 3: Backend API endpoint (1h) - `fullstack-backend-specialist`
+- Task 4: Frontend context panel (3h) - `fullstack-frontend-specialist`
+
+**Why This Approach:**
+- **Simplicity first**: Enhances existing features without adding formal structure
+- **Contextual awareness**: Solves #1 therapist pain point ("What did I do last session?")
+- **Data-informed**: Learn from real SOAP Plan field usage before adding goal structure
+- **Quick wins**: Visual hierarchy + context panel provide immediate UX value
+- **80/20 rule**: Previous session context solves 80% of progression tracking needs
+- **Minimal addition**: One collapsible panel vs. complex treatment plan infrastructure
+
+**Deliverables:**
+- ✅ Enhanced timeline visual hierarchy (colored borders, bold timestamps, improved spacing)
+- ✅ Full SOAP preview in timeline (all 4 fields visible, intelligently truncated)
+- ✅ Previous Session Context Panel (shows previous SOAP fields during note creation)
+- ✅ New API endpoint: `GET /api/v1/clients/{client_id}/sessions/latest-finalized`
+- ✅ Responsive design (desktop sidebar, mobile drawer)
+- ✅ Clearer draft/finalized distinction
+- ✅ Better appointment vs session visual separation
+
+**Progression Tracking Solution:**
+- **Problem**: "How do I know this is Plan A vs Plan B?"
+- **Solution**: Previous session SOAP fields shown during note creation
+- **Therapist Workflow**:
+  1. Open SessionEditor to create new note
+  2. See previous session's Plan field in sidebar: "Continue trapezius protocol (session 3/6)"
+  3. Write current session's Plan: "Continue trapezius protocol (session 4/6). Patient showing improvement."
+  4. Narrative continuity maintained via SOAP Plan field
+
+**V2 Considerations (deferred):**
+- Session goals with outcome tracking (if validated by user research)
+- Timeline filtering by treatment focus or SOAP field keywords
+- NLP-powered goal extraction from Plan field (zero UI clutter)
+- Multi-session treatment plan visualization
+- Automated "Plan A vs Plan B" labeling (if usage patterns show need)
+
+**Testing Checkpoints:**
+- Visual QA: Verify timeline hierarchy improvements render correctly
+- Mobile testing: Ensure SOAP preview doesn't overflow on small screens
+- Context panel: Verify previous session loads correctly
+- API performance: <50ms p95 for latest-finalized endpoint
+- Workspace scoping: Ensure 403 for unauthorized client access
+- Accessibility: Check color contrast ratios for field labels
+- Performance: Timeline loads and renders in <150ms for 100 sessions
+
+---
+
+### Day 14: File Attachment UI
 
 #### Morning Session (4 hours)
 **Agent: `fullstack-frontend-specialist`**
 
-**Task:** Build File Upload UI
-- Create FileUpload.vue component
-- Implement drag-and-drop
-- Show upload progress
-- Display attachment list with download links
+**Task:** Build File Attachment UI Components
+- Create FileUpload.vue component with drag-and-drop
+- Implement upload progress indicators
+- Build AttachmentList.vue with download links
+- Add image preview modal/gallery
+- Integrate with session editor
 
 **Deliverables:**
-- `components/FileUpload.vue`
-- `components/AttachmentList.vue`
-- File upload composable
-- Progress indicators
+- `components/sessions/FileUpload.vue` (drag-and-drop zone)
+- `components/sessions/AttachmentList.vue` (list + download)
+- `components/sessions/ImagePreviewModal.vue` (gallery view)
+- File upload composable (`useFileUpload.ts`)
+- Progress indicators (upload %, success/error states)
 
 **Acceptance Criteria:**
-- [ ] Drag-and-drop file upload
-- [ ] Progress bar during upload
-- [ ] Preview for images
-- [ ] Download via presigned URLs
-
-#### Afternoon Session (4 hours)
-**Agent: `fullstack-frontend-specialist`**
-
-**Task:** Build Plan of Care UI
-- Create PlanOfCareEditor.vue
-- Build timeline view (sessions + plans)
-- Progress note form
-- Goal tracking UI
-
-**Deliverables:**
-- `components/PlanOfCareEditor.vue`
-- `components/ClientTimeline.vue`
-- Timeline rendering with chronological events
-- Goal status indicators
-
-**Acceptance Criteria:**
-- [ ] Plan creation/editing functional
-- [ ] Timeline shows sessions + plans chronologically
-- [ ] Progress notes can be added
-- [ ] Goals can be marked as achieved
+- [ ] Drag-and-drop file upload with visual feedback
+- [ ] Progress bar during upload (shows %)
+- [ ] Image preview thumbnails (clickable for full view)
+- [ ] Download via presigned URLs (opens in new tab)
+- [ ] File type validation on frontend (matches backend: JPEG, PNG, WebP, PDF)
+- [ ] File size validation (10 MB limit shown to user)
 
 ---
 
-### Day 15: Week 3 Testing & Security Review
+### Day 15: File Attachment Polish
+
+#### Full Day Session (8 hours)
+**Agent: `fullstack-frontend-specialist`**
+
+**Task:** Frontend Polish & Error Handling
+- Improve error handling across file uploads
+- Add loading skeletons for timeline and attachments
+- Polish empty states (no sessions, no attachments, no clients)
+- Add toast notifications for success/error (upload, delete, download)
+- Accessibility improvements (ARIA labels, keyboard navigation)
+- File attachment UI integration testing
+
+**Deliverables:**
+- Loading skeletons for SessionTimeline, AttachmentList
+- Error boundary components for file operations
+- Empty state components with clear CTAs
+- Toast notification system integration
+- Accessibility audit fixes (keyboard focus, ARIA roles)
+- Frontend integration tests for file uploads
+
+**Acceptance Criteria:**
+- [ ] All loading states implemented (skeleton screens)
+- [ ] Errors handled gracefully (user-friendly messages)
+- [ ] Empty states guide user to next action
+- [ ] Toast notifications confirm user actions
+- [ ] Keyboard navigation functional (Tab, Enter, Escape)
+- [ ] Screen reader compatible (tested with VoiceOver/NVDA)
+- [ ] Frontend tests passing for file attachment components
+
+---
+
+### Day 16: File Attachment QA
 
 #### Morning Session (4 hours)
 **Agent: `backend-qa-specialist`**
 
-**Task:** Week 3 QA
-- Test file upload with malicious files
-- Test file size limits
-- Verify presigned URL expiration
-- Test Plan of Care CRUD
-- Timeline query performance
+**Task:** File Attachment Testing
+- Test file upload with malicious files (type confusion, path traversal)
+- Test file size limits (10 MB per file, 50 MB per session)
+- Verify presigned URL expiration (15 min default)
+- Frontend regression testing (SOAP notes, autosave, navigation)
+- Performance benchmarks (file upload, timeline queries)
+- Cross-browser testing (Chrome, Firefox, Safari)
 
 **Deliverables:**
-- File upload security test results
-- Plan of Care test coverage
-- Performance benchmarks
-- Bug reports
+- File upload security test results (malicious file rejection)
+- Frontend test coverage report (file attachment UI)
+- Performance benchmarks (upload <2s for 10MB, timeline <500ms)
+- Cross-browser compatibility report
+- Bug reports with severity ratings
 
 **Acceptance Criteria:**
-- [ ] Malicious files rejected
-- [ ] File size limits enforced
-- [ ] Presigned URLs expire correctly
-- [ ] Plan of Care functional
-- [ ] Timeline query < 500ms
+- [ ] Malicious files rejected (PHP disguised as JPG, path traversal filenames)
+- [ ] File size limits enforced (frontend + backend validation)
+- [ ] Presigned URLs expire correctly (tested with expired URL)
+- [ ] Frontend tests passing (file upload, attachment list, timeline)
+- [ ] Performance targets met (<150ms p95 for sessions, <500ms for timeline)
+- [ ] Works across Chrome, Firefox, Safari
 
 #### Afternoon Session (4 hours)
 **Agent: `security-auditor`**
 
-**Task:** File Upload & Plan of Care Security Audit
-- Verify file validation (MIME, extension, content)
-- Test path traversal prevention
-- Verify S3 bucket permissions (private only)
-- Review Plan of Care encryption
-- Audit log completeness
+**Task:** File Upload Security Audit & Week 3 Sign-Off
+- Verify file validation (MIME, extension, content - triple validation)
+- Test path traversal prevention (UUID-based filenames)
+- Verify S3 bucket permissions (private only, no public access)
+- Review metadata stripping (EXIF from images, metadata from PDFs)
+- Verify presigned URL security (expiration, workspace scoping)
+- Audit log completeness (upload, download, delete operations)
+- Review frontend security (XSS prevention, CSRF tokens)
+- Week 3 retrospective security sign-off
 
 **Deliverables:**
-- Security audit report
-- File upload vulnerability scan
-- S3 security configuration review
-- Week 3 sign-off
+- Security audit report (file upload focus)
+- File upload vulnerability scan results
+- S3 security configuration review (bucket policies, encryption)
+- Frontend security assessment (XSS, CSRF, input validation)
+- Week 3 completion sign-off statement
+- Production readiness checklist for file attachments
 
 **Acceptance Criteria:**
-- [ ] No file upload vulnerabilities
-- [ ] S3 buckets are private
-- [ ] Plan of Care PHI encrypted
-- [ ] All operations audited
+- [ ] No file upload vulnerabilities (type confusion, path traversal, malicious content)
+- [ ] S3 buckets are private (verified via AWS/MinIO console)
+- [ ] Metadata stripping verified (EXIF + PDF metadata removed)
+- [ ] Presigned URLs secure (workspace-scoped, time-limited)
+- [ ] All operations audited (SESSION_ATTACHMENT resource type logged)
+- [ ] Frontend secure (no XSS, CSRF protection working)
+- [ ] HIPAA compliant (file attachment PHI protection verified)
 
 ---
 
-## 📅 WEEK 4: Email Reminders (Days 16-20)
-
-### Objective
-Implement email notification system with template security and delivery tracking.
-
-### Day 16: Email Reminder Database & Templates
+### Day 17: Email Reminder Database & Templates
 
 #### Morning Session (4 hours)
 **Agent: `database-architect`**
@@ -1679,7 +1915,7 @@ Implement email notification system with template security and delivery tracking
 
 ---
 
-### Day 17: Reminder Configuration & Background Jobs
+### Day 18: Reminder Configuration & Background Jobs
 
 #### Morning Session (4 hours)
 **Agent: `fullstack-backend-specialist`**
@@ -1725,7 +1961,7 @@ Implement email notification system with template security and delivery tracking
 
 ---
 
-### Day 18: Email Sending & Delivery Tracking
+### Day 19: Email Sending & Delivery Tracking
 
 #### Morning Session (4 hours)
 **Agent: `fullstack-backend-specialist`**
@@ -1771,7 +2007,7 @@ Implement email notification system with template security and delivery tracking
 
 ---
 
-### Day 19: Email Security & Rate Limiting
+### Day 20: Email Security & Rate Limiting
 
 #### Morning Session (4 hours)
 **Agent: `security-auditor`**
@@ -1820,7 +2056,7 @@ Implement email notification system with template security and delivery tracking
 
 ---
 
-### Day 20: Email UI & Week 4 Testing
+### Day 21: Email UI & Week 4 Testing
 
 #### Morning Session (4 hours)
 **Agent: `fullstack-frontend-specialist`**
@@ -1868,21 +2104,21 @@ Implement email notification system with template security and delivery tracking
 
 ---
 
-## 📅 WEEK 5: Integration, QA & Production Prep (Days 21-25)
+## 📅 WEEK 5: Integration, QA & Production Prep (Days 22-26)
 
 ### Objective
 End-to-end testing, comprehensive security audit, performance optimization, production deployment preparation.
 
-### Day 21: End-to-End Integration Testing
+### Day 22: End-to-End Integration Testing
 
 #### Full Day Session (8 hours)
 **Agent: `backend-qa-specialist`**
 
 **Task:** Comprehensive Integration Testing
 - Test complete SOAP Notes workflow (create → autosave → attach files → finalize)
-- Test Plan of Care workflow (create plan → add progress notes → view timeline)
+- Test enhanced timeline workflow (goal detection from SOAP notes, filtering)
 - Test Email Reminder workflow (create template → configure schedule → verify delivery)
-- Test cross-feature interactions (SOAP note triggers reminder)
+- Test cross-feature interactions (SOAP note triggers reminder, appointment creates session)
 
 **Deliverables:**
 - Integration test suite
@@ -1898,7 +2134,7 @@ End-to-end testing, comprehensive security audit, performance optimization, prod
 
 ---
 
-### Day 22: Comprehensive Security Audit
+### Day 23: Comprehensive Security Audit
 
 #### Full Day Session (8 hours)
 **Agent: `security-auditor`**
@@ -1927,7 +2163,7 @@ End-to-end testing, comprehensive security audit, performance optimization, prod
 
 ---
 
-### Day 23: Performance Optimization
+### Day 24: Performance Optimization
 
 #### Morning Session (4 hours)
 **Agent: `database-architect`**
@@ -1974,7 +2210,7 @@ End-to-end testing, comprehensive security audit, performance optimization, prod
 
 ---
 
-### Day 24: Frontend Polish & UX Review
+### Day 25: Frontend Polish & UX Review
 
 #### Morning Session (4 hours)
 **Agent: `fullstack-frontend-specialist`**
@@ -2026,7 +2262,7 @@ End-to-end testing, comprehensive security audit, performance optimization, prod
 
 ---
 
-### Day 25: Production Deployment Preparation
+### Day 26: Production Deployment Preparation
 
 #### Morning Session (4 hours)
 **Agent: `fullstack-backend-specialist`**

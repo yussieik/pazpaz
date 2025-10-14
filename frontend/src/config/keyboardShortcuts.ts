@@ -153,13 +153,6 @@ export const KEYBOARD_SHORTCUTS: ShortcutConfig[] = [
   },
   {
     keys: '3',
-    description: 'Plan of Care tab',
-    category: 'client',
-    scope: 'page',
-    page: 'Client Detail',
-  },
-  {
-    keys: '4',
     description: 'Files tab',
     category: 'client',
     scope: 'page',

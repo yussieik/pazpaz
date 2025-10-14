@@ -154,3 +154,40 @@ export function parseDateTimeLocal(dateTimeLocal: string): string {
   const date = new Date(dateTimeLocal)
   return date.toISOString()
 }
+
+/**
+ * Format relative date with human-readable time units
+ * Examples: "2 days ago", "1 week ago", "3 months ago", "Yesterday", "Today"
+ * Used for displaying previous session timestamps
+ */
+export function formatRelativeDate(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  // Today
+  if (diffDays === 0) return 'today'
+
+  // Yesterday
+  if (diffDays === 1) return 'yesterday'
+
+  // Less than a week
+  if (diffDays < 7) return `${diffDays} days ago`
+
+  // Less than a month (30 days)
+  if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7)
+    return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`
+  }
+
+  // Less than a year (365 days)
+  if (diffDays < 365) {
+    const months = Math.floor(diffDays / 30)
+    return months === 1 ? '1 month ago' : `${months} months ago`
+  }
+
+  // Over a year
+  const years = Math.floor(diffDays / 365)
+  return years === 1 ? '1 year ago' : `${years} years ago`
+}

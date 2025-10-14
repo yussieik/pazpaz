@@ -138,7 +138,8 @@ function handleEscape(e: KeyboardEvent) {
   <!-- Normal Card State -->
   <div
     v-if="!showDeleteConfirmation"
-    class="group relative rounded-lg border border-slate-200 bg-white p-4 transition-all hover:border-slate-300 hover:shadow-md"
+    class="group relative rounded-lg border border-slate-200 bg-white transition-all hover:border-slate-300 hover:shadow-md"
+    style="padding: 1rem"
   >
     <!-- Kebab Menu (Touch-Optimized) -->
     <div class="absolute top-4 right-4">

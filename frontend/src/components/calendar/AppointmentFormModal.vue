@@ -482,25 +482,25 @@ watch(
         >
           <!-- Header -->
           <div
-            class="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4"
+            class="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4 sm:px-6"
           >
             <h2
               id="appointment-form-modal-title"
-              class="text-xl font-semibold text-slate-900"
+              class="text-lg font-semibold text-slate-900 sm:text-xl"
             >
               {{ modalTitle }}
             </h2>
             <button
               @click="closeModal"
-              class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              class="rounded-lg p-2.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 min-h-[44px] min-w-[44px] flex items-center justify-center sm:p-2 sm:min-h-0 sm:min-w-0"
               aria-label="Close dialog"
             >
-              <IconClose class="h-5 w-5" />
+              <IconClose class="h-6 w-6 sm:h-5 sm:w-5" />
             </button>
           </div>
 
           <!-- Persistent Status Area - always reserves space to prevent layout shift -->
-          <div class="min-h-10 px-6 pt-4 transition-all duration-200">
+          <div class="min-h-10 px-5 pt-4 transition-all duration-200 sm:px-6">
             <!-- Loading State (only when user edits times, NOT initial load) -->
             <div
               v-if="isCheckingConflicts && !isInitialLoad"
@@ -605,7 +605,7 @@ watch(
           </div>
 
           <!-- Form -->
-          <form @submit.prevent="handleSubmit" class="space-y-6 px-6 pb-6">
+          <form @submit.prevent="handleSubmit" class="space-y-6 px-5 pb-6 sm:space-y-6 sm:px-6">
             <!-- Past Appointment Warning -->
             <Transition
               enter-active-class="transition-all duration-150 ease-out"
@@ -642,9 +642,9 @@ watch(
             <div>
               <label
                 for="appointment-date"
-                class="block text-sm font-medium text-slate-700"
+                class="block text-sm font-medium text-slate-900 mb-1.5"
               >
-                Date <span class="text-red-500">*</span>
+                Date <span class="text-red-500 ml-0.5">*</span>
               </label>
               <input
                 id="appointment-date"
@@ -652,7 +652,7 @@ watch(
                 v-model="appointmentDate"
                 type="date"
                 aria-label="Appointment date"
-                class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[44px] sm:text-sm"
               />
             </div>
 
@@ -716,15 +716,15 @@ watch(
             <div>
               <label
                 for="location-type"
-                class="block text-sm font-medium text-slate-700"
+                class="block text-sm font-medium text-slate-900 mb-1.5"
               >
-                Location Type <span class="text-red-500">*</span>
+                Location Type <span class="text-red-500 ml-0.5">*</span>
               </label>
               <select
                 id="location-type"
                 ref="locationSelectRef"
                 v-model="formData.location_type"
-                class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[44px] sm:text-sm"
               >
                 <option value="clinic">Clinic</option>
                 <option value="home">Home Visit</option>
@@ -736,7 +736,7 @@ watch(
             <div>
               <label
                 for="location-details"
-                class="block text-sm font-medium text-slate-700"
+                class="block text-sm font-medium text-slate-900 mb-1.5"
               >
                 Location Details
               </label>
@@ -745,42 +745,42 @@ watch(
                 v-model="formData.location_details"
                 type="text"
                 placeholder="e.g., Zoom link, room number, address"
-                class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[44px] sm:text-sm"
               />
             </div>
 
             <!-- Notes -->
             <div>
-              <label for="notes" class="block text-sm font-medium text-slate-700">
+              <label for="notes" class="block text-sm font-medium text-slate-900 mb-1.5">
                 Notes
               </label>
               <textarea
                 id="notes"
                 v-model="formData.notes"
-                rows="3"
+                rows="6"
                 placeholder="Optional notes about this appointment"
-                class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[120px] sm:text-sm sm:rows-3"
               ></textarea>
             </div>
           </form>
 
           <!-- Footer -->
           <div
-            class="sticky bottom-0 flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4"
+            class="sticky bottom-0 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-6"
           >
-            <button
-              @click="closeModal"
-              type="button"
-              class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-            >
-              Cancel
-            </button>
-            <div class="flex flex-col items-center gap-2">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+              <button
+                @click="closeModal"
+                type="button"
+                class="order-2 sm:order-1 inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 min-h-[44px] w-full sm:w-auto"
+              >
+                Cancel
+              </button>
               <button
                 @click="handleSubmit"
                 type="submit"
                 :class="[
-                  'rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors',
+                  'order-1 sm:order-2 inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-colors min-h-[44px] w-full sm:w-auto',
                   hasConflicts
                     ? 'bg-amber-600 hover:bg-amber-700'
                     : 'bg-emerald-600 hover:bg-emerald-700',
@@ -789,14 +789,14 @@ watch(
                 <span v-if="hasConflicts">⚠️ {{ submitButtonText }} Anyway</span>
                 <span v-else>{{ submitButtonText }}</span>
               </button>
-              <p class="text-xs text-slate-500">
-                or press
-                <kbd
-                  class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700"
-                  >{{ modifierKey }}Enter</kbd
-                >
-              </p>
             </div>
+            <p class="mt-3 text-center text-xs text-slate-500 hidden sm:block">
+              or press
+              <kbd
+                class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700"
+                >{{ modifierKey }}Enter</kbd
+              >
+            </p>
           </div>
         </div>
       </div>

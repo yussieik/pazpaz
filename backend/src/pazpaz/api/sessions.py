@@ -6,7 +6,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.api.deps import (
@@ -739,6 +739,124 @@ async def finalize_session(
     return SessionResponse.model_validate(session)
 
 
+@router.post("/{session_id}/unfinalize", response_model=SessionResponse)
+async def unfinalize_session(
+    session_id: uuid.UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    """
+    Unfinalize session and revert to draft status.
+
+    Reverts a finalized session back to draft status, allowing further editing.
+    This endpoint is the inverse of POST /sessions/{session_id}/finalize.
+
+    Effect:
+    - Sets is_draft to True
+    - Clears finalized_at timestamp (sets to NULL)
+    - Increments version
+    - Session becomes editable again
+
+    SECURITY: Verifies workspace ownership before allowing unfinalizing.
+    workspace_id is derived from JWT token (server-side).
+
+    AUDIT: Update is automatically logged by AuditMiddleware with "unfinalized" action.
+
+    Args:
+        session_id: UUID of the session to unfinalize
+        request: FastAPI request object (for audit logging)
+        current_user: Authenticated user (from JWT token)
+        db: Database session
+
+    Returns:
+        Unfinalied session with is_draft=True and finalized_at cleared
+
+    Raises:
+        HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
+            400 if session is already a draft
+
+    Example:
+        POST /api/v1/sessions/{uuid}/unfinalize
+        (no request body needed)
+    """
+    workspace_id = current_user.workspace_id
+
+    # Fetch session with workspace scoping
+    session = await get_or_404(db, Session, session_id, workspace_id)
+
+    # Check if already a draft
+    if session.is_draft:
+        logger.warning(
+            "session_already_draft",
+            session_id=str(session_id),
+            workspace_id=str(workspace_id),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Session is already a draft",
+        )
+
+    logger.info(
+        "session_unfinalize_started",
+        session_id=str(session_id),
+        workspace_id=str(workspace_id),
+        finalized_at=session.finalized_at.isoformat() if session.finalized_at else None,
+        amendment_count=session.amendment_count,
+    )
+
+    # Delete all version snapshots (reverting finalized history)
+    # This prevents unique constraint violations when re-finalizing
+    delete_versions = delete(SessionVersion).where(
+        SessionVersion.session_id == session_id
+    )
+    result = await db.execute(delete_versions)
+    deleted_count = result.rowcount
+
+    logger.info(
+        "session_versions_deleted",
+        session_id=str(session_id),
+        workspace_id=str(workspace_id),
+        versions_deleted=deleted_count,
+    )
+
+    # Unfinalize session
+    session.is_draft = True
+    session.finalized_at = None
+    session.draft_last_saved_at = datetime.now(UTC)
+    session.version += 1
+    session.amendment_count = 0  # Reset since we're reverting history
+    session.amended_at = None  # Clear amendment timestamp
+
+    # Create audit log for unfinalizing
+    await create_audit_event(
+        db=db,
+        user_id=current_user.id,
+        workspace_id=workspace_id,
+        action=AuditAction.UPDATE,
+        resource_type=ResourceType.SESSION,
+        resource_id=session_id,
+        metadata={
+            "action": "unfinalize",
+            "was_finalized": True,
+            "amendment_count": session.amendment_count,
+            "versions_deleted": deleted_count,
+        },
+    )
+
+    await db.commit()
+    await db.refresh(session)
+
+    logger.info(
+        "session_unfinalized",
+        session_id=str(session_id),
+        workspace_id=str(workspace_id),
+    )
+
+    # Return response (PHI automatically decrypted)
+    return SessionResponse.model_validate(session)
+
+
 @router.get("/{session_id}/versions", response_model=list[SessionVersionResponse])
 async def get_session_versions(
     session_id: uuid.UUID,
@@ -1126,3 +1244,111 @@ async def permanently_delete_session(
         session_id=str(session_id),
         workspace_id=str(workspace_id),
     )
+
+
+@router.get("/clients/{client_id}/latest-finalized", response_model=SessionResponse)
+async def get_latest_finalized_session(
+    client_id: uuid.UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    """
+    Get the most recent finalized session for a client.
+
+    Returns the latest finalized (non-draft) session note for the specified client,
+    ordered by session_date descending. Used by the Previous Session Context Panel
+    to provide treatment continuity when creating new session notes.
+
+    SECURITY: Verifies client belongs to authenticated workspace before returning data.
+    workspace_id is derived from JWT token (server-side).
+
+    PERFORMANCE: Uses ix_sessions_workspace_client_date index for optimal performance.
+    Query should execute in <50ms p95.
+
+    PHI ACCESS: This endpoint returns decrypted SOAP fields (PHI).
+    All access is automatically logged by AuditMiddleware for HIPAA compliance.
+
+    Args:
+        client_id: UUID of the client
+        request: FastAPI request object (for audit logging)
+        current_user: Authenticated user (from JWT token)
+        db: Database session
+
+    Returns:
+        Most recent finalized session with decrypted SOAP fields
+
+    Raises:
+        HTTPException: 401 if not authenticated,
+            403 if client not in workspace,
+            404 if client has no finalized sessions
+
+    Example:
+        GET /api/v1/sessions/clients/{client_id}/latest-finalized
+        Response: {
+            "id": "uuid",
+            "session_date": "2025-10-06T14:00:00Z",
+            "duration_minutes": 60,
+            "is_draft": false,
+            "finalized_at": "2025-10-06T15:05:00Z",
+            "subjective": "Patient reports neck pain...",
+            "objective": "ROM 90° shoulder abduction...",
+            "assessment": "Muscle tension pattern...",
+            "plan": "Continue trapezius protocol...",
+            ...
+        }
+    """
+    workspace_id = current_user.workspace_id
+
+    # Verify client exists and belongs to workspace (403 if not)
+    await verify_client_in_workspace(
+        db=db,
+        client_id=client_id,
+        workspace_id=workspace_id,
+    )
+
+    logger.debug(
+        "latest_finalized_session_query_started",
+        client_id=str(client_id),
+        workspace_id=str(workspace_id),
+    )
+
+    # Query for most recent finalized session
+    # Uses ix_sessions_workspace_client_date index for performance
+    query = (
+        select(Session)
+        .where(
+            Session.workspace_id == workspace_id,
+            Session.client_id == client_id,
+            Session.is_draft == False,  # noqa: E712 - SQLAlchemy requires == for boolean
+            Session.deleted_at.is_(None),  # Exclude soft-deleted sessions
+        )
+        .order_by(Session.session_date.desc())
+        .limit(1)
+    )
+
+    result = await db.execute(query)
+    session = result.scalar_one_or_none()
+
+    if not session:
+        logger.info(
+            "no_finalized_sessions_found",
+            client_id=str(client_id),
+            workspace_id=str(workspace_id),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No finalized sessions found for this client",
+        )
+
+    logger.debug(
+        "latest_finalized_session_found",
+        session_id=str(session.id),
+        client_id=str(client_id),
+        workspace_id=str(workspace_id),
+        session_date=session.session_date.isoformat(),
+    )
+
+    # Return response (PHI automatically decrypted by ORM)
+    # Note: PHI access is automatically logged by AuditMiddleware
+    return SessionResponse.model_validate(session)

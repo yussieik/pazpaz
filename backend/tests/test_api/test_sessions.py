@@ -1530,6 +1530,316 @@ class TestFinalizeSession:
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
+class TestUnfinalizeSession:
+    """Tests for POST /api/v1/sessions/{id}/unfinalize endpoint."""
+
+    async def test_unfinalize_success(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+    ):
+        """Test unfinalize reverts session to draft status."""
+        # First finalize the session
+        finalize_response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/finalize",
+        )
+        assert finalize_response.status_code == status.HTTP_200_OK
+
+        # Verify session is finalized
+        await db_session.refresh(test_session)
+        assert test_session.is_draft is False
+        assert test_session.finalized_at is not None
+        original_version = test_session.version
+
+        # Now unfinalize the session
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/unfinalize",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        # Verify is_draft is True
+        assert data["is_draft"] is True
+
+        # Verify finalized_at is cleared
+        assert data["finalized_at"] is None
+
+        # Verify draft_last_saved_at is set
+        assert data["draft_last_saved_at"] is not None
+
+        # Verify version incremented
+        assert data["version"] == original_version + 1
+
+        # Verify in database
+        await db_session.refresh(test_session)
+        assert test_session.is_draft is True
+        assert test_session.finalized_at is None
+        assert test_session.draft_last_saved_at is not None
+
+    async def test_unfinalize_already_draft(
+        self,
+        authenticated_client: AsyncClient,
+        test_session,
+    ):
+        """Test cannot unfinalize a session that is already a draft."""
+        # Session starts as draft
+        assert test_session.is_draft is True
+
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/unfinalize",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "already a draft" in response.text.lower()
+
+    async def test_unfinalize_workspace_isolation(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session2,
+    ):
+        """Test cannot unfinalize session from other workspace."""
+        # First finalize the session in workspace 2
+        from pazpaz.models.session import Session
+
+        result = await db_session.execute(
+            select(Session).where(Session.id == test_session2.id)
+        )
+        session = result.scalar_one()
+        session.finalized_at = datetime.now(UTC)
+        session.is_draft = False
+        await db_session.commit()
+
+        # Try to unfinalize from workspace 1
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session2.id}/unfinalize",
+        )
+
+        # Should return 404 (not 403) to prevent information leakage
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_unfinalize_not_found(
+        self,
+        authenticated_client: AsyncClient,
+    ):
+        """Test unfinalize with non-existent session ID."""
+        fake_id = uuid.uuid4()
+
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{fake_id}/unfinalize",
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_unfinalize_unauthenticated(
+        self,
+        client: AsyncClient,
+        test_session,
+    ):
+        """Test unfinalize requires authentication."""
+        response = await client.post(
+            f"/api/v1/sessions/{test_session.id}/unfinalize",
+        )
+
+        # CSRF middleware runs before auth for POST
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    async def test_unfinalize_audit_logging(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+        test_user,
+        test_workspace,
+    ):
+        """Test unfinalize creates appropriate audit log entry."""
+        # First finalize the session
+        await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/finalize",
+        )
+
+        # Now unfinalize
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/unfinalize",
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # Verify audit event was created for the unfinalize action
+        result = await db_session.execute(
+            select(AuditEvent)
+            .where(
+                AuditEvent.user_id == test_user.id,
+                AuditEvent.workspace_id == test_workspace.id,
+                AuditEvent.resource_type == ResourceType.SESSION.value,
+                AuditEvent.resource_id == test_session.id,
+                AuditEvent.action == AuditAction.UPDATE,
+            )
+            .order_by(AuditEvent.created_at.desc())
+        )
+        audit_events = result.scalars().all()
+
+        # Find the unfinalize event (should be the most recent UPDATE event)
+        unfinalize_event = None
+        for event in audit_events:
+            if (
+                event.event_metadata
+                and event.event_metadata.get("action") == "unfinalize"
+            ):
+                unfinalize_event = event
+                break
+
+        assert unfinalize_event is not None
+        assert unfinalize_event.event_metadata.get("was_finalized") is True
+
+    async def test_unfinalize_deletes_versions(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+    ):
+        """Test unfinalize deletes all SessionVersion records."""
+        from pazpaz.models.session_version import SessionVersion
+
+        # Finalize the session (creates version 1)
+        finalize_response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/finalize",
+        )
+        assert finalize_response.status_code == status.HTTP_200_OK
+
+        # Verify version 1 was created
+        result = await db_session.execute(
+            select(SessionVersion).where(SessionVersion.session_id == test_session.id)
+        )
+        versions = result.scalars().all()
+        assert len(versions) == 1
+        assert versions[0].version_number == 1
+
+        # Unfinalize the session
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/unfinalize",
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # Verify all versions are deleted
+        result = await db_session.execute(
+            select(SessionVersion).where(SessionVersion.session_id == test_session.id)
+        )
+        versions = result.scalars().all()
+        assert len(versions) == 0
+
+        # Verify amendment_count is reset
+        await db_session.refresh(test_session)
+        assert test_session.amendment_count == 0
+        assert test_session.amended_at is None
+
+    async def test_unfinalize_then_refinalize(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+    ):
+        """Test can re-finalize after unfinalize without unique constraint violation."""
+        from pazpaz.models.session_version import SessionVersion
+
+        # First finalization (creates version 1)
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/finalize",
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # Verify version 1 exists
+        result = await db_session.execute(
+            select(SessionVersion).where(SessionVersion.session_id == test_session.id)
+        )
+        versions = result.scalars().all()
+        assert len(versions) == 1
+        assert versions[0].version_number == 1
+
+        # Unfinalize
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/unfinalize",
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # Verify versions deleted
+        result = await db_session.execute(
+            select(SessionVersion).where(SessionVersion.session_id == test_session.id)
+        )
+        versions = result.scalars().all()
+        assert len(versions) == 0
+
+        # Re-finalize (should create new version 1 without error)
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/finalize",
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # Verify new version 1 created
+        result = await db_session.execute(
+            select(SessionVersion).where(SessionVersion.session_id == test_session.id)
+        )
+        versions = result.scalars().all()
+        assert len(versions) == 1
+        assert versions[0].version_number == 1
+
+    async def test_unfinalize_with_amendments(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+    ):
+        """Test unfinalize with amendments deletes all versions and resets counters."""
+        from pazpaz.models.session_version import SessionVersion
+
+        # Finalize the session (creates version 1)
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/finalize",
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # Amend the session (creates version 2)
+        response = await authenticated_client.put(
+            f"/api/v1/sessions/{test_session.id}",
+            json={"subjective": "Amended subjective note"},
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # Verify we have 2 versions and amendment_count = 1
+        result = await db_session.execute(
+            select(SessionVersion)
+            .where(SessionVersion.session_id == test_session.id)
+            .order_by(SessionVersion.version_number)
+        )
+        versions = result.scalars().all()
+        assert len(versions) == 2
+        assert versions[0].version_number == 1
+        assert versions[1].version_number == 2
+
+        await db_session.refresh(test_session)
+        assert test_session.amendment_count == 1
+        assert test_session.amended_at is not None
+
+        # Unfinalize the session
+        response = await authenticated_client.post(
+            f"/api/v1/sessions/{test_session.id}/unfinalize",
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # Verify all versions deleted
+        result = await db_session.execute(
+            select(SessionVersion).where(SessionVersion.session_id == test_session.id)
+        )
+        versions = result.scalars().all()
+        assert len(versions) == 0
+
+        # Verify amendment_count reset to 0
+        await db_session.refresh(test_session)
+        assert test_session.amendment_count == 0
+        assert test_session.amended_at is None
+
+
 class TestDeleteFinalizedSession:
     """Tests for deletion of finalized sessions (allowed for therapist flexibility)."""
 
@@ -2466,3 +2776,312 @@ class TestDeleteAppointmentWithSessionIntegration:
         assert check_response.status_code == 200
         sessions = check_response.json()["items"]
         assert len(sessions) == 0  # No sessions, safe to delete without dialog
+
+
+class TestGetLatestFinalizedSession:
+    """Tests for GET /api/v1/sessions/clients/{client_id}/latest-finalized endpoint."""
+
+    async def test_get_latest_finalized_session_success(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace,
+        test_client,
+        test_user,
+    ):
+        """Test successfully retrieve latest finalized session for client."""
+        # Create 3 sessions: 1 draft, 2 finalized (different dates)
+        session1 = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(days=3),
+            subjective="Oldest finalized session",
+            is_draft=False,
+            finalized_at=datetime.now(UTC) - timedelta(days=3),
+            version=1,
+        )
+        session2 = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(days=1),
+            subjective="Latest finalized session",  # This should be returned
+            objective="Latest observations",
+            assessment="Latest assessment",
+            plan="Latest plan",
+            is_draft=False,
+            finalized_at=datetime.now(UTC) - timedelta(days=1),
+            version=1,
+        )
+        session3 = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(hours=1),
+            subjective="Draft session (should be excluded)",
+            is_draft=True,
+            version=1,
+        )
+        db_session.add_all([session1, session2, session3])
+        await db_session.commit()
+        await db_session.refresh(session2)
+
+        # Query for latest finalized session
+        response = await authenticated_client.get(
+            f"/api/v1/sessions/clients/{test_client.id}/latest-finalized",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        # Verify correct session returned (session2 - latest finalized)
+        assert data["id"] == str(session2.id)
+        assert data["subjective"] == "Latest finalized session"
+        assert data["objective"] == "Latest observations"
+        assert data["assessment"] == "Latest assessment"
+        assert data["plan"] == "Latest plan"
+        assert data["is_draft"] is False
+        assert data["finalized_at"] is not None
+
+    async def test_get_latest_finalized_excludes_drafts(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace,
+        test_client,
+        test_user,
+    ):
+        """Test that draft sessions are excluded from latest finalized query."""
+        # Create only draft sessions
+        session1 = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(days=1),
+            subjective="Draft 1",
+            is_draft=True,
+            version=1,
+        )
+        session2 = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(hours=1),
+            subjective="Draft 2",
+            is_draft=True,
+            version=1,
+        )
+        db_session.add_all([session1, session2])
+        await db_session.commit()
+
+        # Should return 404 since no finalized sessions exist
+        response = await authenticated_client.get(
+            f"/api/v1/sessions/clients/{test_client.id}/latest-finalized",
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert "no finalized sessions found" in response.json()["detail"].lower()
+
+    async def test_get_latest_finalized_excludes_soft_deleted(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace,
+        test_client,
+        test_user,
+    ):
+        """Test that soft-deleted sessions are excluded."""
+        # Create 2 finalized sessions, soft-delete the latest one
+        session1 = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(days=2),
+            subjective="Older finalized session",
+            is_draft=False,
+            finalized_at=datetime.now(UTC) - timedelta(days=2),
+            version=1,
+        )
+        session2 = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(days=1),
+            subjective="Latest but soft-deleted",
+            is_draft=False,
+            finalized_at=datetime.now(UTC) - timedelta(days=1),
+            deleted_at=datetime.now(UTC),  # Soft-deleted
+            deleted_by_user_id=test_user.id,
+            version=1,
+        )
+        db_session.add_all([session1, session2])
+        await db_session.commit()
+        await db_session.refresh(session1)
+
+        # Should return session1 (session2 is soft-deleted)
+        response = await authenticated_client.get(
+            f"/api/v1/sessions/clients/{test_client.id}/latest-finalized",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["id"] == str(session1.id)
+        assert data["subjective"] == "Older finalized session"
+
+    async def test_get_latest_finalized_no_sessions(
+        self,
+        authenticated_client: AsyncClient,
+        test_client,
+    ):
+        """Test 404 when client has no finalized sessions."""
+        response = await authenticated_client.get(
+            f"/api/v1/sessions/clients/{test_client.id}/latest-finalized",
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert "no finalized sessions found" in response.json()["detail"].lower()
+
+    async def test_get_latest_finalized_client_not_found(
+        self,
+        authenticated_client: AsyncClient,
+    ):
+        """Test 404 when client doesn't exist."""
+        fake_client_id = uuid.uuid4()
+        response = await authenticated_client.get(
+            f"/api/v1/sessions/clients/{fake_client_id}/latest-finalized",
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_get_latest_finalized_workspace_isolation(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace2,
+        test_client2,
+        test_user2,
+    ):
+        """Test cannot access sessions from different workspace."""
+        # Create finalized session in workspace 2
+        session = Session(
+            workspace_id=test_workspace2.id,
+            client_id=test_client2.id,
+            created_by_user_id=test_user2.id,
+            session_date=datetime.now(UTC) - timedelta(days=1),
+            subjective="Session in workspace 2",
+            is_draft=False,
+            finalized_at=datetime.now(UTC) - timedelta(days=1),
+            version=1,
+        )
+        db_session.add(session)
+        await db_session.commit()
+
+        # Try to access from workspace 1 (authenticated_client is workspace 1)
+        response = await authenticated_client.get(
+            f"/api/v1/sessions/clients/{test_client2.id}/latest-finalized",
+        )
+
+        # Should return 404 (client not in workspace 1)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_get_latest_finalized_unauthenticated(
+        self,
+        client: AsyncClient,
+        test_client,
+    ):
+        """Test endpoint requires authentication."""
+        response = await client.get(
+            f"/api/v1/sessions/clients/{test_client.id}/latest-finalized",
+        )
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    async def test_get_latest_finalized_soap_fields_decrypted(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace,
+        test_client,
+        test_user,
+    ):
+        """Test SOAP fields are properly decrypted in response."""
+        # Create finalized session with all SOAP fields
+        session = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(days=1),
+            subjective="Patient reports improvement in pain levels",
+            objective="ROM increased to 90 degrees, no tenderness on palpation",
+            assessment="Significant progress, ready for advanced exercises",
+            plan="Continue current protocol, add resistance training next session",
+            duration_minutes=60,
+            is_draft=False,
+            finalized_at=datetime.now(UTC) - timedelta(days=1),
+            version=1,
+        )
+        db_session.add(session)
+        await db_session.commit()
+        await db_session.refresh(session)
+
+        response = await authenticated_client.get(
+            f"/api/v1/sessions/clients/{test_client.id}/latest-finalized",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        # Verify all SOAP fields are decrypted and returned
+        assert data["subjective"] == session.subjective
+        assert data["objective"] == session.objective
+        assert data["assessment"] == session.assessment
+        assert data["plan"] == session.plan
+        assert data["duration_minutes"] == 60
+
+    async def test_get_latest_finalized_orders_by_session_date(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_workspace,
+        test_client,
+        test_user,
+    ):
+        """Test sessions are ordered by session_date (not created_at)."""
+        # Create sessions with different session_date vs created_at
+        # Session 1: older session_date, but created later
+        session1 = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(days=10),
+            subjective="Old session date, but created recently",
+            is_draft=False,
+            finalized_at=datetime.now(UTC),
+            version=1,
+        )
+        # Session 2: newer session_date, but created earlier
+        session2 = Session(
+            workspace_id=test_workspace.id,
+            client_id=test_client.id,
+            created_by_user_id=test_user.id,
+            session_date=datetime.now(UTC) - timedelta(days=1),
+            subjective="Recent session date, should be returned",
+            is_draft=False,
+            finalized_at=datetime.now(UTC) - timedelta(hours=1),
+            version=1,
+        )
+        db_session.add_all([session1, session2])
+        await db_session.commit()
+        await db_session.refresh(session2)
+
+        response = await authenticated_client.get(
+            f"/api/v1/sessions/clients/{test_client.id}/latest-finalized",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        # Should return session2 (most recent session_date)
+        assert data["id"] == str(session2.id)
+        assert data["subjective"] == "Recent session date, should be returned"

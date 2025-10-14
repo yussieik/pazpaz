@@ -1203,15 +1203,15 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div class="container mx-auto px-5 py-6 sm:px-6 sm:py-8">
     <!-- Header -->
     <PageHeader title="Calendar">
       <template #actions>
         <button
           @click="createNewAppointment"
-          class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto sm:justify-start"
+          class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 min-h-[44px] text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto sm:justify-start sm:py-2 sm:min-h-0"
         >
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -1373,11 +1373,11 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       {{ screenReaderAnnouncement }}
     </div>
 
-    <!-- Keyboard Reschedule Mode Indicator -->
+    <!-- Keyboard Reschedule Mode Indicator (desktop only) -->
     <Transition name="fade">
       <div
         v-if="isKeyboardRescheduleActive"
-        class="fixed right-6 bottom-6 z-50 rounded-lg bg-blue-600 px-4 py-3 text-white shadow-2xl"
+        class="fixed right-6 bottom-6 z-50 rounded-lg bg-blue-600 px-4 py-3 text-white shadow-2xl hidden sm:block"
         role="status"
         aria-live="polite"
       >
@@ -1549,23 +1549,32 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 /* Note: .cell-hover-overlay is positioned absolutely in .calendar-container,
    not inside .fc-non-business, so we need to detect off-hours via JavaScript */
 
-/* PHASE 2: Improved time labels styling */
+/* PHASE 2: Improved time labels styling - mobile-friendly */
 .fc-timegrid-slot-label {
   color: #374151; /* gray-700 - stronger contrast than default gray-500 */
-  font-size: 0.875rem;
+  font-size: 0.875rem; /* 14px on desktop */
   font-weight: 500; /* Medium weight for better scannability */
   font-variant-numeric: tabular-nums; /* Align digits vertically */
   vertical-align: top;
   padding-top: 0.25rem;
 }
 
+/* Larger time labels on mobile for better readability */
+@media (max-width: 640px) {
+  .fc-timegrid-slot-label {
+    font-size: 0.8125rem; /* 13px on mobile - still readable but more compact */
+    font-weight: 600; /* Bolder for mobile screens */
+  }
+}
+
 .fc-event {
   border-radius: 0.375rem;
-  padding: 4px 6px; /* Increased from 2px 4px for better spacing */
+  padding: 6px 8px; /* Larger padding for better mobile touch */
   font-size: 0.875rem;
   line-height: 1.3; /* Tighter line height for multi-line content */
   cursor: pointer;
   transition: opacity 0.2s;
+  min-height: 44px; /* Ensure minimum touch target size on mobile */
 }
 
 .fc-event:hover {
@@ -1578,9 +1587,22 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 
 .fc-daygrid-event {
   white-space: normal;
+  min-height: 32px; /* Month view events can be slightly smaller */
 }
 
-/* PHASE 2: Current time indicator - emerald to match PazPaz brand */
+/* Desktop: Restore tighter spacing */
+@media (min-width: 641px) {
+  .fc-event {
+    padding: 4px 6px;
+    min-height: auto; /* Remove minimum on desktop */
+  }
+
+  .fc-daygrid-event {
+    min-height: auto;
+  }
+}
+
+/* PHASE 2: Current time indicator - emerald to match PazPaz brand, thicker on mobile */
 .fc-timegrid-now-indicator-line {
   border-color: #10b981; /* emerald-500 */
   border-width: 2px;
@@ -1591,6 +1613,18 @@ function handleGlobalKeydown(event: KeyboardEvent) {
   border-top-color: #10b981;
   border-bottom-color: #10b981;
   border-width: 6px;
+}
+
+/* Thicker current time indicator on mobile for better visibility */
+@media (max-width: 640px) {
+  .fc-timegrid-now-indicator-line {
+    border-width: 3px;
+    opacity: 0.8;
+  }
+
+  .fc-timegrid-now-indicator-arrow {
+    border-width: 8px;
+  }
 }
 
 /* PHASE 2: Responsive adjustments */

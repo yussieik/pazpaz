@@ -18,7 +18,7 @@
  *   <SessionEditor :session-id="sessionId" @finalized="handleFinalized" />
  */
 
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { onKeyStroke } from '@vueuse/core'
 import { useAutosave } from '@/composables/useAutosave'
 import { useSecureOfflineBackup } from '@/composables/useSecureOfflineBackup'
@@ -31,6 +31,7 @@ import type { SessionResponse } from '@/types/sessions'
 import SessionNoteBadges from './SessionNoteBadges.vue'
 import SessionVersionHistory from './SessionVersionHistory.vue'
 import SessionAmendmentIndicator from './SessionAmendmentIndicator.vue'
+import PreviousSessionPanel from './PreviousSessionPanel.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 
 interface Props {
@@ -62,8 +63,12 @@ const session = ref<SessionResponse | null>(null)
 const isLoading = ref(true)
 const loadError = ref<string | null>(null)
 
+// Stable client_id for PreviousSessionPanel (doesn't change during finalize)
+const stableClientId = ref<string | null>(null)
+
 // Finalize state
 const isFinalizing = ref(false)
+const isFinalizingInProgress = ref(false) // Internal flag: suppress autosave callback only
 const finalizeError = ref<string | null>(null)
 
 // SOAP Guide state (P1-3: Onboarding guidance)
@@ -76,6 +81,9 @@ function dismissSoapGuide() {
 
 // Version history modal state
 const showVersionHistory = ref(false)
+
+// Previous session modal state (mobile only)
+const showPreviousSessionModal = ref(false)
 
 // Restore prompt state (encrypted localStorage backup)
 const { restoreDraft, syncToServer } = useSecureOfflineBackup()
@@ -127,15 +135,9 @@ const {
   stop: stopAutosave,
 } = useAutosave<Record<string, unknown>>(
   async (data) => {
-    // Allow saving finalized notes - backend will track amendments
-    // Use appropriate endpoint based on finalization status
-    if (isFinalized.value) {
-      // Save as amendment to finalized note
-      await apiClient.patch(`/sessions/${props.sessionId}/amend`, data)
-    } else {
-      // Save as draft
-      await apiClient.patch(`/sessions/${props.sessionId}/draft`, data)
-    }
+    // Always use draft endpoint for autosave
+    // Finalized status is just a visual indicator, not a lock
+    await apiClient.patch(`/sessions/${props.sessionId}/draft`, data)
 
     // Update original data after successful save
     originalData.value = { ...formData.value }
@@ -143,16 +145,33 @@ const {
   {
     debounceMs: 5000,
     sessionId: props.sessionId, // Enable encrypted localStorage backup
-    version: computed(() => session.value?.version).value, // For optimistic locking
-    onSuccess: () => {
-      // Reload session to get updated draft_last_saved_at
-      loadSession(true) // silent reload
+    onSuccess: async () => {
+      // Skip timestamp update during finalize (loadSession will update everything)
+      if (isFinalizingInProgress.value) {
+        return
+      }
+
+      // Only update timestamp without re-rendering form
+      try {
+        const response = await apiClient.get<SessionResponse>(`/sessions/${props.sessionId}`)
+        if (session.value) {
+          session.value.draft_last_saved_at = response.data.draft_last_saved_at
+        }
+      } catch (error) {
+        // Silent failure - not critical for UX
+        console.debug('Failed to update timestamp:', error)
+      }
     },
   }
 )
 
 // Last saved display
 const lastSavedDisplay = computed(() => {
+  // Hide during finalize to prevent text flash
+  if (isFinalizing.value) {
+    return ''
+  }
+
   if (isSaving.value) {
     return 'Saving...'
   }
@@ -187,20 +206,49 @@ async function loadSession(silent = false) {
 
   try {
     const response = await apiClient.get<SessionResponse>(`/sessions/${props.sessionId}`)
+
+    // Update session metadata
     session.value = response.data
 
-    // Populate form
-    formData.value = {
-      subjective: response.data.subjective || '',
-      objective: response.data.objective || '',
-      assessment: response.data.assessment || '',
-      plan: response.data.plan || '',
-      session_date: response.data.session_date || '',
-      duration_minutes: response.data.duration_minutes,
+    // Store stable client_id on first load (for PreviousSessionPanel)
+    if (!stableClientId.value && response.data.client_id) {
+      stableClientId.value = response.data.client_id
     }
 
-    // Update original data
-    originalData.value = { ...formData.value }
+    // Only update form if not a silent reload (prevents re-renders)
+    if (!silent) {
+      formData.value = {
+        subjective: response.data.subjective || '',
+        objective: response.data.objective || '',
+        assessment: response.data.assessment || '',
+        plan: response.data.plan || '',
+        session_date: response.data.session_date ? formatDateTimeForInput(response.data.session_date) : '',
+        duration_minutes: response.data.duration_minutes,
+      }
+      originalData.value = { ...formData.value }
+    } else {
+      // Silent reload: only update fields that user hasn't modified
+      // This prevents cursor jumping and re-renders during autosave
+      if (formData.value.subjective === originalData.value.subjective) {
+        formData.value.subjective = response.data.subjective || ''
+      }
+      if (formData.value.objective === originalData.value.objective) {
+        formData.value.objective = response.data.objective || ''
+      }
+      if (formData.value.assessment === originalData.value.assessment) {
+        formData.value.assessment = response.data.assessment || ''
+      }
+      if (formData.value.plan === originalData.value.plan) {
+        formData.value.plan = response.data.plan || ''
+      }
+      if (formData.value.session_date === originalData.value.session_date) {
+        formData.value.session_date = response.data.session_date ? formatDateTimeForInput(response.data.session_date) : ''
+      }
+      if (formData.value.duration_minutes === originalData.value.duration_minutes) {
+        formData.value.duration_minutes = response.data.duration_minutes
+      }
+      originalData.value = { ...formData.value }
+    }
   } catch (error) {
     console.error('Failed to load session:', error)
     const axiosError = error as AxiosError<{ detail?: string }>
@@ -232,50 +280,74 @@ function handleFieldChange() {
   })
 }
 
-// Finalize session
-async function finalizeSession() {
-  if (!hasContent.value) {
-    finalizeError.value =
-      'Cannot finalize empty session. Add content to at least one field.'
-    return
-  }
+// Toggle finalize status
+async function toggleFinalizeStatus() {
+  if (!isFinalized.value) {
+    // Finalize the session
+    if (!hasContent.value) {
+      finalizeError.value =
+        'Cannot finalize empty session. Add content to at least one field.'
+      return
+    }
 
-  isFinalizing.value = true
-  finalizeError.value = null
+    isFinalizing.value = true
+    isFinalizingInProgress.value = true // Suppress autosave callback
+    finalizeError.value = null
 
-  try {
-    // Force save current data before finalizing
-    await forceSave({
-      subjective: formData.value.subjective || null,
-      objective: formData.value.objective || null,
-      assessment: formData.value.assessment || null,
-      plan: formData.value.plan || null,
-      duration_minutes: formData.value.duration_minutes,
-    })
+    try {
+      // Force save current data before finalizing
+      await forceSave({
+        subjective: formData.value.subjective || null,
+        objective: formData.value.objective || null,
+        assessment: formData.value.assessment || null,
+        plan: formData.value.plan || null,
+        duration_minutes: formData.value.duration_minutes,
+      })
 
-    // Call finalize endpoint
-    await apiClient.post(`/sessions/${props.sessionId}/finalize`)
+      // Call finalize endpoint
+      await apiClient.post<SessionResponse>(`/sessions/${props.sessionId}/finalize`)
 
-    // Reload session to get finalized status
-    await loadSession(true)
+      // Reload session to get finalized status (same pattern as unfinalize)
+      await loadSession(true)
 
-    emit('finalized')
-  } catch (error) {
-    console.error('Failed to finalize session:', error)
-    const axiosError = error as AxiosError<{ detail?: string }>
-    finalizeError.value =
-      axiosError.response?.data?.detail || 'Failed to finalize session'
-  } finally {
-    isFinalizing.value = false
+      emit('finalized')
+    } catch (error) {
+      console.error('Failed to finalize session:', error)
+      const axiosError = error as AxiosError<{ detail?: string }>
+      finalizeError.value =
+        axiosError.response?.data?.detail || 'Failed to finalize session'
+    } finally {
+      isFinalizing.value = false
+      isFinalizingInProgress.value = false
+    }
+  } else {
+    // Un-finalize the session (revert to draft)
+    isFinalizing.value = true
+    finalizeError.value = null
+
+    try {
+      // Call unfinalize endpoint (backend should set is_draft=true)
+      await apiClient.post(`/sessions/${props.sessionId}/unfinalize`)
+
+      // Reload session to get draft status
+      await loadSession(true)
+    } catch (error) {
+      console.error('Failed to unfinalize session:', error)
+      const axiosError = error as AxiosError<{ detail?: string }>
+      finalizeError.value =
+        axiosError.response?.data?.detail || 'Failed to revert to draft'
+    } finally {
+      isFinalizing.value = false
+    }
   }
 }
 
-// P2-2: Keyboard shortcut for finalize (Cmd+Enter / Ctrl+Enter)
+// P2-2: Keyboard shortcut for finalize/unfinalize (Cmd+Enter / Ctrl+Enter)
 onKeyStroke(['Meta+Enter', 'Control+Enter'], (e) => {
-  // Only trigger if session is draft, has content, and not already finalizing
-  if (!isFinalized.value && hasContent.value && !isFinalizing.value) {
+  // Only trigger if has content and not already processing
+  if (hasContent.value && !isFinalizing.value) {
     e.preventDefault()
-    finalizeSession()
+    toggleFinalizeStatus()
   }
 })
 
@@ -311,10 +383,13 @@ function discardBackup() {
 
 // Lifecycle hooks
 onMounted(async () => {
-  await loadSession()
+  // Load session and check backup in parallel to avoid sequential loading glitches
+  const [, backup] = await Promise.all([
+    loadSession(),
+    restoreDraft(props.sessionId)
+  ])
 
   // After loading session, check for encrypted localStorage backup
-  const backup = await restoreDraft(props.sessionId)
   if (backup && backup.draft) {
     // Compare timestamps: only prompt if backup is newer than server
     const backupTime = backup.timestamp || 0
@@ -335,28 +410,59 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   stopAutosave()
 })
-
-// Watch session_date for formatting
-watch(
-  () => session.value?.session_date,
-  (newDate) => {
-    if (newDate) {
-      formData.value.session_date = formatDateTimeForInput(newDate)
-    }
-  }
-)
 </script>
 
 <template>
   <div class="session-editor">
-    <!-- Loading State -->
-    <div v-if="isLoading" class="flex items-center justify-center py-12">
-      <div class="text-center">
-        <div
-          class="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"
-        ></div>
-        <p class="text-sm text-slate-600">Loading session...</p>
+    <!-- Loading State - Skeleton Loader with delayed fade-in -->
+    <div v-if="isLoading" class="flex flex-col lg:flex-row gap-0 skeleton-delayed">
+      <!-- Main Content Skeleton -->
+      <div class="flex-1 space-y-6 animate-pulse">
+        <!-- Status bar skeleton -->
+        <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="h-6 w-24 bg-slate-200 rounded"></div>
+            <div class="h-6 w-32 bg-slate-200 rounded"></div>
+          </div>
+          <div class="h-10 w-36 bg-slate-200 rounded"></div>
+        </div>
+
+        <!-- Metadata fields skeleton -->
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <div class="h-4 w-40 bg-slate-200 rounded mb-2"></div>
+            <div class="h-10 w-full bg-slate-200 rounded"></div>
+          </div>
+          <div>
+            <div class="h-4 w-36 bg-slate-200 rounded mb-2"></div>
+            <div class="h-10 w-full bg-slate-200 rounded"></div>
+          </div>
+        </div>
+
+        <!-- SOAP fields skeleton -->
+        <div v-for="i in 4" :key="i" class="space-y-2">
+          <div class="h-4 w-24 bg-slate-200 rounded"></div>
+          <div class="h-3 w-64 bg-slate-200 rounded"></div>
+          <div class="h-32 w-full bg-slate-200 rounded"></div>
+        </div>
       </div>
+
+      <!-- Previous Session Panel Skeleton (Desktop only) -->
+      <aside class="hidden lg:block w-[320px] bg-gray-50 border-l border-gray-200 p-4 animate-pulse">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-300">
+          <div>
+            <div class="h-4 w-32 bg-gray-300 rounded mb-2"></div>
+            <div class="h-3 w-40 bg-gray-300 rounded"></div>
+          </div>
+          <div class="h-5 w-5 bg-gray-300 rounded"></div>
+        </div>
+        <div class="space-y-4">
+          <div v-for="i in 4" :key="i">
+            <div class="h-3 w-20 bg-gray-300 rounded mb-2"></div>
+            <div class="h-16 bg-gray-300 rounded"></div>
+          </div>
+        </div>
+      </aside>
     </div>
 
     <!-- Error State -->
@@ -364,11 +470,13 @@ watch(
       <p class="text-sm font-medium text-red-800">{{ loadError }}</p>
     </div>
 
-    <!-- Session Editor -->
-    <div v-else class="space-y-6">
+    <!-- Session Editor with Previous Session Panel -->
+    <div v-else class="flex flex-col lg:flex-row gap-0">
+      <!-- Main Content Area -->
+      <div class="flex-1 space-y-6 pb-20 lg:pb-0">
       <!-- SOAP Guide Panel (P1-3: Onboarding for first-time users) -->
       <div
-        v-if="showSoapGuide && session?.is_draft"
+        v-if="showSoapGuide"
         class="rounded-lg border border-blue-200 bg-blue-50 p-4"
       >
         <div class="flex items-start justify-between gap-3">
@@ -445,10 +553,28 @@ watch(
       />
 
       <!-- Status Bar -->
-      <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+      <div class="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex items-center gap-3">
           <!-- Session Note Badges Component -->
-          <SessionNoteBadges v-if="session" :session="session" />
+          <SessionNoteBadges
+            v-if="session"
+            :session="session"
+          />
+
+          <!-- Previous Session Button (Mobile Only) -->
+          <button
+            v-if="stableClientId"
+            @click="showPreviousSessionModal = true"
+            type="button"
+            class="lg:hidden inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 focus:underline focus:outline-none"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            Previous Session
+          </button>
 
           <!-- Offline Indicator -->
           <span
@@ -492,38 +618,57 @@ watch(
           </span>
         </div>
 
-        <!-- Finalize/Save Button -->
+        <!-- Finalize/Unfinalize Toggle Button -->
         <button
-          v-if="!isFinalized"
           type="button"
-          :disabled="!hasContent || isFinalizing"
-          @click="finalizeSession"
-          class="group inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 focus:ring-2 focus:ring-green-600 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+          :disabled="(!hasContent && !isFinalized) || isFinalizing"
+          @click="toggleFinalizeStatus"
+          :class="[
+            'group inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 min-h-[44px] text-sm font-semibold shadow-sm transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500',
+            'w-full sm:w-auto',
+            isFinalized
+              ? 'bg-slate-600 text-white hover:bg-slate-700 focus:ring-slate-600'
+              : 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-600'
+          ]"
         >
+          <!-- Loading spinner (existing) -->
           <svg
             v-if="isFinalizing"
-            class="mr-2 h-4 w-4 animate-spin"
+            class="h-4 w-4 animate-spin flex-shrink-0"
             fill="none"
             viewBox="0 0 24 24"
           >
-            <circle
-              class="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              stroke-width="4"
-            ></circle>
-            <path
-              class="opacity-75"
-              fill="currentColor"
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor"
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
+            />
           </svg>
-          {{ isFinalizing ? 'Finalizing...' : 'Finalize Session' }}
+
+          <!-- Icon (checkmark for finalize, revert arrow for draft) -->
+          <svg v-else class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path v-if="!isFinalized" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M5 13l4 4L19 7" />
+            <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+          </svg>
+
+          <!-- Abbreviated text on mobile -->
+          <span class="sm:hidden">
+            {{ isFinalizing ? (isFinalized ? 'Reverting...' : 'Finalizing...') : (isFinalized ? 'Revert' : 'Finalize') }}
+          </span>
+
+          <!-- Full text on desktop -->
+          <span class="hidden sm:inline">
+            {{ isFinalizing ? (isFinalized ? 'Reverting...' : 'Finalizing...') : (isFinalized ? 'Revert to Draft' : 'Finalize Session') }}
+          </span>
+
+          <!-- Keyboard hint (desktop only) -->
           <kbd
             v-if="!isFinalizing"
-            class="ml-2 rounded bg-green-700 px-1.5 py-0.5 font-mono text-xs text-green-100 opacity-0 transition-opacity group-hover:opacity-100"
+            :class="[
+              'hidden sm:inline-block ml-1 rounded px-1.5 py-0.5 font-mono text-xs opacity-0 transition-opacity group-hover:opacity-100',
+              isFinalized ? 'bg-slate-700 text-slate-100' : 'bg-green-700 text-green-100'
+            ]"
           >
             ⌘↵
           </kbd>
@@ -538,30 +683,6 @@ watch(
       <!-- Save Error -->
       <div v-if="saveError" class="rounded-lg border border-red-200 bg-red-50 p-3">
         <p class="text-sm text-red-800">{{ saveError }}</p>
-      </div>
-
-      <!-- Info Message: Editing Finalized Note -->
-      <div
-        v-if="isFinalized && !session?.amended_at"
-        class="flex gap-3 rounded-lg border-l-4 border-blue-400 bg-blue-50 p-4"
-      >
-        <svg
-          class="h-5 w-5 flex-shrink-0 text-blue-600"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <p class="text-sm leading-relaxed text-blue-800">
-          You're editing a finalized note. Changes will be marked as amendments and the
-          original preserved.
-        </p>
       </div>
 
       <!-- Session Metadata -->
@@ -694,6 +815,14 @@ watch(
           ></textarea>
         </div>
       </div>
+      </div>
+
+      <!-- Previous Session Context Panel -->
+      <PreviousSessionPanel
+        v-if="stableClientId"
+        :client-id="stableClientId"
+        :current-session-id="props.sessionId"
+      />
     </div>
 
     <!-- Session Version History Modal -->
@@ -744,9 +873,99 @@ watch(
         </div>
       </div>
     </Teleport>
+
+    <!-- Previous Session Modal (Mobile) -->
+    <Teleport to="body">
+      <div
+        v-if="showPreviousSessionModal"
+        class="fixed inset-0 z-50 bg-white overflow-y-auto lg:hidden"
+      >
+        <!-- Modal Header -->
+        <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+          <h2 class="text-lg font-semibold text-gray-900">Previous Session</h2>
+          <button
+            @click="showPreviousSessionModal = false"
+            class="p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+            aria-label="Close previous session"
+          >
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="p-4">
+          <PreviousSessionPanel
+            v-if="stableClientId"
+            :client-id="stableClientId"
+            :current-session-id="props.sessionId"
+            :force-mobile-view="true"
+          />
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
-/* Additional styles if needed */
+/* Delayed skeleton loader - only shows after 150ms to prevent flash on fast loads */
+.skeleton-delayed {
+  animation: delayedFadeIn 0.2s ease-in;
+}
+
+@keyframes delayedFadeIn {
+  0%, 75% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Smooth transitions for all interactive elements */
+.session-editor textarea,
+.session-editor input {
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+/* Prevent layout shift when badges appear/disappear */
+.session-editor .flex.items-center.gap-3 {
+  min-height: 2rem;
+  min-width: fit-content;
+}
+
+/* Badge transition animations */
+.badge-fade-enter-active,
+.badge-fade-leave-active {
+  transition: opacity 0.15s ease-in-out, transform 0.15s ease-in-out;
+  will-change: opacity, transform;
+}
+
+.badge-fade-enter-from {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.badge-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+/* Smooth badge transitions */
+.session-editor span[class*="rounded-full"] {
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+  will-change: background-color, color;
+}
+
+/* Smooth button state transitions */
+.session-editor button {
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, opacity 0.2s ease-in-out, transform 0.1s ease-in-out;
+  will-change: background-color, color, opacity;
+}
+
+/* Prevent button layout shift during state changes */
+.session-editor button[type="button"] {
+  min-width: fit-content;
+}
 </style>
