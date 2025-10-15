@@ -26,6 +26,7 @@ import CalendarLoadingState from '@/components/calendar/CalendarLoadingState.vue
 import DragConflictModal from '@/components/calendar/DragConflictModal.vue'
 import MobileRescheduleModal from '@/components/calendar/MobileRescheduleModal.vue'
 import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentModal.vue'
+import MobileActionToolbar from '@/components/calendar/MobileActionToolbar.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 import IconClock from '@/components/icons/IconClock.vue'
 import { format } from 'date-fns'
@@ -82,6 +83,10 @@ const undoCancelData = ref<{
 
 const showEditSuccessBadge = ref(false)
 
+// Mobile action toolbar state
+const selectedAppointmentForActions = ref<string | null>(null)
+const isMobile = computed(() => typeof window !== 'undefined' && window.innerWidth <= 640)
+
 const { announcement: screenReaderAnnouncement, announce } = useScreenReader()
 const { showSuccess, showAppointmentSuccess, showSuccessWithUndo, showError } =
   useToast()
@@ -103,7 +108,36 @@ const { selectedAppointment, calendarEvents, handleEventClick: composableHandleE
 
 // Wrap handleEventClick to capture times before modal opens
 function handleEventClick(clickInfo: any) {
-  // First, call the composable's event click handler
+  // Mobile behavior: tap-to-select with floating toolbar
+  if (isMobile.value) {
+    const appointmentId = clickInfo.event.id
+
+    // If this appointment is already selected, open detail modal (second tap)
+    if (selectedAppointmentForActions.value === appointmentId) {
+      selectedAppointmentForActions.value = null // Clear selection
+      composableHandleEventClick(clickInfo) // Open modal
+
+      // Capture times for modal
+      if (selectedAppointment.value) {
+        previousAppointmentTimes.value.set(selectedAppointment.value.id, {
+          start: selectedAppointment.value.scheduled_start,
+          end: selectedAppointment.value.scheduled_end
+        })
+      }
+    } else {
+      // First tap: select appointment and show toolbar
+      // Immediately add visual class to prevent flash
+      const eventEl = clickInfo.el
+      if (eventEl) {
+        eventEl.classList.add('is-selected-for-action')
+      }
+
+      selectedAppointmentForActions.value = appointmentId
+    }
+    return
+  }
+
+  // Desktop behavior: open modal immediately
   composableHandleEventClick(clickInfo)
 
   // Then, if an appointment was selected, capture its current times IMMEDIATELY
@@ -407,6 +441,31 @@ async function handleQuickComplete(appointmentId: string) {
 }
 
 /**
+ * Handle complete from mobile toolbar
+ */
+function handleMobileComplete() {
+  if (!selectedAppointmentForActions.value) return
+  handleQuickComplete(selectedAppointmentForActions.value)
+  selectedAppointmentForActions.value = null
+}
+
+/**
+ * Handle delete from mobile toolbar
+ */
+function handleMobileDelete() {
+  if (!selectedAppointmentForActions.value) return
+  handleQuickDelete(selectedAppointmentForActions.value)
+  selectedAppointmentForActions.value = null
+}
+
+/**
+ * Close mobile toolbar
+ */
+function handleCloseMobileToolbar() {
+  selectedAppointmentForActions.value = null
+}
+
+/**
  * Quick delete action handler
  * Opens delete modal for confirmation
  */
@@ -491,7 +550,7 @@ const calendarOptions = computed(() => ({
     titleContainer.appendChild(title)
     wrapper.appendChild(titleContainer)
 
-    // Quick action buttons container
+    // Quick action buttons container (desktop only - hidden on mobile ≤640px)
     const actionsContainer = document.createElement('div')
     actionsContainer.className =
       'calendar-quick-actions absolute top-1 right-1 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150 z-10'
@@ -545,6 +604,11 @@ const calendarOptions = computed(() => ({
 
     // Add data attribute so we can find this element later
     info.el.setAttribute('data-event-id', event.id)
+
+    // Add selected state class for mobile toolbar
+    if (selectedAppointmentForActions.value === event.id) {
+      info.el.classList.add('is-selected-for-action')
+    }
 
     // Apply height fix for FullCalendar v6 bug
     if (event.start && event.end) {
@@ -1263,6 +1327,28 @@ watch(
   { immediate: true }
 )
 
+// Watch for selection changes and update event classes
+watch(
+  () => selectedAppointmentForActions.value,
+  (newId, oldId) => {
+    // Remove selected class from previous appointment
+    if (oldId) {
+      const oldEl = document.querySelector(`[data-event-id="${oldId}"]`)
+      if (oldEl) {
+        oldEl.classList.remove('is-selected-for-action')
+      }
+    }
+
+    // Add selected class to new appointment
+    if (newId) {
+      const newEl = document.querySelector(`[data-event-id="${newId}"]`)
+      if (newEl) {
+        newEl.classList.add('is-selected-for-action')
+      }
+    }
+  }
+)
+
 // Keyboard shortcuts for reschedule mode
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown)
@@ -1514,6 +1600,30 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       :open="showDeleteModal"
       @confirm="handleDeleteConfirm"
       @cancel="handleDeleteCancel"
+    />
+
+    <!-- Mobile Action Toolbar -->
+    <MobileActionToolbar
+      :visible="!!selectedAppointmentForActions"
+      :appointment-id="selectedAppointmentForActions"
+      :can-complete="
+        selectedAppointmentForActions
+          ? (() => {
+              const appt = appointmentsStore.appointments.find(
+                (a) => a.id === selectedAppointmentForActions
+              )
+              if (!appt) return false
+              const now = new Date()
+              return (
+                appt.status === 'scheduled' &&
+                new Date(appt.scheduled_end) < now
+              )
+            })()
+          : false
+      "
+      @complete="handleMobileComplete"
+      @delete="handleMobileDelete"
+      @close="handleCloseMobileToolbar"
     />
 
     <!-- Screen Reader Announcements -->
@@ -2068,6 +2178,51 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 
   :deep(.fc-daygrid-day) {
     transition: none;
+  }
+}
+
+/* Mobile Action Toolbar - Selected Appointment State */
+
+/* Hide desktop quick action buttons on mobile */
+@media (max-width: 640px) {
+  .calendar-quick-actions {
+    display: none !important;
+  }
+
+  /* Prevent tap highlight flash on FullCalendar elements */
+  :deep(.fc-col-header-cell),
+  :deep(.fc-daygrid-day),
+  :deep(.fc-timegrid-col),
+  :deep(.fc-timegrid-slot-lane) {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Selected appointment state - blue pulsing border */
+  :deep(.fc-event.is-selected-for-action) {
+    box-shadow: 0 0 0 2px #3b82f6 !important;
+    z-index: 10 !important;
+    animation: subtle-pulse 1.5s ease-in-out infinite;
+  }
+
+  /* Pulse animation for selected appointment */
+  @keyframes subtle-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 2px #3b82f6;
+    }
+    50% {
+      box-shadow: 0 0 0 2px #3b82f6, 0 0 8px rgba(59, 130, 246, 0.4);
+    }
+  }
+
+  /* Disable pulse animation if user prefers reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    :deep(.fc-event.is-selected-for-action) {
+      animation: none !important;
+    }
   }
 }
 </style>
