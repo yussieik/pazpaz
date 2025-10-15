@@ -217,11 +217,20 @@ export function useCalendarEvents() {
       const eventColor = getEventColor(appointment)
       const eventTitle = getEventTitle(appointment)
 
+      // Convert ISO strings to Date objects for FullCalendar
+      // FullCalendar v6 requires Date objects to properly calculate event duration/height
+      const startDate = new Date(appointment.scheduled_start)
+      const endDate = new Date(appointment.scheduled_end)
+
+      // Calculate duration in milliseconds for explicit duration property
+      const durationMs = endDate.getTime() - startDate.getTime()
+
       return {
         id: appointment.id,
         title: eventTitle,
-        start: appointment.scheduled_start,
-        end: appointment.scheduled_end,
+        start: startDate,
+        end: endDate,
+        duration: durationMs, // Explicitly set duration in milliseconds
         backgroundColor: eventColor,
         borderColor: eventColor,
         classNames: [

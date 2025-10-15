@@ -153,7 +153,9 @@ const {
 
       // Only update timestamp without re-rendering form
       try {
-        const response = await apiClient.get<SessionResponse>(`/sessions/${props.sessionId}`)
+        const response = await apiClient.get<SessionResponse>(
+          `/sessions/${props.sessionId}`
+        )
         if (session.value) {
           session.value.draft_last_saved_at = response.data.draft_last_saved_at
         }
@@ -205,7 +207,9 @@ async function loadSession(silent = false) {
   loadError.value = null
 
   try {
-    const response = await apiClient.get<SessionResponse>(`/sessions/${props.sessionId}`)
+    const response = await apiClient.get<SessionResponse>(
+      `/sessions/${props.sessionId}`
+    )
 
     // Update session metadata
     session.value = response.data
@@ -222,7 +226,9 @@ async function loadSession(silent = false) {
         objective: response.data.objective || '',
         assessment: response.data.assessment || '',
         plan: response.data.plan || '',
-        session_date: response.data.session_date ? formatDateTimeForInput(response.data.session_date) : '',
+        session_date: response.data.session_date
+          ? formatDateTimeForInput(response.data.session_date)
+          : '',
         duration_minutes: response.data.duration_minutes,
       }
       originalData.value = { ...formData.value }
@@ -242,7 +248,9 @@ async function loadSession(silent = false) {
         formData.value.plan = response.data.plan || ''
       }
       if (formData.value.session_date === originalData.value.session_date) {
-        formData.value.session_date = response.data.session_date ? formatDateTimeForInput(response.data.session_date) : ''
+        formData.value.session_date = response.data.session_date
+          ? formatDateTimeForInput(response.data.session_date)
+          : ''
       }
       if (formData.value.duration_minutes === originalData.value.duration_minutes) {
         formData.value.duration_minutes = response.data.duration_minutes
@@ -384,10 +392,7 @@ function discardBackup() {
 // Lifecycle hooks
 onMounted(async () => {
   // Load session and check backup in parallel to avoid sequential loading glitches
-  const [, backup] = await Promise.all([
-    loadSession(),
-    restoreDraft(props.sessionId)
-  ])
+  const [, backup] = await Promise.all([loadSession(), restoreDraft(props.sessionId)])
 
   // After loading session, check for encrypted localStorage backup
   if (backup && backup.draft) {
@@ -415,51 +420,55 @@ onBeforeUnmount(() => {
 <template>
   <div class="session-editor">
     <!-- Loading State - Skeleton Loader with delayed fade-in -->
-    <div v-if="isLoading" class="flex flex-col lg:flex-row gap-0 skeleton-delayed">
+    <div v-if="isLoading" class="skeleton-delayed flex flex-col gap-0 lg:flex-row">
       <!-- Main Content Skeleton -->
-      <div class="flex-1 space-y-6 animate-pulse">
+      <div class="flex-1 animate-pulse space-y-6">
         <!-- Status bar skeleton -->
         <div class="flex items-center justify-between border-b border-slate-200 pb-4">
           <div class="flex items-center gap-3">
-            <div class="h-6 w-24 bg-slate-200 rounded"></div>
-            <div class="h-6 w-32 bg-slate-200 rounded"></div>
+            <div class="h-6 w-24 rounded bg-slate-200"></div>
+            <div class="h-6 w-32 rounded bg-slate-200"></div>
           </div>
-          <div class="h-10 w-36 bg-slate-200 rounded"></div>
+          <div class="h-10 w-36 rounded bg-slate-200"></div>
         </div>
 
         <!-- Metadata fields skeleton -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <div class="h-4 w-40 bg-slate-200 rounded mb-2"></div>
-            <div class="h-10 w-full bg-slate-200 rounded"></div>
+            <div class="mb-2 h-4 w-40 rounded bg-slate-200"></div>
+            <div class="h-10 w-full rounded bg-slate-200"></div>
           </div>
           <div>
-            <div class="h-4 w-36 bg-slate-200 rounded mb-2"></div>
-            <div class="h-10 w-full bg-slate-200 rounded"></div>
+            <div class="mb-2 h-4 w-36 rounded bg-slate-200"></div>
+            <div class="h-10 w-full rounded bg-slate-200"></div>
           </div>
         </div>
 
         <!-- SOAP fields skeleton -->
         <div v-for="i in 4" :key="i" class="space-y-2">
-          <div class="h-4 w-24 bg-slate-200 rounded"></div>
-          <div class="h-3 w-64 bg-slate-200 rounded"></div>
-          <div class="h-32 w-full bg-slate-200 rounded"></div>
+          <div class="h-4 w-24 rounded bg-slate-200"></div>
+          <div class="h-3 w-64 rounded bg-slate-200"></div>
+          <div class="h-32 w-full rounded bg-slate-200"></div>
         </div>
       </div>
 
       <!-- Previous Session Panel Skeleton (Desktop only) -->
-      <aside class="hidden lg:block w-[320px] bg-gray-50 border-l border-gray-200 p-4 animate-pulse">
-        <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-300">
+      <aside
+        class="hidden w-[320px] animate-pulse border-l border-gray-200 bg-gray-50 p-4 lg:block"
+      >
+        <div
+          class="mb-4 flex items-center justify-between border-b border-gray-300 pb-3"
+        >
           <div>
-            <div class="h-4 w-32 bg-gray-300 rounded mb-2"></div>
-            <div class="h-3 w-40 bg-gray-300 rounded"></div>
+            <div class="mb-2 h-4 w-32 rounded bg-gray-300"></div>
+            <div class="h-3 w-40 rounded bg-gray-300"></div>
           </div>
-          <div class="h-5 w-5 bg-gray-300 rounded"></div>
+          <div class="h-5 w-5 rounded bg-gray-300"></div>
         </div>
         <div class="space-y-4">
           <div v-for="i in 4" :key="i">
-            <div class="h-3 w-20 bg-gray-300 rounded mb-2"></div>
-            <div class="h-16 bg-gray-300 rounded"></div>
+            <div class="mb-2 h-3 w-20 rounded bg-gray-300"></div>
+            <div class="h-16 rounded bg-gray-300"></div>
           </div>
         </div>
       </aside>
@@ -471,350 +480,419 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- Session Editor with Previous Session Panel -->
-    <div v-else class="flex flex-col lg:flex-row gap-0">
+    <div v-else class="flex flex-col gap-0 lg:flex-row">
       <!-- Main Content Area -->
       <div class="flex-1 space-y-6 pb-20 lg:pb-0">
-      <!-- SOAP Guide Panel (P1-3: Onboarding for first-time users) -->
-      <div
-        v-if="showSoapGuide"
-        class="rounded-lg border border-blue-200 bg-blue-50 p-4"
-      >
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex items-start gap-3">
+        <!-- SOAP Guide Panel (P1-3: Onboarding for first-time users) -->
+        <div
+          v-if="showSoapGuide"
+          class="rounded-lg border border-blue-200 bg-blue-50 p-4"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-start gap-3">
+              <svg
+                class="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div class="flex-1">
+                <h3 class="text-sm font-semibold text-blue-900">SOAP Note Guide</h3>
+                <div class="mt-2 space-y-2 text-sm text-blue-800">
+                  <div>
+                    <strong>S - Subjective:</strong> What the patient reports
+                    <span class="mt-0.5 block text-xs text-blue-700">
+                      Example: "Patient states shoulder pain started 2 weeks ago after
+                      gardening..."
+                    </span>
+                  </div>
+                  <div>
+                    <strong>O - Objective:</strong> What you observe & measure
+                    <span class="mt-0.5 block text-xs text-blue-700">
+                      Example: "ROM: 120° abduction, palpation reveals tenderness at
+                      supraspinatus insertion..."
+                    </span>
+                  </div>
+                  <div>
+                    <strong>A - Assessment:</strong> Your clinical interpretation
+                    <span class="mt-0.5 block text-xs text-blue-700">
+                      Example: "Likely rotator cuff tendinitis, moderate severity..."
+                    </span>
+                  </div>
+                  <div>
+                    <strong>P - Plan:</strong> Treatment plan & next steps
+                    <span class="mt-0.5 block text-xs text-blue-700">
+                      Example: "Ice 15min 3x/day, gentle ROM exercises, follow-up in 1
+                      week..."
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button
+              @click="dismissSoapGuide"
+              class="text-blue-600 hover:text-blue-800"
+              aria-label="Dismiss SOAP guide"
+            >
+              <svg
+                class="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Amendment Indicator -->
+        <SessionAmendmentIndicator
+          v-if="session && session.amendment_count && session.amendment_count > 0"
+          :amendment-count="session.amendment_count"
+          :amended-at="session.amended_at"
+          @view-history="showVersionHistory = true"
+        />
+
+        <!-- Status Bar -->
+        <div
+          class="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div class="flex items-center gap-3">
+            <!-- Session Note Badges Component -->
+            <SessionNoteBadges v-if="session" :session="session" />
+
+            <!-- Previous Session Button (Mobile Only) -->
+            <button
+              v-if="stableClientId"
+              @click="showPreviousSessionModal = true"
+              type="button"
+              class="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 focus:underline focus:outline-none lg:hidden"
+            >
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Previous Session
+            </button>
+
+            <!-- Offline Indicator -->
+            <span
+              v-if="!isOnline"
+              class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800"
+            >
+              <svg
+                class="h-3 w-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3"
+                />
+              </svg>
+              Offline - Changes saved locally
+            </span>
+
+            <!-- View Version History Button (if amended) -->
+            <button
+              v-if="session?.amended_at"
+              @click="showVersionHistory = true"
+              type="button"
+              class="text-sm text-blue-600 hover:text-blue-700 focus:underline focus:outline-none"
+            >
+              View Original Version
+            </button>
+
+            <!-- Last Saved Indicator -->
+            <span
+              class="text-sm"
+              :class="{
+                'text-slate-600': !isSaving && !saveError && isOnline,
+                'text-blue-600': isSaving,
+                'text-red-600': saveError,
+                'text-amber-600': !isOnline && !isSaving,
+              }"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {{ lastSavedDisplay }}
+            </span>
+          </div>
+
+          <!-- Finalize/Unfinalize Toggle Button -->
+          <button
+            type="button"
+            :disabled="(!hasContent && !isFinalized) || isFinalizing"
+            @click="toggleFinalizeStatus"
+            :class="[
+              'group inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500',
+              'w-full sm:w-auto',
+              isFinalized
+                ? 'bg-slate-600 text-white hover:bg-slate-700 focus:ring-slate-600'
+                : 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-600',
+            ]"
+          >
+            <!-- Loading spinner (existing) -->
             <svg
-              class="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600"
+              v-if="isFinalizing"
+              class="h-4 w-4 flex-shrink-0 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+
+            <!-- Icon (checkmark for finalize, revert arrow for draft) -->
+            <svg
+              v-else
+              class="h-4 w-4 flex-shrink-0"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
               <path
+                v-if="!isFinalized"
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                d="M5 13l4 4L19 7"
               />
-            </svg>
-            <div class="flex-1">
-              <h3 class="text-sm font-semibold text-blue-900">SOAP Note Guide</h3>
-              <div class="mt-2 space-y-2 text-sm text-blue-800">
-                <div>
-                  <strong>S - Subjective:</strong> What the patient reports
-                  <span class="mt-0.5 block text-xs text-blue-700">
-                    Example: "Patient states shoulder pain started 2 weeks ago after
-                    gardening..."
-                  </span>
-                </div>
-                <div>
-                  <strong>O - Objective:</strong> What you observe & measure
-                  <span class="mt-0.5 block text-xs text-blue-700">
-                    Example: "ROM: 120° abduction, palpation reveals tenderness at
-                    supraspinatus insertion..."
-                  </span>
-                </div>
-                <div>
-                  <strong>A - Assessment:</strong> Your clinical interpretation
-                  <span class="mt-0.5 block text-xs text-blue-700">
-                    Example: "Likely rotator cuff tendinitis, moderate severity..."
-                  </span>
-                </div>
-                <div>
-                  <strong>P - Plan:</strong> Treatment plan & next steps
-                  <span class="mt-0.5 block text-xs text-blue-700">
-                    Example: "Ice 15min 3x/day, gentle ROM exercises, follow-up in 1
-                    week..."
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <button
-            @click="dismissSoapGuide"
-            class="text-blue-600 hover:text-blue-800"
-            aria-label="Dismiss SOAP guide"
-          >
-            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
+                v-else
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
+                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
               />
             </svg>
+
+            <!-- Abbreviated text on mobile -->
+            <span class="sm:hidden">
+              {{
+                isFinalizing
+                  ? isFinalized
+                    ? 'Reverting...'
+                    : 'Finalizing...'
+                  : isFinalized
+                    ? 'Revert'
+                    : 'Finalize'
+              }}
+            </span>
+
+            <!-- Full text on desktop -->
+            <span class="hidden sm:inline">
+              {{
+                isFinalizing
+                  ? isFinalized
+                    ? 'Reverting...'
+                    : 'Finalizing...'
+                  : isFinalized
+                    ? 'Revert to Draft'
+                    : 'Finalize Session'
+              }}
+            </span>
+
+            <!-- Keyboard hint (desktop only) -->
+            <kbd
+              v-if="!isFinalizing"
+              :class="[
+                'ml-1 hidden rounded px-1.5 py-0.5 font-mono text-xs opacity-0 transition-opacity group-hover:opacity-100 sm:inline-block',
+                isFinalized
+                  ? 'bg-slate-700 text-slate-100'
+                  : 'bg-green-700 text-green-100',
+              ]"
+            >
+              ⌘↵
+            </kbd>
           </button>
         </div>
-      </div>
 
-      <!-- Amendment Indicator -->
-      <SessionAmendmentIndicator
-        v-if="session && session.amendment_count && session.amendment_count > 0"
-        :amendment-count="session.amendment_count"
-        :amended-at="session.amended_at"
-        @view-history="showVersionHistory = true"
-      />
-
-      <!-- Status Bar -->
-      <div class="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex items-center gap-3">
-          <!-- Session Note Badges Component -->
-          <SessionNoteBadges
-            v-if="session"
-            :session="session"
-          />
-
-          <!-- Previous Session Button (Mobile Only) -->
-          <button
-            v-if="stableClientId"
-            @click="showPreviousSessionModal = true"
-            type="button"
-            class="lg:hidden inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 focus:underline focus:outline-none"
-          >
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            Previous Session
-          </button>
-
-          <!-- Offline Indicator -->
-          <span
-            v-if="!isOnline"
-            class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800"
-          >
-            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3"
-              />
-            </svg>
-            Offline - Changes saved locally
-          </span>
-
-          <!-- View Version History Button (if amended) -->
-          <button
-            v-if="session?.amended_at"
-            @click="showVersionHistory = true"
-            type="button"
-            class="text-sm text-blue-600 hover:text-blue-700 focus:underline focus:outline-none"
-          >
-            View Original Version
-          </button>
-
-          <!-- Last Saved Indicator -->
-          <span
-            class="text-sm"
-            :class="{
-              'text-slate-600': !isSaving && !saveError && isOnline,
-              'text-blue-600': isSaving,
-              'text-red-600': saveError,
-              'text-amber-600': !isOnline && !isSaving,
-            }"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            {{ lastSavedDisplay }}
-          </span>
-        </div>
-
-        <!-- Finalize/Unfinalize Toggle Button -->
-        <button
-          type="button"
-          :disabled="(!hasContent && !isFinalized) || isFinalizing"
-          @click="toggleFinalizeStatus"
-          :class="[
-            'group inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 min-h-[44px] text-sm font-semibold shadow-sm transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500',
-            'w-full sm:w-auto',
-            isFinalized
-              ? 'bg-slate-600 text-white hover:bg-slate-700 focus:ring-slate-600'
-              : 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-600'
-          ]"
+        <!-- Finalize Error -->
+        <div
+          v-if="finalizeError"
+          class="rounded-lg border border-red-200 bg-red-50 p-3"
         >
-          <!-- Loading spinner (existing) -->
-          <svg
-            v-if="isFinalizing"
-            class="h-4 w-4 animate-spin flex-shrink-0"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-            <path class="opacity-75" fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          <p class="text-sm text-red-800">{{ finalizeError }}</p>
+        </div>
+
+        <!-- Save Error -->
+        <div v-if="saveError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+          <p class="text-sm text-red-800">{{ saveError }}</p>
+        </div>
+
+        <!-- Session Metadata -->
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label for="session-date" class="block text-sm font-medium text-slate-700">
+              Session Date & Time
+            </label>
+            <input
+              id="session-date"
+              v-model="formData.session_date"
+              type="datetime-local"
+              @change="handleFieldChange"
+              class="mt-1 block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             />
-          </svg>
-
-          <!-- Icon (checkmark for finalize, revert arrow for draft) -->
-          <svg v-else class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path v-if="!isFinalized" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M5 13l4 4L19 7" />
-            <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-          </svg>
-
-          <!-- Abbreviated text on mobile -->
-          <span class="sm:hidden">
-            {{ isFinalizing ? (isFinalized ? 'Reverting...' : 'Finalizing...') : (isFinalized ? 'Revert' : 'Finalize') }}
-          </span>
-
-          <!-- Full text on desktop -->
-          <span class="hidden sm:inline">
-            {{ isFinalizing ? (isFinalized ? 'Reverting...' : 'Finalizing...') : (isFinalized ? 'Revert to Draft' : 'Finalize Session') }}
-          </span>
-
-          <!-- Keyboard hint (desktop only) -->
-          <kbd
-            v-if="!isFinalizing"
-            :class="[
-              'hidden sm:inline-block ml-1 rounded px-1.5 py-0.5 font-mono text-xs opacity-0 transition-opacity group-hover:opacity-100',
-              isFinalized ? 'bg-slate-700 text-slate-100' : 'bg-green-700 text-green-100'
-            ]"
-          >
-            ⌘↵
-          </kbd>
-        </button>
-      </div>
-
-      <!-- Finalize Error -->
-      <div v-if="finalizeError" class="rounded-lg border border-red-200 bg-red-50 p-3">
-        <p class="text-sm text-red-800">{{ finalizeError }}</p>
-      </div>
-
-      <!-- Save Error -->
-      <div v-if="saveError" class="rounded-lg border border-red-200 bg-red-50 p-3">
-        <p class="text-sm text-red-800">{{ saveError }}</p>
-      </div>
-
-      <!-- Session Metadata -->
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label for="session-date" class="block text-sm font-medium text-slate-700">
-            Session Date & Time
-          </label>
-          <input
-            id="session-date"
-            v-model="formData.session_date"
-            type="datetime-local"
-            @change="handleFieldChange"
-            class="mt-1 block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-          />
-        </div>
-
-        <div>
-          <label for="duration" class="block text-sm font-medium text-slate-700">
-            Duration (minutes)
-          </label>
-          <input
-            id="duration"
-            v-model.number="formData.duration_minutes"
-            type="number"
-            min="0"
-            max="480"
-            @input="handleFieldChange"
-            placeholder="60"
-            class="mt-1 block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-          />
-        </div>
-      </div>
-
-      <!-- SOAP Fields -->
-      <div class="space-y-6">
-        <!-- Subjective -->
-        <div>
-          <div class="mb-1 flex items-center justify-between">
-            <label for="subjective" class="block text-sm font-semibold text-slate-900">
-              Subjective
-            </label>
-            <span class="text-xs" :class="getCharCountClass(subjectiveCount)">
-              {{ subjectiveCount }} / {{ CHAR_LIMIT }}
-            </span>
           </div>
-          <p class="mb-2 text-xs text-slate-600">
-            Patient-reported symptoms, complaints, and history
-          </p>
-          <textarea
-            id="subjective"
-            v-model="formData.subjective"
-            :maxlength="CHAR_LIMIT"
-            @input="handleFieldChange"
-            rows="6"
-            placeholder="What did the patient tell you about their condition?"
-            class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-          ></textarea>
+
+          <div>
+            <label for="duration" class="block text-sm font-medium text-slate-700">
+              Duration (minutes)
+            </label>
+            <input
+              id="duration"
+              v-model.number="formData.duration_minutes"
+              type="number"
+              min="0"
+              max="480"
+              @input="handleFieldChange"
+              placeholder="60"
+              class="mt-1 block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            />
+          </div>
         </div>
 
-        <!-- Objective -->
-        <div>
-          <div class="mb-1 flex items-center justify-between">
-            <label for="objective" class="block text-sm font-semibold text-slate-900">
-              Objective
-            </label>
-            <span class="text-xs" :class="getCharCountClass(objectiveCount)">
-              {{ objectiveCount }} / {{ CHAR_LIMIT }}
-            </span>
+        <!-- SOAP Fields -->
+        <div class="space-y-6">
+          <!-- Subjective -->
+          <div>
+            <div class="mb-1 flex items-center justify-between">
+              <label
+                for="subjective"
+                class="block text-sm font-semibold text-slate-900"
+              >
+                Subjective
+              </label>
+              <span class="text-xs" :class="getCharCountClass(subjectiveCount)">
+                {{ subjectiveCount }} / {{ CHAR_LIMIT }}
+              </span>
+            </div>
+            <p class="mb-2 text-xs text-slate-600">
+              Patient-reported symptoms, complaints, and history
+            </p>
+            <textarea
+              id="subjective"
+              v-model="formData.subjective"
+              :maxlength="CHAR_LIMIT"
+              @input="handleFieldChange"
+              rows="6"
+              placeholder="What did the patient tell you about their condition?"
+              class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            ></textarea>
           </div>
-          <p class="mb-2 text-xs text-slate-600">
-            Therapist observations, measurements, and test results
-          </p>
-          <textarea
-            id="objective"
-            v-model="formData.objective"
-            :maxlength="CHAR_LIMIT"
-            @input="handleFieldChange"
-            rows="6"
-            placeholder="What did you observe during the examination?"
-            class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-          ></textarea>
-        </div>
 
-        <!-- Assessment -->
-        <div>
-          <div class="mb-1 flex items-center justify-between">
-            <label for="assessment" class="block text-sm font-semibold text-slate-900">
-              Assessment
-            </label>
-            <span class="text-xs" :class="getCharCountClass(assessmentCount)">
-              {{ assessmentCount }} / {{ CHAR_LIMIT }}
-            </span>
+          <!-- Objective -->
+          <div>
+            <div class="mb-1 flex items-center justify-between">
+              <label for="objective" class="block text-sm font-semibold text-slate-900">
+                Objective
+              </label>
+              <span class="text-xs" :class="getCharCountClass(objectiveCount)">
+                {{ objectiveCount }} / {{ CHAR_LIMIT }}
+              </span>
+            </div>
+            <p class="mb-2 text-xs text-slate-600">
+              Therapist observations, measurements, and test results
+            </p>
+            <textarea
+              id="objective"
+              v-model="formData.objective"
+              :maxlength="CHAR_LIMIT"
+              @input="handleFieldChange"
+              rows="6"
+              placeholder="What did you observe during the examination?"
+              class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            ></textarea>
           </div>
-          <p class="mb-2 text-xs text-slate-600">
-            Clinical interpretation and diagnosis
-          </p>
-          <textarea
-            id="assessment"
-            v-model="formData.assessment"
-            :maxlength="CHAR_LIMIT"
-            @input="handleFieldChange"
-            rows="6"
-            placeholder="What is your clinical assessment of the patient's condition?"
-            class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-          ></textarea>
-        </div>
 
-        <!-- Plan -->
-        <div>
-          <div class="mb-1 flex items-center justify-between">
-            <label for="plan" class="block text-sm font-semibold text-slate-900">
-              Plan
-            </label>
-            <span class="text-xs" :class="getCharCountClass(planCount)">
-              {{ planCount }} / {{ CHAR_LIMIT }}
-            </span>
+          <!-- Assessment -->
+          <div>
+            <div class="mb-1 flex items-center justify-between">
+              <label
+                for="assessment"
+                class="block text-sm font-semibold text-slate-900"
+              >
+                Assessment
+              </label>
+              <span class="text-xs" :class="getCharCountClass(assessmentCount)">
+                {{ assessmentCount }} / {{ CHAR_LIMIT }}
+              </span>
+            </div>
+            <p class="mb-2 text-xs text-slate-600">
+              Clinical interpretation and diagnosis
+            </p>
+            <textarea
+              id="assessment"
+              v-model="formData.assessment"
+              :maxlength="CHAR_LIMIT"
+              @input="handleFieldChange"
+              rows="6"
+              placeholder="What is your clinical assessment of the patient's condition?"
+              class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            ></textarea>
           </div>
-          <p class="mb-2 text-xs text-slate-600">
-            Treatment plan, next steps, and follow-up
-          </p>
-          <textarea
-            id="plan"
-            v-model="formData.plan"
-            :maxlength="CHAR_LIMIT"
-            @input="handleFieldChange"
-            rows="6"
-            placeholder="What is the treatment plan going forward?"
-            class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-          ></textarea>
+
+          <!-- Plan -->
+          <div>
+            <div class="mb-1 flex items-center justify-between">
+              <label for="plan" class="block text-sm font-semibold text-slate-900">
+                Plan
+              </label>
+              <span class="text-xs" :class="getCharCountClass(planCount)">
+                {{ planCount }} / {{ CHAR_LIMIT }}
+              </span>
+            </div>
+            <p class="mb-2 text-xs text-slate-600">
+              Treatment plan, next steps, and follow-up
+            </p>
+            <textarea
+              id="plan"
+              v-model="formData.plan"
+              :maxlength="CHAR_LIMIT"
+              @input="handleFieldChange"
+              rows="6"
+              placeholder="What is the treatment plan going forward?"
+              class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            ></textarea>
+          </div>
         </div>
-      </div>
       </div>
 
       <!-- Previous Session Context Panel -->
@@ -878,18 +956,25 @@ onBeforeUnmount(() => {
     <Teleport to="body">
       <div
         v-if="showPreviousSessionModal"
-        class="fixed inset-0 z-50 bg-white overflow-y-auto lg:hidden"
+        class="fixed inset-0 z-50 overflow-y-auto bg-white lg:hidden"
       >
         <!-- Modal Header -->
-        <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        <div
+          class="sticky top-0 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
+        >
           <h2 class="text-lg font-semibold text-gray-900">Previous Session</h2>
           <button
             @click="showPreviousSessionModal = false"
-            class="p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+            class="rounded p-2 text-gray-600 hover:text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             aria-label="Close previous session"
           >
-            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -915,7 +1000,8 @@ onBeforeUnmount(() => {
 }
 
 @keyframes delayedFadeIn {
-  0%, 75% {
+  0%,
+  75% {
     opacity: 0;
   }
   100% {
@@ -926,7 +1012,9 @@ onBeforeUnmount(() => {
 /* Smooth transitions for all interactive elements */
 .session-editor textarea,
 .session-editor input {
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  transition:
+    border-color 0.15s ease-in-out,
+    box-shadow 0.15s ease-in-out;
 }
 
 /* Prevent layout shift when badges appear/disappear */
@@ -938,7 +1026,9 @@ onBeforeUnmount(() => {
 /* Badge transition animations */
 .badge-fade-enter-active,
 .badge-fade-leave-active {
-  transition: opacity 0.15s ease-in-out, transform 0.15s ease-in-out;
+  transition:
+    opacity 0.15s ease-in-out,
+    transform 0.15s ease-in-out;
   will-change: opacity, transform;
 }
 
@@ -953,19 +1043,25 @@ onBeforeUnmount(() => {
 }
 
 /* Smooth badge transitions */
-.session-editor span[class*="rounded-full"] {
-  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+.session-editor span[class*='rounded-full'] {
+  transition:
+    background-color 0.2s ease-in-out,
+    color 0.2s ease-in-out;
   will-change: background-color, color;
 }
 
 /* Smooth button state transitions */
 .session-editor button {
-  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, opacity 0.2s ease-in-out, transform 0.1s ease-in-out;
+  transition:
+    background-color 0.2s ease-in-out,
+    color 0.2s ease-in-out,
+    opacity 0.2s ease-in-out,
+    transform 0.1s ease-in-out;
   will-change: background-color, color, opacity;
 }
 
 /* Prevent button layout shift during state changes */
-.session-editor button[type="button"] {
+.session-editor button[type='button'] {
   min-width: fit-content;
 }
 </style>

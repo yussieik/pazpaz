@@ -80,7 +80,9 @@ async function loadSession() {
   loadError.value = null
 
   try {
-    const response = await apiClient.get<SessionResponse>(`/sessions/${sessionId.value}`)
+    const response = await apiClient.get<SessionResponse>(
+      `/sessions/${sessionId.value}`
+    )
     session.value = response.data
 
     // Load client data
@@ -180,7 +182,7 @@ onKeyStroke('Escape', (e) => {
 <template>
   <div class="session-view mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
     <!-- Back Button - Hidden until session loads to prevent text flash -->
-    <div class="mb-6" :class="{ 'invisible': !session }">
+    <div class="mb-6" :class="{ invisible: !session }">
       <button
         type="button"
         @click="goBack"

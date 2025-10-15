@@ -367,13 +367,16 @@ function applySuggestion(suggestion: string) {
 
           <!-- Optional Reason -->
           <div class="mt-4">
-            <label for="deletion-reason" class="text-sm font-medium text-slate-700 mb-1.5 block">
+            <label
+              for="deletion-reason"
+              class="mb-1.5 block text-sm font-medium text-slate-700"
+            >
               Why are you deleting this? (optional)
             </label>
             <textarea
               id="deletion-reason"
               v-model="reason"
-              class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[80px] sm:text-sm"
+              class="mt-2 min-h-[80px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               rows="3"
               placeholder="e.g., Duplicate entry"
             ></textarea>
@@ -398,7 +401,7 @@ function applySuggestion(suggestion: string) {
               @click="handleCancel"
               type="button"
               :disabled="isDeleting"
-              class="order-2 sm:order-1 inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[44px] w-full sm:w-auto"
+              class="order-2 inline-flex min-h-[44px] w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:order-1 sm:w-auto"
             >
               Cancel
             </button>
@@ -406,7 +409,7 @@ function applySuggestion(suggestion: string) {
               @click="handleDeleteClick"
               type="button"
               :disabled="isDeleting || loadingSession"
-              class="order-1 sm:order-2 inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[44px] w-full sm:w-auto"
+              class="order-1 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:order-2 sm:w-auto"
             >
               <LoadingSpinner v-if="isDeleting" size="sm" color="blue" />
               <span>{{
@@ -508,7 +511,7 @@ function applySuggestion(suggestion: string) {
               @click="goBack"
               type="button"
               :disabled="isDeleting"
-              class="order-2 sm:order-1 inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[44px] w-full sm:w-auto"
+              class="order-2 inline-flex min-h-[44px] w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:order-1 sm:w-auto"
             >
               Go Back
             </button>
@@ -516,7 +519,7 @@ function applySuggestion(suggestion: string) {
               @click="handleFinalConfirm"
               type="button"
               :disabled="isDeleting"
-              class="order-1 sm:order-2 inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[44px] w-full sm:w-auto"
+              class="order-1 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:order-2 sm:w-auto"
             >
               <LoadingSpinner v-if="isDeleting" size="sm" color="blue" />
               <span>{{ isDeleting ? 'Deleting...' : 'Yes, Delete Everything' }}</span>

@@ -68,6 +68,9 @@ export const BASE_CALENDAR_OPTIONS = {
   eventDurationEditable: false, // Duration is preserved when dragging
   eventStartEditable: true, // Allow changing start time
   snapDuration: '00:15:00', // Snap to 15-minute increments
+  displayEventEnd: true, // CRITICAL: Show end times so FullCalendar uses actual duration for visual height
+  forceEventDuration: true, // Force FullCalendar to use provided end time instead of defaultTimedEventDuration
+  defaultTimedEventDuration: '01:00:00', // Set explicit default (shouldn't matter with forceEventDuration)
   ...TIME_SLOT_CONFIG,
   ...TIME_FORMAT_CONFIG,
   ...BUSINESS_HOURS_CONFIG,

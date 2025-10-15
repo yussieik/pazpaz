@@ -249,8 +249,14 @@ describe('useAutosave', () => {
       const wrapper = mountAndTrack(createTestComponent())
       wrapper.unmount()
 
-      expect(removeEventListenerSpy).toHaveBeenCalledWith('online', expect.any(Function))
-      expect(removeEventListenerSpy).toHaveBeenCalledWith('offline', expect.any(Function))
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        'online',
+        expect.any(Function)
+      )
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        'offline',
+        expect.any(Function)
+      )
 
       removeEventListenerSpy.mockRestore()
     })
@@ -567,7 +573,9 @@ describe('useAutosave', () => {
         request: {}, // Network error
       })
 
-      const wrapper = mountAndTrack(createTestComponent({ sessionId: 'session-123', version: 1 }))
+      const wrapper = mountAndTrack(
+        createTestComponent({ sessionId: 'session-123', version: 1 })
+      )
       const { save } = wrapper.vm as any
 
       save({ field: 'value' })

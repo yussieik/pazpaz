@@ -708,7 +708,7 @@ watch(
             </div>
             <button
               @click="closeModal"
-              class="rounded-lg p-2.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 min-h-[44px] min-w-[44px] flex items-center justify-center sm:p-2 sm:min-h-0 sm:min-w-0"
+              class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 sm:min-h-0 sm:min-w-0 sm:p-2"
               aria-label="Close dialog"
             >
               <IconClose class="h-6 w-6 sm:h-5 sm:w-5" />
@@ -731,7 +731,7 @@ watch(
                   v-model="appointmentDate"
                   type="date"
                   aria-label="Appointment date"
-                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[44px] sm:text-sm"
+                  class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                 />
               </div>
 
@@ -806,7 +806,7 @@ watch(
                   id="edit-location-type"
                   v-model="editableData.location_type"
                   @change="handleLocationTypeChange"
-                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 capitalize focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[44px] sm:text-sm"
+                  class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 capitalize focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                 >
                   <option value="clinic">Clinic</option>
                   <option value="home">Home Visit</option>
@@ -825,7 +825,7 @@ watch(
                   type="text"
                   placeholder="e.g., Zoom link, room number, address"
                   @blur="handleTextFieldBlur('location_details')"
-                  class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[44px] sm:text-sm"
+                  class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                 />
               </div>
             </div>
@@ -885,7 +885,7 @@ watch(
                 rows="6"
                 placeholder="Optional notes about this appointment"
                 @blur="handleTextFieldBlur('notes')"
-                class="block w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-700 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[120px] sm:text-sm sm:rows-4"
+                class="sm:rows-4 block min-h-[120px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-700 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               ></textarea>
               <p class="mt-1 text-xs text-slate-400">Changes are saved automatically</p>
             </div>
@@ -1002,14 +1002,18 @@ watch(
           </div>
 
           <!-- Actions Footer -->
-          <div class="sticky bottom-0 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-6">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div
+            class="sticky bottom-0 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-6"
+          >
+            <div
+              class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+            >
               <div class="flex flex-col gap-3 sm:flex-row sm:gap-2">
                 <!-- Restore button for cancelled appointments -->
                 <button
                   v-if="appointment.status === 'cancelled'"
                   @click="emit('restore', appointment)"
-                  class="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-white px-4 py-2.5 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 min-h-[44px] w-full sm:w-auto"
+                  class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-white px-4 py-2.5 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:w-auto"
                 >
                   <svg
                     class="h-4 w-4"
@@ -1031,7 +1035,7 @@ watch(
                 <button
                   v-if="sessionStatus?.hasSession"
                   @click="emit('viewSession', sessionStatus.sessionId!)"
-                  class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 min-h-[44px] w-full sm:w-auto"
+                  class="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:w-auto"
                 >
                   {{
                     sessionStatus.isDraft
@@ -1044,7 +1048,7 @@ watch(
                 <button
                   v-else-if="appointment.status === 'completed'"
                   @click="emit('startSessionNotes', appointment)"
-                  class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 min-h-[44px] w-full sm:w-auto"
+                  class="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:w-auto"
                 >
                   Start Session Notes
                 </button>
@@ -1055,7 +1059,7 @@ watch(
                 <button
                   @click.stop="handleDeleteClick"
                   title="Delete this appointment"
-                  class="inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 min-h-[44px] w-full sm:w-auto"
+                  class="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 sm:w-auto"
                 >
                   <svg
                     class="h-4 w-4"
@@ -1077,7 +1081,7 @@ watch(
                 <button
                   v-if="['scheduled', 'no_show'].includes(appointment.status)"
                   @click="emit('cancel', appointment)"
-                  class="inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 min-h-[44px] w-full sm:w-auto"
+                  class="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:w-auto"
                 >
                   Cancel Appointment
                 </button>

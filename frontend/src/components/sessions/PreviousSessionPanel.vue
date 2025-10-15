@@ -31,11 +31,12 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  forceMobileView: false
+  forceMobileView: false,
 })
 
 // Composable - start in loading state to prevent initial glitch
-const { loading, session, error, notFound, fetchLatestFinalized } = usePreviousSession(true)
+const { loading, session, error, notFound, fetchLatestFinalized } =
+  usePreviousSession(true)
 
 // Collapse state (persisted in localStorage)
 const collapsed = useLocalStorage('previousSessionPanel.collapsed', true)
@@ -49,12 +50,18 @@ if (props.clientId) {
 // Computed
 const shouldShow = computed(() => {
   // Hide if the returned session is the same as current session (happens for first session)
-  if (session.value && props.currentSessionId && session.value.id === props.currentSessionId) {
+  if (
+    session.value &&
+    props.currentSessionId &&
+    session.value.id === props.currentSessionId
+  ) {
     return false
   }
 
   // Show if loading, has session, has error, or no previous sessions (for empty state)
-  return loading.value || session.value !== null || error.value !== null || notFound.value
+  return (
+    loading.value || session.value !== null || error.value !== null || notFound.value
+  )
 })
 
 const sessionDate = computed(() => {
@@ -92,11 +99,11 @@ watch(
   <!-- Desktop Sidebar (only shown when not in modal mode) -->
   <aside
     v-if="!forceMobileView && shouldShow"
-    class="hidden lg:block w-[320px] bg-gray-50 border-l border-gray-200 overflow-y-auto sticky top-0 h-screen flex-shrink-0"
+    class="sticky top-0 hidden h-screen w-[320px] flex-shrink-0 overflow-y-auto border-l border-gray-200 bg-gray-50 lg:block"
   >
     <div class="p-4">
       <!-- Panel Header -->
-      <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-300">
+      <div class="mb-4 flex items-center justify-between border-b border-gray-300 pb-3">
         <div>
           <h3 class="text-sm font-semibold text-gray-900">Previous Session</h3>
           <span v-if="session" class="text-xs text-gray-600">
@@ -105,13 +112,13 @@ watch(
         </div>
         <button
           @click="toggleCollapse"
-          class="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1"
+          class="rounded p-1 text-gray-500 hover:text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
           aria-label="Toggle previous session panel"
         >
           <!-- When expanded: show down chevron (collapse) -->
           <svg
             v-if="!collapsed"
-            class="w-5 h-5"
+            class="h-5 w-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -124,7 +131,13 @@ watch(
             />
           </svg>
           <!-- When collapsed: show up chevron (expand) -->
-          <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            v-else
+            class="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -138,20 +151,20 @@ watch(
       <!-- Loading State -->
       <div v-if="loading" class="space-y-4">
         <div class="animate-pulse">
-          <div class="h-4 bg-gray-300 rounded w-1/4 mb-2"></div>
-          <div class="h-16 bg-gray-300 rounded"></div>
+          <div class="mb-2 h-4 w-1/4 rounded bg-gray-300"></div>
+          <div class="h-16 rounded bg-gray-300"></div>
         </div>
         <div class="animate-pulse">
-          <div class="h-4 bg-gray-300 rounded w-1/4 mb-2"></div>
-          <div class="h-16 bg-gray-300 rounded"></div>
+          <div class="mb-2 h-4 w-1/4 rounded bg-gray-300"></div>
+          <div class="h-16 rounded bg-gray-300"></div>
         </div>
         <div class="animate-pulse">
-          <div class="h-4 bg-gray-300 rounded w-1/4 mb-2"></div>
-          <div class="h-16 bg-gray-300 rounded"></div>
+          <div class="mb-2 h-4 w-1/4 rounded bg-gray-300"></div>
+          <div class="h-16 rounded bg-gray-300"></div>
         </div>
         <div class="animate-pulse">
-          <div class="h-4 bg-gray-300 rounded w-1/4 mb-2"></div>
-          <div class="h-16 bg-gray-300 rounded"></div>
+          <div class="mb-2 h-4 w-1/4 rounded bg-gray-300"></div>
+          <div class="h-16 rounded bg-gray-300"></div>
         </div>
       </div>
 
@@ -161,14 +174,27 @@ watch(
       </div>
 
       <!-- Empty State (no previous sessions) -->
-      <div v-else-if="notFound && !collapsed" class="flex flex-col items-center justify-center py-8 px-4 text-center">
-        <svg class="w-16 h-16 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+      <div
+        v-else-if="notFound && !collapsed"
+        class="flex flex-col items-center justify-center px-4 py-8 text-center"
+      >
+        <svg
+          class="mb-4 h-16 w-16 text-gray-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.5"
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           />
         </svg>
-        <h4 class="text-sm font-semibold text-gray-900 mb-2">No Previous Sessions Yet</h4>
-        <p class="text-xs text-gray-600 max-w-xs">
+        <h4 class="mb-2 text-sm font-semibold text-gray-900">
+          No Previous Sessions Yet
+        </h4>
+        <p class="max-w-xs text-xs text-gray-600">
           Previous SOAP notes will appear here to help with treatment continuity.
         </p>
       </div>
@@ -177,10 +203,12 @@ watch(
       <div v-else-if="session && !collapsed" class="space-y-4">
         <!-- Plan (Most important for treatment continuity) -->
         <div class="soap-field">
-          <label class="block text-xs font-semibold text-gray-700 mb-1.5">P: Plan</label>
+          <label class="mb-1.5 block text-xs font-semibold text-gray-700"
+            >P: Plan</label
+          >
           <p
             v-if="session.plan"
-            class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto"
+            class="max-h-32 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
           >
             {{ session.plan }}
           </p>
@@ -189,12 +217,12 @@ watch(
 
         <!-- Assessment -->
         <div class="soap-field">
-          <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+          <label class="mb-1.5 block text-xs font-semibold text-gray-700">
             A: Assessment
           </label>
           <p
             v-if="session.assessment"
-            class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto"
+            class="max-h-32 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
           >
             {{ session.assessment }}
           </p>
@@ -203,12 +231,12 @@ watch(
 
         <!-- Subjective -->
         <div class="soap-field">
-          <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+          <label class="mb-1.5 block text-xs font-semibold text-gray-700">
             S: Subjective
           </label>
           <p
             v-if="session.subjective"
-            class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto"
+            class="max-h-32 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
           >
             {{ session.subjective }}
           </p>
@@ -217,12 +245,12 @@ watch(
 
         <!-- Objective -->
         <div class="soap-field">
-          <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+          <label class="mb-1.5 block text-xs font-semibold text-gray-700">
             O: Objective
           </label>
           <p
             v-if="session.objective"
-            class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto"
+            class="max-h-32 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
           >
             {{ session.objective }}
           </p>
@@ -230,7 +258,7 @@ watch(
         </div>
 
         <!-- Link to Full Session -->
-        <div class="pt-2 border-t border-gray-300">
+        <div class="border-t border-gray-300 pt-2">
           <a
             :href="sessionLink"
             target="_blank"
@@ -238,7 +266,12 @@ watch(
             class="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 focus:underline focus:outline-none"
           >
             Open full session
-            <svg class="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="ml-1 h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -260,28 +293,28 @@ watch(
   <!-- Mobile Modal Content (no wrappers, just content for modal) -->
   <div v-if="forceMobileView" class="space-y-4">
     <!-- Session Date -->
-    <div v-if="session" class="pb-3 border-b border-gray-300">
+    <div v-if="session" class="border-b border-gray-300 pb-3">
       <span class="text-sm text-gray-900">{{ sessionDate }}</span>
-      <span class="text-xs text-gray-600 ml-1">({{ relativeDate }})</span>
+      <span class="ml-1 text-xs text-gray-600">({{ relativeDate }})</span>
     </div>
 
     <!-- Loading State -->
     <div v-if="loading" class="space-y-4">
       <div class="animate-pulse">
-        <div class="h-4 bg-gray-300 rounded w-1/4 mb-2"></div>
-        <div class="h-16 bg-gray-300 rounded"></div>
+        <div class="mb-2 h-4 w-1/4 rounded bg-gray-300"></div>
+        <div class="h-16 rounded bg-gray-300"></div>
       </div>
       <div class="animate-pulse">
-        <div class="h-4 bg-gray-300 rounded w-1/4 mb-2"></div>
-        <div class="h-16 bg-gray-300 rounded"></div>
+        <div class="mb-2 h-4 w-1/4 rounded bg-gray-300"></div>
+        <div class="h-16 rounded bg-gray-300"></div>
       </div>
       <div class="animate-pulse">
-        <div class="h-4 bg-gray-300 rounded w-1/4 mb-2"></div>
-        <div class="h-16 bg-gray-300 rounded"></div>
+        <div class="mb-2 h-4 w-1/4 rounded bg-gray-300"></div>
+        <div class="h-16 rounded bg-gray-300"></div>
       </div>
       <div class="animate-pulse">
-        <div class="h-4 bg-gray-300 rounded w-1/4 mb-2"></div>
-        <div class="h-16 bg-gray-300 rounded"></div>
+        <div class="mb-2 h-4 w-1/4 rounded bg-gray-300"></div>
+        <div class="h-16 rounded bg-gray-300"></div>
       </div>
     </div>
 
@@ -291,14 +324,25 @@ watch(
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="notFound" class="flex flex-col items-center justify-center py-8 text-center">
-      <svg class="w-16 h-16 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+    <div
+      v-else-if="notFound"
+      class="flex flex-col items-center justify-center py-8 text-center"
+    >
+      <svg
+        class="mb-4 h-16 w-16 text-gray-400"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="1.5"
           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
         />
       </svg>
-      <h4 class="text-sm font-semibold text-gray-900 mb-2">No Previous Sessions Yet</h4>
-      <p class="text-xs text-gray-600 max-w-xs">
+      <h4 class="mb-2 text-sm font-semibold text-gray-900">No Previous Sessions Yet</h4>
+      <p class="max-w-xs text-xs text-gray-600">
         Previous SOAP notes will appear here to help with treatment continuity.
       </p>
     </div>
@@ -307,10 +351,10 @@ watch(
     <div v-else-if="session" class="space-y-4">
       <!-- Plan -->
       <div class="soap-field">
-        <label class="block text-xs font-semibold text-gray-700 mb-1.5">P: Plan</label>
+        <label class="mb-1.5 block text-xs font-semibold text-gray-700">P: Plan</label>
         <p
           v-if="session.plan"
-          class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap"
+          class="text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
         >
           {{ session.plan }}
         </p>
@@ -319,12 +363,12 @@ watch(
 
       <!-- Assessment -->
       <div class="soap-field">
-        <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+        <label class="mb-1.5 block text-xs font-semibold text-gray-700">
           A: Assessment
         </label>
         <p
           v-if="session.assessment"
-          class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap"
+          class="text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
         >
           {{ session.assessment }}
         </p>
@@ -333,12 +377,12 @@ watch(
 
       <!-- Subjective -->
       <div class="soap-field">
-        <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+        <label class="mb-1.5 block text-xs font-semibold text-gray-700">
           S: Subjective
         </label>
         <p
           v-if="session.subjective"
-          class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap"
+          class="text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
         >
           {{ session.subjective }}
         </p>
@@ -347,12 +391,12 @@ watch(
 
       <!-- Objective -->
       <div class="soap-field">
-        <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+        <label class="mb-1.5 block text-xs font-semibold text-gray-700">
           O: Objective
         </label>
         <p
           v-if="session.objective"
-          class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap"
+          class="text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
         >
           {{ session.objective }}
         </p>
@@ -360,7 +404,7 @@ watch(
       </div>
 
       <!-- Link to Full Session -->
-      <div class="pt-2 border-t border-gray-300">
+      <div class="border-t border-gray-300 pt-2">
         <a
           :href="sessionLink"
           target="_blank"
@@ -368,7 +412,12 @@ watch(
           class="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 focus:underline focus:outline-none"
         >
           Open full session
-          <svg class="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="ml-1 h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"

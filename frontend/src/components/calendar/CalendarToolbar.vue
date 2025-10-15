@@ -60,7 +60,7 @@ defineExpose({
         <button
           ref="todayButtonRef"
           @click="emit('today')"
-          class="rounded-lg border border-slate-300 bg-white px-3.5 py-2 min-h-[44px] text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none"
+          class="min-h-[44px] rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           Today
         </button>
@@ -69,10 +69,15 @@ defineExpose({
           <button
             ref="previousButtonRef"
             @click="emit('previous')"
-            class="rounded-lg p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-600 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:p-2 sm:min-h-0 sm:min-w-0"
+            class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2.5 text-slate-600 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:min-h-0 sm:min-w-0 sm:p-2"
             aria-label="Previous period"
           >
-            <svg class="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="h-5 w-5 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -84,10 +89,15 @@ defineExpose({
           <button
             ref="nextButtonRef"
             @click="emit('next')"
-            class="rounded-lg p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-600 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:p-2 sm:min-h-0 sm:min-w-0"
+            class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2.5 text-slate-600 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:min-h-0 sm:min-w-0 sm:p-2"
             aria-label="Next period"
           >
-            <svg class="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="h-5 w-5 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -128,12 +138,12 @@ defineExpose({
             ref="weekButtonRef"
             @click="emit('update:view', 'timeGridWeek')"
             :class="[
-              'px-3 py-2 min-h-[44px] min-w-[44px] text-sm font-medium transition-all duration-150 ease-in-out',
+              'min-h-[44px] min-w-[44px] px-3 py-2 text-sm font-medium transition-all duration-150 ease-in-out',
               'border-y border-l first:rounded-l-md last:rounded-r-md',
-              'focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none focus-visible:z-10',
+              'focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
               currentView === 'timeGridWeek'
-                ? 'bg-white text-slate-900 font-semibold border-slate-900 border-2 shadow-sm z-10'
-                : 'bg-transparent text-slate-600 border-slate-200 hover:text-slate-900 hover:bg-slate-50',
+                ? 'z-10 border-2 border-slate-900 bg-white font-semibold text-slate-900 shadow-sm'
+                : 'border-slate-200 bg-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900',
             ]"
             :aria-pressed="currentView === 'timeGridWeek'"
             aria-label="Switch to Week view"
@@ -147,12 +157,12 @@ defineExpose({
             ref="dayButtonRef"
             @click="emit('update:view', 'timeGridDay')"
             :class="[
-              'px-3 py-2 min-h-[44px] min-w-[44px] text-sm font-medium transition-all duration-150 ease-in-out',
+              'min-h-[44px] min-w-[44px] px-3 py-2 text-sm font-medium transition-all duration-150 ease-in-out',
               'border-y border-l',
-              'focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none focus-visible:z-10',
+              'focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
               currentView === 'timeGridDay'
-                ? 'bg-white text-slate-900 font-semibold border-slate-900 border-2 shadow-sm z-10'
-                : 'bg-transparent text-slate-600 border-slate-200 hover:text-slate-900 hover:bg-slate-50',
+                ? 'z-10 border-2 border-slate-900 bg-white font-semibold text-slate-900 shadow-sm'
+                : 'border-slate-200 bg-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900',
             ]"
             :aria-pressed="currentView === 'timeGridDay'"
             aria-label="Switch to Day view"
@@ -166,12 +176,12 @@ defineExpose({
             ref="monthButtonRef"
             @click="emit('update:view', 'dayGridMonth')"
             :class="[
-              'px-3 py-2 min-h-[44px] min-w-[44px] text-sm font-medium transition-all duration-150 ease-in-out',
-              'border rounded-r-md',
-              'focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none focus-visible:z-10',
+              'min-h-[44px] min-w-[44px] px-3 py-2 text-sm font-medium transition-all duration-150 ease-in-out',
+              'rounded-r-md border',
+              'focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
               currentView === 'dayGridMonth'
-                ? 'bg-white text-slate-900 font-semibold border-slate-900 border-2 shadow-sm z-10'
-                : 'bg-transparent text-slate-600 border-slate-200 hover:text-slate-900 hover:bg-slate-50',
+                ? 'z-10 border-2 border-slate-900 bg-white font-semibold text-slate-900 shadow-sm'
+                : 'border-slate-200 bg-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900',
             ]"
             :aria-pressed="currentView === 'dayGridMonth'"
             aria-label="Switch to Month view"

@@ -98,10 +98,119 @@ const {
   buildCalendarOptions,
 } = useCalendar()
 
-const { selectedAppointment, calendarEvents, handleEventClick, sessionStatusMap } =
+const { selectedAppointment, calendarEvents, handleEventClick: composableHandleEventClick, sessionStatusMap } =
   useCalendarEvents()
 
+// Wrap handleEventClick to capture times before modal opens
+function handleEventClick(clickInfo: any) {
+  // First, call the composable's event click handler
+  composableHandleEventClick(clickInfo)
+
+  // Then, if an appointment was selected, capture its current times IMMEDIATELY
+  // This happens BEFORE any auto-save or reactive updates
+  if (selectedAppointment.value) {
+    previousAppointmentTimes.value.set(selectedAppointment.value.id, {
+      start: selectedAppointment.value.scheduled_start,
+      end: selectedAppointment.value.scheduled_end
+    })
+  }
+}
+
 const { showLoadingSpinner } = useCalendarLoading()
+
+/**
+ * Apply correct height to calendar event
+ * FullCalendar v6 bug: ignores end time and defaults to 1-hour events
+ */
+function applyEventHeight(eventEl: HTMLElement, start: Date, end: Date) {
+  const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60)
+  const heightPx = (durationMinutes / 60) * 48 // FullCalendar uses 48px per hour
+
+  const harness = eventEl.closest('.fc-timegrid-event-harness')
+
+  if (!harness) return // Early exit if not a time-grid event
+
+  const harnessEl = harness as HTMLElement
+
+  // P3: Performance guard - Skip if height is already correct (within 1px tolerance)
+  const currentHeight = harnessEl.getBoundingClientRect().height
+  if (Math.abs(currentHeight - heightPx) < 1) {
+    return // Height is already correct, skip expensive DOM updates
+  }
+
+  const currentStyle = harnessEl.getAttribute('style') || ''
+
+  // Try to get computed style instead
+  const computedStyle = window.getComputedStyle(harnessEl)
+  const computedTop = computedStyle.top
+
+  // Try to extract top position from either inline style or computed style
+  let topPx: number | null = null
+
+  // First try inline style with inset
+  const insetMatch = currentStyle.match(/inset:\s*([0-9.]+)px/)
+  if (insetMatch && insetMatch[1]) {
+    topPx = parseFloat(insetMatch[1])
+  }
+
+  // If no inset, try computed top
+  if (topPx === null && computedTop && computedTop !== 'auto') {
+    topPx = parseFloat(computedTop)
+  }
+
+  if (topPx !== null && !isNaN(topPx)) {
+    const bottomPx = -(topPx + heightPx)
+
+    // Set correct height on harness container
+    harnessEl.style.setProperty('top', `${topPx}px`, 'important')
+    harnessEl.style.setProperty('bottom', `${bottomPx}px`, 'important')
+    harnessEl.style.setProperty('left', '0%', 'important')
+    harnessEl.style.setProperty('right', '0%', 'important')
+    harnessEl.style.setProperty('height', `${heightPx}px`, 'important')
+    harnessEl.style.setProperty('visibility', 'visible', 'important')
+
+    // CRITICAL: Make event element fill the harness container
+    eventEl.style.setProperty('height', '100%', 'important')
+    eventEl.style.setProperty('min-height', `${heightPx}px`, 'important')
+  }
+}
+
+/**
+ * Update a specific event's height when its duration changes
+ * Called when refreshAppointments() detects a duration change
+ *
+ * Strategy: FullCalendar's calendarEvents computed property already has the updated times,
+ * but the DOM hasn't been updated with the correct height due to FullCalendar v6 bug.
+ * We directly find and update the DOM element's height.
+ *
+ * P2: Includes retry logic with exponential backoff for slower devices
+ */
+function updateEventHeight(appointmentId: string, retryCount = 0) {
+  // Find the appointment in the store to get latest times
+  const appointment = appointmentsStore.appointments.find(a => a.id === appointmentId)
+  if (!appointment) return
+
+  const newStart = new Date(appointment.scheduled_start)
+  const newEnd = new Date(appointment.scheduled_end)
+
+  // Find the event DOM element and apply height fix directly
+  // Use multiple animation frames to ensure FullCalendar has finished its render cycle
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const eventEl = document.querySelector(`[data-event-id="${appointmentId}"]`) as HTMLElement
+        if (eventEl) {
+          applyEventHeight(eventEl, newStart, newEnd)
+        } else if (retryCount < 3) {
+          // P2: Retry with exponential backoff if DOM element not found
+          // This ensures height updates don't silently fail on slower devices
+          const backoffMs = 100 * (retryCount + 1) // 100ms, 200ms, 300ms
+          setTimeout(() => updateEventHeight(appointmentId, retryCount + 1), backoffMs)
+        }
+      })
+    })
+  })
+}
 
 /**
  * Open create modal with pre-filled date/time from calendar double-click
@@ -139,16 +248,17 @@ function handleCalendarMouseMove(event: MouseEvent) {
 
   const target = event.target as HTMLElement
 
-  let slotLane = target.closest('.fc-timegrid-slot-lane')
+  let slotLane: HTMLElement | null = target.closest('.fc-timegrid-slot-lane')
 
   if (!slotLane) {
     const allElements = document.elementsFromPoint(event.clientX, event.clientY)
-    slotLane = allElements.find((el) =>
+    const found = allElements.find((el) =>
       el.classList.contains('fc-timegrid-slot-lane')
-    ) as HTMLElement | undefined
+    )
+    slotLane = found instanceof HTMLElement ? found : null
   }
 
-  if (!slotLane || !(slotLane instanceof HTMLElement)) {
+  if (!slotLane) {
     hoverOverlayVisible.value = false
     return
   }
@@ -268,82 +378,6 @@ useCalendarKeyboardShortcuts({
   buttonRefs: toolbarButtonRefs,
 })
 
-/**
- * Add hover-revealed quick action buttons to calendar events
- * Buttons appear on hover (desktop) or always visible (mobile/tablet)
- */
-function addQuickActionButtons(
-  eventEl: HTMLElement,
-  event: {
-    id: string
-    start: Date | null
-    end: Date | null
-    extendedProps: {
-      status: string
-      hasSession: boolean
-    }
-  }
-) {
-  // Check if appointment can be completed (past scheduled appointments only)
-  const now = new Date()
-  const canComplete =
-    event.extendedProps.status === 'scheduled' && event.end && new Date(event.end) < now
-
-  // Don't add buttons if none are applicable (though delete is always shown)
-  // Keep this simple - always add the action container
-
-  // Create action buttons container
-  const actionsContainer = document.createElement('div')
-  actionsContainer.className =
-    'calendar-quick-actions absolute top-1 right-1 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150 z-10'
-
-  // Complete button (only for past scheduled appointments)
-  if (canComplete) {
-    const completeBtn = document.createElement('button')
-    completeBtn.className =
-      'p-1 rounded bg-white/90 hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 shadow-sm'
-    completeBtn.title = 'Mark completed (C)'
-    completeBtn.setAttribute('aria-label', 'Mark appointment as completed')
-    completeBtn.innerHTML = `
-      <svg class="h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-      </svg>
-    `
-
-    completeBtn.addEventListener('click', (e) => {
-      e.stopPropagation()
-      handleQuickComplete(event.id)
-    })
-
-    actionsContainer.appendChild(completeBtn)
-  }
-
-  // Delete button (always shown)
-  const deleteBtn = document.createElement('button')
-  deleteBtn.className =
-    'p-1 rounded bg-white/90 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 shadow-sm'
-  deleteBtn.title = 'Delete (Del)'
-  deleteBtn.setAttribute('aria-label', 'Delete appointment')
-  deleteBtn.innerHTML = `
-    <svg class="h-3.5 w-3.5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-    </svg>
-  `
-
-  deleteBtn.addEventListener('click', (e) => {
-    e.stopPropagation()
-    handleQuickDelete(event.id)
-  })
-
-  actionsContainer.appendChild(deleteBtn)
-
-  // Make event container position relative and add group class for hover
-  eventEl.style.position = 'relative'
-  eventEl.classList.add('group')
-
-  // Append to event element
-  eventEl.appendChild(actionsContainer)
-}
 
 /**
  * Quick complete action handler
@@ -431,12 +465,93 @@ function handleDeleteCancel() {
 const calendarOptions = computed(() => ({
   ...buildCalendarOptions(calendarEvents.value, handleEventClick, handleDateClick),
   eventDrop: handleEventDrop as (arg: EventDropArg) => void,
-  eventDidMount: (info: any) => {
+
+  // Use eventContent to declaratively render event content with quick action buttons
+  // This ensures buttons persist across all FullCalendar renders (initial, updates, etc.)
+  eventContent: (arg: any) => {
+    const event = arg.event
+    const now = new Date()
+    const canComplete =
+      event.extendedProps.status === 'scheduled' &&
+      event.end &&
+      new Date(event.end) < now
+
+    // Create wrapper with relative positioning for absolute buttons
+    const wrapper = document.createElement('div')
+    wrapper.className = 'fc-event-main-frame relative group h-full'
+    wrapper.style.position = 'relative'
+
+    // Title container
+    const titleContainer = document.createElement('div')
+    titleContainer.className = 'fc-event-title-container'
+
+    const title = document.createElement('div')
+    title.className = 'fc-event-title fc-sticky'
+    title.textContent = event.title || 'Untitled'
+    titleContainer.appendChild(title)
+    wrapper.appendChild(titleContainer)
+
+    // Quick action buttons container
+    const actionsContainer = document.createElement('div')
+    actionsContainer.className =
+      'calendar-quick-actions absolute top-1 right-1 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150 z-10'
+
+    // Complete button (only for past scheduled appointments)
+    if (canComplete) {
+      const completeBtn = document.createElement('button')
+      completeBtn.className =
+        'p-1 rounded bg-white/90 hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 shadow-sm'
+      completeBtn.title = 'Mark completed (C)'
+      completeBtn.setAttribute('aria-label', 'Mark appointment as completed')
+      completeBtn.innerHTML = `
+        <svg class="h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+      `
+      completeBtn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        handleQuickComplete(event.id)
+      })
+      actionsContainer.appendChild(completeBtn)
+    }
+
+    // Delete button (always shown)
+    const deleteBtn = document.createElement('button')
+    deleteBtn.className =
+      'p-1 rounded bg-white/90 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 shadow-sm'
+    deleteBtn.title = 'Delete (Del)'
+    deleteBtn.setAttribute('aria-label', 'Delete appointment')
+    deleteBtn.innerHTML = `
+      <svg class="h-3.5 w-3.5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+    `
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      handleQuickDelete(event.id)
+    })
+    actionsContainer.appendChild(deleteBtn)
+
+    wrapper.appendChild(actionsContainer)
+
+    return { domNodes: [wrapper] }
+  },
+
+  eventDidMount: (info: { event: any; el: HTMLElement }) => {
     const event = info.event
     const hasSession = event.extendedProps?.hasSession
     const isDraft = event.extendedProps?.isDraft
     const duration = event.extendedProps?.duration_minutes
 
+    // Add data attribute so we can find this element later
+    info.el.setAttribute('data-event-id', event.id)
+
+    // Apply height fix for FullCalendar v6 bug
+    if (event.start && event.end) {
+      applyEventHeight(info.el, event.start, event.end)
+    }
+
+    // Build tooltip text
     let tooltipText = event.title
 
     if (hasSession) {
@@ -462,17 +577,6 @@ const calendarOptions = computed(() => ({
     }
 
     info.el.title = tooltipText
-
-    // Add quick action buttons to event
-    addQuickActionButtons(info.el, {
-      id: event.id,
-      start: event.start,
-      end: event.end,
-      extendedProps: {
-        status: event.extendedProps?.status || '',
-        hasSession: event.extendedProps?.hasSession || false,
-      },
-    })
   },
 }))
 
@@ -804,6 +908,24 @@ function viewSession(sessionId: string) {
   )
 }
 
+// Track previous appointment times to detect duration changes
+// Times are captured in handleEventClick when user clicks an appointment
+const previousAppointmentTimes = ref<Map<string, { start: string; end: string }>>(new Map())
+
+// P1: Watch appointments and clean up stale entries from Map to prevent memory leak
+watch(
+  () => appointmentsStore.appointments,
+  (newAppointments) => {
+    // Clean up stale entries
+    const currentIds = new Set(newAppointments.map((a) => a.id))
+    for (const [id] of previousAppointmentTimes.value) {
+      if (!currentIds.has(id)) {
+        previousAppointmentTimes.value.delete(id)
+      }
+    }
+  }
+)
+
 /**
  * Refresh appointments after auto-save updates
  * Updates the calendar to reflect the saved changes without closing the modal
@@ -813,6 +935,9 @@ async function refreshAppointments() {
 
   const appointmentId = selectedAppointment.value.id
 
+  // Get previous times from our tracking map
+  const prevTimes = previousAppointmentTimes.value.get(appointmentId)
+
   // Find the updated appointment in the store
   // The store was already updated by the auto-save composable's PUT request
   const updatedAppointment = appointmentsStore.appointments.find(
@@ -821,7 +946,23 @@ async function refreshAppointments() {
 
   // Update the selected appointment to show fresh data in the modal
   if (updatedAppointment) {
+    // Check if duration changed by comparing with previous tracked times
+    const durationChanged = prevTimes &&
+      (prevTimes.start !== updatedAppointment.scheduled_start ||
+       prevTimes.end !== updatedAppointment.scheduled_end)
+
+    // Update tracked times for next comparison
+    previousAppointmentTimes.value.set(appointmentId, {
+      start: updatedAppointment.scheduled_start,
+      end: updatedAppointment.scheduled_end
+    })
+
     selectedAppointment.value = { ...updatedAppointment }
+
+    // If duration changed, manually update the event height
+    if (durationChanged) {
+      updateEventHeight(appointmentId)
+    }
   }
 
   // The calendar will automatically update because it's computed from appointmentsStore.appointments
@@ -1130,6 +1271,8 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown)
   cleanupDrag()
+  // P1: Clear Map on unmount to prevent memory leak
+  previousAppointmentTimes.value.clear()
 })
 
 /**
@@ -1209,9 +1352,14 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       <template #actions>
         <button
           @click="createNewAppointment"
-          class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 min-h-[44px] text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto sm:justify-start sm:py-2 sm:min-h-0"
+          class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:min-h-0 sm:w-auto sm:justify-start sm:py-2"
         >
-          <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="h-4 w-4 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -1377,7 +1525,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
     <Transition name="fade">
       <div
         v-if="isKeyboardRescheduleActive"
-        class="fixed right-6 bottom-6 z-50 rounded-lg bg-blue-600 px-4 py-3 text-white shadow-2xl hidden sm:block"
+        class="fixed right-6 bottom-6 z-50 hidden rounded-lg bg-blue-600 px-4 py-3 text-white shadow-2xl sm:block"
         role="status"
         aria-live="polite"
       >
@@ -1536,9 +1684,11 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 }
 
 /* PHASE 1: Increased slot height for better appointment readability */
+/* REMOVED: Custom slot height was breaking FullCalendar's event height calculation
 .fc-timegrid-slot {
-  height: 4.5rem; /* 72px per hour - allows 3 lines of text in appointments (was 3rem/48px) */
+  height: 4.5rem;
 }
+*/
 
 /* Business hours background (8 AM - 6 PM) */
 .fc-non-business {
@@ -1652,9 +1802,11 @@ function handleGlobalKeydown(event: KeyboardEvent) {
     min-height: 100px;
   }
 
+  /* REMOVED: Custom slot height override
   .fc-timegrid-slot {
-    height: 4rem; /* 64px on tablet - balanced readability */
+    height: 4rem;
   }
+  */
 }
 
 /* Mobile: Compact sizing (≤640px) */
@@ -1679,10 +1831,11 @@ function handleGlobalKeydown(event: KeyboardEvent) {
     justify-content: center;
   }
 
-  /* Reduce slot height on mobile for better viewport usage */
+  /* REMOVED: Custom slot height override
   .fc-timegrid-slot {
-    height: 3.5rem; /* 56px on mobile - still readable */
+    height: 3.5rem;
   }
+  */
 
   .fc-timegrid-slot-label {
     font-size: 0.75rem; /* 12px on mobile */

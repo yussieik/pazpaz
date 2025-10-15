@@ -204,7 +204,9 @@ function formatDate(date: string): string {
   return format(new Date(date), 'MMM d, yyyy • h:mm a')
 }
 
-function isSession(item: TimelineItem): item is TimelineItem & { data: SessionResponse } {
+function isSession(
+  item: TimelineItem
+): item is TimelineItem & { data: SessionResponse } {
   return item.type === 'session'
 }
 
@@ -281,7 +283,10 @@ function handleViewSession(sessionId: string) {
  * @param isMobile - Whether to use mobile truncation (40 chars) or desktop (60 chars)
  * @returns Formatted SOAP preview string or "Draft - incomplete" if empty
  */
-function formatSOAPPreview(session: SessionResponse, isMobile: boolean = false): string {
+function formatSOAPPreview(
+  session: SessionResponse,
+  isMobile: boolean = false
+): string {
   const maxLength = isMobile ? 40 : 60
   const fields = [
     { label: 'S', value: session.subjective },
@@ -291,7 +296,9 @@ function formatSOAPPreview(session: SessionResponse, isMobile: boolean = false):
   ]
 
   // Check if all fields are empty
-  const hasContent = fields.some((field) => field.value && field.value.trim().length > 0)
+  const hasContent = fields.some(
+    (field) => field.value && field.value.trim().length > 0
+  )
   if (!hasContent) {
     return ''
   }

@@ -23,7 +23,9 @@ export function usePreviousSession(startLoading = false) {
    * @param clientId - The client ID to query
    * @returns Promise<SessionResponse | null>
    */
-  async function fetchLatestFinalized(clientId: string): Promise<SessionResponse | null> {
+  async function fetchLatestFinalized(
+    clientId: string
+  ): Promise<SessionResponse | null> {
     loading.value = true
     error.value = null
     session.value = null
@@ -46,7 +48,8 @@ export function usePreviousSession(startLoading = false) {
       } else if (axiosError.response?.status === 403) {
         error.value = 'Client not in workspace'
       } else {
-        error.value = axiosError.response?.data?.detail || 'Failed to fetch previous session'
+        error.value =
+          axiosError.response?.data?.detail || 'Failed to fetch previous session'
       }
 
       return null

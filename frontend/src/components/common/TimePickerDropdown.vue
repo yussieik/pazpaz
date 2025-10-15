@@ -357,7 +357,10 @@ onUnmounted(() => {
 <template>
   <div class="relative">
     <!-- Label -->
-    <label v-if="label" class="mb-1 block text-xs text-slate-500 sm:text-sm sm:font-medium sm:text-slate-700">
+    <label
+      v-if="label"
+      class="mb-1 block text-xs text-slate-500 sm:text-sm sm:font-medium sm:text-slate-700"
+    >
       {{ label }}
     </label>
 
@@ -372,7 +375,7 @@ onUnmounted(() => {
       :aria-expanded="isOpen"
       :aria-haspopup="true"
       :class="[
-        'flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-base transition-all min-h-[44px] sm:text-sm',
+        'flex min-h-[44px] w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-base transition-all sm:text-sm',
         error
           ? 'border-red-500 focus:ring-red-500'
           : isOpen
@@ -386,7 +389,7 @@ onUnmounted(() => {
     >
       <span>{{ selectedLabel }}</span>
       <svg
-        class="h-5 w-5 sm:h-4 sm:w-4 text-slate-400 transition-transform flex-shrink-0"
+        class="h-5 w-5 flex-shrink-0 text-slate-400 transition-transform sm:h-4 sm:w-4"
         :class="{ 'rotate-180': isOpen }"
         fill="none"
         stroke="currentColor"
@@ -433,7 +436,7 @@ onUnmounted(() => {
           :aria-selected="option.value === selectedTime"
           role="option"
           :class="[
-            'w-full px-3 py-2.5 text-left text-base transition-colors min-h-[44px] flex items-center sm:text-sm sm:py-2',
+            'flex min-h-[44px] w-full items-center px-3 py-2.5 text-left text-base transition-colors sm:py-2 sm:text-sm',
             highlightedIndex === index
               ? 'bg-slate-100'
               : option.value === selectedTime

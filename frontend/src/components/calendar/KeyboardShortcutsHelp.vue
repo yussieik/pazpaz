@@ -278,7 +278,7 @@ onUnmounted(() => {
                         shortcut.description
                       }}</span>
                       <kbd
-                        class="hidden sm:inline-block flex-shrink-0 rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-900"
+                        class="hidden flex-shrink-0 rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-900 sm:inline-block"
                       >
                         {{ shortcut.keys }}
                       </kbd>
@@ -311,7 +311,7 @@ onUnmounted(() => {
                         shortcut.description
                       }}</span>
                       <kbd
-                        class="hidden sm:inline-block flex-shrink-0 rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-900"
+                        class="hidden flex-shrink-0 rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-900 sm:inline-block"
                       >
                         {{ shortcut.keys }}
                       </kbd>
@@ -326,11 +326,14 @@ onUnmounted(() => {
           <div
             class="border-t border-slate-200 bg-slate-50 px-6 py-4 text-center text-sm text-slate-600"
           >
-            <span class="hidden sm:inline">Press
-            <kbd class="rounded bg-white px-2 py-1 text-sm font-medium text-slate-900"
-              >Esc</kbd
+            <span class="hidden sm:inline"
+              >Press
+              <kbd class="rounded bg-white px-2 py-1 text-sm font-medium text-slate-900"
+                >Esc</kbd
+              >
+              to</span
             >
-            to</span> {{ isSearching ? 'clear search or close' : 'close' }}
+            {{ isSearching ? 'clear search or close' : 'close' }}
           </div>
         </div>
       </div>

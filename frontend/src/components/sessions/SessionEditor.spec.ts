@@ -819,7 +819,9 @@ describe('SessionEditor', () => {
       await nextTick()
 
       // Should remove backup from localStorage
-      expect(localStorage.removeItem).toHaveBeenCalledWith(`session_${mockSessionId}_backup`)
+      expect(localStorage.removeItem).toHaveBeenCalledWith(
+        `session_${mockSessionId}_backup`
+      )
 
       // Modal should close
       expect(wrapper.text()).not.toContain('Restore Unsaved Changes')

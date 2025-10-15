@@ -33,18 +33,28 @@ function formatRelativeTime(isoString: string | null | undefined): string {
 </script>
 
 <template>
-  <div class="flex items-center gap-2 min-w-[140px]">
+  <div class="flex min-w-[140px] items-center gap-2">
     <!-- Status Badge - Single element that transitions between states -->
     <span
-      class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium tracking-wide uppercase badge-transition"
+      class="badge-transition inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium tracking-wide uppercase"
       :class="{
         'bg-blue-100 text-blue-700': isDraft,
-        'bg-green-100 text-green-700': !isDraft
+        'bg-green-100 text-green-700': !isDraft,
       }"
-      :title="isDraft ? 'This note is still in draft mode' : `Finalized ${formatRelativeTime(session.finalized_at)}`"
+      :title="
+        isDraft
+          ? 'This note is still in draft mode'
+          : `Finalized ${formatRelativeTime(session.finalized_at)}`
+      "
     >
       <!-- Draft Icon -->
-      <svg v-if="isDraft" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg
+        v-if="isDraft"
+        class="h-3 w-3"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -69,7 +79,7 @@ function formatRelativeTime(isoString: string | null | undefined): string {
     <!-- Amended Badge (only if amended) -->
     <span
       v-if="isAmended"
-      class="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-1 text-xs font-medium tracking-wide text-amber-700 uppercase badge-transition"
+      class="badge-transition inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-1 text-xs font-medium tracking-wide text-amber-700 uppercase"
       :title="`Amended ${formatRelativeTime(session.amended_at)}`"
     >
       <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -91,6 +101,9 @@ function formatRelativeTime(isoString: string | null | undefined): string {
 <style scoped>
 /* Smooth transitions for badge state changes */
 .badge-transition {
-  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, transform 0.15s ease-in-out;
+  transition:
+    background-color 0.2s ease-in-out,
+    color 0.2s ease-in-out,
+    transform 0.15s ease-in-out;
 }
 </style>

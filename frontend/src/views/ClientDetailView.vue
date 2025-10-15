@@ -377,9 +377,14 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
     <button
       @click="backDestination.action"
       data-focus-target="back-button"
-      class="group mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 min-h-[44px] px-2 -ml-2 sm:min-h-0 sm:px-0 sm:ml-0"
+      class="group mb-4 -ml-2 inline-flex min-h-[44px] items-center gap-2 px-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 sm:ml-0 sm:min-h-0 sm:px-0"
     >
-      <svg class="h-5 w-5 sm:h-4 sm:w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg
+        class="h-5 w-5 flex-shrink-0 sm:h-4 sm:w-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -389,7 +394,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
       </svg>
       <span>{{ backDestination.label }}</span>
       <kbd
-        class="hidden sm:inline ml-2 rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity group-hover:opacity-100"
+        class="ml-2 hidden rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity group-hover:opacity-100 sm:inline"
       >
         Esc
       </kbd>
@@ -404,10 +409,10 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
         <div class="flex items-center gap-3">
           <!-- Icon -->
           <div
-            class="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-blue-600 flex-shrink-0"
+            class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-blue-600 sm:h-10 sm:w-10"
           >
             <svg
-              class="h-4 w-4 sm:h-6 sm:w-6 text-white"
+              class="h-4 w-4 text-white sm:h-6 sm:w-6"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -422,9 +427,9 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
           </div>
 
           <!-- Content -->
-          <div class="flex-1 min-w-0">
+          <div class="min-w-0 flex-1">
             <p class="text-sm font-semibold text-blue-900">Viewing from appointment</p>
-            <p class="text-xs sm:text-sm text-blue-700 truncate">
+            <p class="truncate text-xs text-blue-700 sm:text-sm">
               {{ formatDate(sourceAppointment.scheduled_start, "MMM d 'at' h:mm a") }}
               •
               {{
@@ -439,12 +444,17 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
         </div>
 
         <!-- Actions -->
-        <div class="flex items-center gap-2 w-full sm:w-auto">
+        <div class="flex w-full items-center gap-2 sm:w-auto">
           <button
             @click="backDestination.action()"
-            class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50 min-h-[44px]"
+            class="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50 sm:flex-none"
           >
-            <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="h-4 w-4 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -455,14 +465,14 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
             <span class="hidden sm:inline">Back to Appointment</span>
             <span class="inline sm:hidden">Back</span>
             <kbd
-              class="hidden sm:inline ml-1 rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs text-blue-700"
+              class="ml-1 hidden rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs text-blue-700 sm:inline"
             >
               Esc
             </kbd>
           </button>
           <button
             @click="dismissBanner"
-            class="p-2.5 rounded-lg text-blue-400 transition-colors hover:bg-blue-100 hover:text-blue-600 min-h-[44px] min-w-[44px]"
+            class="min-h-[44px] min-w-[44px] rounded-lg p-2.5 text-blue-400 transition-colors hover:bg-blue-100 hover:text-blue-600"
             aria-label="Dismiss banner"
           >
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -482,7 +492,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
     <div v-if="clientsStore.loading" class="flex items-center justify-center py-12">
       <div class="text-center">
         <div
-          class="inline-block h-10 w-10 sm:h-8 sm:w-8 animate-spin rounded-full border-4 border-solid border-emerald-600 border-r-transparent"
+          class="inline-block h-10 w-10 animate-spin rounded-full border-4 border-solid border-emerald-600 border-r-transparent sm:h-8 sm:w-8"
         ></div>
         <p class="mt-4 text-sm text-slate-600">Loading client...</p>
       </div>
@@ -537,7 +547,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
             <a
               v-if="client.emergency_contact_phone"
               :href="`tel:${client.emergency_contact_phone}`"
-              class="mt-1 inline-flex items-center gap-2 text-base sm:text-lg font-bold text-red-700 hover:text-red-800 focus:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 min-h-[44px]"
+              class="mt-1 inline-flex min-h-[44px] items-center gap-2 text-base font-bold text-red-700 hover:text-red-800 focus:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:text-lg"
             >
               <svg
                 class="h-5 w-5 flex-shrink-0"
@@ -552,7 +562,9 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
                   d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                 />
               </svg>
-              <span class="break-all sm:break-normal">{{ client.emergency_contact_phone }}</span>
+              <span class="break-all sm:break-normal">{{
+                client.emergency_contact_phone
+              }}</span>
             </a>
           </div>
         </div>
@@ -564,12 +576,12 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
           <!-- Client Info -->
           <div class="flex items-start gap-4">
             <div
-              class="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-emerald-100 text-xl sm:text-2xl font-semibold text-emerald-700 flex-shrink-0"
+              class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xl font-semibold text-emerald-700 sm:h-16 sm:w-16 sm:text-2xl"
             >
               {{ client.first_name[0] }}{{ client.last_name[0] }}
             </div>
-            <div class="flex-1 min-w-0">
-              <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+            <div class="min-w-0 flex-1">
+              <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                 {{ client.full_name }}
               </h1>
               <div class="mt-1 space-y-0.5 text-sm text-slate-600">
@@ -580,15 +592,15 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
           </div>
 
           <!-- Action Buttons -->
-          <div class="flex gap-2 w-full sm:w-auto">
+          <div class="flex w-full gap-2 sm:w-auto">
             <button
               ref="editButtonRef"
               @click="editClient"
-              class="group relative inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none min-h-[44px] flex-1 sm:flex-none"
+              class="group relative inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none sm:flex-none"
             >
               Edit
               <kbd
-                class="hidden sm:inline ml-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity group-hover:opacity-100"
+                class="ml-1 hidden rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity group-hover:opacity-100 sm:inline"
               >
                 e
               </kbd>
@@ -596,7 +608,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
             <button
               ref="scheduleButtonRef"
               @click="scheduleAppointment"
-              class="group relative inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none min-h-[44px] flex-1 sm:flex-none"
+              class="group relative inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none sm:flex-none"
             >
               <svg
                 class="h-4 w-4 flex-shrink-0"
@@ -613,7 +625,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
               </svg>
               Schedule
               <kbd
-                class="hidden sm:inline ml-1 rounded bg-emerald-700 px-1.5 py-0.5 font-mono text-xs text-emerald-100 opacity-0 transition-opacity group-hover:opacity-100"
+                class="ml-1 hidden rounded bg-emerald-700 px-1.5 py-0.5 font-mono text-xs text-emerald-100 opacity-0 transition-opacity group-hover:opacity-100 sm:inline"
               >
                 s
               </kbd>
@@ -638,8 +650,10 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
               Overview
               <kbd
                 :class="[
-                  'hidden sm:inline font-mono text-xs',
-                  activeTab === 'overview' ? 'bg-emerald-100 text-emerald-700 rounded px-1.5 py-0.5' : 'bg-slate-100 text-slate-500 rounded px-1.5 py-0.5',
+                  'hidden font-mono text-xs sm:inline',
+                  activeTab === 'overview'
+                    ? 'rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-700'
+                    : 'rounded bg-slate-100 px-1.5 py-0.5 text-slate-500',
                 ]"
               >
                 1
@@ -659,8 +673,10 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
               History
               <kbd
                 :class="[
-                  'hidden sm:inline font-mono text-xs',
-                  activeTab === 'history' ? 'bg-emerald-100 text-emerald-700 rounded px-1.5 py-0.5' : 'bg-slate-100 text-slate-500 rounded px-1.5 py-0.5',
+                  'hidden font-mono text-xs sm:inline',
+                  activeTab === 'history'
+                    ? 'rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-700'
+                    : 'rounded bg-slate-100 px-1.5 py-0.5 text-slate-500',
                 ]"
               >
                 2
@@ -680,8 +696,10 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
               Files
               <kbd
                 :class="[
-                  'hidden sm:inline font-mono text-xs',
-                  activeTab === 'files' ? 'bg-emerald-100 text-emerald-700 rounded px-1.5 py-0.5' : 'bg-slate-100 text-slate-500 rounded px-1.5 py-0.5',
+                  'hidden font-mono text-xs sm:inline',
+                  activeTab === 'files'
+                    ? 'rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-700'
+                    : 'rounded bg-slate-100 px-1.5 py-0.5 text-slate-500',
                 ]"
               >
                 3
@@ -696,10 +714,10 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
         <!-- Overview Tab -->
         <div v-if="activeTab === 'overview'">
           <h2 class="mb-4 text-lg font-semibold text-slate-900">Client Information</h2>
-          <dl class="grid grid-cols-1 gap-6 sm:gap-4 sm:grid-cols-2">
-            <div class="pb-4 border-b border-slate-100 sm:pb-0 sm:border-b-0">
+          <dl class="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-4">
+            <div class="border-b border-slate-100 pb-4 sm:border-b-0 sm:pb-0">
               <dt class="text-sm font-medium text-slate-500">Date of Birth</dt>
-              <dd class="mt-1.5 text-base sm:text-sm text-slate-900">
+              <dd class="mt-1.5 text-base text-slate-900 sm:text-sm">
                 {{
                   client.date_of_birth
                     ? new Date(client.date_of_birth).toLocaleDateString()
@@ -707,15 +725,15 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
                 }}
               </dd>
             </div>
-            <div class="pb-4 border-b border-slate-100 sm:pb-0 sm:border-b-0">
+            <div class="border-b border-slate-100 pb-4 sm:border-b-0 sm:pb-0">
               <dt class="text-sm font-medium text-slate-500">Address</dt>
-              <dd class="mt-1.5 text-base sm:text-sm text-slate-900">
+              <dd class="mt-1.5 text-base text-slate-900 sm:text-sm">
                 {{ client.address || 'Not provided' }}
               </dd>
             </div>
-            <div class="pb-4 border-b border-slate-100 sm:pb-0 sm:border-b-0">
+            <div class="border-b border-slate-100 pb-4 sm:border-b-0 sm:pb-0">
               <dt class="text-sm font-medium text-slate-500">Emergency Contact</dt>
-              <dd class="mt-1.5 text-base sm:text-sm text-slate-900">
+              <dd class="mt-1.5 text-base text-slate-900 sm:text-sm">
                 {{ client.emergency_contact_name || 'Not provided' }}
                 <span
                   v-if="client.emergency_contact_phone"
@@ -728,18 +746,22 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
           </dl>
 
           <div v-if="client.medical_history" class="mt-8 sm:mt-6">
-            <h3 class="text-sm font-semibold text-slate-700 mb-2">Medical History</h3>
-            <div class="bg-slate-50 rounded-lg p-4">
-              <p class="text-base sm:text-sm leading-relaxed whitespace-pre-wrap text-slate-900">
+            <h3 class="mb-2 text-sm font-semibold text-slate-700">Medical History</h3>
+            <div class="rounded-lg bg-slate-50 p-4">
+              <p
+                class="text-base leading-relaxed whitespace-pre-wrap text-slate-900 sm:text-sm"
+              >
                 {{ client.medical_history }}
               </p>
             </div>
           </div>
 
           <div v-if="client.notes" class="mt-8 sm:mt-6">
-            <h3 class="text-sm font-semibold text-slate-700 mb-2">Notes</h3>
-            <div class="bg-slate-50 rounded-lg p-4">
-              <p class="text-base sm:text-sm leading-relaxed whitespace-pre-wrap text-slate-900">
+            <h3 class="mb-2 text-sm font-semibold text-slate-700">Notes</h3>
+            <div class="rounded-lg bg-slate-50 p-4">
+              <p
+                class="text-base leading-relaxed whitespace-pre-wrap text-slate-900 sm:text-sm"
+              >
                 {{ client.notes }}
               </p>
             </div>

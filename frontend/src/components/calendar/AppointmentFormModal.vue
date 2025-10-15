@@ -492,7 +492,7 @@ watch(
             </h2>
             <button
               @click="closeModal"
-              class="rounded-lg p-2.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 min-h-[44px] min-w-[44px] flex items-center justify-center sm:p-2 sm:min-h-0 sm:min-w-0"
+              class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 sm:min-h-0 sm:min-w-0 sm:p-2"
               aria-label="Close dialog"
             >
               <IconClose class="h-6 w-6 sm:h-5 sm:w-5" />
@@ -605,7 +605,10 @@ watch(
           </div>
 
           <!-- Form -->
-          <form @submit.prevent="handleSubmit" class="space-y-6 px-5 pb-6 sm:space-y-6 sm:px-6">
+          <form
+            @submit.prevent="handleSubmit"
+            class="space-y-6 px-5 pb-6 sm:space-y-6 sm:px-6"
+          >
             <!-- Past Appointment Warning -->
             <Transition
               enter-active-class="transition-all duration-150 ease-out"
@@ -642,9 +645,9 @@ watch(
             <div>
               <label
                 for="appointment-date"
-                class="block text-sm font-medium text-slate-900 mb-1.5"
+                class="mb-1.5 block text-sm font-medium text-slate-900"
               >
-                Date <span class="text-red-500 ml-0.5">*</span>
+                Date <span class="ml-0.5 text-red-500">*</span>
               </label>
               <input
                 id="appointment-date"
@@ -652,7 +655,7 @@ watch(
                 v-model="appointmentDate"
                 type="date"
                 aria-label="Appointment date"
-                class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[44px] sm:text-sm"
+                class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               />
             </div>
 
@@ -716,15 +719,15 @@ watch(
             <div>
               <label
                 for="location-type"
-                class="block text-sm font-medium text-slate-900 mb-1.5"
+                class="mb-1.5 block text-sm font-medium text-slate-900"
               >
-                Location Type <span class="text-red-500 ml-0.5">*</span>
+                Location Type <span class="ml-0.5 text-red-500">*</span>
               </label>
               <select
                 id="location-type"
                 ref="locationSelectRef"
                 v-model="formData.location_type"
-                class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[44px] sm:text-sm"
+                class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               >
                 <option value="clinic">Clinic</option>
                 <option value="home">Home Visit</option>
@@ -736,7 +739,7 @@ watch(
             <div>
               <label
                 for="location-details"
-                class="block text-sm font-medium text-slate-900 mb-1.5"
+                class="mb-1.5 block text-sm font-medium text-slate-900"
               >
                 Location Details
               </label>
@@ -745,13 +748,16 @@ watch(
                 v-model="formData.location_details"
                 type="text"
                 placeholder="e.g., Zoom link, room number, address"
-                class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[44px] sm:text-sm"
+                class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               />
             </div>
 
             <!-- Notes -->
             <div>
-              <label for="notes" class="block text-sm font-medium text-slate-900 mb-1.5">
+              <label
+                for="notes"
+                class="mb-1.5 block text-sm font-medium text-slate-900"
+              >
                 Notes
               </label>
               <textarea
@@ -759,7 +765,7 @@ watch(
                 v-model="formData.notes"
                 rows="6"
                 placeholder="Optional notes about this appointment"
-                class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[120px] sm:text-sm sm:rows-3"
+                class="sm:rows-3 mt-1 block min-h-[120px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               ></textarea>
             </div>
           </form>
@@ -772,7 +778,7 @@ watch(
               <button
                 @click="closeModal"
                 type="button"
-                class="order-2 sm:order-1 inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 min-h-[44px] w-full sm:w-auto"
+                class="order-2 inline-flex min-h-[44px] w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:order-1 sm:w-auto"
               >
                 Cancel
               </button>
@@ -780,7 +786,7 @@ watch(
                 @click="handleSubmit"
                 type="submit"
                 :class="[
-                  'order-1 sm:order-2 inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-colors min-h-[44px] w-full sm:w-auto',
+                  'order-1 inline-flex min-h-[44px] w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-colors sm:order-2 sm:w-auto',
                   hasConflicts
                     ? 'bg-amber-600 hover:bg-amber-700'
                     : 'bg-emerald-600 hover:bg-emerald-700',
@@ -790,7 +796,7 @@ watch(
                 <span v-else>{{ submitButtonText }}</span>
               </button>
             </div>
-            <p class="mt-3 text-center text-xs text-slate-500 hidden sm:block">
+            <p class="mt-3 hidden text-center text-xs text-slate-500 sm:block">
               or press
               <kbd
                 class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700"

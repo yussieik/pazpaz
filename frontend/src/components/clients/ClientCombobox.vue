@@ -292,14 +292,14 @@ defineExpose({
   <div ref="comboboxRef" class="relative">
     <!-- Label (if needed, can be passed via slot) -->
     <div class="flex items-center justify-between">
-      <label :for="comboboxId" class="block text-sm font-medium text-slate-900 mb-1.5">
-        Client <span class="text-red-500 ml-0.5">*</span>
+      <label :for="comboboxId" class="mb-1.5 block text-sm font-medium text-slate-900">
+        Client <span class="ml-0.5 text-red-500">*</span>
       </label>
       <button
         v-if="selectedClient"
         @click="clearSelection"
         type="button"
-        class="text-xs text-slate-500 hover:text-slate-700 focus:outline-none focus-visible:underline min-h-[44px] flex items-center sm:min-h-0"
+        class="flex min-h-[44px] items-center text-xs text-slate-500 hover:text-slate-700 focus:outline-none focus-visible:underline sm:min-h-0"
         aria-label="Clear client selection"
       >
         Clear
@@ -328,7 +328,7 @@ defineExpose({
         @click="handleInputClick"
         @keydown="handleKeydown"
         :class="[
-          'block w-full rounded-lg border px-3 py-2 pr-10 transition-colors text-base min-h-[44px] sm:text-sm',
+          'block min-h-[44px] w-full rounded-lg border px-3 py-2 pr-10 text-base transition-colors sm:text-sm',
           'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none',
           error ? 'border-red-500' : 'border-slate-300',
           disabled
