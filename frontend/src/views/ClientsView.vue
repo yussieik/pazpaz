@@ -1,18 +1,24 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, nextTick } from 'vue'
+import { computed, onMounted, onUnmounted, ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useClientsStore } from '@/stores/clients'
 import { useClientListKeyboard } from '@/composables/useClientListKeyboard'
 import { useScreenReader } from '@/composables/useScreenReader'
-import type { ClientListItem } from '@/types/client'
+import { useToast } from '@/composables/useToast'
+import type { ClientListItem, ClientCreate } from '@/types/client'
 import FloatingActionButton from '@/components/common/FloatingActionButton.vue'
+import ClientFormModal from '@/components/clients/ClientFormModal.vue'
 
 const router = useRouter()
 const clientsStore = useClientsStore()
+const { showSuccess, showError } = useToast()
 
 // Local state for search
 const searchQuery = ref('')
 const searchInputRef = ref<HTMLInputElement>()
+
+// Modal state
+const showClientFormModal = ref(false)
 
 // Filtered clients based on search
 const filteredClients = computed(() => {
@@ -47,11 +53,43 @@ const { announcement } = useScreenReader()
 
 // Navigate to new client form
 function createNewClient() {
-  // TODO (M3): Open create client modal
+  showClientFormModal.value = true
+}
+
+// Handle client creation from modal
+async function handleCreateClient(data: ClientCreate) {
+  try {
+    const newClient = await clientsStore.createClient(data)
+
+    // Close modal immediately
+    showClientFormModal.value = false
+
+    // Navigate to client detail page
+    router.push(`/clients/${newClient.id}`)
+
+    // Show success toast
+    showSuccess(`${newClient.first_name} ${newClient.last_name} added successfully`)
+  } catch (error) {
+    // Keep modal open and show error
+    console.error('Failed to create client:', error)
+    showError('Failed to add client. Please try again.')
+  }
+}
+
+// Keyboard shortcut handler for Cmd+N / Ctrl+N
+function handleGlobalKeydown(event: KeyboardEvent) {
+  // Cmd+N (Mac) or Ctrl+N (Windows/Linux) to create new client
+  if ((event.metaKey || event.ctrlKey) && event.key === 'n') {
+    event.preventDefault() // Prevent browser's default "New Window"
+    createNewClient()
+  }
 }
 
 onMounted(async () => {
   await clientsStore.fetchClients()
+
+  // Add global keyboard shortcut listener
+  document.addEventListener('keydown', handleGlobalKeydown)
 
   // Restore focus if returning from client detail view
   const lastFocusedClientId = sessionStorage.getItem('lastFocusedClientId')
@@ -68,6 +106,11 @@ onMounted(async () => {
     // Clear the stored ID after attempting restoration
     sessionStorage.removeItem('lastFocusedClientId')
   }
+})
+
+onUnmounted(() => {
+  // Clean up keyboard event listener to prevent memory leaks
+  document.removeEventListener('keydown', handleGlobalKeydown)
 })
 </script>
 
@@ -250,6 +293,14 @@ onMounted(async () => {
       label="Add Client"
       title="Add Client (N)"
       @click="createNewClient"
+    />
+
+    <!-- Client Form Modal -->
+    <ClientFormModal
+      :visible="showClientFormModal"
+      mode="create"
+      @update:visible="showClientFormModal = $event"
+      @submit="handleCreateClient"
     />
 
     <!-- Screen Reader Announcements -->

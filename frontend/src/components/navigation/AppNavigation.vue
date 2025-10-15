@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -29,12 +29,23 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
+// Prevent body scroll when mobile menu is open
+watch(mobileMenuOpen, (isOpen) => {
+  if (isOpen) {
+    document.body.style.overflow = 'hidden'
+  } else {
+    document.body.style.overflow = ''
+  }
+})
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
+  // Cleanup: ensure body scroll is restored
+  document.body.style.overflow = ''
 })
 </script>
 
@@ -140,17 +151,23 @@ onUnmounted(() => {
     </div>
 
     <!-- Mobile menu (slide-out drawer) -->
-    <Transition name="mobile-menu">
-      <div v-if="mobileMenuOpen" class="md:hidden">
-        <!-- Backdrop -->
+    <div v-if="mobileMenuOpen" class="md:hidden">
+      <!-- Backdrop with fade transition -->
+      <Transition name="backdrop-fade">
         <div
+          v-if="mobileMenuOpen"
           class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
           @click="closeMobileMenu"
           aria-hidden="true"
         ></div>
+      </Transition>
 
-        <!-- Drawer -->
-        <div class="fixed inset-y-0 right-0 z-50 w-64 bg-white shadow-xl">
+      <!-- Drawer with slide transition -->
+      <Transition name="drawer-slide">
+        <div
+          v-if="mobileMenuOpen"
+          class="fixed inset-y-0 right-0 z-50 w-64 bg-white shadow-xl"
+        >
           <div class="flex h-full flex-col">
             <!-- Close button -->
             <div class="flex items-center justify-end border-b border-gray-200 p-4">
@@ -225,19 +242,50 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </div>
   </nav>
 </template>
 
 <style scoped>
-.mobile-menu-enter-active,
-.mobile-menu-leave-active {
+/* Backdrop fade transition */
+.backdrop-fade-enter-active,
+.backdrop-fade-leave-active {
   transition: opacity 200ms ease-out;
 }
 
-.mobile-menu-enter-from,
-.mobile-menu-leave-to {
+.backdrop-fade-enter-from,
+.backdrop-fade-leave-to {
   opacity: 0;
+}
+
+/* Drawer slide transition from right */
+.drawer-slide-enter-active,
+.drawer-slide-leave-active {
+  transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* GPU acceleration for smoother transitions */
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.drawer-slide-enter-from,
+.drawer-slide-leave-to {
+  transform: translateX(100%);
+}
+
+.drawer-slide-enter-to,
+.drawer-slide-leave-from {
+  transform: translateX(0);
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .backdrop-fade-enter-active,
+  .backdrop-fade-leave-active,
+  .drawer-slide-enter-active,
+  .drawer-slide-leave-active {
+    transition-duration: 1ms;
+  }
 }
 </style>
