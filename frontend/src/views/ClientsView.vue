@@ -5,7 +5,7 @@ import { useClientsStore } from '@/stores/clients'
 import { useClientListKeyboard } from '@/composables/useClientListKeyboard'
 import { useScreenReader } from '@/composables/useScreenReader'
 import type { ClientListItem } from '@/types/client'
-import PageHeader from '@/components/common/PageHeader.vue'
+import FloatingActionButton from '@/components/common/FloatingActionButton.vue'
 
 const router = useRouter()
 const clientsStore = useClientsStore()
@@ -72,64 +72,49 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <!-- Header -->
-    <PageHeader
-      title="Clients"
-      :metadata="
-        !clientsStore.loading && clientsStore.clients.length > 0
-          ? `${filteredClients.length} client${filteredClients.length === 1 ? '' : 's'}`
-          : undefined
+  <div class="container mx-auto px-4 py-8 pb-20">
+    <!-- Search + Metadata Toolbar (only shown when clients exist) -->
+    <div
+      v-if="
+        !clientsStore.loading && !clientsStore.error && clientsStore.clients.length > 0
       "
-      :loading="clientsStore.loading"
+      class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
     >
-      <template #actions>
-        <button
-          @click="createNewClient"
-          class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto sm:justify-start"
+      <!-- Search input (full width on mobile, grows on desktop) -->
+      <div class="relative flex-1">
+        <div
+          class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
         >
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="h-5 w-5 text-slate-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="2"
-              d="M12 4v16m8-8H4"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
             />
           </svg>
-          <span>New Client</span>
-        </button>
-      </template>
-
-      <template #search v-if="!clientsStore.loading && !clientsStore.error">
-        <div class="relative">
-          <div
-            class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
-          >
-            <svg
-              class="h-5 w-5 text-slate-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </div>
-          <input
-            ref="searchInputRef"
-            v-model="searchQuery"
-            type="search"
-            placeholder="Search clients by name, email, or phone... (press / to focus)"
-            autofocus
-            class="block w-full rounded-lg border border-slate-300 bg-white py-3 pr-3 pl-10 text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-          />
         </div>
-      </template>
-    </PageHeader>
+        <input
+          ref="searchInputRef"
+          v-model="searchQuery"
+          type="search"
+          placeholder="Search clients by name, email, or phone... (press / to focus)"
+          autofocus
+          class="block w-full rounded-lg border border-slate-300 bg-white py-3 pr-3 pl-10 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+        />
+      </div>
+
+      <!-- Client count (subtle, right-aligned on desktop) -->
+      <div class="text-sm text-slate-600" aria-live="polite" aria-atomic="true">
+        {{ filteredClients.length }} client{{ filteredClients.length === 1 ? '' : 's' }}
+      </div>
+    </div>
 
     <!-- Loading State -->
     <div v-if="clientsStore.loading" class="flex items-center justify-center py-12">
@@ -259,6 +244,13 @@ onMounted(async () => {
         </div>
       </button>
     </div>
+
+    <!-- Floating Action Button -->
+    <FloatingActionButton
+      label="Add Client"
+      title="Add Client (N)"
+      @click="createNewClient"
+    />
 
     <!-- Screen Reader Announcements -->
     <div role="status" aria-live="polite" aria-atomic="true" class="sr-only">

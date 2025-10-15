@@ -17,7 +17,6 @@ import { toISOString } from '@/utils/dragHelpers'
 import type { ConflictingAppointment } from '@/api/client'
 import type { AppointmentStatus } from '@/types/calendar'
 import apiClient from '@/api/client'
-import PageHeader from '@/components/common/PageHeader.vue'
 import CalendarToolbar from '@/components/calendar/CalendarToolbar.vue'
 import AppointmentDetailsModal from '@/components/calendar/AppointmentDetailsModal.vue'
 import AppointmentFormModal from '@/components/calendar/AppointmentFormModal.vue'
@@ -27,6 +26,7 @@ import DragConflictModal from '@/components/calendar/DragConflictModal.vue'
 import MobileRescheduleModal from '@/components/calendar/MobileRescheduleModal.vue'
 import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentModal.vue'
 import MobileActionToolbar from '@/components/calendar/MobileActionToolbar.vue'
+import FloatingActionButton from '@/components/common/FloatingActionButton.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 import IconClock from '@/components/icons/IconClock.vue'
 import { format } from 'date-fns'
@@ -85,7 +85,9 @@ const showEditSuccessBadge = ref(false)
 
 // Mobile action toolbar state
 const selectedAppointmentForActions = ref<string | null>(null)
-const isMobile = computed(() => typeof window !== 'undefined' && window.innerWidth <= 640)
+const isMobile = computed(
+  () => typeof window !== 'undefined' && window.innerWidth <= 640
+)
 
 const { announcement: screenReaderAnnouncement, announce } = useScreenReader()
 const { showSuccess, showAppointmentSuccess, showSuccessWithUndo, showError } =
@@ -103,8 +105,12 @@ const {
   buildCalendarOptions,
 } = useCalendar()
 
-const { selectedAppointment, calendarEvents, handleEventClick: composableHandleEventClick, sessionStatusMap } =
-  useCalendarEvents()
+const {
+  selectedAppointment,
+  calendarEvents,
+  handleEventClick: composableHandleEventClick,
+  sessionStatusMap,
+} = useCalendarEvents()
 
 // Wrap handleEventClick to capture times before modal opens
 function handleEventClick(clickInfo: any) {
@@ -121,7 +127,7 @@ function handleEventClick(clickInfo: any) {
       if (selectedAppointment.value) {
         previousAppointmentTimes.value.set(selectedAppointment.value.id, {
           start: selectedAppointment.value.scheduled_start,
-          end: selectedAppointment.value.scheduled_end
+          end: selectedAppointment.value.scheduled_end,
         })
       }
     } else {
@@ -145,7 +151,7 @@ function handleEventClick(clickInfo: any) {
   if (selectedAppointment.value) {
     previousAppointmentTimes.value.set(selectedAppointment.value.id, {
       start: selectedAppointment.value.scheduled_start,
-      end: selectedAppointment.value.scheduled_end
+      end: selectedAppointment.value.scheduled_end,
     })
   }
 }
@@ -221,7 +227,7 @@ function applyEventHeight(eventEl: HTMLElement, start: Date, end: Date) {
  */
 function updateEventHeight(appointmentId: string, retryCount = 0) {
   // Find the appointment in the store to get latest times
-  const appointment = appointmentsStore.appointments.find(a => a.id === appointmentId)
+  const appointment = appointmentsStore.appointments.find((a) => a.id === appointmentId)
   if (!appointment) return
 
   const newStart = new Date(appointment.scheduled_start)
@@ -232,7 +238,9 @@ function updateEventHeight(appointmentId: string, retryCount = 0) {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const eventEl = document.querySelector(`[data-event-id="${appointmentId}"]`) as HTMLElement
+        const eventEl = document.querySelector(
+          `[data-event-id="${appointmentId}"]`
+        ) as HTMLElement
         if (eventEl) {
           applyEventHeight(eventEl, newStart, newEnd)
         } else if (retryCount < 3) {
@@ -411,7 +419,6 @@ useCalendarKeyboardShortcuts({
   selectedAppointment,
   buttonRefs: toolbarButtonRefs,
 })
-
 
 /**
  * Quick complete action handler
@@ -974,7 +981,9 @@ function viewSession(sessionId: string) {
 
 // Track previous appointment times to detect duration changes
 // Times are captured in handleEventClick when user clicks an appointment
-const previousAppointmentTimes = ref<Map<string, { start: string; end: string }>>(new Map())
+const previousAppointmentTimes = ref<Map<string, { start: string; end: string }>>(
+  new Map()
+)
 
 // P1: Watch appointments and clean up stale entries from Map to prevent memory leak
 watch(
@@ -1011,14 +1020,15 @@ async function refreshAppointments() {
   // Update the selected appointment to show fresh data in the modal
   if (updatedAppointment) {
     // Check if duration changed by comparing with previous tracked times
-    const durationChanged = prevTimes &&
+    const durationChanged =
+      prevTimes &&
       (prevTimes.start !== updatedAppointment.scheduled_start ||
-       prevTimes.end !== updatedAppointment.scheduled_end)
+        prevTimes.end !== updatedAppointment.scheduled_end)
 
     // Update tracked times for next comparison
     previousAppointmentTimes.value.set(appointmentId, {
       start: updatedAppointment.scheduled_start,
-      end: updatedAppointment.scheduled_end
+      end: updatedAppointment.scheduled_end,
     })
 
     selectedAppointment.value = { ...updatedAppointment }
@@ -1432,32 +1442,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="container mx-auto px-5 py-6 sm:px-6 sm:py-8">
-    <!-- Header -->
-    <PageHeader title="Calendar">
-      <template #actions>
-        <button
-          @click="createNewAppointment"
-          class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:min-h-0 sm:w-auto sm:justify-start sm:py-2"
-        >
-          <svg
-            class="h-4 w-4 flex-shrink-0"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          <span>New Appointment</span>
-        </button>
-      </template>
-    </PageHeader>
-
+  <div class="container mx-auto px-5 py-6 pb-20 sm:px-6 sm:py-8">
     <!-- Loading State (Only show for initial load with no appointments) -->
     <CalendarLoadingState
       v-if="showLoadingSpinner && appointmentsStore.appointments.length === 0"
@@ -1614,16 +1599,20 @@ function handleGlobalKeydown(event: KeyboardEvent) {
               )
               if (!appt) return false
               const now = new Date()
-              return (
-                appt.status === 'scheduled' &&
-                new Date(appt.scheduled_end) < now
-              )
+              return appt.status === 'scheduled' && new Date(appt.scheduled_end) < now
             })()
           : false
       "
       @complete="handleMobileComplete"
       @delete="handleMobileDelete"
       @close="handleCloseMobileToolbar"
+    />
+
+    <!-- Floating Action Button -->
+    <FloatingActionButton
+      label="New Appointment"
+      title="New Appointment (N)"
+      @click="createNewAppointment"
     />
 
     <!-- Screen Reader Announcements -->
@@ -2214,7 +2203,9 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       box-shadow: 0 0 0 2px #3b82f6;
     }
     50% {
-      box-shadow: 0 0 0 2px #3b82f6, 0 0 8px rgba(59, 130, 246, 0.4);
+      box-shadow:
+        0 0 0 2px #3b82f6,
+        0 0 8px rgba(59, 130, 246, 0.4);
     }
   }
 
