@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import type { ClientCreate } from '@/types/client'
+import type { ClientCreate, Client } from '@/types/client'
 import IconClose from '@/components/icons/IconClose.vue'
 
 interface Props {
   visible: boolean
   mode: 'create' | 'edit'
+  client?: Client | null
 }
 
 interface Emits {
@@ -54,19 +55,55 @@ const submitButtonText = computed(() =>
   props.mode === 'create' ? 'Add Client' : 'Save Changes'
 )
 
-// Watch for modal visibility changes
+// Watch for modal visibility and pre-fill data in edit mode
 watch(
-  () => props.visible,
-  (isVisible) => {
+  () => [props.visible, props.mode, props.client],
+  ([isVisible, mode, client]) => {
     if (!isVisible) {
       resetForm()
-    } else if (props.mode === 'create') {
+      return
+    }
+
+    if (mode === 'edit' && client) {
+      // Pre-fill all fields from client
+      formData.value = {
+        first_name: client.first_name,
+        last_name: client.last_name,
+        phone: client.phone || '',
+        email: client.email || '',
+        date_of_birth: client.date_of_birth || '',
+        address: client.address || '',
+        emergency_contact_name: client.emergency_contact_name || '',
+        emergency_contact_phone: client.emergency_contact_phone || '',
+        medical_history: client.medical_history || '',
+        notes: client.notes || '',
+      }
+
+      // Auto-expand "Add More Details" if client has optional data
+      const hasOptionalData = Boolean(
+        client.date_of_birth ||
+          client.address ||
+          client.emergency_contact_name ||
+          client.emergency_contact_phone ||
+          client.medical_history ||
+          client.notes
+      )
+      isAdditionalDetailsExpanded.value = hasOptionalData
+
+      // Auto-focus first name field
+      nextTick(() => {
+        firstNameInputRef.value?.focus()
+      })
+    } else if (mode === 'create') {
+      // Reset form for create mode
+      resetForm()
       // Auto-focus first name field on modal open
       nextTick(() => {
         firstNameInputRef.value?.focus()
       })
     }
-  }
+  },
+  { deep: true }
 )
 
 
@@ -444,7 +481,7 @@ onUnmounted(() => {
                 <!-- Address -->
                 <div>
                   <label for="address" class="mb-1.5 block text-sm font-medium text-slate-900">
-                    Address <span class="text-sm text-slate-500">(for home visits)</span>
+                    Address
                   </label>
                   <input
                     id="address"
@@ -568,7 +605,7 @@ onUnmounted(() => {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  Adding...
+                  {{ mode === 'edit' ? 'Saving...' : 'Adding...' }}
                 </span>
                 <span v-else>{{ submitButtonText }}</span>
               </button>

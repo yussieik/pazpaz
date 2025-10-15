@@ -10,8 +10,10 @@ import type { AppointmentListItem, AppointmentFormData } from '@/types/calendar'
 import { onKeyStroke } from '@vueuse/core'
 import { format } from 'date-fns'
 import AppointmentFormModal from '@/components/calendar/AppointmentFormModal.vue'
+import ClientFormModal from '@/components/clients/ClientFormModal.vue'
 import SessionTimeline from '@/components/client/SessionTimeline.vue'
 import DeletedNotesSection from '@/components/sessions/DeletedNotesSection.vue'
+import type { ClientCreate } from '@/types/client'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,10 +24,11 @@ const appointmentsStore = useAppointmentsStore()
 const { announcement, announce } = useScreenReader()
 
 // Toast notifications
-const { showAppointmentSuccess } = useToast()
+const { showAppointmentSuccess, showSuccess, showError } = useToast()
 
 // Local state
 const activeTab = ref<'overview' | 'history' | 'files'>('overview')
+const showEditModal = ref(false)
 
 // Button refs for keyboard feedback
 const editButtonRef = ref<HTMLButtonElement | null>(null)
@@ -306,7 +309,46 @@ function dismissBanner() {
 }
 
 function editClient() {
-  // TODO (M3): Open edit client modal
+  if (!client.value) return
+  showEditModal.value = true
+  announce(`Edit ${client.value.first_name} ${client.value.last_name}`)
+}
+
+async function handleEditClient(data: ClientCreate) {
+  if (!client.value) return
+
+  // Store original client data for rollback on error
+  const originalClient = { ...client.value }
+
+  try {
+    // Optimistic update: instant UI
+    Object.assign(client.value, data)
+
+    // Close modal immediately for smooth UX
+    showEditModal.value = false
+
+    // Show success toast
+    showSuccess(`${data.first_name} ${data.last_name} updated successfully`)
+    announce('Client information updated')
+
+    // Background API call
+    await clientsStore.updateClient(clientId.value, data)
+
+    // Silent background sync to ensure consistency
+    await clientsStore.fetchClient(clientId.value)
+  } catch (error) {
+    console.error('Failed to update client:', error)
+
+    // Rollback on error
+    if (client.value) {
+      Object.assign(client.value, originalClient)
+    }
+
+    // Show error and re-open modal
+    showEditModal.value = true
+    showError('Failed to update client. Please try again.')
+    announce('Failed to update client. Please try again.')
+  }
 }
 
 function scheduleAppointment() {
@@ -800,6 +842,15 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
         </div>
       </div>
     </div>
+
+    <!-- Edit Client Modal -->
+    <ClientFormModal
+      :visible="showEditModal"
+      mode="edit"
+      :client="client"
+      @update:visible="showEditModal = $event"
+      @submit="handleEditClient"
+    />
 
     <!-- Schedule Appointment Modal -->
     <AppointmentFormModal

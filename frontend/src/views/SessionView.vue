@@ -75,19 +75,50 @@ const pageMetadata = computed(() => {
 })
 
 // Load session data
-async function loadSession() {
-  isLoadingSession.value = true
+async function loadSession(silent = false) {
+  if (!silent) {
+    isLoadingSession.value = true
+  }
   loadError.value = null
 
   try {
-    const response = await apiClient.get<SessionResponse>(
-      `/sessions/${sessionId.value}`
-    )
-    session.value = response.data
+    // Parallel loading to prevent waterfall and reduce glitches
+    const [sessionResponse, clientResponse] = await Promise.allSettled([
+      apiClient.get<SessionResponse>(`/sessions/${sessionId.value}`),
+      // Pre-emptively load client if we already know the client_id
+      session.value?.client_id
+        ? apiClient.get<ClientData>(`/clients/${session.value.client_id}`)
+        : Promise.resolve(null),
+    ])
 
-    // Load client data
-    if (response.data.client_id) {
-      await loadClient(response.data.client_id)
+    if (sessionResponse.status === 'fulfilled') {
+      const previousSession = session.value
+      session.value = sessionResponse.value.data
+
+      // If client_id changed or not loaded yet, load client data
+      if (
+        sessionResponse.value.data.client_id &&
+        sessionResponse.value.data.client_id !== previousSession?.client_id
+      ) {
+        // Only load if we don't already have it from parallel fetch
+        if (clientResponse.status !== 'fulfilled' || !clientResponse.value) {
+          isLoadingClient.value = true
+          try {
+            const response = await apiClient.get<ClientData>(
+              `/clients/${sessionResponse.value.data.client_id}`
+            )
+            client.value = response.data
+          } catch (error) {
+            console.error('Failed to load client:', error)
+          } finally {
+            isLoadingClient.value = false
+          }
+        } else if (clientResponse.value) {
+          client.value = (clientResponse.value as { data: ClientData }).data
+        }
+      }
+    } else {
+      throw sessionResponse.reason
     }
   } catch (error) {
     console.error('Failed to load session:', error)
@@ -101,7 +132,9 @@ async function loadSession() {
       loadError.value = axiosError.response?.data?.detail || 'Failed to load session'
     }
   } finally {
-    isLoadingSession.value = false
+    if (!silent) {
+      isLoadingSession.value = false
+    }
   }
 }
 
@@ -120,10 +153,17 @@ async function loadClient(clientId: string) {
   }
 }
 
-// Handle session finalized
+// Handle session finalized - optimistic update instead of full reload
 function handleSessionFinalized() {
-  // Reload session to update metadata
-  loadSession()
+  // Optimistic update: immediately update session status
+  if (session.value) {
+    session.value.is_draft = false
+    session.value.finalized_at = new Date().toISOString()
+  }
+
+  // Silent background sync to ensure we have latest server state
+  // This won't cause a glitch since we're not showing loading state
+  loadSession(true)
 }
 
 // Navigate back
@@ -181,23 +221,27 @@ onKeyStroke('Escape', (e) => {
 
 <template>
   <div class="session-view mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-    <!-- Back Button - Hidden until session loads to prevent text flash -->
-    <div class="mb-6" :class="{ invisible: !session }">
-      <button
-        type="button"
-        @click="goBack"
-        class="inline-flex items-center text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 focus:outline-none"
-      >
-        <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M15 19l-7-7 7-7"
-          />
-        </svg>
-        Back to {{ session?.client_id ? 'Client' : 'Calendar' }}
-      </button>
+    <!-- Back Button - Reserve space to prevent layout shift -->
+    <div class="mb-6 min-h-[32px]">
+      <Transition name="fade" mode="out-in">
+        <button
+          v-if="!isLoadingSession"
+          key="back-button"
+          type="button"
+          @click="goBack"
+          class="inline-flex items-center text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 focus:outline-none"
+        >
+          <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+          Back to {{ session?.client_id ? 'Client' : 'Calendar' }}
+        </button>
+      </Transition>
     </div>
 
     <!-- Page Header -->
@@ -245,5 +289,19 @@ onKeyStroke('Escape', (e) => {
 </template>
 
 <style scoped>
-/* Additional styles if needed */
+/* Smooth fade transitions for content appearing/disappearing */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease-in-out;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Prevent layout shifts during transitions */
+.session-view {
+  min-height: 100vh;
+}
 </style>

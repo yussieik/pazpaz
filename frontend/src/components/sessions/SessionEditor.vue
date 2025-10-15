@@ -169,9 +169,9 @@ const {
 
 // Last saved display
 const lastSavedDisplay = computed(() => {
-  // Hide during finalize to prevent text flash
+  // During finalize: show consistent state instead of hiding text
   if (isFinalizing.value) {
-    return ''
+    return isFinalized.value ? 'Reverting...' : 'Finalizing...'
   }
 
   if (isSaving.value) {
@@ -298,6 +298,10 @@ async function toggleFinalizeStatus() {
       return
     }
 
+    // Store original state for rollback
+    const originalIsDraft = session.value?.is_draft
+    const originalFinalizedAt = session.value?.finalized_at
+
     isFinalizing.value = true
     isFinalizingInProgress.value = true // Suppress autosave callback
     finalizeError.value = null
@@ -312,38 +316,68 @@ async function toggleFinalizeStatus() {
         duration_minutes: formData.value.duration_minutes,
       })
 
-      // Call finalize endpoint
+      // Optimistic update: immediately update UI
+      if (session.value) {
+        session.value.is_draft = false
+        session.value.finalized_at = new Date().toISOString()
+      }
+
+      // Background API call
       await apiClient.post<SessionResponse>(`/sessions/${props.sessionId}/finalize`)
 
-      // Reload session to get finalized status (same pattern as unfinalize)
-      await loadSession(true)
-
+      // Emit finalized event (parent will do optimistic update too)
       emit('finalized')
+
+      // Silent background sync to ensure we have latest server state
+      // Don't await this - let it happen in background
+      loadSession(true)
     } catch (error) {
       console.error('Failed to finalize session:', error)
       const axiosError = error as AxiosError<{ detail?: string }>
       finalizeError.value =
         axiosError.response?.data?.detail || 'Failed to finalize session'
+
+      // Rollback optimistic update on error
+      if (session.value) {
+        session.value.is_draft = originalIsDraft ?? true
+        session.value.finalized_at = originalFinalizedAt ?? null
+      }
     } finally {
       isFinalizing.value = false
       isFinalizingInProgress.value = false
     }
   } else {
     // Un-finalize the session (revert to draft)
+    // Store original state for rollback
+    const originalIsDraft = session.value?.is_draft
+    const originalFinalizedAt = session.value?.finalized_at
+
     isFinalizing.value = true
     finalizeError.value = null
 
     try {
-      // Call unfinalize endpoint (backend should set is_draft=true)
+      // Optimistic update: immediately update UI
+      if (session.value) {
+        session.value.is_draft = true
+        session.value.finalized_at = null
+      }
+
+      // Background API call
       await apiClient.post(`/sessions/${props.sessionId}/unfinalize`)
 
-      // Reload session to get draft status
-      await loadSession(true)
+      // Silent background sync to ensure we have latest server state
+      loadSession(true)
     } catch (error) {
       console.error('Failed to unfinalize session:', error)
       const axiosError = error as AxiosError<{ detail?: string }>
       finalizeError.value =
         axiosError.response?.data?.detail || 'Failed to revert to draft'
+
+      // Rollback optimistic update on error
+      if (session.value) {
+        session.value.is_draft = originalIsDraft ?? false
+        session.value.finalized_at = originalFinalizedAt ?? null
+      }
     } finally {
       isFinalizing.value = false
     }
@@ -566,13 +600,15 @@ onBeforeUnmount(() => {
           @view-history="showVersionHistory = true"
         />
 
-        <!-- Status Bar -->
+        <!-- Status Bar - Reserve min-height to prevent layout shifts -->
         <div
-          class="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between"
+          class="flex min-h-[48px] flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between"
         >
-          <div class="flex items-center gap-3">
+          <div class="flex min-h-[32px] flex-wrap items-center gap-3">
             <!-- Session Note Badges Component -->
-            <SessionNoteBadges v-if="session" :session="session" />
+            <Transition name="badge-fade" mode="out-in">
+              <SessionNoteBadges v-if="session" :key="session.id" :session="session" />
+            </Transition>
 
             <!-- Previous Session Button (Mobile Only) -->
             <button
@@ -598,42 +634,46 @@ onBeforeUnmount(() => {
             </button>
 
             <!-- Offline Indicator -->
-            <span
-              v-if="!isOnline"
-              class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800"
-            >
-              <svg
-                class="h-3 w-3"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+            <Transition name="badge-fade">
+              <span
+                v-if="!isOnline"
+                class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800"
               >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3"
-                />
-              </svg>
-              Offline - Changes saved locally
-            </span>
+                <svg
+                  class="h-3 w-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3"
+                  />
+                </svg>
+                Offline - Changes saved locally
+              </span>
+            </Transition>
 
             <!-- View Version History Button (if amended) -->
-            <button
-              v-if="session?.amended_at"
-              @click="showVersionHistory = true"
-              type="button"
-              class="text-sm text-blue-600 hover:text-blue-700 focus:underline focus:outline-none"
-            >
-              View Original Version
-            </button>
+            <Transition name="badge-fade">
+              <button
+                v-if="session?.amended_at"
+                @click="showVersionHistory = true"
+                type="button"
+                class="text-sm text-blue-600 hover:text-blue-700 focus:underline focus:outline-none"
+              >
+                View Original Version
+              </button>
+            </Transition>
 
-            <!-- Last Saved Indicator -->
+            <!-- Last Saved Indicator - Reserve min-width to prevent jitter -->
             <span
-              class="text-sm"
+              class="inline-block min-w-[120px] text-sm transition-colors duration-200"
               :class="{
-                'text-slate-600': !isSaving && !saveError && isOnline,
-                'text-blue-600': isSaving,
+                'text-slate-600': !isSaving && !saveError && isOnline && !isFinalizing,
+                'text-blue-600': isSaving || isFinalizing,
                 'text-red-600': saveError,
                 'text-amber-600': !isOnline && !isSaving,
               }"
@@ -1023,23 +1063,27 @@ onBeforeUnmount(() => {
   min-width: fit-content;
 }
 
-/* Badge transition animations */
-.badge-fade-enter-active,
+/* Badge transition animations - smooth fade and scale */
+.badge-fade-enter-active {
+  transition:
+    opacity 0.2s ease-out,
+    transform 0.2s ease-out;
+}
+
 .badge-fade-leave-active {
   transition:
-    opacity 0.15s ease-in-out,
-    transform 0.15s ease-in-out;
-  will-change: opacity, transform;
+    opacity 0.15s ease-in,
+    transform 0.15s ease-in;
 }
 
 .badge-fade-enter-from {
   opacity: 0;
-  transform: scale(0.95);
+  transform: scale(0.96) translateY(-2px);
 }
 
 .badge-fade-leave-to {
   opacity: 0;
-  transform: scale(0.95);
+  transform: scale(0.96) translateY(-2px);
 }
 
 /* Smooth badge transitions */
