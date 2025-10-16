@@ -137,7 +137,7 @@ describe('PreviousSessionHistory', () => {
   })
 
   describe('Timeline Grouping', () => {
-    it('should create "Recent Sessions" group with first 10 sessions expanded', async () => {
+    it('should create year group with "Recent Sessions" month group expanded', async () => {
       vi.mocked(apiClient.get).mockResolvedValueOnce({
         data: {
           items: mockSessions,
@@ -157,6 +157,8 @@ describe('PreviousSessionHistory', () => {
 
       await nextTick()
       await vi.waitFor(() => {
+        // Should show year header (2024)
+        expect(wrapper.text()).toContain('2024')
         expect(wrapper.text()).toContain('Recent Sessions')
         expect(wrapper.text()).toContain('(10)')
       })
@@ -212,7 +214,7 @@ describe('PreviousSessionHistory', () => {
       })
     })
 
-    it('should expand/collapse groups on click', async () => {
+    it('should expand/collapse year groups on click', async () => {
       vi.mocked(apiClient.get).mockResolvedValueOnce({
         data: {
           items: mockSessions,
@@ -235,29 +237,235 @@ describe('PreviousSessionHistory', () => {
         expect(wrapper.find('button').exists()).toBe(true)
       })
 
-      // Find "Recent Sessions" group button
-      let groupButton = wrapper
+      // Find year header button
+      let yearButton = wrapper
         .findAll('button')
-        .find((btn) => btn.text().includes('Recent Sessions'))
+        .find(
+          (btn) =>
+            btn.text().includes('2024') &&
+            btn.attributes('aria-label')?.includes('year')
+        )
 
-      expect(groupButton).toBeDefined()
+      expect(yearButton).toBeDefined()
 
       // Initially should be expanded (rotate-90 class)
-      let chevron = groupButton!.find('svg')
+      let chevron = yearButton!.find('svg')
       expect(chevron.classes()).toContain('rotate-90')
 
       // Click to collapse
-      await groupButton!.trigger('click')
+      await yearButton!.trigger('click')
       await nextTick()
 
       // Re-query after state change to get updated DOM
-      groupButton = wrapper
+      yearButton = wrapper
         .findAll('button')
-        .find((btn) => btn.text().includes('Recent Sessions'))
-      chevron = groupButton!.find('svg')
+        .find(
+          (btn) =>
+            btn.text().includes('2024') &&
+            btn.attributes('aria-label')?.includes('year')
+        )
+      chevron = yearButton!.find('svg')
 
       // After click, should be collapsed (no rotate-90 class)
       expect(chevron.classes()).not.toContain('rotate-90')
+    })
+
+    it('should expand/collapse month groups on click', async () => {
+      vi.mocked(apiClient.get).mockResolvedValueOnce({
+        data: {
+          items: mockSessions,
+          total: 10,
+          page: 1,
+          page_size: 10,
+          total_pages: 1,
+        },
+      })
+
+      const wrapper = mount(PreviousSessionHistory, {
+        props: {
+          clientId: mockClientId,
+          currentSessionId: mockCurrentSessionId,
+        },
+      })
+
+      await nextTick()
+      await vi.waitFor(() => {
+        expect(wrapper.text()).toContain('Recent Sessions')
+      })
+
+      // Find "Recent Sessions" month button
+      let monthButton = wrapper
+        .findAll('button')
+        .find(
+          (btn) =>
+            btn.text().includes('Recent Sessions') && btn.attributes('data-month-key')
+        )
+
+      expect(monthButton).toBeDefined()
+
+      // Initially should be expanded (rotate-90 class)
+      let chevron = monthButton!.find('svg')
+      expect(chevron.classes()).toContain('rotate-90')
+
+      // Click to collapse
+      await monthButton!.trigger('click')
+      await nextTick()
+
+      // Re-query after state change
+      monthButton = wrapper
+        .findAll('button')
+        .find(
+          (btn) =>
+            btn.text().includes('Recent Sessions') && btn.attributes('data-month-key')
+        )
+      chevron = monthButton!.find('svg')
+
+      // After click, should be collapsed (no rotate-90 class)
+      expect(chevron.classes()).not.toContain('rotate-90')
+    })
+  })
+
+  describe('Jump to Date', () => {
+    it('should show jump-to-date button when more than 20 sessions', async () => {
+      vi.mocked(apiClient.get).mockResolvedValueOnce({
+        data: {
+          items: mockSessions.slice(0, 10),
+          total: 52,
+          page: 1,
+          page_size: 10,
+          total_pages: 6,
+        },
+      })
+
+      const wrapper = mount(PreviousSessionHistory, {
+        props: {
+          clientId: mockClientId,
+          currentSessionId: mockCurrentSessionId,
+        },
+      })
+
+      await nextTick()
+      await vi.waitFor(() => {
+        expect(wrapper.text()).toContain('Jump to...')
+      })
+
+      const jumpButton = wrapper.find('button[aria-label="Jump to specific date"]')
+      expect(jumpButton.exists()).toBe(true)
+    })
+
+    it('should not show jump-to-date button when 20 or fewer sessions', async () => {
+      vi.mocked(apiClient.get).mockResolvedValueOnce({
+        data: {
+          items: mockSessions.slice(0, 10),
+          total: 15,
+          page: 1,
+          page_size: 10,
+          total_pages: 2,
+        },
+      })
+
+      const wrapper = mount(PreviousSessionHistory, {
+        props: {
+          clientId: mockClientId,
+          currentSessionId: mockCurrentSessionId,
+        },
+      })
+
+      await nextTick()
+      await vi.waitFor(() => {
+        expect(wrapper.find('button').exists()).toBe(true)
+      })
+
+      const jumpButton = wrapper.find('button[aria-label="Jump to specific date"]')
+      expect(jumpButton.exists()).toBe(false)
+    })
+
+    it('should open date picker modal when jump button clicked', async () => {
+      vi.mocked(apiClient.get).mockResolvedValueOnce({
+        data: {
+          items: mockSessions.slice(0, 10),
+          total: 52,
+          page: 1,
+          page_size: 10,
+          total_pages: 6,
+        },
+      })
+
+      const wrapper = mount(PreviousSessionHistory, {
+        props: {
+          clientId: mockClientId,
+          currentSessionId: mockCurrentSessionId,
+        },
+        attachTo: document.body,
+      })
+
+      await nextTick()
+      await vi.waitFor(() => {
+        expect(wrapper.text()).toContain('Jump to...')
+      })
+
+      const jumpButton = wrapper.find('button[aria-label="Jump to specific date"]')
+      await jumpButton.trigger('click')
+      await nextTick()
+
+      // Modal should be visible (check document.body since modal is teleported)
+      expect(document.body.textContent).toContain('Jump to Date')
+      expect(document.body.textContent).toContain('Select Month')
+
+      // Cleanup
+      wrapper.unmount()
+    })
+
+    it('should close modal when cancel button clicked', async () => {
+      vi.mocked(apiClient.get).mockResolvedValueOnce({
+        data: {
+          items: mockSessions.slice(0, 10),
+          total: 52,
+          page: 1,
+          page_size: 10,
+          total_pages: 6,
+        },
+      })
+
+      const wrapper = mount(PreviousSessionHistory, {
+        props: {
+          clientId: mockClientId,
+          currentSessionId: mockCurrentSessionId,
+        },
+        attachTo: document.body,
+      })
+
+      await nextTick()
+      await vi.waitFor(() => {
+        expect(wrapper.text()).toContain('Jump to...')
+      })
+
+      // Open modal
+      const jumpButton = wrapper.find('button[aria-label="Jump to specific date"]')
+      await jumpButton.trigger('click')
+      await nextTick()
+
+      // Wait for modal to appear
+      await vi.waitFor(() => {
+        expect(document.body.textContent).toContain('Jump to Date')
+      })
+
+      // Find and click cancel button in the modal (which is in document.body)
+      const cancelButtons = document.querySelectorAll('button')
+      const cancelButton = Array.from(cancelButtons).find(
+        (btn) => btn.textContent?.trim() === 'Cancel'
+      )
+      expect(cancelButton).toBeDefined()
+      cancelButton!.click()
+      await nextTick()
+
+      // Wait for modal to close
+      await vi.waitFor(() => {
+        expect(document.body.textContent).not.toContain('Jump to Date')
+      })
+
+      // Cleanup
+      wrapper.unmount()
     })
   })
 
@@ -444,9 +652,9 @@ describe('PreviousSessionHistory', () => {
 
       await nextTick()
 
-      // Should only show 9 finalized sessions
-      expect(wrapper.text()).toContain('Recent Sessions')
-      expect(wrapper.text()).toContain('(9)') // 9 finalized in recent
+      // Should only show 9 finalized sessions in year group
+      expect(wrapper.text()).toContain('2024')
+      expect(wrapper.text()).toContain('(9)') // 9 finalized total
     })
 
     it('should filter sessions when "Drafts" clicked', async () => {
@@ -752,6 +960,700 @@ describe('PreviousSessionHistory', () => {
 
       const heading = wrapper.find('h3')
       expect(heading.text()).toBe('Treatment Context')
+    })
+  })
+
+  describe('Backend Search', () => {
+    describe('Automatic Detection', () => {
+      it('should use client-side search when total sessions <= 100', async () => {
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mockSessions,
+            total: 50,
+            page: 1,
+            page_size: 10,
+            total_pages: 5,
+          },
+        })
+
+        const wrapper = mount(PreviousSessionHistory, {
+          props: {
+            clientId: mockClientId,
+            currentSessionId: mockCurrentSessionId,
+          },
+        })
+
+        await nextTick()
+        await vi.waitFor(() => {
+          expect(wrapper.find('input[type="search"]').exists()).toBe(true)
+        })
+
+        // Clear any previous mocks
+        vi.mocked(apiClient.get).mockClear()
+
+        // Type in search box
+        const searchInput = wrapper.find('input[type="search"]')
+        await searchInput.setValue('shoulder')
+        await nextTick()
+
+        // Wait a bit for debounce
+        await new Promise((resolve) => setTimeout(resolve, 400))
+
+        // Should NOT make backend API call (client-side search)
+        expect(apiClient.get).not.toHaveBeenCalled()
+      })
+
+      it('should use backend search when total sessions > 100', async () => {
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mockSessions.slice(0, 10),
+            total: 150,
+            page: 1,
+            page_size: 10,
+            total_pages: 15,
+          },
+        })
+
+        const wrapper = mount(PreviousSessionHistory, {
+          props: {
+            clientId: mockClientId,
+            currentSessionId: mockCurrentSessionId,
+          },
+        })
+
+        await nextTick()
+        await vi.waitFor(() => {
+          expect(wrapper.find('input[type="search"]').exists()).toBe(true)
+        })
+
+        // Mock backend search response
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: [mockSessions[0]],
+            total: 1,
+            page: 1,
+            page_size: 50,
+          },
+        })
+
+        // Type in search box
+        const searchInput = wrapper.find('input[type="search"]')
+        await searchInput.setValue('shoulder')
+
+        // Wait for debounce (300ms)
+        await new Promise((resolve) => setTimeout(resolve, 400))
+
+        // Should make backend API call with search param
+        await vi.waitFor(() => {
+          expect(apiClient.get).toHaveBeenCalledWith(
+            '/sessions',
+            expect.objectContaining({
+              params: expect.objectContaining({
+                client_id: mockClientId,
+                search: 'shoulder',
+                page: 1,
+                page_size: 50,
+              }),
+            })
+          )
+        })
+      })
+    })
+
+    describe('Backend Search Functionality', () => {
+      it('should debounce search input (300ms)', async () => {
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mockSessions.slice(0, 10),
+            total: 150,
+            page: 1,
+            page_size: 10,
+            total_pages: 15,
+          },
+        })
+
+        const wrapper = mount(PreviousSessionHistory, {
+          props: {
+            clientId: mockClientId,
+            currentSessionId: mockCurrentSessionId,
+          },
+        })
+
+        await nextTick()
+        await vi.waitFor(() => {
+          expect(wrapper.find('input[type="search"]').exists()).toBe(true)
+        })
+
+        vi.mocked(apiClient.get).mockClear()
+        vi.mocked(apiClient.get).mockResolvedValue({
+          data: {
+            items: [mockSessions[0]],
+            total: 1,
+            page: 1,
+            page_size: 50,
+          },
+        })
+
+        const searchInput = wrapper.find('input[type="search"]')
+
+        // Type "sho"
+        await searchInput.setValue('sho')
+        await new Promise((resolve) => setTimeout(resolve, 100))
+
+        // Type "shoulder"
+        await searchInput.setValue('shoulder')
+
+        // Should not have called yet (debouncing)
+        expect(apiClient.get).not.toHaveBeenCalled()
+
+        // Wait for debounce to complete
+        await new Promise((resolve) => setTimeout(resolve, 400))
+
+        // Now should have called exactly once
+        await vi.waitFor(() => {
+          expect(apiClient.get).toHaveBeenCalledTimes(1)
+        })
+      })
+
+      it('should show loading indicator during search', async () => {
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mockSessions.slice(0, 10),
+            total: 150,
+            page: 1,
+            page_size: 10,
+            total_pages: 15,
+          },
+        })
+
+        const wrapper = mount(PreviousSessionHistory, {
+          props: {
+            clientId: mockClientId,
+            currentSessionId: mockCurrentSessionId,
+          },
+        })
+
+        await nextTick()
+        await vi.waitFor(() => {
+          expect(wrapper.find('input[type="search"]').exists()).toBe(true)
+        })
+
+        // Mock backend search with a delay
+        vi.mocked(apiClient.get).mockImplementationOnce(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(
+                () =>
+                  resolve({
+                    data: {
+                      items: [mockSessions[0]],
+                      total: 1,
+                      page: 1,
+                      page_size: 50,
+                    },
+                  }),
+                100
+              )
+            )
+        )
+
+        const searchInput = wrapper.find('input[type="search"]')
+        await searchInput.setValue('shoulder')
+
+        // Wait for debounce
+        await new Promise((resolve) => setTimeout(resolve, 400))
+
+        // Should show loading indicator
+        await vi.waitFor(() => {
+          expect(wrapper.text()).toContain('Searching...')
+        })
+      })
+
+      it('should display search results info banner', async () => {
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mockSessions.slice(0, 10),
+            total: 150,
+            page: 1,
+            page_size: 10,
+            total_pages: 15,
+          },
+        })
+
+        const wrapper = mount(PreviousSessionHistory, {
+          props: {
+            clientId: mockClientId,
+            currentSessionId: mockCurrentSessionId,
+          },
+        })
+
+        await nextTick()
+        await vi.waitFor(() => {
+          expect(wrapper.find('input[type="search"]').exists()).toBe(true)
+        })
+
+        // Mock backend returns 12 of 45 results
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: Array.from({ length: 12 }, (_, i) => ({
+              ...mockSessions[0],
+              id: `match-${i}`,
+            })),
+            total: 45,
+            page: 1,
+            page_size: 50,
+          },
+        })
+
+        const searchInput = wrapper.find('input[type="search"]')
+        await searchInput.setValue('shoulder')
+
+        // Wait for debounce and API call
+        await new Promise((resolve) => setTimeout(resolve, 400))
+
+        await vi.waitFor(() => {
+          expect(wrapper.text()).toContain('Showing 12 of 45 matching sessions')
+        })
+      })
+
+      it('should show "Load All Results" button when more results available', async () => {
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mockSessions.slice(0, 10),
+            total: 150,
+            page: 1,
+            page_size: 10,
+            total_pages: 15,
+          },
+        })
+
+        const wrapper = mount(PreviousSessionHistory, {
+          props: {
+            clientId: mockClientId,
+            currentSessionId: mockCurrentSessionId,
+          },
+        })
+
+        await nextTick()
+        await vi.waitFor(() => {
+          expect(wrapper.find('input[type="search"]').exists()).toBe(true)
+        })
+
+        // Mock backend returns 50 of 120 results
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: Array.from({ length: 50 }, (_, i) => ({
+              ...mockSessions[0],
+              id: `match-${i}`,
+            })),
+            total: 120,
+            page: 1,
+            page_size: 50,
+          },
+        })
+
+        const searchInput = wrapper.find('input[type="search"]')
+        await searchInput.setValue('pain')
+
+        await new Promise((resolve) => setTimeout(resolve, 400))
+
+        await vi.waitFor(() => {
+          expect(wrapper.text()).toContain('Load All Results')
+        })
+      })
+
+      it('should hide "Load All" button when total > 500', async () => {
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mockSessions.slice(0, 10),
+            total: 150,
+            page: 1,
+            page_size: 10,
+            total_pages: 15,
+          },
+        })
+
+        const wrapper = mount(PreviousSessionHistory, {
+          props: {
+            clientId: mockClientId,
+            currentSessionId: mockCurrentSessionId,
+          },
+        })
+
+        await nextTick()
+        await vi.waitFor(() => {
+          expect(wrapper.find('input[type="search"]').exists()).toBe(true)
+        })
+
+        // Mock backend returns 50 of 600 results
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: Array.from({ length: 50 }, (_, i) => ({
+              ...mockSessions[0],
+              id: `match-${i}`,
+            })),
+            total: 600,
+            page: 1,
+            page_size: 50,
+          },
+        })
+
+        const searchInput = wrapper.find('input[type="search"]')
+        await searchInput.setValue('session')
+
+        await new Promise((resolve) => setTimeout(resolve, 400))
+
+        await vi.waitFor(() => {
+          expect(wrapper.text()).not.toContain('Load All Results')
+          expect(wrapper.text()).toContain('Refine search to see more')
+        })
+      })
+
+      it('should load all results when "Load All" clicked', async () => {
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mockSessions.slice(0, 10),
+            total: 150,
+            page: 1,
+            page_size: 10,
+            total_pages: 15,
+          },
+        })
+
+        const wrapper = mount(PreviousSessionHistory, {
+          props: {
+            clientId: mockClientId,
+            currentSessionId: mockCurrentSessionId,
+          },
+        })
+
+        await nextTick()
+        await vi.waitFor(() => {
+          expect(wrapper.find('input[type="search"]').exists()).toBe(true)
+        })
+
+        // Mock initial backend search (50 of 120)
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: Array.from({ length: 50 }, (_, i) => ({
+              ...mockSessions[0],
+              id: `match-${i}`,
+            })),
+            total: 120,
+            page: 1,
+            page_size: 50,
+          },
+        })
+
+        const searchInput = wrapper.find('input[type="search"]')
+        await searchInput.setValue('pain')
+
+        await new Promise((resolve) => setTimeout(resolve, 400))
+
+        await vi.waitFor(() => {
+          expect(wrapper.text()).toContain('Load All Results')
+        })
+
+        // Mock "Load All" response (all 120)
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: Array.from({ length: 120 }, (_, i) => ({
+              ...mockSessions[0],
+              id: `match-${i}`,
+            })),
+            total: 120,
+            page: 1,
+            page_size: 120,
+          },
+        })
+
+        // Click "Load All"
+        const loadAllButton = wrapper
+          .findAll('button')
+          .find((btn) => btn.text() === 'Load All Results')
+        await loadAllButton!.trigger('click')
+
+        await nextTick()
+
+        // Should call API with page_size=120
+        await vi.waitFor(() => {
+          expect(apiClient.get).toHaveBeenCalledWith(
+            '/sessions',
+            expect.objectContaining({
+              params: expect.objectContaining({
+                page_size: 120,
+              }),
+            })
+          )
+        })
+      })
+    })
+
+    describe('Error Handling', () => {
+      it('should show error message when backend search fails', async () => {
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mockSessions.slice(0, 10),
+            total: 150,
+            page: 1,
+            page_size: 10,
+            total_pages: 15,
+          },
+        })
+
+        const wrapper = mount(PreviousSessionHistory, {
+          props: {
+            clientId: mockClientId,
+            currentSessionId: mockCurrentSessionId,
+          },
+        })
+
+        await nextTick()
+        await vi.waitFor(() => {
+          expect(wrapper.find('input[type="search"]').exists()).toBe(true)
+        })
+
+        // Mock API error
+        vi.mocked(apiClient.get).mockRejectedValueOnce(new Error('Network error'))
+
+        const searchInput = wrapper.find('input[type="search"]')
+        await searchInput.setValue('test')
+
+        await new Promise((resolve) => setTimeout(resolve, 400))
+
+        await vi.waitFor(() => {
+          expect(wrapper.text()).toContain('Search failed')
+        })
+      })
+
+      it('should fall back to client-side search when backend fails', async () => {
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mockSessions,
+            total: 150,
+            page: 1,
+            page_size: 10,
+            total_pages: 15,
+          },
+        })
+
+        const wrapper = mount(PreviousSessionHistory, {
+          props: {
+            clientId: mockClientId,
+            currentSessionId: mockCurrentSessionId,
+          },
+        })
+
+        await nextTick()
+        await vi.waitFor(() => {
+          expect(wrapper.find('input[type="search"]').exists()).toBe(true)
+        })
+
+        // Mock API error
+        vi.mocked(apiClient.get).mockRejectedValueOnce(new Error('Network error'))
+
+        const searchInput = wrapper.find('input[type="search"]')
+        await searchInput.setValue('shoulder')
+
+        await new Promise((resolve) => setTimeout(resolve, 400))
+
+        await vi.waitFor(() => {
+          // Should still show client-side filtered results
+          expect(wrapper.text()).toContain('Recent Sessions')
+        })
+      })
+    })
+
+    describe('Search Clearing', () => {
+      it('should clear search results when search input cleared', async () => {
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mockSessions.slice(0, 10),
+            total: 150,
+            page: 1,
+            page_size: 10,
+            total_pages: 15,
+          },
+        })
+
+        const wrapper = mount(PreviousSessionHistory, {
+          props: {
+            clientId: mockClientId,
+            currentSessionId: mockCurrentSessionId,
+          },
+        })
+
+        await nextTick()
+        await vi.waitFor(() => {
+          expect(wrapper.find('input[type="search"]').exists()).toBe(true)
+        })
+
+        // Perform search
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: [mockSessions[0]],
+            total: 1,
+            page: 1,
+            page_size: 50,
+          },
+        })
+
+        const searchInput = wrapper.find('input[type="search"]')
+        await searchInput.setValue('shoulder')
+
+        await new Promise((resolve) => setTimeout(resolve, 400))
+
+        await vi.waitFor(() => {
+          expect(wrapper.text()).toContain('Showing 1 of 1')
+        })
+
+        // Clear search
+        await searchInput.setValue('')
+        await nextTick()
+
+        // Banner should be hidden
+        expect(wrapper.text()).not.toContain('Showing')
+        expect(wrapper.text()).not.toContain('matching sessions')
+      })
+    })
+
+    describe('Filter Integration', () => {
+      it('should apply status filter to backend search results', async () => {
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mockSessions.slice(0, 10),
+            total: 150,
+            page: 1,
+            page_size: 10,
+            total_pages: 15,
+          },
+        })
+
+        const wrapper = mount(PreviousSessionHistory, {
+          props: {
+            clientId: mockClientId,
+            currentSessionId: mockCurrentSessionId,
+          },
+        })
+
+        await nextTick()
+        await vi.waitFor(() => {
+          expect(wrapper.find('input[type="search"]').exists()).toBe(true)
+        })
+
+        // Mock backend returns 20 sessions (10 draft, 10 finalized)
+        const mixedSessions = [
+          ...Array.from({ length: 10 }, (_, i) => ({
+            ...mockSessions[0],
+            id: `draft-${i}`,
+            is_draft: true,
+          })),
+          ...Array.from({ length: 10 }, (_, i) => ({
+            ...mockSessions[0],
+            id: `finalized-${i}`,
+            is_draft: false,
+          })),
+        ]
+
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mixedSessions,
+            total: 20,
+            page: 1,
+            page_size: 50,
+          },
+        })
+
+        // Perform search
+        const searchInput = wrapper.find('input[type="search"]')
+        await searchInput.setValue('test')
+
+        await new Promise((resolve) => setTimeout(resolve, 400))
+
+        await vi.waitFor(() => {
+          expect(wrapper.text()).toContain('Showing 20 of 20')
+        })
+
+        // Click "Drafts" filter
+        const draftsButton = wrapper
+          .findAll('button')
+          .find((btn) => btn.text().startsWith('Drafts'))
+        await draftsButton!.trigger('click')
+
+        await nextTick()
+
+        // Should only show draft sessions in year group count
+        expect(wrapper.text()).toContain('(10)')
+      })
+    })
+
+    describe('Scope Warning (Client-side)', () => {
+      it('should show warning when searching partial loaded sessions', async () => {
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mockSessions.slice(0, 10),
+            total: 50,
+            page: 1,
+            page_size: 10,
+            total_pages: 5,
+          },
+        })
+
+        const wrapper = mount(PreviousSessionHistory, {
+          props: {
+            clientId: mockClientId,
+            currentSessionId: mockCurrentSessionId,
+          },
+        })
+
+        await nextTick()
+        await vi.waitFor(() => {
+          expect(wrapper.find('input[type="search"]').exists()).toBe(true)
+        })
+
+        // Type search query
+        const searchInput = wrapper.find('input[type="search"]')
+        await searchInput.setValue('test')
+
+        await nextTick()
+
+        // Should show warning
+        expect(wrapper.text()).toContain('Searching 10 loaded sessions')
+        expect(wrapper.text()).toContain('Load all 50')
+      })
+
+      it('should hide warning when all sessions loaded', async () => {
+        vi.mocked(apiClient.get).mockResolvedValueOnce({
+          data: {
+            items: mockSessions,
+            total: 10,
+            page: 1,
+            page_size: 10,
+            total_pages: 1,
+          },
+        })
+
+        const wrapper = mount(PreviousSessionHistory, {
+          props: {
+            clientId: mockClientId,
+            currentSessionId: mockCurrentSessionId,
+          },
+        })
+
+        await nextTick()
+        await vi.waitFor(() => {
+          expect(wrapper.find('input[type="search"]').exists()).toBe(true)
+        })
+
+        // Type search query
+        const searchInput = wrapper.find('input[type="search"]')
+        await searchInput.setValue('test')
+
+        await nextTick()
+
+        // Should NOT show warning (all sessions loaded)
+        expect(wrapper.text()).not.toContain('Searching 10 loaded sessions')
+      })
     })
   })
 })

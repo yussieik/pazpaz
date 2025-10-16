@@ -18,9 +18,10 @@
  *   <SessionTimeline :client-id="clientId" />
  */
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { format } from 'date-fns'
+import { useDebounceFn } from '@vueuse/core'
 import apiClient from '@/api/client'
 import type { AxiosError } from 'axios'
 import type { SessionResponse } from '@/types/sessions'
@@ -55,12 +56,23 @@ interface AppointmentItem {
   service_name?: string | null
 }
 
-// Timeline item (unified interface)
-interface TimelineItem {
-  id: string
-  type: 'session' | 'appointment'
-  sortDate: Date
-  data: SessionResponse | AppointmentItem
+// Year/Month grouping interfaces
+interface YearGroup {
+  year: number
+  label: string
+  sessionCount: number
+  monthGroups: MonthGroup[]
+  appointmentGroups?: MonthGroup[] // For appointments without sessions
+  expanded: boolean
+}
+
+interface MonthGroup {
+  label: string
+  monthKey: string
+  count: number
+  sessions: SessionResponse[]
+  appointments?: AppointmentItem[] // For appointments without sessions
+  expanded: boolean
 }
 
 // State
@@ -70,23 +82,43 @@ const sessionAppointments = ref<Map<string, AppointmentItem>>(new Map())
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-// Merged timeline (sessions + appointments, sorted by date DESC)
-const timeline = computed(() => {
-  const items: TimelineItem[] = [
-    ...sessions.value.map((s) => ({
-      id: s.id,
-      type: 'session' as const,
-      sortDate: new Date(s.session_date),
-      data: s,
-    })),
-    ...appointments.value.map((a) => ({
-      id: a.id,
-      type: 'appointment' as const,
-      sortDate: new Date(a.scheduled_start),
-      data: a,
-    })),
-  ]
-  return items.sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime())
+// Pagination state
+const currentPage = ref(1)
+const totalCount = ref(0)
+const loadingMore = ref(false)
+
+const PAGE_SIZE_INITIAL = 20
+const PAGE_SIZE_MORE = 30
+
+// Search state
+const searchQuery = ref('')
+const searchResults = ref<SessionResponse[]>([])
+const searchResultsTotal = ref(0)
+const searchLoading = ref(false)
+const searchError = ref<string | null>(null)
+
+// Year/Month grouping state
+const expandedYears = ref<Set<number>>(new Set([new Date().getFullYear()]))
+const expandedMonths = ref<Map<string, boolean>>(new Map([['recent-sessions', true]]))
+
+// Jump-to-date state
+const showDatePicker = ref(false)
+const selectedMonth = ref('')
+
+// Computed properties
+const hasMoreSessions = computed(() => sessions.value.length < totalCount.value)
+const remainingCount = computed(() => totalCount.value - sessions.value.length)
+
+const shouldUseBackendSearch = computed(() => totalCount.value > 100)
+
+const searchResultsInfo = computed(() => {
+  if (!searchQuery.value || !shouldUseBackendSearch.value) return null
+
+  return {
+    showing: searchResults.value.length,
+    total: searchResultsTotal.value,
+    hasMore: searchResults.value.length < searchResultsTotal.value,
+  }
 })
 
 const isEmpty = computed(
@@ -103,9 +135,28 @@ onMounted(async () => {
 
 async function fetchSessions() {
   try {
-    const response = await apiClient.get(`/sessions?client_id=${props.clientId}`)
+    loading.value = true
+
+    // Add pagination parameters
+    const response = await apiClient.get('/sessions', {
+      params: {
+        client_id: props.clientId,
+        page: currentPage.value,
+        page_size: currentPage.value === 1 ? PAGE_SIZE_INITIAL : PAGE_SIZE_MORE,
+      },
+    })
+
     const fetchedSessions = response.data.items || []
-    sessions.value = fetchedSessions
+
+    // First page: replace; subsequent pages: append
+    if (currentPage.value === 1) {
+      sessions.value = fetchedSessions
+    } else {
+      sessions.value.push(...fetchedSessions)
+    }
+
+    // Store total count
+    totalCount.value = response.data.total || 0
 
     // Fetch appointment details for sessions that have appointment_id
     const appointmentIds = fetchedSessions
@@ -120,7 +171,6 @@ async function fetchSessions() {
       const appointmentResponses = await Promise.all(appointmentPromises)
 
       // Build map of session_id -> appointment
-      sessionAppointments.value.clear()
       fetchedSessions.forEach((session: SessionResponse, index: number) => {
         if (session.appointment_id && appointmentResponses[index]?.data) {
           sessionAppointments.value.set(session.id, appointmentResponses[index].data)
@@ -157,6 +207,257 @@ async function fetchAppointments() {
     // Don't set error - appointments are supplementary
   }
 }
+
+async function loadMoreSessions() {
+  if (loadingMore.value || !hasMoreSessions.value) return
+
+  try {
+    loadingMore.value = true
+    currentPage.value++
+    await fetchSessions()
+  } catch (error) {
+    console.error('Failed to load more sessions:', error)
+    currentPage.value-- // Revert page increment on error
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+// Helper function for month grouping
+function groupSessionsByMonth(sessions: SessionResponse[]): MonthGroup[] {
+  const grouped = new Map<string, SessionResponse[]>()
+
+  sessions.forEach((session) => {
+    const date = new Date(session.session_date)
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+
+    if (!grouped.has(monthKey)) {
+      grouped.set(monthKey, [])
+    }
+    grouped.get(monthKey)!.push(session)
+  })
+
+  // Sort descending (most recent first)
+  return Array.from(grouped.entries())
+    .sort(([keyA], [keyB]) => keyB.localeCompare(keyA))
+    .map(([monthKey, sessions]) => ({
+      label:
+        sessions.length > 0 && sessions[0]
+          ? new Date(sessions[0].session_date).toLocaleDateString('en-US', {
+              month: 'long',
+              year: 'numeric',
+            })
+          : '',
+      monthKey,
+      count: sessions.length,
+      sessions,
+      expanded: expandedMonths.value.get(monthKey) ?? false,
+    }))
+}
+
+// Year-based timeline grouping
+const yearGroups = computed((): YearGroup[] => {
+  // Use search results if searching with backend
+  let sessionsToGroup = sessions.value
+  if (
+    searchQuery.value &&
+    shouldUseBackendSearch.value &&
+    searchResults.value.length > 0
+  ) {
+    sessionsToGroup = searchResults.value
+  }
+
+  const groups: YearGroup[] = []
+
+  // Group all sessions by year
+  const sessionsByYear = new Map<number, SessionResponse[]>()
+  sessionsToGroup.forEach((session) => {
+    const year = new Date(session.session_date).getFullYear()
+    if (!sessionsByYear.has(year)) {
+      sessionsByYear.set(year, [])
+    }
+    sessionsByYear.get(year)!.push(session)
+  })
+
+  // Convert to YearGroup structure (sorted descending: 2025, 2024, 2023...)
+  Array.from(sessionsByYear.entries())
+    .sort(([yearA], [yearB]) => yearB - yearA)
+    .forEach(([year, yearSessions], index) => {
+      const monthGroups: MonthGroup[] = []
+
+      // Special handling for most recent year (first in sorted list): "Recent Sessions" + months
+      if (index === 0) {
+        const recent = yearSessions.slice(0, 10)
+        if (recent.length > 0) {
+          monthGroups.push({
+            label: 'Recent Sessions',
+            monthKey: 'recent-sessions',
+            count: recent.length,
+            sessions: recent,
+            expanded: expandedMonths.value.get('recent-sessions') ?? true,
+          })
+        }
+
+        // Remaining sessions from most recent year grouped by month
+        if (yearSessions.length > 10) {
+          const older = yearSessions.slice(10)
+          monthGroups.push(...groupSessionsByMonth(older))
+        }
+      } else {
+        // Previous years: all sessions grouped by month
+        monthGroups.push(...groupSessionsByMonth(yearSessions))
+      }
+
+      groups.push({
+        year,
+        label: String(year),
+        sessionCount: yearSessions.length,
+        monthGroups,
+        expanded: expandedYears.value.has(year),
+      })
+    })
+
+  return groups
+})
+
+// Toggle functions for years and months
+function toggleYear(year: number) {
+  if (expandedYears.value.has(year)) {
+    expandedYears.value.delete(year)
+  } else {
+    expandedYears.value.add(year)
+  }
+}
+
+function toggleMonth(monthKey: string) {
+  const current = expandedMonths.value.get(monthKey) ?? false
+  expandedMonths.value.set(monthKey, !current)
+}
+
+// Backend search
+async function performBackendSearch(query: string) {
+  if (!query || query.length === 0) {
+    searchResults.value = []
+    searchResultsTotal.value = 0
+    searchError.value = null
+    return
+  }
+
+  try {
+    searchLoading.value = true
+    searchError.value = null
+
+    const response = await apiClient.get<{
+      items: SessionResponse[]
+      total: number
+    }>('/sessions', {
+      params: {
+        client_id: props.clientId,
+        search: query,
+        page: 1,
+        page_size: 50,
+      },
+    })
+
+    searchResults.value = response.data.items
+    searchResultsTotal.value = response.data.total
+  } catch (error) {
+    console.error('Backend search failed:', error)
+    searchError.value = 'Search failed. Showing loaded sessions only.'
+    searchResults.value = []
+    searchResultsTotal.value = 0
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+const debouncedBackendSearch = useDebounceFn(performBackendSearch, 300)
+
+async function loadAllSearchResults() {
+  if (!searchQuery.value || searchLoading.value || searchResultsTotal.value > 500)
+    return
+
+  try {
+    searchLoading.value = true
+    const response = await apiClient.get<{
+      items: SessionResponse[]
+      total: number
+    }>('/sessions', {
+      params: {
+        client_id: props.clientId,
+        search: searchQuery.value,
+        page: 1,
+        page_size: searchResultsTotal.value,
+      },
+    })
+
+    searchResults.value = response.data.items
+  } catch (error) {
+    console.error('Failed to load all search results:', error)
+    searchError.value = 'Failed to load all results.'
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+// Jump-to-date functionality
+async function jumpToMonth(monthKey: string) {
+  if (!monthKey) return
+
+  const [yearStr] = monthKey.split('-')
+  const year = parseInt(yearStr || '0', 10)
+
+  expandedYears.value.add(year)
+  expandedMonths.value.set(monthKey, true)
+
+  showDatePicker.value = false
+
+  await nextTick()
+
+  const monthElement = document.querySelector(`[data-month-key="${monthKey}"]`)
+  if (monthElement) {
+    monthElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+    monthElement.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2')
+    setTimeout(() => {
+      monthElement.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2')
+    }, 2000)
+  }
+}
+
+function getCurrentMonth(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+function getMinMonth(): string {
+  if (sessions.value.length === 0) {
+    const fiveYearsAgo = new Date()
+    fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5)
+    return `${fiveYearsAgo.getFullYear()}-01`
+  }
+
+  const earliestSession = sessions.value[sessions.value.length - 1]
+  if (!earliestSession) {
+    const fiveYearsAgo = new Date()
+    fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5)
+    return `${fiveYearsAgo.getFullYear()}-01`
+  }
+
+  const date = new Date(earliestSession.session_date)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+// Watch search query and trigger backend search when appropriate
+watch(searchQuery, (newQuery) => {
+  if (shouldUseBackendSearch.value && newQuery) {
+    debouncedBackendSearch(newQuery)
+  } else if (!newQuery) {
+    searchResults.value = []
+    searchResultsTotal.value = 0
+    searchError.value = null
+  }
+})
 
 // Actions
 function viewSession(sessionId: string) {
@@ -204,56 +505,6 @@ function formatDate(date: string): string {
   return format(new Date(date), 'MMM d, yyyy • h:mm a')
 }
 
-function isSession(
-  item: TimelineItem
-): item is TimelineItem & { data: SessionResponse } {
-  return item.type === 'session'
-}
-
-function isAppointment(
-  item: TimelineItem
-): item is TimelineItem & { data: AppointmentItem } {
-  return item.type === 'appointment'
-}
-
-/**
- * Get appointment details for a session
- */
-function getAppointmentForSession(sessionId: string): AppointmentItem | undefined {
-  return sessionAppointments.value.get(sessionId)
-}
-
-/**
- * Format appointment context for display
- * Format: "Service Name • Location • Duration"
- */
-function formatAppointmentContext(appointment: AppointmentItem): string {
-  const parts: string[] = []
-
-  if (appointment.service_name) {
-    parts.push(appointment.service_name)
-  }
-
-  if (appointment.location_type) {
-    const locationLabel: Record<string, string> = {
-      clinic: 'Clinic',
-      home: 'Home Visit',
-      online: 'Online',
-    }
-    parts.push(locationLabel[appointment.location_type] || appointment.location_type)
-  }
-
-  const duration = getDurationMinutes(
-    appointment.scheduled_start,
-    appointment.scheduled_end
-  )
-  if (duration > 0) {
-    parts.push(`${duration} min`)
-  }
-
-  return parts.join(' • ')
-}
-
 /**
  * Handle session deletion from SessionCard
  * Remove from local array and notify parent
@@ -274,59 +525,6 @@ function handleSessionDeleted(sessionId: string) {
  */
 function handleViewSession(sessionId: string) {
   viewSession(sessionId)
-}
-
-/**
- * Format full SOAP preview for timeline display
- * Shows all 4 SOAP fields with labels and intelligent truncation
- * @param session - Session data with SOAP fields
- * @param isMobile - Whether to use mobile truncation (40 chars) or desktop (60 chars)
- * @returns Formatted SOAP preview string or "Draft - incomplete" if empty
- */
-function formatSOAPPreview(
-  session: SessionResponse,
-  isMobile: boolean = false
-): string {
-  const maxLength = isMobile ? 40 : 60
-  const fields = [
-    { label: 'S', value: session.subjective },
-    { label: 'O', value: session.objective },
-    { label: 'A', value: session.assessment },
-    { label: 'P', value: session.plan },
-  ]
-
-  // Check if all fields are empty
-  const hasContent = fields.some(
-    (field) => field.value && field.value.trim().length > 0
-  )
-  if (!hasContent) {
-    return ''
-  }
-
-  // Format each field with label and truncated value
-  const formattedFields = fields
-    .map((field) => {
-      if (!field.value || field.value.trim().length === 0) {
-        return `${field.label}: —`
-      }
-      const truncated = smartTruncate(field.value, maxLength)
-      return `${field.label}: ${truncated}`
-    })
-    .join(' | ')
-
-  return formattedFields
-}
-
-/**
- * Check if session has any SOAP content
- */
-function hasSOAPContent(session: SessionResponse): boolean {
-  return !!(
-    session.subjective ||
-    session.objective ||
-    session.assessment ||
-    session.plan
-  )
 }
 
 /**
@@ -368,75 +566,346 @@ defineExpose({
       </p>
     </div>
 
-    <!-- Timeline -->
-    <TransitionGroup
+    <!-- Header with Jump to Date -->
+    <div
       v-if="!isEmpty && !loading && !error"
-      name="session-list"
-      tag="div"
-      class="space-y-3"
+      class="mb-4 flex items-center justify-end"
     >
-      <!-- Session Note -->
-      <SessionCard
-        v-for="item in timeline.filter(isSession)"
-        :key="`session-${item.id}`"
-        :session="item.data"
-        :class="[
-          'border-l-4',
-          item.data.is_draft ? 'border-l-blue-500' : 'border-l-green-500',
-        ]"
-        :style="{ paddingLeft: '1rem' }"
-        @deleted="handleSessionDeleted"
-        @view="handleViewSession"
+      <!-- Jump to Date Button -->
+      <button
+        v-if="totalCount > 20"
+        type="button"
+        @click="showDatePicker = true"
+        class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
       >
-        <template #content>
-          <div class="flex items-start gap-3">
-            <!-- Icon -->
-            <div class="flex-shrink-0">
-              <div
-                class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100"
-              >
-                <svg
-                  class="h-5 w-5 text-blue-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-            </div>
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+        Jump to...
+      </button>
+    </div>
 
-            <!-- Content -->
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center justify-between gap-2">
-                <h4 class="text-sm font-semibold text-slate-900">
-                  {{ formatDate(item.data.session_date) }}
-                </h4>
-                <span
-                  :class="[
-                    'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-                    item.data.is_draft
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'bg-green-100 text-green-800',
-                  ]"
-                >
-                  {{ item.data.is_draft ? 'Draft' : 'Finalized' }}
-                </span>
-              </div>
+    <!-- Search Input -->
+    <div v-if="!isEmpty && !loading && totalCount > 20" class="mb-4">
+      <div class="relative">
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search session notes..."
+          class="w-full rounded-lg border border-gray-300 bg-white py-2 pr-4 pl-10 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        />
+        <svg
+          class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+      </div>
+    </div>
 
-              <!-- Appointment Context (if appointment exists) -->
-              <div
-                v-if="getAppointmentForSession(item.data.id)"
-                class="mt-1 text-sm text-slate-600"
+    <!-- Search Results Info Banner -->
+    <div
+      v-if="searchQuery && shouldUseBackendSearch && searchResultsInfo"
+      class="mb-3 rounded-lg border bg-blue-50 p-3"
+      :class="{
+        'border-blue-200': !searchError,
+        'border-red-200 bg-red-50': searchError,
+      }"
+    >
+      <!-- Loading State -->
+      <div v-if="searchLoading" class="flex items-center gap-2 text-sm text-gray-700">
+        <svg class="h-4 w-4 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          ></circle>
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          ></path>
+        </svg>
+        <span>Searching...</span>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="searchError" class="text-sm text-red-700">
+        {{ searchError }}
+      </div>
+
+      <!-- Results State -->
+      <div v-else class="flex items-center justify-between">
+        <div class="flex items-center gap-2 text-sm text-gray-700">
+          <svg
+            class="h-4 w-4 text-blue-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <span>
+            Showing <strong>{{ searchResultsInfo.showing }}</strong> of
+            <strong>{{ searchResultsInfo.total }}</strong> matching sessions
+          </span>
+        </div>
+
+        <button
+          v-if="searchResultsInfo.hasMore && searchResultsInfo.total <= 500"
+          type="button"
+          @click="loadAllSearchResults"
+          :disabled="searchLoading"
+          class="text-sm font-medium text-blue-600 hover:text-blue-700 focus:underline focus:outline-none disabled:cursor-not-allowed disabled:text-gray-400"
+        >
+          Load All Results
+        </button>
+      </div>
+    </div>
+
+    <!-- Year Groups -->
+    <div v-if="!isEmpty && !loading && !error" class="space-y-4">
+      <div v-for="yearGroup in yearGroups" :key="yearGroup.year" class="space-y-3">
+        <!-- Year Header (sticky, prominent) -->
+        <div
+          class="sticky top-0 z-10 rounded-lg border-b-2 border-gray-300 bg-gray-100/95 p-3 shadow-sm backdrop-blur-sm"
+        >
+          <button
+            type="button"
+            @click="toggleYear(yearGroup.year)"
+            class="flex w-full items-center gap-3 text-left transition-colors hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset"
+            :aria-expanded="yearGroup.expanded"
+            :aria-label="`${yearGroup.label}, ${yearGroup.sessionCount} sessions. ${yearGroup.expanded ? 'Collapse' : 'Expand'} year group.`"
+          >
+            <!-- Chevron Icon -->
+            <svg
+              class="h-5 w-5 flex-shrink-0 text-gray-600 transition-transform"
+              :class="yearGroup.expanded ? 'rotate-90' : ''"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+
+            <!-- Year Label -->
+            <span class="text-base font-semibold text-gray-900">
+              {{ yearGroup.label }}
+            </span>
+
+            <!-- Session Count -->
+            <span class="text-sm text-gray-600">({{ yearGroup.sessionCount }})</span>
+          </button>
+        </div>
+
+        <!-- Month Groups (indented, only shown when year expanded) -->
+        <div v-if="yearGroup.expanded" class="ml-6 space-y-2">
+          <div v-for="monthGroup in yearGroup.monthGroups" :key="monthGroup.monthKey">
+            <!-- Month Header (sticky below year header) -->
+            <button
+              type="button"
+              @click="toggleMonth(monthGroup.monthKey)"
+              :data-month-key="monthGroup.monthKey"
+              class="sticky top-[52px] z-[9] flex w-full items-center gap-2 rounded-lg border border-gray-200 bg-white/95 p-3 text-left shadow-sm backdrop-blur-sm transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset"
+              :aria-expanded="monthGroup.expanded"
+              :aria-label="`${monthGroup.label}, ${monthGroup.count} sessions. ${monthGroup.expanded ? 'Collapse' : 'Expand'} month.`"
+            >
+              <!-- Smaller Chevron -->
+              <svg
+                class="h-4 w-4 flex-shrink-0 text-gray-500 transition-transform"
+                :class="monthGroup.expanded ? 'rotate-90' : ''"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
               >
-                <span class="inline-flex items-center gap-1">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+
+              <!-- Month Label -->
+              <span class="text-sm font-medium text-gray-800">
+                {{ monthGroup.label }}
+              </span>
+
+              <!-- Session Count -->
+              <span class="text-xs text-gray-500">({{ monthGroup.count }})</span>
+            </button>
+
+            <!-- Sessions (further indented, only shown when month expanded) -->
+            <TransitionGroup
+              v-if="monthGroup.expanded"
+              name="session-list"
+              tag="div"
+              class="mt-2 ml-6 space-y-3"
+            >
+              <SessionCard
+                v-for="session in monthGroup.sessions"
+                :key="`session-${session.id}`"
+                :session="session"
+                class="transition-all"
+                @deleted="handleSessionDeleted"
+                @view="handleViewSession"
+              >
+                <template #content>
+                  <div class="flex items-start gap-3">
+                    <!-- Icon -->
+                    <div class="flex-shrink-0">
+                      <div
+                        class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100"
+                      >
+                        <svg
+                          class="h-5 w-5 text-blue-600"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="min-w-0 flex-1">
+                      <div class="mb-1.5 flex items-center gap-2 pr-12">
+                        <!-- pr-12 reserves 48px for trash icon on right -->
+
+                        <!-- Status Badge (moved to left, before date) -->
+                        <span
+                          :class="[
+                            'inline-flex flex-shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium',
+                            session.is_draft
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-green-100 text-green-800',
+                          ]"
+                        >
+                          <span
+                            class="h-1.5 w-1.5 rounded-full"
+                            :class="session.is_draft ? 'bg-amber-500' : 'bg-green-500'"
+                          ></span>
+                          {{ session.is_draft ? 'Draft' : 'Finalized' }}
+                        </span>
+
+                        <!-- Date and Time (now follows status) -->
+                        <h4 class="text-sm font-medium text-slate-900">
+                          {{ formatDate(session.session_date) }}
+                        </h4>
+                      </div>
+
+                      <!-- Appointment Context (if appointment exists) -->
+                      <p
+                        v-if="sessionAppointments.get(session.id)"
+                        class="mt-1 text-xs text-slate-500"
+                      >
+                        {{
+                          getDurationMinutes(
+                            sessionAppointments.get(session.id)!.scheduled_start,
+                            sessionAppointments.get(session.id)!.scheduled_end
+                          )
+                        }}
+                        minutes •
+                        {{
+                          sessionAppointments.get(session.id)!.location_type ===
+                          'clinic'
+                            ? 'Clinic'
+                            : sessionAppointments.get(session.id)!.location_type ===
+                                'home'
+                              ? 'Home Visit'
+                              : 'Telehealth'
+                        }}
+                      </p>
+
+                      <!-- SOAP Preview -->
+                      <div class="mt-2 space-y-1 text-sm">
+                        <p
+                          v-if="session.subjective"
+                          class="line-clamp-2 text-slate-700"
+                        >
+                          <strong class="font-medium">S:</strong>
+                          {{ smartTruncate(session.subjective, 100) }}
+                        </p>
+                        <p v-if="session.objective" class="line-clamp-2 text-slate-700">
+                          <strong class="font-medium">O:</strong>
+                          {{ smartTruncate(session.objective, 100) }}
+                        </p>
+                        <p
+                          v-if="session.assessment"
+                          class="line-clamp-2 text-slate-700"
+                        >
+                          <strong class="font-medium">A:</strong>
+                          {{ smartTruncate(session.assessment, 100) }}
+                        </p>
+                        <p v-if="session.plan" class="line-clamp-2 text-slate-700">
+                          <strong class="font-medium">P:</strong>
+                          {{ smartTruncate(session.plan, 100) }}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </SessionCard>
+            </TransitionGroup>
+          </div>
+        </div>
+      </div>
+
+      <!-- Appointments without sessions (shown after all year groups) -->
+      <div
+        v-if="appointments.length > 0"
+        class="space-y-3 border-t border-slate-200 pt-4"
+      >
+        <h3 class="text-sm font-semibold text-slate-700">
+          Appointments Without Sessions
+        </h3>
+        <TransitionGroup name="session-list" tag="div" class="space-y-3">
+          <div
+            v-for="appt in appointments"
+            :key="`appointment-${appt.id}`"
+            class="rounded-lg border border-slate-200 bg-slate-50 p-3.5 transition-colors hover:border-slate-300 hover:bg-slate-100"
+          >
+            <div class="flex items-start gap-3">
+              <!-- Icon -->
+              <div class="flex-shrink-0">
+                <div
+                  class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100"
+                >
                   <svg
-                    class="h-3.5 w-3.5 text-slate-500"
+                    class="h-5 w-5 text-slate-600"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -445,116 +914,134 @@ defineExpose({
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
-                      d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                     />
                   </svg>
-                  {{
-                    formatAppointmentContext(getAppointmentForSession(item.data.id)!)
-                  }}
-                </span>
+                </div>
               </div>
 
-              <!-- Standalone session label -->
-              <div
-                v-else-if="item.data.appointment_id === null"
-                class="mt-1 text-sm text-slate-500 italic"
-              >
-                Standalone session
-              </div>
-
-              <!-- Full SOAP Preview (all 4 fields) -->
-              <div v-if="hasSOAPContent(item.data)" class="mt-2">
-                <!-- Desktop: 60 chars per field -->
-                <p class="hidden text-xs text-slate-600 sm:block">
-                  {{ formatSOAPPreview(item.data, false) }}
+              <!-- Content -->
+              <div class="min-w-0 flex-1">
+                <h4 class="text-sm font-medium text-slate-900">
+                  {{ formatDate(appt.scheduled_start) }}
+                </h4>
+                <p class="mt-1 text-sm text-slate-600">
+                  {{ getDurationMinutes(appt.scheduled_start, appt.scheduled_end) }}
+                  minutes •
+                  {{ appt.service_name || 'Appointment' }}
                 </p>
-                <!-- Mobile: 40 chars per field -->
-                <p class="text-xs text-slate-600 sm:hidden">
-                  {{ formatSOAPPreview(item.data, true) }}
+                <p v-if="appt.notes" class="mt-1 line-clamp-1 text-sm text-slate-500">
+                  {{ smartTruncate(appt.notes, 100) }}
                 </p>
-              </div>
 
-              <!-- Empty state for drafts with no content -->
-              <div v-else>
-                <span
-                  class="mt-2 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-500"
+                <!-- Action Button -->
+                <button
+                  @click="createSession(appt.id)"
+                  class="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800"
                 >
-                  Draft - incomplete
-                </span>
+                  Create Session Note →
+                </button>
               </div>
+            </div>
+          </div>
+        </TransitionGroup>
+      </div>
+    </div>
 
-              <!-- Duration -->
-              <p v-if="item.data.duration_minutes" class="mt-1 text-xs text-slate-500">
-                {{ item.data.duration_minutes }} minutes
-              </p>
+    <!-- Load More Button -->
+    <div v-if="hasMoreSessions && !loading && !error" class="mt-6">
+      <button
+        type="button"
+        @click="loadMoreSessions"
+        :disabled="loadingMore"
+        class="w-full rounded-lg border-2 border-dashed border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span v-if="!loadingMore" class="flex items-center justify-center gap-2">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+          Load More Sessions ({{ remainingCount }} older)
+        </span>
+        <span v-else class="flex items-center justify-center gap-2">
+          <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          Loading...
+        </span>
+      </button>
+    </div>
 
-              <!-- Action Button -->
+    <!-- Jump to Date Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div
+          v-if="showDatePicker"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4"
+          @click.self="showDatePicker = false"
+        >
+          <div
+            class="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="date-picker-title"
+          >
+            <h3 id="date-picker-title" class="mb-4 text-lg font-semibold text-gray-900">
+              Jump to Date
+            </h3>
+
+            <label
+              for="month-picker"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Select Month
+            </label>
+            <input
+              id="month-picker"
+              v-model="selectedMonth"
+              type="month"
+              class="mb-4 w-full rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+              :min="getMinMonth()"
+              :max="getCurrentMonth()"
+            />
+
+            <div class="flex gap-2">
               <button
-                @click="viewSession(item.data.id)"
-                class="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+                type="button"
+                @click="showDatePicker = false"
+                class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
-                {{ item.data.is_draft ? 'Continue Editing →' : 'View Full Note →' }}
+                Cancel
+              </button>
+              <button
+                type="button"
+                @click="jumpToMonth(selectedMonth)"
+                :disabled="!selectedMonth"
+                class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-300"
+              >
+                Jump
               </button>
             </div>
           </div>
-        </template>
-      </SessionCard>
-
-      <!-- Appointment (no session) -->
-      <div
-        v-for="item in timeline.filter(isAppointment)"
-        :key="`appointment-${item.id}`"
-        class="rounded-lg border border-slate-200 bg-slate-50 p-3.5 transition-colors hover:border-slate-300 hover:bg-slate-100"
-      >
-        <div class="flex items-start gap-3">
-          <!-- Icon -->
-          <div class="flex-shrink-0">
-            <div
-              class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100"
-            >
-              <svg
-                class="h-5 w-5 text-slate-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
-          </div>
-
-          <!-- Content -->
-          <div class="min-w-0 flex-1">
-            <h4 class="text-sm font-medium text-slate-900">
-              {{ formatDate(item.data.scheduled_start) }}
-            </h4>
-            <p class="mt-1 text-sm text-slate-600">
-              {{
-                getDurationMinutes(item.data.scheduled_start, item.data.scheduled_end)
-              }}
-              minutes •
-              {{ item.data.service_name || 'Appointment' }}
-            </p>
-            <p v-if="item.data.notes" class="mt-1 line-clamp-1 text-sm text-slate-500">
-              {{ smartTruncate(item.data.notes, 100) }}
-            </p>
-
-            <!-- Action Button -->
-            <button
-              @click="createSession(item.id)"
-              class="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800"
-            >
-              Create Session Note →
-            </button>
-          </div>
         </div>
-      </div>
-    </TransitionGroup>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -586,5 +1073,26 @@ defineExpose({
   margin-bottom: 0;
   padding-top: 0;
   padding-bottom: 0;
+}
+
+/* Modal transitions */
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-active > div,
+.modal-leave-active > div {
+  transition: transform 0.3s ease;
+}
+
+.modal-enter-from > div,
+.modal-leave-to > div {
+  transform: scale(0.95);
 }
 </style>

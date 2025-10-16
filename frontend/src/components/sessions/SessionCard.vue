@@ -4,7 +4,8 @@
  *
  * Individual session note card for timeline display with inline deletion.
  * Features:
- * - Touch-optimized kebab menu with actions (always visible on mobile)
+ * - Clickable card to view session (primary action)
+ * - Trash icon for deletion (secondary action, hover-visible on desktop, always visible on mobile)
  * - Inline deletion confirmation (no browser alerts)
  * - Extra warning for finalized notes (medical records)
  * - Smooth animations on deletion
@@ -19,9 +20,7 @@
  *   </SessionCard>
  */
 
-import { ref, computed } from 'vue'
-import KebabMenu from '@/components/common/KebabMenu.vue'
-import type { MenuItem } from '@/components/common/KebabMenu.vue'
+import { ref } from 'vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 import { useToast } from '@/composables/useToast'
 import apiClient from '@/api/client'
@@ -46,28 +45,16 @@ const showDeleteConfirmation = ref(false)
 const isDeleting = ref(false)
 
 /**
- * Menu items configuration for KebabMenu
+ * Handle card click to view session
  */
-const menuItems = computed<MenuItem[]>(() => [
-  {
-    label: 'View Full Note',
-    action: () => {
-      emit('view', props.session.id)
-    },
-    shortcut: 'V',
-  },
-  {
-    label: 'Delete Note',
-    action: openDeleteConfirmation,
-    destructive: true,
-    divider: true,
-  },
-])
+function handleViewClick() {
+  emit('view', props.session.id)
+}
 
 /**
- * Open the delete confirmation state
+ * Handle delete button click
  */
-function openDeleteConfirmation() {
+function handleDeleteClick() {
   showDeleteConfirmation.value = true
 }
 
@@ -135,25 +122,46 @@ function handleEscape(e: KeyboardEvent) {
 </script>
 
 <template>
-  <!-- Normal Card State -->
-  <div
+  <!-- Normal Card State: Clickable Card with Trash Icon -->
+  <button
     v-if="!showDeleteConfirmation"
-    class="group relative rounded-lg border border-slate-200 bg-white transition-all hover:border-slate-300 hover:shadow-md"
-    style="padding: 1rem"
+    type="button"
+    @click="handleViewClick"
+    :aria-label="`Session from ${new Date(session.session_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}. ${session.is_draft ? 'Draft' : 'Finalized'}. Click to view full note.`"
+    class="group relative w-full rounded-lg border border-slate-200 bg-white p-4 text-left transition-all hover:border-blue-300 hover:bg-blue-50 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
   >
-    <!-- Kebab Menu (Touch-Optimized) -->
-    <div class="absolute top-4 right-4">
-      <KebabMenu
-        :aria-label="`More actions for session on ${new Date(session.session_date).toLocaleDateString()}`"
-        :items="menuItems"
-        position="bottom-right"
-        :always-visible-on-mobile="true"
-      />
+    <!-- Session Card Content (slot) -->
+    <div class="pointer-events-none">
+      <slot name="content" />
     </div>
 
-    <!-- Session Card Content (slot) -->
-    <slot name="content" />
-  </div>
+    <!-- Delete Button: Hidden on hover (desktop), always visible (mobile) -->
+    <div
+      class="absolute top-3 right-3 opacity-0 transition-opacity group-hover:opacity-100 md:opacity-100"
+    >
+      <button
+        type="button"
+        @click.stop="handleDeleteClick"
+        class="pointer-events-auto rounded-md p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+        aria-label="Delete session note"
+      >
+        <svg
+          class="h-5 w-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+          />
+        </svg>
+      </button>
+    </div>
+  </button>
 
   <!-- Delete Confirmation State -->
   <div

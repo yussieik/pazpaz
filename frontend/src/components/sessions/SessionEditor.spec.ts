@@ -272,7 +272,9 @@ describe('SessionEditor', () => {
 
     it('handles autosave errors gracefully with error banner', async () => {
       const mockError = new Error('Validation error')
-      Object.assign(mockError, { response: { status: 422, data: { detail: 'Validation error' } } })
+      Object.assign(mockError, {
+        response: { status: 422, data: { detail: 'Validation error' } },
+      })
       vi.mocked(apiClient.patch).mockRejectedValue(mockError)
 
       const subjectiveInput = wrapper.find('#subjective')
@@ -291,7 +293,9 @@ describe('SessionEditor', () => {
 
     it('handles rate limit errors (429) with error banner', async () => {
       const mockError = new Error('Too many requests')
-      Object.assign(mockError, { response: { status: 429, data: { detail: 'Too many requests' } } })
+      Object.assign(mockError, {
+        response: { status: 429, data: { detail: 'Too many requests' } },
+      })
       vi.mocked(apiClient.patch).mockRejectedValue(mockError)
 
       const subjectiveInput = wrapper.find('#subjective')
@@ -929,7 +933,9 @@ describe('SessionEditor', () => {
 
       // Find and click "Discard" button in document body
       const buttons = document.querySelectorAll('button')
-      const discardButton = Array.from(buttons).find((btn) => btn.textContent?.includes('Discard'))
+      const discardButton = Array.from(buttons).find((btn) =>
+        btn.textContent?.includes('Discard')
+      )
       expect(discardButton).toBeDefined()
 
       discardButton?.click()

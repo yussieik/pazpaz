@@ -508,7 +508,9 @@ describe('AppointmentFormModal - P0 Keyboard Interactions', () => {
       expect(dialog?.getAttribute('aria-modal')).toBe('true')
 
       // Verify modal has aria-labelledby pointing to title
-      expect(dialog?.getAttribute('aria-labelledby')).toContain('appointment-form-modal-title')
+      expect(dialog?.getAttribute('aria-labelledby')).toContain(
+        'appointment-form-modal-title'
+      )
 
       // Verify title exists with correct ID
       const title = document.querySelector('#appointment-form-modal-title')

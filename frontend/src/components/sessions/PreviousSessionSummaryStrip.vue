@@ -135,8 +135,8 @@ if (props.clientId) {
     v-if="shouldShow"
     role="button"
     tabindex="0"
-    :aria-label="`Treatment context summary: ${truncatedPreview}. Tap to expand.`"
-    class="sticky top-0 z-10 flex min-h-[48px] cursor-pointer items-center justify-between gap-3 border-b border-blue-200 bg-blue-50 px-4 py-3 transition-colors hover:bg-blue-100 focus:bg-blue-100 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:ring-inset active:bg-blue-100 lg:hidden"
+    :aria-label="`Previous session from ${relativeDate}: ${keyNote?.label} - ${truncatedPreview}. Tap to view full treatment context.`"
+    class="sticky top-0 z-10 flex min-h-[56px] cursor-pointer items-start gap-3 border-b-2 border-blue-300 bg-blue-50 px-4 py-3 shadow-sm transition-all hover:border-blue-400 hover:bg-blue-100 focus:bg-blue-100 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:ring-inset active:bg-blue-100 lg:hidden"
     @click="handleExpand"
     @keydown="handleKeydown"
   >
@@ -147,10 +147,10 @@ if (props.clientId) {
     </div>
 
     <!-- Content State -->
-    <div v-else class="flex flex-1 items-center gap-2 overflow-hidden">
-      <!-- Icon -->
+    <div v-else class="flex flex-1 items-start gap-3 overflow-hidden">
+      <!-- Icon with improved styling -->
       <svg
-        class="h-4 w-4 flex-shrink-0 text-blue-600"
+        class="h-5 w-5 flex-shrink-0 text-blue-600"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -164,20 +164,27 @@ if (props.clientId) {
         />
       </svg>
 
-      <!-- Text Content -->
+      <!-- Two-line layout: metadata row above, content below -->
       <div class="min-w-0 flex-1">
-        <p class="truncate text-sm text-gray-900">
-          <span class="font-medium">Treatment Context</span>
-          <span v-if="relativeDate" class="text-gray-600"> • {{ relativeDate }}</span>
-          <span v-if="keyNote" class="text-gray-700">
-            • {{ keyNote.label }}: {{ truncatedPreview }}</span
-          >
+        <!-- Line 1: Label + Date (metadata row) -->
+        <div class="mb-1 flex items-center gap-2">
+          <span class="text-xs font-semibold tracking-wide text-blue-700 uppercase">
+            Previous Session
+          </span>
+          <span class="text-xs text-gray-500">•</span>
+          <span class="text-xs text-gray-600">{{ relativeDate }}</span>
+        </div>
+
+        <!-- Line 2: Content preview (readable) -->
+        <p class="truncate text-sm leading-tight text-gray-900">
+          <span class="font-medium text-gray-700">{{ keyNote.label }}:</span>
+          {{ truncatedPreview }}
         </p>
       </div>
 
-      <!-- Chevron Down Icon -->
+      <!-- Chevron Down Icon - Larger with subtle animation -->
       <svg
-        class="h-5 w-5 flex-shrink-0 text-blue-600"
+        class="animate-bounce-subtle h-6 w-6 flex-shrink-0 text-blue-600"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -186,10 +193,34 @@ if (props.clientId) {
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
-          stroke-width="2"
+          stroke-width="2.5"
           d="M19 9l-7 7-7-7"
         />
       </svg>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Subtle bounce animation for chevron - draws attention without being annoying */
+@keyframes bounce-subtle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(2px);
+  }
+}
+
+.animate-bounce-subtle {
+  animation: bounce-subtle 2s ease-in-out infinite;
+}
+
+/* Disable animation for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-bounce-subtle {
+    animation: none;
+  }
+}
+</style>
