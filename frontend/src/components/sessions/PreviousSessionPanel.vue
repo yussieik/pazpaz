@@ -19,10 +19,17 @@
  *   <PreviousSessionPanel :client-id="clientId" />
  */
 
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 import { usePreviousSession } from '@/composables/usePreviousSession'
+import { useClipboard } from '@/composables/useClipboard'
 import { formatLongDate, formatRelativeDate } from '@/utils/calendar/dateFormatters'
+import IconCopy from '@/components/icons/IconCopy.vue'
+import IconCheck from '@/components/icons/IconCheck.vue'
+import PreviousSessionSummary from './PreviousSessionSummary.vue'
+import PreviousSessionHistory from './PreviousSessionHistory.vue'
+import apiClient from '@/api/client'
+import type { SessionResponse } from '@/types/sessions'
 
 interface Props {
   clientId: string
@@ -39,7 +46,64 @@ const { loading, session, error, notFound, fetchLatestFinalized } =
   usePreviousSession(true)
 
 // Collapse state (persisted in localStorage)
-const collapsed = useLocalStorage('previousSessionPanel.collapsed', true)
+const collapsed = useLocalStorage('previousSessionPanel.collapsed', false)
+
+// Clipboard functionality
+const { copy } = useClipboard()
+const copiedField = ref<string | null>(null)
+
+async function copyField(fieldName: string, content: string) {
+  const success = await copy(content)
+  if (success) {
+    copiedField.value = fieldName
+    // Reset after 2 seconds
+    setTimeout(() => {
+      copiedField.value = null
+    }, 2000)
+  }
+}
+
+// View mode state (Phase 3: summary, detail, history)
+type ViewMode = 'summary' | 'detail' | 'history'
+const viewMode = ref<ViewMode>('summary')
+
+// For history view: track selected historical session
+const selectedHistoricalSession = ref<SessionResponse | null>(null)
+const loadingHistoricalSession = ref(false)
+
+// Navigation functions
+function showSummary() {
+  viewMode.value = 'summary'
+  selectedHistoricalSession.value = null
+}
+
+function showDetail() {
+  viewMode.value = 'detail'
+}
+
+function showHistory() {
+  viewMode.value = 'history'
+}
+
+// Load historical session from history view
+async function loadHistoricalSession(sessionId: string) {
+  try {
+    loadingHistoricalSession.value = true
+    const response = await apiClient.get<SessionResponse>(`/sessions/${sessionId}`)
+    selectedHistoricalSession.value = response.data
+    showDetail() // Switch to detail view with historical session
+  } catch (err) {
+    console.error('Failed to load historical session:', err)
+    // TODO: Show error toast notification
+  } finally {
+    loadingHistoricalSession.value = false
+  }
+}
+
+// Get the session to display (historical or most recent)
+const displaySession = computed(() => {
+  return selectedHistoricalSession.value || session.value
+})
 
 // Start loading immediately when component is created (not onMounted)
 // This prevents layout shift by ensuring loading state is active from the start
@@ -64,20 +128,8 @@ const shouldShow = computed(() => {
   )
 })
 
-const sessionDate = computed(() => {
-  if (!session.value?.session_date) return ''
-  return formatLongDate(session.value.session_date)
-})
-
-const relativeDate = computed(() => {
-  if (!session.value?.session_date) return ''
-  return formatRelativeDate(session.value.session_date)
-})
-
-const sessionLink = computed(() => {
-  if (!session.value?.id) return ''
-  return `/sessions/${session.value.id}`
-})
+// Removed unused computed properties: sessionDate, relativeDate, sessionLink
+// These are now computed inline in the template or replaced by displaySession
 
 // Methods
 function toggleCollapse() {
@@ -90,7 +142,19 @@ watch(
   (newClientId) => {
     if (newClientId) {
       fetchLatestFinalized(newClientId)
+      // Reset to summary view when client changes
+      viewMode.value = 'summary'
+      selectedHistoricalSession.value = null
     }
+  }
+)
+
+// Watch for currentSessionId changes (reset to summary)
+watch(
+  () => props.currentSessionId,
+  () => {
+    viewMode.value = 'summary'
+    selectedHistoricalSession.value = null
   }
 )
 </script>
@@ -99,21 +163,27 @@ watch(
   <!-- Desktop Sidebar (only shown when not in modal mode) -->
   <aside
     v-if="!forceMobileView && shouldShow"
-    class="sticky top-0 hidden h-screen w-[320px] flex-shrink-0 overflow-y-auto border-l border-gray-200 bg-gray-50 lg:block"
+    class="sticky top-0 hidden h-screen w-[360px] flex-shrink-0 overflow-y-auto border-l border-gray-200 bg-gray-50 lg:block"
   >
-    <div class="p-4">
+    <div class="h-full p-4">
       <!-- Panel Header -->
       <div class="mb-4 flex items-center justify-between border-b border-gray-300 pb-3">
         <div>
-          <h3 class="text-sm font-semibold text-gray-900">Previous Session</h3>
-          <span v-if="session" class="text-xs text-gray-600">
-            {{ sessionDate }} ({{ relativeDate }})
+          <h3 class="text-sm font-semibold text-gray-900">Treatment Context</h3>
+          <span
+            v-if="displaySession && viewMode !== 'history'"
+            class="text-xs text-gray-600"
+          >
+            {{ formatLongDate(displaySession.session_date) }} ({{
+              formatRelativeDate(displaySession.session_date)
+            }})
           </span>
         </div>
         <button
+          v-if="viewMode !== 'history'"
           @click="toggleCollapse"
           class="rounded p-1 text-gray-500 hover:text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          aria-label="Toggle previous session panel"
+          aria-label="Toggle treatment context panel"
         >
           <!-- When expanded: show down chevron (collapse) -->
           <svg
@@ -199,68 +269,200 @@ watch(
         </p>
       </div>
 
-      <!-- SOAP Fields (Reordered: Plan → Assessment → Subjective → Objective) -->
-      <div v-else-if="session && !collapsed" class="space-y-4">
-        <!-- Plan (Most important for treatment continuity) -->
-        <div class="soap-field">
-          <label class="mb-1.5 block text-xs font-semibold text-gray-700"
-            >P: Plan</label
-          >
-          <p
-            v-if="session.plan"
-            class="max-h-32 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
-          >
-            {{ session.plan }}
-          </p>
-          <p v-else class="text-sm text-gray-500 italic">No plan notes</p>
+      <!-- Collapsed State Message -->
+      <div v-else-if="collapsed" class="text-center text-sm text-gray-600">
+        <p>Previous session hidden. Click to expand.</p>
+      </div>
+
+      <!-- View Mode: Summary (default) -->
+      <div
+        v-else-if="viewMode === 'summary' && session && !collapsed"
+        class="space-y-4"
+      >
+        <PreviousSessionSummary :session="session" @view-full="showDetail" />
+
+        <!-- View History Button -->
+        <button
+          @click="showHistory"
+          class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          type="button"
+        >
+          View All Sessions
+        </button>
+      </div>
+
+      <!-- View Mode: Detail -->
+      <div
+        v-else-if="viewMode === 'detail' && displaySession && !collapsed"
+        class="space-y-4"
+      >
+        <!-- Back to Summary -->
+        <button
+          @click="showSummary"
+          class="mb-2 flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 focus:underline focus:outline-none"
+          type="button"
+        >
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+          Back to Summary
+        </button>
+
+        <!-- Session Metadata -->
+        <div class="rounded-lg border border-gray-200 bg-white p-3">
+          <div class="flex items-start justify-between">
+            <div>
+              <h4 class="text-sm font-semibold text-gray-900">
+                {{ formatLongDate(displaySession.session_date) }}
+              </h4>
+              <p class="text-xs text-gray-600">
+                {{ formatRelativeDate(displaySession.session_date) }}
+              </p>
+            </div>
+            <span
+              :class="[
+                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+                displaySession.is_draft
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-green-100 text-green-800',
+              ]"
+            >
+              {{ displaySession.is_draft ? 'Draft' : 'Finalized' }}
+            </span>
+          </div>
         </div>
 
-        <!-- Assessment -->
-        <div class="soap-field">
-          <label class="mb-1.5 block text-xs font-semibold text-gray-700">
-            A: Assessment
-          </label>
-          <p
-            v-if="session.assessment"
-            class="max-h-32 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
-          >
-            {{ session.assessment }}
-          </p>
-          <p v-else class="text-sm text-gray-500 italic">No assessment notes</p>
-        </div>
-
+        <!-- SOAP Fields (Standard Clinical Order: Subjective → Objective → Assessment → Plan) -->
         <!-- Subjective -->
-        <div class="soap-field">
-          <label class="mb-1.5 block text-xs font-semibold text-gray-700">
-            S: Subjective
-          </label>
+        <div class="soap-field group">
+          <div class="mb-1.5 flex items-center justify-between">
+            <label
+              class="block text-xs font-semibold tracking-wide text-gray-700 uppercase"
+            >
+              S: Subjective
+            </label>
+            <button
+              v-if="displaySession.subjective"
+              @click="copyField('subjective', displaySession.subjective)"
+              class="rounded p-1 text-gray-500 opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-gray-700 focus:opacity-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              :title="copiedField === 'subjective' ? 'Copied!' : 'Copy to clipboard'"
+              type="button"
+            >
+              <IconCheck
+                v-if="copiedField === 'subjective'"
+                class="h-4 w-4 text-green-600"
+              />
+              <IconCopy v-else class="h-4 w-4" />
+            </button>
+          </div>
           <p
-            v-if="session.subjective"
+            v-if="displaySession.subjective"
             class="max-h-32 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
           >
-            {{ session.subjective }}
+            {{ displaySession.subjective }}
           </p>
           <p v-else class="text-sm text-gray-500 italic">No subjective notes</p>
         </div>
 
         <!-- Objective -->
-        <div class="soap-field">
-          <label class="mb-1.5 block text-xs font-semibold text-gray-700">
-            O: Objective
-          </label>
+        <div class="soap-field group">
+          <div class="mb-1.5 flex items-center justify-between">
+            <label
+              class="block text-xs font-semibold tracking-wide text-gray-700 uppercase"
+            >
+              O: Objective
+            </label>
+            <button
+              v-if="displaySession.objective"
+              @click="copyField('objective', displaySession.objective)"
+              class="rounded p-1 text-gray-500 opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-gray-700 focus:opacity-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              :title="copiedField === 'objective' ? 'Copied!' : 'Copy to clipboard'"
+              type="button"
+            >
+              <IconCheck
+                v-if="copiedField === 'objective'"
+                class="h-4 w-4 text-green-600"
+              />
+              <IconCopy v-else class="h-4 w-4" />
+            </button>
+          </div>
           <p
-            v-if="session.objective"
+            v-if="displaySession.objective"
             class="max-h-32 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
           >
-            {{ session.objective }}
+            {{ displaySession.objective }}
           </p>
           <p v-else class="text-sm text-gray-500 italic">No objective notes</p>
+        </div>
+
+        <!-- Assessment -->
+        <div class="soap-field group">
+          <div class="mb-1.5 flex items-center justify-between">
+            <label
+              class="block text-xs font-semibold tracking-wide text-gray-700 uppercase"
+            >
+              A: Assessment
+            </label>
+            <button
+              v-if="displaySession.assessment"
+              @click="copyField('assessment', displaySession.assessment)"
+              class="rounded p-1 text-gray-500 opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-gray-700 focus:opacity-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              :title="copiedField === 'assessment' ? 'Copied!' : 'Copy to clipboard'"
+              type="button"
+            >
+              <IconCheck
+                v-if="copiedField === 'assessment'"
+                class="h-4 w-4 text-green-600"
+              />
+              <IconCopy v-else class="h-4 w-4" />
+            </button>
+          </div>
+          <p
+            v-if="displaySession.assessment"
+            class="max-h-32 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
+          >
+            {{ displaySession.assessment }}
+          </p>
+          <p v-else class="text-sm text-gray-500 italic">No assessment notes</p>
+        </div>
+
+        <!-- Plan -->
+        <div class="soap-field group">
+          <div class="mb-1.5 flex items-center justify-between">
+            <label
+              class="block text-xs font-semibold tracking-wide text-gray-700 uppercase"
+            >
+              P: Plan
+            </label>
+            <button
+              v-if="displaySession.plan"
+              @click="copyField('plan', displaySession.plan)"
+              class="rounded p-1 text-gray-500 opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-gray-700 focus:opacity-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              :title="copiedField === 'plan' ? 'Copied!' : 'Copy to clipboard'"
+              type="button"
+            >
+              <IconCheck v-if="copiedField === 'plan'" class="h-4 w-4 text-green-600" />
+              <IconCopy v-else class="h-4 w-4" />
+            </button>
+          </div>
+          <p
+            v-if="displaySession.plan"
+            class="max-h-32 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
+          >
+            {{ displaySession.plan }}
+          </p>
+          <p v-else class="text-sm text-gray-500 italic">No plan notes</p>
         </div>
 
         <!-- Link to Full Session -->
         <div class="border-t border-gray-300 pt-2">
           <a
-            :href="sessionLink"
+            :href="`/sessions/${displaySession.id}`"
             target="_blank"
             rel="noopener noreferrer"
             class="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 focus:underline focus:outline-none"
@@ -281,21 +483,42 @@ watch(
             </svg>
           </a>
         </div>
+
+        <!-- View History Button -->
+        <button
+          @click="showHistory"
+          class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          type="button"
+        >
+          View All Sessions
+        </button>
       </div>
 
-      <!-- Collapsed State Message -->
-      <div v-else-if="session && collapsed" class="text-sm text-gray-600">
-        <p>Previous session hidden. Click to expand.</p>
+      <!-- View Mode: History -->
+      <div v-else-if="viewMode === 'history' && !collapsed" class="h-full">
+        <PreviousSessionHistory
+          :client-id="clientId"
+          :current-session-id="currentSessionId || ''"
+          @select-session="loadHistoricalSession"
+          @back="showSummary"
+        />
       </div>
     </div>
   </aside>
 
   <!-- Mobile Modal Content (no wrappers, just content for modal) -->
   <div v-if="forceMobileView" class="space-y-4">
-    <!-- Session Date -->
-    <div v-if="session" class="border-b border-gray-300 pb-3">
-      <span class="text-sm text-gray-900">{{ sessionDate }}</span>
-      <span class="ml-1 text-xs text-gray-600">({{ relativeDate }})</span>
+    <!-- Session Date (only show in summary/detail views, not history) -->
+    <div
+      v-if="displaySession && viewMode !== 'history'"
+      class="border-b border-gray-300 pb-3"
+    >
+      <span class="text-sm text-gray-900">{{
+        formatLongDate(displaySession.session_date)
+      }}</span>
+      <span class="ml-1 text-xs text-gray-600"
+        >({{ formatRelativeDate(displaySession.session_date) }})</span
+      >
     </div>
 
     <!-- Loading State -->
@@ -347,66 +570,165 @@ watch(
       </p>
     </div>
 
-    <!-- SOAP Fields (Reordered: Plan → Assessment → Subjective → Objective) -->
-    <div v-else-if="session" class="space-y-4">
-      <!-- Plan -->
-      <div class="soap-field">
-        <label class="mb-1.5 block text-xs font-semibold text-gray-700">P: Plan</label>
-        <p
-          v-if="session.plan"
-          class="text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
-        >
-          {{ session.plan }}
-        </p>
-        <p v-else class="text-sm text-gray-500 italic">No plan notes</p>
-      </div>
+    <!-- View Mode: Summary (default) -->
+    <div v-else-if="viewMode === 'summary' && session" class="space-y-4">
+      <PreviousSessionSummary :session="session" @view-full="showDetail" />
 
-      <!-- Assessment -->
-      <div class="soap-field">
-        <label class="mb-1.5 block text-xs font-semibold text-gray-700">
-          A: Assessment
-        </label>
-        <p
-          v-if="session.assessment"
-          class="text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
-        >
-          {{ session.assessment }}
-        </p>
-        <p v-else class="text-sm text-gray-500 italic">No assessment notes</p>
-      </div>
+      <!-- View History Button -->
+      <button
+        @click="showHistory"
+        class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        type="button"
+      >
+        View All Sessions
+      </button>
+    </div>
 
+    <!-- View Mode: Detail -->
+    <div v-else-if="viewMode === 'detail' && displaySession" class="space-y-4">
+      <!-- Back to Summary -->
+      <button
+        @click="showSummary"
+        class="mb-2 flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 focus:underline focus:outline-none"
+        type="button"
+      >
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+        Back to Summary
+      </button>
+
+      <!-- SOAP Fields (Standard Clinical Order: Subjective → Objective → Assessment → Plan) -->
       <!-- Subjective -->
-      <div class="soap-field">
-        <label class="mb-1.5 block text-xs font-semibold text-gray-700">
-          S: Subjective
-        </label>
+      <div class="soap-field group">
+        <div class="mb-1.5 flex items-center justify-between">
+          <label
+            class="block text-xs font-semibold tracking-wide text-gray-700 uppercase"
+          >
+            S: Subjective
+          </label>
+          <button
+            v-if="displaySession.subjective"
+            @click="copyField('subjective', displaySession.subjective)"
+            class="rounded p-1 text-gray-500 opacity-100 transition-opacity duration-150 hover:text-gray-700 focus:opacity-100 focus:ring-2 focus:ring-blue-500 focus:outline-none md:opacity-0 md:group-hover:opacity-100"
+            :title="copiedField === 'subjective' ? 'Copied!' : 'Copy to clipboard'"
+            type="button"
+          >
+            <IconCheck
+              v-if="copiedField === 'subjective'"
+              class="h-4 w-4 text-green-600"
+            />
+            <IconCopy v-else class="h-4 w-4" />
+          </button>
+        </div>
         <p
-          v-if="session.subjective"
+          v-if="displaySession.subjective"
           class="text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
         >
-          {{ session.subjective }}
+          {{ displaySession.subjective }}
         </p>
         <p v-else class="text-sm text-gray-500 italic">No subjective notes</p>
       </div>
 
       <!-- Objective -->
-      <div class="soap-field">
-        <label class="mb-1.5 block text-xs font-semibold text-gray-700">
-          O: Objective
-        </label>
+      <div class="soap-field group">
+        <div class="mb-1.5 flex items-center justify-between">
+          <label
+            class="block text-xs font-semibold tracking-wide text-gray-700 uppercase"
+          >
+            O: Objective
+          </label>
+          <button
+            v-if="displaySession.objective"
+            @click="copyField('objective', displaySession.objective)"
+            class="rounded p-1 text-gray-500 opacity-100 transition-opacity duration-150 hover:text-gray-700 focus:opacity-100 focus:ring-2 focus:ring-blue-500 focus:outline-none md:opacity-0 md:group-hover:opacity-100"
+            :title="copiedField === 'objective' ? 'Copied!' : 'Copy to clipboard'"
+            type="button"
+          >
+            <IconCheck
+              v-if="copiedField === 'objective'"
+              class="h-4 w-4 text-green-600"
+            />
+            <IconCopy v-else class="h-4 w-4" />
+          </button>
+        </div>
         <p
-          v-if="session.objective"
+          v-if="displaySession.objective"
           class="text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
         >
-          {{ session.objective }}
+          {{ displaySession.objective }}
         </p>
         <p v-else class="text-sm text-gray-500 italic">No objective notes</p>
+      </div>
+
+      <!-- Assessment -->
+      <div class="soap-field group">
+        <div class="mb-1.5 flex items-center justify-between">
+          <label
+            class="block text-xs font-semibold tracking-wide text-gray-700 uppercase"
+          >
+            A: Assessment
+          </label>
+          <button
+            v-if="displaySession.assessment"
+            @click="copyField('assessment', displaySession.assessment)"
+            class="rounded p-1 text-gray-500 opacity-100 transition-opacity duration-150 hover:text-gray-700 focus:opacity-100 focus:ring-2 focus:ring-blue-500 focus:outline-none md:opacity-0 md:group-hover:opacity-100"
+            :title="copiedField === 'assessment' ? 'Copied!' : 'Copy to clipboard'"
+            type="button"
+          >
+            <IconCheck
+              v-if="copiedField === 'assessment'"
+              class="h-4 w-4 text-green-600"
+            />
+            <IconCopy v-else class="h-4 w-4" />
+          </button>
+        </div>
+        <p
+          v-if="displaySession.assessment"
+          class="text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
+        >
+          {{ displaySession.assessment }}
+        </p>
+        <p v-else class="text-sm text-gray-500 italic">No assessment notes</p>
+      </div>
+
+      <!-- Plan -->
+      <div class="soap-field group">
+        <div class="mb-1.5 flex items-center justify-between">
+          <label
+            class="block text-xs font-semibold tracking-wide text-gray-700 uppercase"
+          >
+            P: Plan
+          </label>
+          <button
+            v-if="displaySession.plan"
+            @click="copyField('plan', displaySession.plan)"
+            class="rounded p-1 text-gray-500 opacity-100 transition-opacity duration-150 hover:text-gray-700 focus:opacity-100 focus:ring-2 focus:ring-blue-500 focus:outline-none md:opacity-0 md:group-hover:opacity-100"
+            :title="copiedField === 'plan' ? 'Copied!' : 'Copy to clipboard'"
+            type="button"
+          >
+            <IconCheck v-if="copiedField === 'plan'" class="h-4 w-4 text-green-600" />
+            <IconCopy v-else class="h-4 w-4" />
+          </button>
+        </div>
+        <p
+          v-if="displaySession.plan"
+          class="text-sm leading-relaxed whitespace-pre-wrap text-gray-800"
+        >
+          {{ displaySession.plan }}
+        </p>
+        <p v-else class="text-sm text-gray-500 italic">No plan notes</p>
       </div>
 
       <!-- Link to Full Session -->
       <div class="border-t border-gray-300 pt-2">
         <a
-          :href="sessionLink"
+          :href="`/sessions/${displaySession.id}`"
           target="_blank"
           rel="noopener noreferrer"
           class="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 focus:underline focus:outline-none"
@@ -427,6 +749,25 @@ watch(
           </svg>
         </a>
       </div>
+
+      <!-- View History Button -->
+      <button
+        @click="showHistory"
+        class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        type="button"
+      >
+        View All Sessions
+      </button>
+    </div>
+
+    <!-- View Mode: History -->
+    <div v-else-if="viewMode === 'history'" class="h-full">
+      <PreviousSessionHistory
+        :client-id="clientId"
+        :current-session-id="currentSessionId || ''"
+        @select-session="loadHistoricalSession"
+        @back="showSummary"
+      />
     </div>
   </div>
 </template>

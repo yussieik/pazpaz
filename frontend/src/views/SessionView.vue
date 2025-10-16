@@ -231,7 +231,12 @@ onKeyStroke('Escape', (e) => {
           @click="goBack"
           class="inline-flex items-center text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 focus:outline-none"
         >
-          <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="mr-2 h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"

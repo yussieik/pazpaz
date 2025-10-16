@@ -17,6 +17,7 @@ import {
   getDurationMinutes,
   extractDate,
 } from '@/utils/calendar/dateFormatters'
+import { useClientsStore } from '@/stores/clients'
 
 interface Props {
   visible: boolean
@@ -33,6 +34,9 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+// Clients store for auto-filling address
+const clientsStore = useClientsStore()
 
 // Form state
 const formData = ref<AppointmentFormData>({
@@ -60,6 +64,9 @@ const conflicts = ref<ConflictingAppointment[]>([])
 const isCheckingConflicts = ref(false)
 const isInitialLoad = ref(true)
 const showAvailableIndicator = ref(false)
+
+// Address auto-fill state
+const showAddressHint = ref(false)
 
 // Duration management
 const previousStartTime = ref<string>('')
@@ -336,6 +343,37 @@ watch(
   () => {
     checkConflicts()
   }
+)
+
+// Watch for client + location type changes to auto-fill address
+watch(
+  () => [formData.value.client_id, formData.value.location_type],
+  ([clientId, locationType]) => {
+    // Only auto-fill for home visits
+    if ((locationType === 'home' || locationType === 'home_visit') && clientId) {
+      // Find selected client in the store
+      const selectedClient = clientsStore.clients.find((c) => c.id === clientId)
+
+      if (selectedClient?.address) {
+        // Only auto-fill if location_details is empty (don't overwrite manual edits or existing data)
+        if (!formData.value.location_details) {
+          formData.value.location_details = selectedClient.address
+
+          // Show subtle hint
+          showAddressHint.value = true
+          setTimeout(() => {
+            showAddressHint.value = false
+          }, 3000) // Fade after 3 seconds
+        }
+      } else if (!formData.value.location_details) {
+        // Client has no address saved, keep field empty
+        // (Don't clear if user manually entered something)
+      }
+    }
+    // For non-home visits, preserve existing location_details
+    // (Don't clear manually entered clinic names, zoom links, etc.)
+  },
+  { deep: true }
 )
 
 // Computed properties
@@ -750,6 +788,37 @@ watch(
                 placeholder="e.g., Zoom link, room number, address"
                 class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               />
+
+              <!-- Address Auto-Fill Hint -->
+              <Transition
+                enter-active-class="transition-opacity duration-200"
+                leave-active-class="transition-opacity duration-200"
+                enter-from-class="opacity-0"
+                leave-to-class="opacity-0"
+              >
+                <div
+                  v-if="showAddressHint"
+                  class="mt-1.5 flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <svg
+                    class="h-4 w-4 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <span>Using address from client profile</span>
+                </div>
+              </Transition>
             </div>
 
             <!-- Notes -->

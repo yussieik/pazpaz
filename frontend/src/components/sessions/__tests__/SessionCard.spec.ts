@@ -256,7 +256,7 @@ describe('SessionCard', () => {
       const deleteButton = buttons.find((b) => b.text() === 'Delete Note')
       await deleteButton?.trigger('click')
 
-      expect(deleteSpy).toHaveBeenCalledWith(`/api/v1/sessions/${mockSession.id}`)
+      expect(deleteSpy).toHaveBeenCalledWith(`/sessions/${mockSession.id}`)
     })
 
     it('emits deleted event on successful deletion', async () => {

@@ -531,7 +531,7 @@ async def save_draft(
     - Updates only provided fields (partial update)
     - Auto-increments version for optimistic locking
     - Updates draft_last_saved_at timestamp
-    - Keeps is_draft = True
+    - Preserves finalized status (amendments) or keeps is_draft = True
 
     SECURITY: Verifies workspace ownership before allowing updates.
     workspace_id is derived from JWT token (server-side).
@@ -606,7 +606,10 @@ async def save_draft(
         # Update draft metadata
         session.draft_last_saved_at = datetime.now(UTC)
         session.version += 1
-        session.is_draft = True  # Ensure it stays as draft
+        # Only set is_draft = True if it's already a draft
+        # This preserves finalized status for amendments
+        if session.finalized_at is None:
+            session.is_draft = True
 
         await db.commit()
         await db.refresh(session)

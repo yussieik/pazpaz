@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import AppointmentFormModal from './AppointmentFormModal.vue'
 import * as apiClient from '@/api/client'
 import type { ConflictCheckResponse } from '@/types/calendar'
@@ -11,9 +12,13 @@ vi.mock('@/api/client', () => ({
 }))
 
 describe('AppointmentFormModal - Conflict Detection', () => {
+  let pinia: ReturnType<typeof createPinia>
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers()
+    pinia = createPinia()
+    setActivePinia(pinia)
   })
 
   afterEach(() => {
@@ -49,6 +54,9 @@ describe('AppointmentFormModal - Conflict Detection', () => {
       props: {
         visible: true,
         mode: 'create',
+      },
+      global: {
+        plugins: [pinia],
       },
       attachTo: document.body,
     })
@@ -91,6 +99,9 @@ describe('AppointmentFormModal - Conflict Detection', () => {
       props: {
         visible: true,
         mode: 'create',
+      },
+      global: {
+        plugins: [pinia],
       },
       attachTo: document.body,
     })
@@ -136,6 +147,9 @@ describe('AppointmentFormModal - Conflict Detection', () => {
           updated_at: '2025-10-01T00:00:00Z',
         },
       },
+      global: {
+        plugins: [pinia],
+      },
       attachTo: document.body,
     })
 
@@ -167,6 +181,9 @@ describe('AppointmentFormModal - Conflict Detection', () => {
       props: {
         visible: true,
         mode: 'create',
+      },
+      global: {
+        plugins: [pinia],
       },
       attachTo: document.body,
     })
@@ -202,6 +219,9 @@ describe('AppointmentFormModal - Conflict Detection', () => {
         visible: true,
         mode: 'create',
       },
+      global: {
+        plugins: [pinia],
+      },
       attachTo: document.body,
     })
 
@@ -235,6 +255,9 @@ describe('AppointmentFormModal - Conflict Detection', () => {
       props: {
         visible: true,
         mode: 'create',
+      },
+      global: {
+        plugins: [pinia],
       },
       attachTo: document.body,
     })
@@ -272,6 +295,9 @@ describe('AppointmentFormModal - Conflict Detection', () => {
       props: {
         visible: true,
         mode: 'create',
+      },
+      global: {
+        plugins: [pinia],
       },
       attachTo: document.body,
     })
@@ -320,6 +346,9 @@ describe('AppointmentFormModal - Conflict Detection', () => {
       props: {
         visible: true,
         mode: 'create',
+      },
+      global: {
+        plugins: [pinia],
       },
       attachTo: document.body,
     })
@@ -370,6 +399,9 @@ describe('AppointmentFormModal - Conflict Detection', () => {
       props: {
         visible: true,
         mode: 'create',
+      },
+      global: {
+        plugins: [pinia],
       },
       attachTo: document.body,
     })

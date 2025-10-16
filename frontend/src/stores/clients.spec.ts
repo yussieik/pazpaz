@@ -112,7 +112,7 @@ describe('Clients Store', () => {
       await store.fetchClients()
 
       expect(apiClient.get).toHaveBeenCalledWith('/clients', {
-        params: { page: 1, page_size: 50 },
+        params: { page: 1, page_size: 50, include_appointments: true },
       })
       expect(store.clients).toEqual(mockClients)
       expect(store.total).toBe(mockClients.length)

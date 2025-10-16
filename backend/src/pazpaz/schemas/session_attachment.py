@@ -30,7 +30,5 @@ class SessionAttachmentResponse(BaseModel):
 class SessionAttachmentListResponse(BaseModel):
     """Response schema for list of session attachments."""
 
-    items: list[SessionAttachmentResponse] = Field(
-        description="List of attachments"
-    )
+    items: list[SessionAttachmentResponse] = Field(description="List of attachments")
     total: int = Field(description="Total number of attachments")

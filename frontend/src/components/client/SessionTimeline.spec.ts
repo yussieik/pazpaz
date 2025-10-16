@@ -198,7 +198,12 @@ describe('SessionTimeline', () => {
       expect(apiClient.get).toHaveBeenCalledWith(
         '/appointments?client_id=client-1&status=completed'
       )
-      expect(apiClient.get).toHaveBeenCalledTimes(2)
+      // NOTE: fetchSessions also fetches individual appointment details for sessions with appointment_id
+      // mockSessions has session-1 with appointment_id='appt-1', so we get:
+      // 1. GET /sessions?client_id=client-1
+      // 2. GET /appointments/appt-1 (individual appointment fetch)
+      // 3. GET /appointments?client_id=client-1&status=completed
+      expect(apiClient.get).toHaveBeenCalledTimes(3)
     })
 
     it('refresh method updates session list with new data', async () => {

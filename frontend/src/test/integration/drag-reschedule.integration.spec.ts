@@ -385,6 +385,7 @@ describe('Drag-and-Drop Appointment Rescheduling - Integration', () => {
         global: {
           plugins: [pinia],
         },
+        attachTo: document.body, // Mount to actual DOM so getElementById works
       })
 
       await wrapper.vm.$nextTick()
@@ -392,6 +393,8 @@ describe('Drag-and-Drop Appointment Rescheduling - Integration', () => {
       // Check for ARIA live region
       const liveRegion = document.getElementById('drag-drop-announcer')
       expect(liveRegion?.getAttribute('aria-live')).toBe('polite')
+
+      wrapper.unmount() // Clean up
     })
 
     it('provides keyboard-accessible reschedule mode', async () => {

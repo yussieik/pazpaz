@@ -2,17 +2,20 @@
 /**
  * SessionEditor Component
  *
- * SOAP notes editor with autosave functionality for clinical session documentation.
+ * SOAP notes editor with invisible autosave for clinical session documentation.
  *
  * Features:
  * - 4 text areas for SOAP fields (Subjective, Objective, Assessment, Plan)
  * - Session metadata inputs (date, duration)
- * - Autosave every 5 seconds after typing stops
- * - Draft/finalized status indicator with "Saved X ago" timestamp
+ * - Three-tier invisible autosave:
+ *   - Tier 1: Instant local persistence (0ms latency to localStorage)
+ *   - Tier 2: Debounced server sync (750ms after typing stops)
+ *   - Tier 3: Strategic immediate syncs (field blur, finalize, Ctrl+S, navigation)
+ * - Contextual banners (only shows for offline/error states)
+ * - Draft/finalized status indicator
  * - "Finalize" button to lock the note
- * - Loading states during save operations
  * - Character count for each SOAP field (5000 max)
- * - Read-only mode for finalized sessions
+ * - Keyboard shortcuts: Cmd+Enter (finalize), Cmd+S (immediate save)
  *
  * Usage:
  *   <SessionEditor :session-id="sessionId" @finalized="handleFinalized" />
@@ -20,10 +23,9 @@
 
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { onKeyStroke } from '@vueuse/core'
-import { useAutosave } from '@/composables/useAutosave'
+import { useInvisibleAutosave } from '@/composables/useInvisibleAutosave'
 import { useSecureOfflineBackup } from '@/composables/useSecureOfflineBackup'
 import { useLocalStorage } from '@vueuse/core'
-import { formatDistanceToNow } from 'date-fns'
 import { formatDateTimeForInput } from '@/utils/calendar/dateFormatters'
 import apiClient from '@/api/client'
 import type { AxiosError } from 'axios'
@@ -32,7 +34,9 @@ import SessionNoteBadges from './SessionNoteBadges.vue'
 import SessionVersionHistory from './SessionVersionHistory.vue'
 import SessionAmendmentIndicator from './SessionAmendmentIndicator.vue'
 import PreviousSessionPanel from './PreviousSessionPanel.vue'
+import PreviousSessionSummaryStrip from './PreviousSessionSummaryStrip.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
+import AutosaveBanner from '@/components/common/AutosaveBanner.vue'
 
 interface Props {
   sessionId: string
@@ -82,8 +86,16 @@ function dismissSoapGuide() {
 // Version history modal state
 const showVersionHistory = ref(false)
 
-// Previous session modal state (mobile only)
-const showPreviousSessionModal = ref(false)
+// Treatment context bottom sheet state (mobile only)
+const showPreviousSessionBottomSheet = ref(false)
+
+function openPreviousSessionBottomSheet() {
+  showPreviousSessionBottomSheet.value = true
+}
+
+function closePreviousSessionBottomSheet() {
+  showPreviousSessionBottomSheet.value = false
+}
 
 // Restore prompt state (encrypted localStorage backup)
 const { restoreDraft, syncToServer } = useSecureOfflineBackup()
@@ -125,78 +137,91 @@ const hasContent = computed(() => {
   )
 })
 
-// Autosave setup with encrypted localStorage backup
+// Invisible autosave setup - Three-tier architecture
+const sessionIdRef = computed(() => props.sessionId)
 const {
-  isSaving,
-  saveError,
-  isOnline,
-  save: triggerAutosave,
-  forceSave,
-  stop: stopAutosave,
-} = useAutosave<Record<string, unknown>>(
-  async (data) => {
+  state: autosaveState,
+  flushSync,
+  retryNow,
+  restoreDraft: _restoreInvisibleDraft,
+  clearDraft: _clearDraft,
+} = useInvisibleAutosave(
+  sessionIdRef,
+  formData,
+  async (id, data) => {
     // Always use draft endpoint for autosave
-    // Finalized status is just a visual indicator, not a lock
-    await apiClient.patch(`/sessions/${props.sessionId}/draft`, data)
+    await apiClient.patch(`/sessions/${id}/draft`, {
+      subjective: data.subjective || null,
+      objective: data.objective || null,
+      assessment: data.assessment || null,
+      plan: data.plan || null,
+      duration_minutes: data.duration_minutes,
+    })
 
     // Update original data after successful save
     originalData.value = { ...formData.value }
+
+    // Skip timestamp update during finalize (loadSession will update everything)
+    if (isFinalizingInProgress.value) {
+      return
+    }
+
+    // Only update timestamp without re-rendering form
+    try {
+      const response = await apiClient.get<SessionResponse>(`/sessions/${id}`)
+      if (session.value) {
+        session.value.draft_last_saved_at = response.data.draft_last_saved_at
+      }
+    } catch (error) {
+      // Silent failure - not critical for UX
+      console.debug('Failed to update timestamp:', error)
+    }
   },
   {
-    debounceMs: 5000,
-    sessionId: props.sessionId, // Enable encrypted localStorage backup
-    onSuccess: async () => {
-      // Skip timestamp update during finalize (loadSession will update everything)
-      if (isFinalizingInProgress.value) {
-        return
-      }
-
-      // Only update timestamp without re-rendering form
-      try {
-        const response = await apiClient.get<SessionResponse>(
-          `/sessions/${props.sessionId}`
-        )
-        if (session.value) {
-          session.value.draft_last_saved_at = response.data.draft_last_saved_at
-        }
-      } catch (error) {
-        // Silent failure - not critical for UX
-        console.debug('Failed to update timestamp:', error)
-      }
+    debounce: 750, // 750ms debounce for invisible autosave
+    onSuccess: () => {
+      console.debug('[SessionEditor] Autosave successful')
+    },
+    onError: (error) => {
+      console.error('[SessionEditor] Autosave failed:', error)
     },
   }
 )
 
-// Last saved display
-const lastSavedDisplay = computed(() => {
-  // During finalize: show consistent state instead of hiding text
-  if (isFinalizing.value) {
-    return isFinalized.value ? 'Reverting...' : 'Finalizing...'
-  }
+// Banner properties for invisible autosave (only shows for errors/offline)
+const showBanner = computed(
+  () => autosaveState.value.type === 'offline' || autosaveState.value.type === 'error'
+)
 
-  if (isSaving.value) {
-    return 'Saving...'
-  }
+const bannerSeverity = computed(() =>
+  autosaveState.value.type === 'error' ? 'error' : 'warning'
+)
 
-  if (saveError.value) {
-    return 'Save failed'
+const bannerMessage = computed(() => {
+  if (autosaveState.value.type === 'offline') {
+    return 'Offline - Saving locally'
   }
-
-  if (session.value?.draft_last_saved_at) {
-    try {
-      const distance = formatDistanceToNow(
-        new Date(session.value.draft_last_saved_at),
-        {
-          addSuffix: true,
-        }
-      )
-      return `Saved ${distance}`
-    } catch {
-      return 'Saved recently'
-    }
+  if (autosaveState.value.type === 'error') {
+    return 'Unable to save changes'
   }
+  return ''
+})
 
-  return 'Not saved yet'
+const bannerDescription = computed(() => {
+  if (autosaveState.value.type === 'offline') {
+    return 'Changes will sync when online'
+  }
+  if (autosaveState.value.type === 'error') {
+    return autosaveState.value.error.message
+  }
+  return ''
+})
+
+const bannerActions = computed(() => {
+  if (autosaveState.value.type === 'error' && autosaveState.value.recoverable) {
+    return [{ label: 'Retry now', onClick: retryNow }]
+  }
+  return []
 })
 
 // Load session data
@@ -273,19 +298,10 @@ async function loadSession(silent = false) {
   }
 }
 
-// Handle field changes
-function handleFieldChange() {
-  // Allow editing finalized notes - changes will be tracked as amendments
-  // Backend will handle version history and amendment tracking
-
-  // Trigger autosave with current form data
-  triggerAutosave({
-    subjective: formData.value.subjective || null,
-    objective: formData.value.objective || null,
-    assessment: formData.value.assessment || null,
-    plan: formData.value.plan || null,
-    duration_minutes: formData.value.duration_minutes,
-  })
+// Field blur handler - Tier 3: Immediate sync on field switch
+function handleFieldBlur() {
+  // Trigger immediate sync when user switches between fields
+  flushSync()
 }
 
 // Toggle finalize status
@@ -307,14 +323,8 @@ async function toggleFinalizeStatus() {
     finalizeError.value = null
 
     try {
-      // Force save current data before finalizing
-      await forceSave({
-        subjective: formData.value.subjective || null,
-        objective: formData.value.objective || null,
-        assessment: formData.value.assessment || null,
-        plan: formData.value.plan || null,
-        duration_minutes: formData.value.duration_minutes,
-      })
+      // Force save current data before finalizing (Tier 3: Immediate sync)
+      await flushSync()
 
       // Optimistic update: immediately update UI
       if (session.value) {
@@ -393,6 +403,31 @@ onKeyStroke(['Meta+Enter', 'Control+Enter'], (e) => {
   }
 })
 
+// P2-3: Optional Ctrl+S keyboard shortcut for manual save
+onKeyStroke(['Meta+s', 'Control+s'], (e) => {
+  e.preventDefault()
+  flushSync()
+})
+
+// Escape key to close bottom sheet
+onKeyStroke('Escape', () => {
+  if (showPreviousSessionBottomSheet.value) {
+    closePreviousSessionBottomSheet()
+  }
+})
+
+// Tier 3: Immediate sync on browser close/navigation
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+  if (
+    autosaveState.value.type === 'syncing' ||
+    autosaveState.value.type === 'offline'
+  ) {
+    event.preventDefault()
+    event.returnValue = 'You have unsaved changes'
+    flushSync() // Attempt immediate sync
+  }
+}
+
 // Restore encrypted backup prompt functions
 async function restoreFromBackup() {
   if (!localBackupData.value) return
@@ -425,6 +460,9 @@ function discardBackup() {
 
 // Lifecycle hooks
 onMounted(async () => {
+  // Setup beforeunload listener for unsaved changes warning
+  window.addEventListener('beforeunload', handleBeforeUnload)
+
   // Load session and check backup in parallel to avoid sequential loading glitches
   const [, backup] = await Promise.all([loadSession(), restoreDraft(props.sessionId)])
 
@@ -447,7 +485,9 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  stopAutosave()
+  // Cleanup beforeunload listener
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  // Other cleanup is handled automatically by useInvisibleAutosave
 })
 </script>
 
@@ -515,8 +555,25 @@ onBeforeUnmount(() => {
 
     <!-- Session Editor with Previous Session Panel -->
     <div v-else class="flex flex-col gap-0 lg:flex-row">
+      <!-- Autosave Banner (only shows for errors/offline) -->
+      <AutosaveBanner
+        :visible="showBanner"
+        :severity="bannerSeverity"
+        :message="bannerMessage"
+        :description="bannerDescription"
+        :actions="bannerActions"
+      />
+
       <!-- Main Content Area -->
       <div class="flex-1 space-y-6 pb-20 lg:pb-0">
+        <!-- Tier 1: Previous Session Summary Strip (Mobile Only) -->
+        <PreviousSessionSummaryStrip
+          v-if="stableClientId"
+          :client-id="stableClientId"
+          :current-session-id="props.sessionId"
+          @expand="openPreviousSessionBottomSheet"
+        />
+
         <!-- SOAP Guide Panel (P1-3: Onboarding for first-time users) -->
         <div
           v-if="showSoapGuide"
@@ -610,10 +667,10 @@ onBeforeUnmount(() => {
               <SessionNoteBadges v-if="session" :key="session.id" :session="session" />
             </Transition>
 
-            <!-- Previous Session Button (Mobile Only) -->
+            <!-- Treatment Context Button (Mobile Only - kept for backwards compatibility) -->
             <button
               v-if="stableClientId"
-              @click="showPreviousSessionModal = true"
+              @click="openPreviousSessionBottomSheet"
               type="button"
               class="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 focus:underline focus:outline-none lg:hidden"
             >
@@ -630,31 +687,8 @@ onBeforeUnmount(() => {
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              Previous Session
+              Treatment Context
             </button>
-
-            <!-- Offline Indicator -->
-            <Transition name="badge-fade">
-              <span
-                v-if="!isOnline"
-                class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800"
-              >
-                <svg
-                  class="h-3 w-3"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3"
-                  />
-                </svg>
-                Offline - Changes saved locally
-              </span>
-            </Transition>
 
             <!-- View Version History Button (if amended) -->
             <Transition name="badge-fade">
@@ -667,21 +701,6 @@ onBeforeUnmount(() => {
                 View Original Version
               </button>
             </Transition>
-
-            <!-- Last Saved Indicator - Reserve min-width to prevent jitter -->
-            <span
-              class="inline-block min-w-[120px] text-sm transition-colors duration-200"
-              :class="{
-                'text-slate-600': !isSaving && !saveError && isOnline && !isFinalizing,
-                'text-blue-600': isSaving || isFinalizing,
-                'text-red-600': saveError,
-                'text-amber-600': !isOnline && !isSaving,
-              }"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              {{ lastSavedDisplay }}
-            </span>
           </div>
 
           <!-- Finalize/Unfinalize Toggle Button -->
@@ -792,11 +811,6 @@ onBeforeUnmount(() => {
           <p class="text-sm text-red-800">{{ finalizeError }}</p>
         </div>
 
-        <!-- Save Error -->
-        <div v-if="saveError" class="rounded-lg border border-red-200 bg-red-50 p-3">
-          <p class="text-sm text-red-800">{{ saveError }}</p>
-        </div>
-
         <!-- Session Metadata -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
@@ -807,7 +821,7 @@ onBeforeUnmount(() => {
               id="session-date"
               v-model="formData.session_date"
               type="datetime-local"
-              @change="handleFieldChange"
+              @blur="handleFieldBlur"
               class="mt-1 block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             />
           </div>
@@ -822,7 +836,7 @@ onBeforeUnmount(() => {
               type="number"
               min="0"
               max="480"
-              @input="handleFieldChange"
+              @blur="handleFieldBlur"
               placeholder="60"
               class="mt-1 block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             />
@@ -851,7 +865,7 @@ onBeforeUnmount(() => {
               id="subjective"
               v-model="formData.subjective"
               :maxlength="CHAR_LIMIT"
-              @input="handleFieldChange"
+              @blur="handleFieldBlur"
               rows="6"
               placeholder="What did the patient tell you about their condition?"
               class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
@@ -875,7 +889,7 @@ onBeforeUnmount(() => {
               id="objective"
               v-model="formData.objective"
               :maxlength="CHAR_LIMIT"
-              @input="handleFieldChange"
+              @blur="handleFieldBlur"
               rows="6"
               placeholder="What did you observe during the examination?"
               class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
@@ -902,7 +916,7 @@ onBeforeUnmount(() => {
               id="assessment"
               v-model="formData.assessment"
               :maxlength="CHAR_LIMIT"
-              @input="handleFieldChange"
+              @blur="handleFieldBlur"
               rows="6"
               placeholder="What is your clinical assessment of the patient's condition?"
               class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
@@ -926,7 +940,7 @@ onBeforeUnmount(() => {
               id="plan"
               v-model="formData.plan"
               :maxlength="CHAR_LIMIT"
-              @input="handleFieldChange"
+              @blur="handleFieldBlur"
               rows="6"
               placeholder="What is the treatment plan going forward?"
               class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
@@ -992,43 +1006,70 @@ onBeforeUnmount(() => {
       </div>
     </Teleport>
 
-    <!-- Previous Session Modal (Mobile) -->
+    <!-- Tier 2: Previous Session Bottom Sheet (Mobile) -->
     <Teleport to="body">
-      <div
-        v-if="showPreviousSessionModal"
-        class="fixed inset-0 z-50 overflow-y-auto bg-white lg:hidden"
-      >
-        <!-- Modal Header -->
+      <Transition name="bottom-sheet">
         <div
-          class="sticky top-0 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
+          v-if="showPreviousSessionBottomSheet"
+          class="fixed inset-0 z-50 lg:hidden"
+          @click.self="closePreviousSessionBottomSheet"
         >
-          <h2 class="text-lg font-semibold text-gray-900">Previous Session</h2>
-          <button
-            @click="showPreviousSessionModal = false"
-            class="rounded p-2 text-gray-600 hover:text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            aria-label="Close previous session"
-          >
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+          <!-- Backdrop -->
+          <div class="absolute inset-0 bg-black/20 transition-opacity"></div>
 
-        <!-- Modal Content -->
-        <div class="p-4">
-          <PreviousSessionPanel
-            v-if="stableClientId"
-            :client-id="stableClientId"
-            :current-session-id="props.sessionId"
-            :force-mobile-view="true"
-          />
+          <!-- Bottom Sheet -->
+          <div
+            class="absolute right-0 bottom-0 left-0 flex max-h-[90vh] flex-col rounded-t-2xl bg-white shadow-2xl"
+            style="height: 60vh"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bottom-sheet-title"
+          >
+            <!-- Drag Handle -->
+            <div class="flex shrink-0 justify-center py-2">
+              <div class="h-1 w-12 rounded-full bg-gray-300" aria-hidden="true"></div>
+            </div>
+
+            <!-- Header -->
+            <div
+              class="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 pb-3"
+            >
+              <h2 id="bottom-sheet-title" class="text-lg font-semibold text-gray-900">
+                Treatment Context
+              </h2>
+              <button
+                @click="closePreviousSessionBottomSheet"
+                class="rounded p-2 text-gray-600 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                aria-label="Close treatment context"
+              >
+                <svg
+                  class="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Content - Scrollable -->
+            <div class="flex-1 overflow-y-auto px-4 pt-4 pb-8">
+              <PreviousSessionPanel
+                v-if="stableClientId"
+                :client-id="stableClientId"
+                :current-session-id="props.sessionId"
+                :force-mobile-view="true"
+              />
+            </div>
+          </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>
@@ -1107,5 +1148,48 @@ onBeforeUnmount(() => {
 /* Prevent button layout shift during state changes */
 .session-editor button[type='button'] {
   min-width: fit-content;
+}
+
+/* Bottom Sheet Transitions */
+.bottom-sheet-enter-active {
+  transition: opacity 0.3s ease-out;
+}
+
+.bottom-sheet-leave-active {
+  transition: opacity 0.25s ease-in;
+}
+
+.bottom-sheet-enter-active .absolute:last-child,
+.bottom-sheet-leave-active .absolute:last-child {
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.bottom-sheet-enter-from {
+  opacity: 0;
+}
+
+.bottom-sheet-enter-from .absolute:last-child {
+  transform: translateY(100%);
+}
+
+.bottom-sheet-leave-to {
+  opacity: 0;
+}
+
+.bottom-sheet-leave-to .absolute:last-child {
+  transform: translateY(100%);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .bottom-sheet-enter-active,
+  .bottom-sheet-leave-active {
+    transition: opacity 0.2s;
+  }
+
+  .bottom-sheet-enter-active .absolute:last-child,
+  .bottom-sheet-leave-active .absolute:last-child {
+    transition: none;
+  }
 }
 </style>

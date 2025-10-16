@@ -209,15 +209,15 @@ describe('useCalendarEvents - Reactive Data Flow', () => {
       expect(calendarEvents.value[0]).toMatchObject({
         id: 'apt-1',
         title: 'John Doe',
-        start: '2024-01-15T14:00:00Z',
-        end: '2024-01-15T15:00:00Z',
+        start: new Date('2024-01-15T14:00:00Z'),
+        end: new Date('2024-01-15T15:00:00Z'),
       })
     })
 
     it('should update calendar events when store updates', () => {
       const { calendarEvents } = useCalendarEvents()
 
-      expect(calendarEvents.value[0].start).toBe('2024-01-15T14:00:00Z')
+      expect(calendarEvents.value[0].start).toEqual(new Date('2024-01-15T14:00:00Z'))
 
       // Update store
       const updatedAppointment: AppointmentListItem = {
@@ -229,8 +229,8 @@ describe('useCalendarEvents - Reactive Data Flow', () => {
       appointmentsStore.appointments = [updatedAppointment]
 
       // Calendar events should reflect updated times
-      expect(calendarEvents.value[0].start).toBe('2024-01-15T16:00:00Z')
-      expect(calendarEvents.value[0].end).toBe('2024-01-15T17:00:00Z')
+      expect(calendarEvents.value[0].start).toEqual(new Date('2024-01-15T16:00:00Z'))
+      expect(calendarEvents.value[0].end).toEqual(new Date('2024-01-15T17:00:00Z'))
     })
   })
 })

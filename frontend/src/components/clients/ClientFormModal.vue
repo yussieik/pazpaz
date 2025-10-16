@@ -106,7 +106,6 @@ watch(
   { deep: true }
 )
 
-
 function resetForm() {
   formData.value = {
     first_name: '',
@@ -292,7 +291,7 @@ onUnmounted(() => {
           <!-- Form -->
           <form
             @submit.prevent="handleSubmit"
-            class="space-y-6 px-5 pb-6 pt-6 sm:space-y-6 sm:px-6"
+            class="space-y-6 px-5 pt-6 pb-6 sm:space-y-6 sm:px-6"
           >
             <!-- Phase 1: Essential Fields (Always Visible) -->
             <div class="space-y-6">
@@ -369,7 +368,10 @@ onUnmounted(() => {
 
               <!-- Phone (optional) -->
               <div>
-                <label for="phone" class="mb-1.5 block text-sm font-medium text-slate-900">
+                <label
+                  for="phone"
+                  class="mb-1.5 block text-sm font-medium text-slate-900"
+                >
                   Phone
                 </label>
                 <input
@@ -385,7 +387,10 @@ onUnmounted(() => {
 
               <!-- Email (optional) -->
               <div>
-                <label for="email" class="mb-1.5 block text-sm font-medium text-slate-900">
+                <label
+                  for="email"
+                  class="mb-1.5 block text-sm font-medium text-slate-900"
+                >
                   Email
                 </label>
                 <input
@@ -480,7 +485,10 @@ onUnmounted(() => {
 
                 <!-- Address -->
                 <div>
-                  <label for="address" class="mb-1.5 block text-sm font-medium text-slate-900">
+                  <label
+                    for="address"
+                    class="mb-1.5 block text-sm font-medium text-slate-900"
+                  >
                     Address
                   </label>
                   <input
@@ -534,7 +542,9 @@ onUnmounted(() => {
                     class="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-900"
                   >
                     <span>Medical History</span>
-                    <span class="text-xs text-slate-500" aria-label="Encrypted and private"
+                    <span
+                      class="text-xs text-slate-500"
+                      aria-label="Encrypted and private"
                       >🔒 Encrypted and private</span
                     >
                   </label>
@@ -549,7 +559,10 @@ onUnmounted(() => {
 
                 <!-- Intake Notes -->
                 <div>
-                  <label for="notes" class="mb-1.5 block text-sm font-medium text-slate-900">
+                  <label
+                    for="notes"
+                    class="mb-1.5 block text-sm font-medium text-slate-900"
+                  >
                     Intake Notes
                   </label>
                   <textarea

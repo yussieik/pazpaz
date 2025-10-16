@@ -378,7 +378,9 @@ describe('Appointments Store', () => {
 
       await store.deleteAppointment('1')
 
-      expect(apiClient.delete).toHaveBeenCalledWith('/appointments/1')
+      expect(apiClient.delete).toHaveBeenCalledWith('/appointments/1', {
+        data: undefined,
+      })
       expect(store.appointments.length).toBe(1)
       expect(store.appointments[0].id).toBe('2')
       expect(store.loading).toBe(false)

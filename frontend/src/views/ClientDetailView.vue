@@ -13,6 +13,7 @@ import AppointmentFormModal from '@/components/calendar/AppointmentFormModal.vue
 import ClientFormModal from '@/components/clients/ClientFormModal.vue'
 import SessionTimeline from '@/components/client/SessionTimeline.vue'
 import DeletedNotesSection from '@/components/sessions/DeletedNotesSection.vue'
+import DirectionsButton from '@/components/common/DirectionsButton.vue'
 import type { ClientCreate } from '@/types/client'
 
 const route = useRoute()
@@ -769,8 +770,16 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
             </div>
             <div class="border-b border-slate-100 pb-4 sm:border-b-0 sm:pb-0">
               <dt class="text-sm font-medium text-slate-500">Address</dt>
-              <dd class="mt-1.5 text-base text-slate-900 sm:text-sm">
-                {{ client.address || 'Not provided' }}
+              <dd
+                class="mt-1.5 flex items-start gap-2 text-base text-slate-900 sm:text-sm"
+              >
+                <span class="flex-1">{{ client.address || 'Not provided' }}</span>
+                <DirectionsButton
+                  v-if="client.address"
+                  :address="client.address"
+                  size="sm"
+                  :show-label="true"
+                />
               </dd>
             </div>
             <div class="border-b border-slate-100 pb-4 sm:border-b-0 sm:pb-0">

@@ -22,6 +22,7 @@ import { useAppointmentsStore } from '@/stores/appointments'
 import AppointmentStatusCard from './AppointmentStatusCard.vue'
 import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentModal.vue'
 import TimePickerDropdown from '@/components/common/TimePickerDropdown.vue'
+import DirectionsButton from '@/components/common/DirectionsButton.vue'
 import IconClose from '@/components/icons/IconClose.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 import IconClock from '@/components/icons/IconClock.vue'
@@ -587,23 +588,23 @@ watch(
 
     <!-- Modal Content -->
     <Transition
-      enter-active-class="transition-all duration-150 ease-out"
-      leave-active-class="transition-all duration-150 ease-in"
-      enter-from-class="opacity-0 scale-95"
-      enter-to-class="opacity-100 scale-100"
-      leave-from-class="opacity-100 scale-100"
-      leave-to-class="opacity-0 scale-95"
+      enter-active-class="transition-all duration-300 ease-out md:duration-150"
+      leave-active-class="transition-all duration-200 ease-in md:duration-150"
+      enter-from-class="translate-y-full opacity-0 md:translate-y-0 md:scale-95"
+      enter-to-class="translate-y-0 opacity-100 md:scale-100"
+      leave-from-class="translate-y-0 opacity-100 md:scale-100"
+      leave-to-class="translate-y-full opacity-0 md:translate-y-0 md:scale-95"
     >
       <div
         v-if="visible && appointment"
         ref="modalRef"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        class="fixed inset-x-0 bottom-0 z-50 md:inset-0 md:flex md:items-center md:justify-center md:p-4"
         role="dialog"
         aria-modal="true"
         :aria-labelledby="`appointment-details-modal-title-${appointment.id}`"
       >
         <div
-          class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-xl"
+          class="pb-safe max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-2xl md:max-h-[90vh] md:max-w-2xl md:rounded-xl"
           @click.stop
         >
           <!-- Header -->
@@ -819,14 +820,27 @@ watch(
                 <label for="edit-location-details" class="block text-xs text-slate-500">
                   Details
                 </label>
-                <input
-                  id="edit-location-details"
-                  v-model="editableData.location_details"
-                  type="text"
-                  placeholder="e.g., Zoom link, room number, address"
-                  @blur="handleTextFieldBlur('location_details')"
-                  class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
-                />
+                <div class="mt-1 flex items-center gap-2">
+                  <input
+                    id="edit-location-details"
+                    v-model="editableData.location_details"
+                    type="text"
+                    placeholder="e.g., Zoom link, room number, address"
+                    @blur="handleTextFieldBlur('location_details')"
+                    class="block min-h-[44px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
+                  />
+                  <!-- Directions Button - Only show for physical locations with address -->
+                  <DirectionsButton
+                    v-if="
+                      editableData.location_details &&
+                      editableData.location_type !== 'online'
+                    "
+                    :address="editableData.location_details"
+                    size="md"
+                    :show-label="false"
+                    class="min-h-[44px] min-w-[44px]"
+                  />
+                </div>
               </div>
             </div>
 

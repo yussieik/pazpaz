@@ -25,7 +25,6 @@ import CalendarLoadingState from '@/components/calendar/CalendarLoadingState.vue
 import DragConflictModal from '@/components/calendar/DragConflictModal.vue'
 import MobileRescheduleModal from '@/components/calendar/MobileRescheduleModal.vue'
 import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentModal.vue'
-import MobileActionToolbar from '@/components/calendar/MobileActionToolbar.vue'
 import FloatingActionButton from '@/components/common/FloatingActionButton.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 import IconClock from '@/components/icons/IconClock.vue'
@@ -83,12 +82,6 @@ const undoCancelData = ref<{
 
 const showEditSuccessBadge = ref(false)
 
-// Mobile action toolbar state
-const selectedAppointmentForActions = ref<string | null>(null)
-const isMobile = computed(
-  () => typeof window !== 'undefined' && window.innerWidth <= 640
-)
-
 const { announcement: screenReaderAnnouncement, announce } = useScreenReader()
 const { showSuccess, showAppointmentSuccess, showSuccessWithUndo, showError } =
   useToast()
@@ -114,36 +107,7 @@ const {
 
 // Wrap handleEventClick to capture times before modal opens
 function handleEventClick(clickInfo: any) {
-  // Mobile behavior: tap-to-select with floating toolbar
-  if (isMobile.value) {
-    const appointmentId = clickInfo.event.id
-
-    // If this appointment is already selected, open detail modal (second tap)
-    if (selectedAppointmentForActions.value === appointmentId) {
-      selectedAppointmentForActions.value = null // Clear selection
-      composableHandleEventClick(clickInfo) // Open modal
-
-      // Capture times for modal
-      if (selectedAppointment.value) {
-        previousAppointmentTimes.value.set(selectedAppointment.value.id, {
-          start: selectedAppointment.value.scheduled_start,
-          end: selectedAppointment.value.scheduled_end,
-        })
-      }
-    } else {
-      // First tap: select appointment and show toolbar
-      // Immediately add visual class to prevent flash
-      const eventEl = clickInfo.el
-      if (eventEl) {
-        eventEl.classList.add('is-selected-for-action')
-      }
-
-      selectedAppointmentForActions.value = appointmentId
-    }
-    return
-  }
-
-  // Desktop behavior: open modal immediately
+  // Both mobile and desktop: open modal immediately
   composableHandleEventClick(clickInfo)
 
   // Then, if an appointment was selected, capture its current times IMMEDIATELY
@@ -385,16 +349,10 @@ function handleCalendarMouseLeave() {
 
 const {
   isDragging,
-  isKeyboardRescheduleActive,
   ghostTimeRange,
   ghostDateTimePreview,
-  keyboardTimeRange,
   dragState,
   handleEventDrop,
-  activateKeyboardReschedule,
-  handleKeyboardNavigation,
-  confirmKeyboardReschedule,
-  cancelKeyboardReschedule,
   cleanup: cleanupDrag,
 } = useAppointmentDrag(
   computed(() => appointmentsStore.appointments),
@@ -445,31 +403,6 @@ async function handleQuickComplete(appointmentId: string) {
     console.error('Failed to mark appointment as completed:', error)
     showError('Failed to mark appointment as completed')
   }
-}
-
-/**
- * Handle complete from mobile toolbar
- */
-function handleMobileComplete() {
-  if (!selectedAppointmentForActions.value) return
-  handleQuickComplete(selectedAppointmentForActions.value)
-  selectedAppointmentForActions.value = null
-}
-
-/**
- * Handle delete from mobile toolbar
- */
-function handleMobileDelete() {
-  if (!selectedAppointmentForActions.value) return
-  handleQuickDelete(selectedAppointmentForActions.value)
-  selectedAppointmentForActions.value = null
-}
-
-/**
- * Close mobile toolbar
- */
-function handleCloseMobileToolbar() {
-  selectedAppointmentForActions.value = null
 }
 
 /**
@@ -611,11 +544,6 @@ const calendarOptions = computed(() => ({
 
     // Add data attribute so we can find this element later
     info.el.setAttribute('data-event-id', event.id)
-
-    // Add selected state class for mobile toolbar
-    if (selectedAppointmentForActions.value === event.id) {
-      info.el.classList.add('is-selected-for-action')
-    }
 
     // Apply height fix for FullCalendar v6 bug
     if (event.start && event.end) {
@@ -1337,28 +1265,6 @@ watch(
   { immediate: true }
 )
 
-// Watch for selection changes and update event classes
-watch(
-  () => selectedAppointmentForActions.value,
-  (newId, oldId) => {
-    // Remove selected class from previous appointment
-    if (oldId) {
-      const oldEl = document.querySelector(`[data-event-id="${oldId}"]`)
-      if (oldEl) {
-        oldEl.classList.remove('is-selected-for-action')
-      }
-    }
-
-    // Add selected class to new appointment
-    if (newId) {
-      const newEl = document.querySelector(`[data-event-id="${newId}"]`)
-      if (newEl) {
-        newEl.classList.add('is-selected-for-action')
-      }
-    }
-  }
-)
-
 // Keyboard shortcuts for reschedule mode
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown)
@@ -1375,6 +1281,20 @@ onUnmounted(() => {
  * Global keydown handler for reschedule mode and quick actions
  */
 function handleGlobalKeydown(event: KeyboardEvent) {
+  // Quick action: Get directions with 'G' key (when appointment is selected and has address)
+  if ((event.key === 'g' || event.key === 'G') && !event.ctrlKey && !event.metaKey) {
+    if (selectedAppointment.value) {
+      // Check if appointment has a physical address (home visit or clinic with address)
+      const address = selectedAppointment.value.location_details
+      if (address && selectedAppointment.value.location_type !== 'online') {
+        event.preventDefault()
+        const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`
+        window.open(url, '_blank', 'noopener,noreferrer')
+        return
+      }
+    }
+  }
+
   // Quick action: Complete appointment with 'C' key (when appointment is selected)
   if ((event.key === 'c' || event.key === 'C') && !event.ctrlKey && !event.metaKey) {
     if (selectedAppointment.value) {
@@ -1394,36 +1314,19 @@ function handleGlobalKeydown(event: KeyboardEvent) {
   }
 
   // Quick action: Delete appointment with 'Delete' or 'Backspace' key (when appointment is selected)
+  // Only trigger if NOT typing in an input field
   if (event.key === 'Delete' || event.key === 'Backspace') {
-    if (selectedAppointment.value && !isKeyboardRescheduleActive.value) {
+    const target = event.target as HTMLElement
+    const isTyping =
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.isContentEditable
+
+    if (selectedAppointment.value && !isTyping) {
       event.preventDefault()
       handleQuickDelete(selectedAppointment.value.id)
       selectedAppointment.value = null // Close detail modal
       return
-    }
-  }
-
-  // Activate reschedule mode with 'R' key (when appointment is selected)
-  if (event.key === 'r' || event.key === 'R') {
-    if (selectedAppointment.value && !isKeyboardRescheduleActive.value) {
-      event.preventDefault()
-      activateKeyboardReschedule(selectedAppointment.value.id)
-      selectedAppointment.value = null // Close detail modal
-      return
-    }
-  }
-
-  // Handle keyboard navigation in reschedule mode
-  if (isKeyboardRescheduleActive.value) {
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
-      event.preventDefault()
-      handleKeyboardNavigation(event.key)
-    } else if (event.key === 'Enter') {
-      event.preventDefault()
-      confirmKeyboardReschedule()
-    } else if (event.key === 'Escape') {
-      event.preventDefault()
-      cancelKeyboardReschedule()
     }
   }
 
@@ -1587,27 +1490,6 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       @cancel="handleDeleteCancel"
     />
 
-    <!-- Mobile Action Toolbar -->
-    <MobileActionToolbar
-      :visible="!!selectedAppointmentForActions"
-      :appointment-id="selectedAppointmentForActions"
-      :can-complete="
-        selectedAppointmentForActions
-          ? (() => {
-              const appt = appointmentsStore.appointments.find(
-                (a) => a.id === selectedAppointmentForActions
-              )
-              if (!appt) return false
-              const now = new Date()
-              return appt.status === 'scheduled' && new Date(appt.scheduled_end) < now
-            })()
-          : false
-      "
-      @complete="handleMobileComplete"
-      @delete="handleMobileDelete"
-      @close="handleCloseMobileToolbar"
-    />
-
     <!-- Floating Action Button -->
     <FloatingActionButton
       label="New Appointment"
@@ -1620,41 +1502,16 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       {{ screenReaderAnnouncement }}
     </div>
 
-    <!-- Keyboard Reschedule Mode Indicator (desktop only) -->
-    <Transition name="fade">
-      <div
-        v-if="isKeyboardRescheduleActive"
-        class="fixed right-6 bottom-6 z-50 hidden rounded-lg bg-blue-600 px-4 py-3 text-white shadow-2xl sm:block"
-        role="status"
-        aria-live="polite"
-      >
-        <div class="flex items-start gap-3">
-          <svg
-            class="h-5 w-5 shrink-0"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-            />
-          </svg>
-          <div>
-            <p class="text-sm font-semibold">Reschedule Mode</p>
-            <p class="mt-1 text-xs opacity-90">{{ keyboardTimeRange }}</p>
-            <p class="mt-2 text-xs opacity-75">
-              <kbd class="rounded bg-white/20 px-1 py-0.5">↑↓</kbd> 15 min •
-              <kbd class="rounded bg-white/20 px-1 py-0.5">←→</kbd> 1 day •
-              <kbd class="rounded bg-white/20 px-1 py-0.5">Enter</kbd> confirm •
-              <kbd class="rounded bg-white/20 px-1 py-0.5">Esc</kbd> cancel
-            </p>
-          </div>
-        </div>
-      </div>
-    </Transition>
+    <!-- Drag-and-Drop Screen Reader Announcements -->
+    <div
+      id="drag-drop-announcer"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      class="sr-only"
+    >
+      <!-- Announces drag state changes for screen readers -->
+    </div>
 
     <!-- Drag Ghost Element -->
     <Transition name="ghost-fade">
@@ -2170,8 +2027,6 @@ function handleGlobalKeydown(event: KeyboardEvent) {
   }
 }
 
-/* Mobile Action Toolbar - Selected Appointment State */
-
 /* Hide desktop quick action buttons on mobile */
 @media (max-width: 640px) {
   .calendar-quick-actions {
@@ -2187,33 +2042,6 @@ function handleGlobalKeydown(event: KeyboardEvent) {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
-  }
-
-  /* Selected appointment state - blue pulsing border */
-  :deep(.fc-event.is-selected-for-action) {
-    box-shadow: 0 0 0 2px #3b82f6 !important;
-    z-index: 10 !important;
-    animation: subtle-pulse 1.5s ease-in-out infinite;
-  }
-
-  /* Pulse animation for selected appointment */
-  @keyframes subtle-pulse {
-    0%,
-    100% {
-      box-shadow: 0 0 0 2px #3b82f6;
-    }
-    50% {
-      box-shadow:
-        0 0 0 2px #3b82f6,
-        0 0 8px rgba(59, 130, 246, 0.4);
-    }
-  }
-
-  /* Disable pulse animation if user prefers reduced motion */
-  @media (prefers-reduced-motion: reduce) {
-    :deep(.fc-event.is-selected-for-action) {
-      animation: none !important;
-    }
   }
 }
 </style>
