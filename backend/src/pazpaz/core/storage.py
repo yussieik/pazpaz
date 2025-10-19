@@ -81,11 +81,17 @@ def is_minio_endpoint(endpoint_url: str) -> bool:
     Example:
         >>> is_minio_endpoint("http://localhost:9000")
         True
+        >>> is_minio_endpoint("http://127.0.0.1:9000")
+        True
         >>> is_minio_endpoint("https://s3.amazonaws.com")
         False
     """
     endpoint_lower = endpoint_url.lower()
-    return "localhost" in endpoint_lower or "minio" in endpoint_lower
+    return (
+        "localhost" in endpoint_lower
+        or "127.0.0.1" in endpoint_lower
+        or "minio" in endpoint_lower
+    )
 
 
 class S3ClientError(Exception):
@@ -108,6 +114,12 @@ class S3DownloadError(S3ClientError):
 
 class S3DeleteError(S3ClientError):
     """Raised when file deletion fails."""
+
+    pass
+
+
+class EncryptionVerificationError(S3ClientError):
+    """Raised when file encryption verification fails."""
 
     pass
 
@@ -425,14 +437,16 @@ async def upload_file(
     content_type: str,
 ) -> str:
     """
-    Upload file to S3 with server-side encryption.
+    Upload file to S3 with server-side encryption (ALWAYS enabled).
 
-    Files are automatically encrypted at rest using AES-256 (SSE-S3).
-    Object key enforces workspace isolation via path-based scoping.
+    Files are ALWAYS encrypted at rest using:
+    - MinIO (development): SSE-S3 with KMS (configured in docker-compose)
+    - AWS S3 (production): SSE-S3 with AES-256 or AWS KMS
 
-    Note: MinIO in development mode doesn't support SSE-S3 headers without
-    KMS configuration, so encryption headers are conditionally applied
-    based on whether we're using MinIO or AWS S3.
+    HIPAA Compliance: §164.312(a)(2)(iv) - Encryption at rest for PHI
+
+    After upload, encryption is VERIFIED to ensure HIPAA compliance.
+    Upload is rejected if encryption cannot be confirmed.
 
     Args:
         file_obj: File-like object to upload (from FastAPI UploadFile)
@@ -446,6 +460,7 @@ async def upload_file(
 
     Raises:
         S3UploadError: If upload fails
+        EncryptionVerificationError: If file is not encrypted at rest
 
     Example:
         >>> key = await upload_file(
@@ -463,14 +478,28 @@ async def upload_file(
         # Prepare upload arguments
         extra_args = {"ContentType": content_type}
 
-        # Only add ServerSideEncryption for AWS S3 (not MinIO in development)
-        # MinIO requires KMS setup for SSE-S3, which is not needed in dev
-        # In production AWS S3, this enables automatic encryption at rest
-        if not is_minio_endpoint(settings.s3_endpoint_url):
-            # SSE-S3 encryption (AWS only)
+        # ALWAYS enable server-side encryption (MinIO and AWS S3)
+        if is_minio_endpoint(settings.s3_endpoint_url):
+            # MinIO with KMS (configured via MINIO_KMS_SECRET_KEY in docker-compose)
+            # MinIO SSE-S3 works with built-in KMS
             extra_args["ServerSideEncryption"] = "AES256"
+            logger.debug(
+                "upload_encryption_enabled",
+                encryption_method="MinIO SSE-S3 (KMS)",
+                object_key=object_key,
+            )
+        else:
+            # AWS S3 with SSE-S3 (AES-256) or AWS KMS
+            # Default to AES256 (SSE-S3) for simplicity
+            # Production can upgrade to "aws:kms" for AWS KMS
+            extra_args["ServerSideEncryption"] = "AES256"
+            logger.debug(
+                "upload_encryption_enabled",
+                encryption_method="AWS SSE-S3 (AES256)",
+                object_key=object_key,
+            )
 
-        # Upload file
+        # Upload file with encryption enabled
         s3_client.upload_fileobj(
             file_obj,
             settings.s3_bucket_name,
@@ -478,33 +507,115 @@ async def upload_file(
             ExtraArgs=extra_args,
         )
 
+        # CRITICAL: Verify encryption after upload (HIPAA requirement)
+        # This ensures files are actually encrypted at rest, not just requested
+        verify_file_encrypted(object_key)
+
         logger.info(
-            f"File uploaded successfully: {object_key}",
-            extra={
-                "workspace_id": workspace_id,
-                "session_id": session_id,
-                "filename": filename,
-                "content_type": content_type,
-                "encryption": (
-                    "MinIO-default"
-                    if is_minio_endpoint(settings.s3_endpoint_url)
-                    else "SSE-S3"
-                ),
-            },
+            "file_uploaded_and_encrypted",
+            object_key=object_key,
+            workspace_id=workspace_id,
+            session_id=session_id,
+            filename=filename,
+            content_type=content_type,
+            encryption_verified=True,
         )
 
         return object_key
 
+    except EncryptionVerificationError:
+        # Re-raise encryption errors (already logged in verify_file_encrypted)
+        raise
     except (BotoCoreError, ClientError) as e:
         logger.error(
-            f"Failed to upload file {filename}: {e}",
-            extra={
-                "workspace_id": workspace_id,
-                "session_id": session_id,
-                "filename": filename,
-            },
+            "file_upload_failed",
+            filename=filename,
+            workspace_id=workspace_id,
+            session_id=session_id,
+            error=str(e),
         )
         raise S3UploadError(f"Failed to upload file: {e}") from e
+
+
+def verify_file_encrypted(object_key: str) -> None:
+    """
+    Verify that file is encrypted at rest in S3/MinIO.
+
+    HIPAA Compliance: §164.312(a)(2)(iv) - Encryption at rest verification
+
+    This function performs a HEAD request to retrieve object metadata
+    and confirms that ServerSideEncryption is enabled. This is a critical
+    security check to ensure PHI file attachments are actually encrypted.
+
+    Fail-Closed Behavior:
+    - If ServerSideEncryption header is missing → raise error
+    - If S3 request fails → raise error
+    - Production MUST have encryption enabled (no exceptions)
+
+    Args:
+        object_key: S3 object key to verify
+
+    Raises:
+        EncryptionVerificationError: If file is not encrypted or verification fails
+
+    Example:
+        >>> verify_file_encrypted("workspace-uuid/sessions/session-uuid/attachments/file.jpg")
+        # Returns None if encrypted, raises EncryptionVerificationError if not
+    """
+    try:
+        s3_client = get_s3_client()
+
+        # Retrieve object metadata (no download, just headers)
+        response = s3_client.head_object(
+            Bucket=settings.s3_bucket_name,
+            Key=object_key,
+        )
+
+        # Check ServerSideEncryption header
+        encryption = response.get("ServerSideEncryption")
+
+        if not encryption:
+            # FAIL CLOSED: Reject upload if encryption cannot be verified
+            logger.error(
+                "encryption_verification_failed",
+                object_key=object_key,
+                reason="ServerSideEncryption header missing",
+                response_headers=list(response.keys()),
+            )
+            raise EncryptionVerificationError(
+                f"File {object_key} not encrypted at rest! "
+                "ServerSideEncryption header missing. "
+                "This is a HIPAA violation for PHI data."
+            )
+
+        # Log successful verification with encryption details
+        logger.info(
+            "encryption_verified",
+            object_key=object_key,
+            encryption_method=encryption,
+            kms_key_id=response.get("SSEKMSKeyId", "N/A"),  # AWS KMS key ID if used
+        )
+
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "Unknown")
+        logger.error(
+            "encryption_verification_request_failed",
+            object_key=object_key,
+            error_code=error_code,
+            error_message=str(e),
+        )
+        raise EncryptionVerificationError(
+            f"Failed to verify encryption for {object_key}: {error_code}"
+        ) from e
+    except BotoCoreError as e:
+        logger.error(
+            "encryption_verification_boto_error",
+            object_key=object_key,
+            error=str(e),
+        )
+        raise EncryptionVerificationError(
+            f"Boto error during encryption verification: {e}"
+        ) from e
 
 
 async def delete_file(object_key: str) -> None:
