@@ -20,7 +20,6 @@ from pazpaz.schemas.client import (
     ClientResponse,
     ClientUpdate,
 )
-from pazpaz.utils.crud_helpers import apply_partial_update
 from pazpaz.utils.pagination import (
     calculate_pagination_offset,
     calculate_total_pages,
@@ -127,13 +126,18 @@ async def create_client(
     logger.info("client_create_started", workspace_id=str(workspace_id))
 
     # Create new client instance with injected workspace_id
+    # Convert date_of_birth from date object to ISO string for encrypted storage
+    dob_str = (
+        client_data.date_of_birth.isoformat() if client_data.date_of_birth else None
+    )
+
     client = Client(
         workspace_id=workspace_id,
         first_name=client_data.first_name,
         last_name=client_data.last_name,
         email=client_data.email,
         phone=client_data.phone,
-        date_of_birth=client_data.date_of_birth,
+        date_of_birth=dob_str,
         address=client_data.address,
         medical_history=client_data.medical_history,
         emergency_contact_name=client_data.emergency_contact_name,
@@ -330,8 +334,16 @@ async def update_client(
     # Fetch existing client with workspace scoping (raises 404 if not found)
     client = await get_or_404(db, Client, client_id, workspace_id)
 
-    # Apply partial update and get updated fields
-    update_data = apply_partial_update(client, client_data)
+    # Convert date_of_birth from date object to ISO string if present
+    update_dict = client_data.model_dump(exclude_unset=True)
+    if "date_of_birth" in update_dict and update_dict["date_of_birth"] is not None:
+        update_dict["date_of_birth"] = update_dict["date_of_birth"].isoformat()
+
+    # Apply updates to entity
+    for field, value in update_dict.items():
+        setattr(client, field, value)
+
+    update_data = update_dict
 
     await db.commit()
     await db.refresh(client)

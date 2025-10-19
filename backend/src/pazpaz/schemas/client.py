@@ -5,7 +5,14 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    computed_field,
+    field_validator,
+)
 
 
 class ClientBase(BaseModel):
@@ -90,6 +97,31 @@ class ClientResponse(ClientBase):
     appointment_count: int = Field(
         default=0, description="Total number of appointments"
     )
+
+    @field_validator("date_of_birth", mode="before")
+    @classmethod
+    def parse_date_of_birth(cls, value: str | date | None) -> date | None:
+        """
+        Convert encrypted date_of_birth string to date object.
+
+        The database stores date_of_birth as an encrypted ISO format string
+        (YYYY-MM-DD). This validator handles conversion from string to date
+        for API responses.
+
+        Args:
+            value: Either ISO format string from database or date object
+
+        Returns:
+            date object or None
+        """
+        if value is None:
+            return None
+        if isinstance(value, date):
+            return value
+        if isinstance(value, str):
+            # Parse ISO format string (YYYY-MM-DD)
+            return datetime.fromisoformat(value).date()
+        return value
 
     @computed_field  # type: ignore[misc]
     @property

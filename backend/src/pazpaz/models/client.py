@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -31,6 +31,7 @@ class Client(Base):
     Encrypted PII/PHI fields:
     - first_name, last_name (PII - identity)
     - email, phone (PII - contact information)
+    - date_of_birth (PHI - date of birth, stored as ISO format YYYY-MM-DD string)
     - address (PII - location data)
     - medical_history (PHI - protected health information)
     - emergency_contact_name, emergency_contact_phone (PII - contact information)
@@ -72,10 +73,10 @@ class Client(Base):
         nullable=True,
         comment="Client phone number (encrypted PII)",
     )
-    date_of_birth: Mapped[date | None] = mapped_column(
-        Date,
+    date_of_birth: Mapped[str | None] = mapped_column(
+        EncryptedString(50),
         nullable=True,
-        comment="Client date of birth (not encrypted - needed for age calculations)",
+        comment="Client date of birth (encrypted PHI, ISO format YYYY-MM-DD)",
     )
     address: Mapped[str | None] = mapped_column(
         EncryptedString(1000),
@@ -153,17 +154,19 @@ class Client(Base):
 
     # Indexes for performance
     __table_args__ = (
-        # NOTE: Indexes on encrypted fields (first_name, last_name, email) are removed
-        # because EncryptedString stores binary data (BYTEA) which cannot be efficiently
-        # indexed for name/email searches. Client search must be implemented as:
+        # NOTE: Indexes on encrypted fields (first_name, last_name, email)
+        # are removed because EncryptedString stores binary data (BYTEA) which
+        # cannot be efficiently indexed for name/email searches. Client search
+        # must be implemented as:
         # 1. Fetch all clients for workspace (filtered by workspace_id)
         # 2. Decrypt and filter in application layer
-        # 3. Alternative: Use separate search index (e.g., Elasticsearch) with encrypted-at-rest storage
+        # 3. Alternative: Use separate search index (e.g., Elasticsearch)
+        #    with encrypted-at-rest storage
         #
-        # Performance impact: Client listing queries will fetch all clients in workspace.
-        # For typical therapist practice (< 500 clients), this is acceptable (<200ms).
-        # For larger workspaces, implement caching or search index.
-
+        # Performance impact: Client listing queries will fetch all clients
+        # in workspace. For typical therapist practice (< 500 clients), this
+        # is acceptable (<200ms). For larger workspaces, implement caching
+        # or search index.
         # Index for recently updated clients (most useful for "recent clients" view)
         Index(
             "ix_clients_workspace_updated",
@@ -177,9 +180,7 @@ class Client(Base):
             "is_active",
             postgresql_where=sa.text("is_active = true"),
         ),
-        {
-            "comment": "Clients with encrypted PII/PHI fields (HIPAA §164.312(a)(2)(iv))"
-        },
+        {"comment": "Clients with encrypted PII/PHI fields (HIPAA §164.312(a)(2)(iv))"},
     )
 
     @property

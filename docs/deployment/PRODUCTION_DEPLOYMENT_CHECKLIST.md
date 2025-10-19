@@ -37,32 +37,70 @@ Use this checklist before deploying PazPaz backend to production to ensure all s
 
 ### 2. AWS Secrets Manager
 
-- [ ] **Encryption Master Key Stored**
-  - Secret name: `pazpaz/encryption-key-v1`
+**Reference:** [AWS_SECRETS_MANAGER_SETUP.md](./AWS_SECRETS_MANAGER_SETUP.md)
+
+- [ ] **Encryption Master Key Stored (v2)**
+  - Secret name: `pazpaz/encryption-key-v2`
   - Value: Base64-encoded Fernet key (44 characters)
-  - Region: `us-east-1`
-  - Automatic rotation: Disabled (versioned instead)
+  - Region: `us-east-1` (replicated to `us-west-2`)
+  - Automatic rotation: **Disabled** (uses versioning, not rotation)
+  - Version: v2 (matches current application key version)
+  - Tags: `Environment=production`, `Compliance=HIPAA`, `Application=PazPaz`
+
+- [ ] **Legacy Encryption Key Retained (v1)**
+  - Secret name: `pazpaz/encryption-key-v1`
+  - Status: Active (DO NOT DELETE - needed for decrypting historical data)
+  - Used for: Decryption of existing PHI encrypted before v2 migration
+  - Retention: Keep until all historical data re-encrypted with v2
 
 - [ ] **JWT Secret Stored**
   - Secret name: `pazpaz/jwt-secret`
   - Value: Strong random string (64+ characters)
-  - Region: `us-east-1`
+  - Region: `us-east-1` (replicated to `us-west-2`)
   - Automatic rotation: Enabled (90-day rotation)
+  - Tags: `Environment=production`, `Compliance=HIPAA`, `Application=PazPaz`
 
-- [ ] **Database URL Stored**
+- [ ] **Database Credentials Stored**
+  - Secret name: `pazpaz/database-credentials`
+  - Format: JSON with `username`, `password`, `host`, `port`, `database`, `ssl_cert_path`
+  - Region: `us-east-1` (replicated to `us-west-2`)
+  - Automatic rotation: Enabled (90-day rotation)
+  - Tags: `Environment=production`, `Compliance=HIPAA`, `Application=PazPaz`
+
+- [ ] **Alternative Database URL Format** (if using URL instead of JSON)
   - Secret name: `pazpaz/database-url`
-  - Value: `postgresql+asyncpg://USER:PASS@HOST:5432/pazpaz`
-  - Region: `us-east-1`
+  - Value: `postgresql+asyncpg://USER:PASS@HOST:5432/pazpaz?ssl=require`
+  - Region: `us-east-1` (replicated to `us-west-2`)
   - Automatic rotation: Enabled (90-day rotation)
 
 - [ ] **Redis URL Stored**
   - Secret name: `pazpaz/redis-url`
-  - Value: `redis://HOST:6379/0`
-  - Region: `us-east-1`
+  - Value: `redis://:PASSWORD@HOST:6379/0`
+  - Region: `us-east-1` (replicated to `us-west-2`)
+  - Automatic rotation: Optional (consider 180-day rotation)
+  - Tags: `Environment=production`, `Application=PazPaz`
 
 - [ ] **Email Credentials Stored** (if using SMTP)
   - Secret name: `pazpaz/email-credentials`
   - Format: JSON with `username`, `password`, `smtp_host`, `smtp_port`
+  - Region: `us-east-1`
+
+- [ ] **Multi-Region Replication Enabled**
+  - Primary region: `us-east-1`
+  - Replica region: `us-west-2`
+  - Replication lag: <1 minute
+  - Failover tested: Verify application can fetch from `us-west-2`
+
+- [ ] **Key Rotation Lambda Configured** (for JWT and database secrets)
+  - JWT rotation function: `pazpaz-jwt-rotation`
+  - DB rotation function: `SecretsManagerRDSPostgreSQLRotationSingleUser`
+  - Schedule: Every 90 days (HIPAA requirement)
+  - Process: Generate new key version, update registry, mark current
+
+- [ ] **CloudWatch Alarms Configured**
+  - Alarm: `pazpaz-secrets-rotation-failure` (alerts on rotation failures)
+  - Alarm: `pazpaz-unauthorized-secrets-access` (alerts on 3+ unauthorized attempts)
+  - SNS topic: `pazpaz-critical-alerts` and `pazpaz-security-alerts`
 
 ---
 
@@ -269,6 +307,23 @@ Use this checklist before deploying PazPaz backend to production to ensure all s
   - IAM role verified at startup (logs show `aws_iam_role_verified`)
   - Encryption master key loaded from Secrets Manager
   - Database migrations applied
+
+- [ ] **AWS Secrets Manager Integration Verified**
+  - `ENVIRONMENT=production` in ECS task definition
+  - `AWS_REGION=us-east-1` configured
+  - `SECRETS_MANAGER_KEY_NAME=pazpaz/encryption-key-v2` configured
+  - IAM role `pazpaz-backend-task-role` has SecretsManager read permissions
+  - Application fetches encryption key from AWS Secrets Manager at startup
+  - Startup logs show: `encryption_key_source=aws_secrets_manager`
+  - Startup logs show: `encryption_key_loaded_successfully` with `key_length=32`
+  - No encryption keys in `.env` files or environment variables
+  - No `aws_unavailable_using_env_fallback` warnings in production logs
+
+- [ ] **Secret Versioning Configured**
+  - Current encryption key version: `v2`
+  - Legacy key `v1` retained for decrypting historical data
+  - Application supports multi-version decryption (backward compatibility)
+  - Key rotation procedure documented (see `docs/security/encryption/KEY_ROTATION_PROCEDURE.md`)
 
 - [ ] **Rate Limiting Enabled**
   - Magic link verification: 5 requests/minute per IP
