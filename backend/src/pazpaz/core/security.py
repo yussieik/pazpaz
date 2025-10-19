@@ -5,10 +5,14 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from jose import JWTError, jwt
+from fastapi import HTTPException, status
+from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
 
 from pazpaz.core.config import settings
+from pazpaz.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 # Password hashing context (for future password-based auth if needed)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -58,7 +62,13 @@ def create_access_token(
 
 def decode_access_token(token: str) -> dict[str, str]:
     """
-    Decode and validate a JWT access token with expiration checking.
+    Decode and validate JWT access token with comprehensive security checks.
+
+    Security hardening:
+    - Explicitly verify algorithm matches expected (prevents alg: none)
+    - Require all expected claims (prevents claim omission)
+    - Validate signature (prevents unsigned tokens)
+    - Defense-in-depth expiration checking
 
     Args:
         token: JWT token string
@@ -67,30 +77,102 @@ def decode_access_token(token: str) -> dict[str, str]:
         Decoded token payload
 
     Raises:
-        JWTError: If token is invalid, expired, or malformed
+        HTTPException: 401 Unauthorized if token is invalid, expired, or malformed
     """
     try:
-        # Decode JWT with expiration validation explicitly enabled
+        # STEP 1: Verify algorithm header BEFORE decoding
+        # This prevents algorithm confusion attacks (alg: none, RS256 key confusion)
+        unverified_header = jwt.get_unverified_header(token)
+        expected_algorithm = "HS256"
+
+        if unverified_header.get("alg") != expected_algorithm:
+            logger.warning(
+                "jwt_algorithm_mismatch",
+                expected=expected_algorithm,
+                got=unverified_header.get("alg"),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # STEP 2: Decode with strict validation
         payload = jwt.decode(
             token,
             settings.secret_key,
-            algorithms=["HS256"],
-            options={"verify_exp": True},  # Explicitly enforce expiration validation
+            algorithms=[expected_algorithm],  # Explicit algorithm whitelist
+            options={
+                "verify_signature": True,  # Explicitly require signature
+                "verify_exp": True,  # Explicitly require expiration check
+            },
         )
 
-        # Defense-in-depth: Additional expiration check
+        # STEP 3: Validate all required claims are present
+        # Note: python-jose doesn't support 'require' option for custom claims,
+        # so we validate manually
+        required_claims = ["exp", "sub", "user_id", "workspace_id", "email", "jti"]
+        missing_claims = [claim for claim in required_claims if claim not in payload]
+
+        if missing_claims:
+            logger.warning(
+                "jwt_missing_required_claims",
+                missing_claims=missing_claims,
+                token_preview=token[:20],
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # STEP 4: Defense-in-depth: Additional expiration check
         exp = payload.get("exp")
         if not exp:
-            raise JWTError("Token missing expiration claim")
+            logger.warning("jwt_missing_expiration", token_preview=token[:20])
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
         # Verify expiration hasn't been tampered with
         exp_datetime = datetime.fromtimestamp(exp, tz=UTC)
         if exp_datetime < datetime.now(UTC):
-            raise JWTError("Token has expired")
+            logger.info("jwt_expired", exp=exp_datetime.isoformat())
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication token has expired",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
         return payload
+
+    except HTTPException:
+        # Re-raise HTTPException as-is
+        raise
+    except ExpiredSignatureError as e:
+        # Handle expired tokens specifically
+        logger.info("jwt_expired_signature", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
     except JWTError as e:
-        raise JWTError("Invalid or expired token") from e
+        logger.warning("jwt_decode_failed", error=str(e), error_type=type(e).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
+    except Exception as e:
+        logger.error("jwt_decode_unexpected_error", error=str(e), exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

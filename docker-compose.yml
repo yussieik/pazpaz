@@ -5,7 +5,7 @@ services:
     user: postgres
     environment:
       POSTGRES_USER: pazpaz
-      POSTGRES_PASSWORD: pazpaz
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME_GENERATE_RANDOM}
       POSTGRES_DB: pazpaz
     command: >
       sh -c "
@@ -26,7 +26,7 @@ services:
       -c ssl_ciphers='HIGH:!aNULL:!MD5'
       "
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Mount SSL certificates from host (development only)
@@ -59,8 +59,8 @@ services:
     image: mailhog/mailhog:latest
     container_name: pazpaz-mailhog
     ports:
-      - "1025:1025"  # SMTP server
-      - "8025:8025"  # Web UI
+      - "127.0.0.1:1025:1025"  # SMTP server
+      - "127.0.0.1:8025:8025"  # Web UI
     logging:
       driver: none
 
@@ -90,8 +90,8 @@ services:
       #
       # See: backend/docs/storage/S3_CREDENTIAL_MANAGEMENT.md
       # ===================================================================
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin123}
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-CHANGE_ME_GENERATE_RANDOM}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-CHANGE_ME_GENERATE_RANDOM}
 
       # ===================================================================
       # MinIO Server-Side Encryption (SSE-S3 with KMS)
@@ -111,8 +111,8 @@ services:
       # ===================================================================
       MINIO_KMS_SECRET_KEY: "pazpaz-minio-key:${MINIO_ENCRYPTION_KEY:-CHANGE_ME_IN_PRODUCTION_32_BYTE_BASE64_KEY}"
     ports:
-      - "9000:9000"  # S3 API
-      - "9001:9001"  # MinIO Console (Web UI)
+      - "127.0.0.1:9000:9000"  # S3 API
+      - "127.0.0.1:9001:9001"  # MinIO Console (Web UI)
     volumes:
       - minio_data:/data
     healthcheck:
@@ -127,7 +127,7 @@ services:
     image: clamav/clamav:latest
     container_name: pazpaz-clamav
     ports:
-      - "3310:3310"
+      - "127.0.0.1:3310:3310"
     volumes:
       - clamav_data:/var/lib/clamav
     networks:

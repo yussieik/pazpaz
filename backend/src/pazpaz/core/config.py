@@ -73,17 +73,19 @@ class Settings(BaseSettings):
 
     @field_validator("secret_key")
     @classmethod
-    def validate_secret_key(cls, v: str) -> str:
+    def validate_secret_key(cls, v: str, info) -> str:
         """
         Validate SECRET_KEY meets security requirements.
 
         Requirements:
-        - Minimum 32 characters (256 bits if random)
-        - Not the default value in production
-        - Contains variety of characters (not all same character)
+        - Production: Minimum 64 characters (256 bits hex-encoded)
+        - Development: Minimum 32 characters (with warning)
+        - Not the default value in production/staging
+        - Contains variety of characters (sufficient entropy)
 
         Args:
             v: SECRET_KEY value
+            info: Validation context
 
         Returns:
             Validated secret key
@@ -91,23 +93,33 @@ class Settings(BaseSettings):
         Raises:
             ValueError: If key doesn't meet requirements
         """
-        # Check minimum length (32 chars = 256 bits if random)
-        if len(v) < 32:
-            raise ValueError(
-                f"SECRET_KEY must be at least 32 characters, got {len(v)}. "
-                "Generate a secure key with: openssl rand -hex 32"
+        environment = info.data.get("environment", "local")
+
+        # Production/Staging: Enforce 64+ characters (32 bytes hex = 64 chars)
+        if environment in ("production", "staging"):
+            if len(v) < 64:
+                raise ValueError(
+                    f"SECRET_KEY must be at least 64 characters in {environment}, "
+                    f"got {len(v)}. Generate with: openssl rand -hex 32"
+                )
+
+            # Check not default value
+            if "change-me" in v.lower():
+                raise ValueError(
+                    "SECRET_KEY cannot be default value in production. "
+                    "Generate with: openssl rand -hex 32"
+                )
+
+        # Development: Minimum 32 characters (with warning)
+        elif len(v) < 32:
+            logger.warning(
+                "secret_key_weak_in_development",
+                length=len(v),
+                message="SECRET_KEY should be at least 32 characters. "
+                "Generate with: openssl rand -hex 32",
             )
 
-        # Check not default value (only in production/staging)
-        environment = os.getenv("ENVIRONMENT", "local")
-        if environment in ("production", "staging") and "change-me" in v.lower():
-            raise ValueError(
-                "SECRET_KEY cannot be default value in production. "
-                "Set a secure random key in environment variables. "
-                "Generate with: openssl rand -hex 32"
-            )
-
-        # Check for weak patterns (all same character)
+        # Check for weak patterns (insufficient entropy)
         if len(set(v)) < 10:
             raise ValueError(
                 "SECRET_KEY appears to be weak (insufficient entropy). "
@@ -138,6 +150,187 @@ class Settings(BaseSettings):
         default="pazpaz/database-credentials",
         description="AWS Secrets Manager secret name for database credentials",
     )
+
+    @field_validator("s3_access_key")
+    @classmethod
+    def validate_s3_access_key(cls, v: str, info) -> str:
+        """
+        Validate S3_ACCESS_KEY is not default in production.
+
+        Requirements:
+        - Production: Cannot be 'minioadmin', minimum 12 characters
+        - Development: Warns if default credentials used
+
+        Args:
+            v: S3_ACCESS_KEY value
+            info: Validation context
+
+        Returns:
+            Validated access key
+
+        Raises:
+            ValueError: If key is weak in production
+        """
+        environment = info.data.get("environment", "local")
+
+        if environment in ("production", "staging"):
+            # Reject default MinIO credentials
+            if v in ("minioadmin", "CHANGE_ME_16_CHARS"):
+                raise ValueError(
+                    f"S3_ACCESS_KEY cannot be default MinIO credential in {environment}. "
+                    "Generate with: openssl rand -base64 16 | tr -d '/+=' | cut -c1-16"
+                )
+
+            # Enforce minimum length (12 chars, recommend 16+)
+            if len(v) < 12:
+                raise ValueError(
+                    f"S3_ACCESS_KEY must be at least 12 characters in {environment}, "
+                    f"got {len(v)}. Generate with: openssl rand -base64 16"
+                )
+
+        elif v == "minioadmin":
+            logger.warning(
+                "s3_access_key_default_in_development",
+                message="S3_ACCESS_KEY is using default 'minioadmin'. "
+                "This is acceptable for local development only.",
+            )
+
+        return v
+
+    @field_validator("s3_secret_key")
+    @classmethod
+    def validate_s3_secret_key(cls, v: str, info) -> str:
+        """
+        Validate S3_SECRET_KEY is not default in production.
+
+        Requirements:
+        - Production: Cannot be 'minioadmin123', minimum 20 characters
+        - Development: Warns if default credentials used
+
+        Args:
+            v: S3_SECRET_KEY value
+            info: Validation context
+
+        Returns:
+            Validated secret key
+
+        Raises:
+            ValueError: If key is weak in production
+        """
+        environment = info.data.get("environment", "local")
+
+        if environment in ("production", "staging"):
+            # Reject default MinIO credentials
+            if v in ("minioadmin123", "CHANGE_ME_GENERATE_RANDOM_32_CHARS"):
+                raise ValueError(
+                    f"S3_SECRET_KEY cannot be default MinIO credential in {environment}. "
+                    "Generate with: openssl rand -base64 32 | tr -d '/+='"
+                )
+
+            # Enforce minimum length (20 chars, recommend 32+)
+            if len(v) < 20:
+                raise ValueError(
+                    f"S3_SECRET_KEY must be at least 20 characters in {environment}, "
+                    f"got {len(v)}. Generate with: openssl rand -base64 32"
+                )
+
+        elif v == "minioadmin123":
+            logger.warning(
+                "s3_secret_key_default_in_development",
+                message="S3_SECRET_KEY is using default 'minioadmin123'. "
+                "This is acceptable for local development only.",
+            )
+
+        return v
+
+    @field_validator("db_ssl_mode")
+    @classmethod
+    def validate_db_ssl_mode(cls, v: str, info) -> str:
+        """
+        Validate DB_SSL_MODE is secure in production.
+
+        Requirements:
+        - Production/Staging: Must use 'verify-ca' or 'verify-full'
+        - Development: Warns if using 'require' (doesn't verify cert)
+
+        Args:
+            v: DB_SSL_MODE value
+            info: Validation context
+
+        Returns:
+            Validated SSL mode
+
+        Raises:
+            ValueError: If SSL mode is insecure in production
+        """
+        environment = info.data.get("environment", "local")
+
+        # Production MUST use verify-ca or verify-full
+        if environment in ("production", "staging"):
+            if v not in ("verify-ca", "verify-full"):
+                raise ValueError(
+                    f"DB_SSL_MODE must be 'verify-ca' or 'verify-full' in {environment}, "
+                    f"got '{v}'. Current mode does not verify certificate authenticity, "
+                    f"exposing PHI to MITM attacks (HIPAA §164.312(e)(1) violation)."
+                )
+
+        # Development: allow require mode but warn
+        elif v == "require":
+            logger.warning(
+                "db_ssl_mode_weak_in_development",
+                mode=v,
+                message="DB_SSL_MODE=require does not verify certificates. "
+                "Use 'verify-ca' for production-like security testing.",
+            )
+
+        return v
+
+    @field_validator("redis_password")
+    @classmethod
+    def validate_redis_password(cls, v: str, info) -> str:
+        """
+        Validate REDIS_PASSWORD is strong.
+
+        Requirements:
+        - Production: Minimum 32 characters
+        - Development: Warns if less than 32 characters
+
+        Args:
+            v: REDIS_PASSWORD value
+            info: Validation context
+
+        Returns:
+            Validated password
+
+        Raises:
+            ValueError: If password is weak in production
+        """
+        environment = info.data.get("environment", "local")
+
+        if environment in ("production", "staging"):
+            # Reject default/weak passwords
+            if v in ("change-me-in-production", "CHANGE_ME_GENERATE_RANDOM_32_CHARS"):
+                raise ValueError(
+                    f"REDIS_PASSWORD cannot be default value in {environment}. "
+                    "Generate with: openssl rand -base64 32 | tr -d '/+='"
+                )
+
+            # Enforce minimum length
+            if len(v) < 32:
+                raise ValueError(
+                    f"REDIS_PASSWORD must be at least 32 characters in {environment}, "
+                    f"got {len(v)}. Generate with: openssl rand -base64 32"
+                )
+
+        elif len(v) < 32:
+            logger.warning(
+                "redis_password_weak_in_development",
+                length=len(v),
+                message="REDIS_PASSWORD should be at least 32 characters. "
+                "Generate with: openssl rand -base64 32",
+            )
+
+        return v
 
     # S3/MinIO Storage Configuration
     s3_endpoint_url: str = Field(
