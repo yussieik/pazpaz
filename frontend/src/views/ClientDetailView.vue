@@ -14,6 +14,7 @@ import ClientFormModal from '@/components/clients/ClientFormModal.vue'
 import SessionTimeline from '@/components/client/SessionTimeline.vue'
 import DeletedNotesSection from '@/components/sessions/DeletedNotesSection.vue'
 import DirectionsButton from '@/components/common/DirectionsButton.vue'
+import ClientFilesTab from '@/components/client/ClientFilesTab.vue'
 import type { ClientCreate } from '@/types/client'
 
 const route = useRoute()
@@ -844,10 +845,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
 
         <!-- Files Tab -->
         <div v-else-if="activeTab === 'files'">
-          <h2 class="mb-4 text-lg font-semibold text-slate-900">Files & Documents</h2>
-          <p class="text-sm text-slate-600">
-            Coming in M4 - Uploaded documents, consent forms, images
-          </p>
+          <ClientFilesTab v-if="client" :client-id="client.id" />
         </div>
       </div>
     </div>

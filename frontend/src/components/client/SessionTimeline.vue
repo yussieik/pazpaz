@@ -26,9 +26,13 @@ import apiClient from '@/api/client'
 import type { AxiosError } from 'axios'
 import type { SessionResponse } from '@/types/sessions'
 import SessionCard from '@/components/sessions/SessionCard.vue'
+import AttachmentBadge from '@/components/sessions/AttachmentBadge.vue'
+import ImagePreviewModal from '@/components/sessions/ImagePreviewModal.vue'
 import IconDocument from '@/components/icons/IconDocument.vue'
 import { smartTruncate } from '@/utils/textFormatters'
 import { getDurationMinutes } from '@/utils/calendar/dateFormatters'
+import type { AttachmentResponse } from '@/types/attachments'
+import { isImageType } from '@/types/attachments'
 
 interface Props {
   clientId: string
@@ -104,6 +108,12 @@ const expandedMonths = ref<Map<string, boolean>>(new Map([['recent-sessions', tr
 // Jump-to-date state
 const showDatePicker = ref(false)
 const selectedMonth = ref('')
+
+// Attachment preview state
+const showAttachmentPreview = ref(false)
+const previewSessionId = ref<string | null>(null)
+const sessionAttachments = ref<AttachmentResponse[]>([])
+const previewImageIndex = ref(0)
 
 // Computed properties
 const hasMoreSessions = computed(() => sessions.value.length < totalCount.value)
@@ -528,6 +538,79 @@ function handleViewSession(sessionId: string) {
 }
 
 /**
+ * Handle click on attachment badge - show preview or navigate to session
+ */
+async function handleAttachmentBadgeClick(sessionId: string) {
+  try {
+    // Fetch attachments for this session
+    const response = await apiClient.get(`/sessions/${sessionId}/attachments`)
+    sessionAttachments.value = response.data.items || []
+
+    // Filter to images only for preview
+    const images = sessionAttachments.value.filter((a) => isImageType(a.file_type))
+
+    if (images.length > 0) {
+      // Has images - show preview modal
+      previewSessionId.value = sessionId
+      previewImageIndex.value = 0
+      showAttachmentPreview.value = true
+    } else {
+      // No images (only PDFs) - navigate to session detail
+      router.push({
+        path: `/sessions/${sessionId}`,
+        hash: '#attachments',
+        state: {
+          from: 'client-history',
+          clientId: props.clientId,
+          returnTo: 'client-detail',
+        },
+      })
+    }
+  } catch (error) {
+    console.error('Failed to load attachments:', error)
+    // Fallback: navigate to session
+    router.push({
+      path: `/sessions/${sessionId}`,
+      hash: '#attachments',
+      state: {
+        from: 'client-history',
+        clientId: props.clientId,
+        returnTo: 'client-detail',
+      },
+    })
+  }
+}
+
+/**
+ * Handle download from preview modal
+ */
+async function handleDownloadFromPreview(attachment: AttachmentResponse) {
+  if (!attachment.session_id) return
+
+  try {
+    const response = await apiClient.get(
+      `/sessions/${attachment.session_id}/attachments/${attachment.id}/download`
+    )
+    const downloadUrl = response.data.download_url
+
+    const newTab = window.open(downloadUrl, '_blank')
+    if (!newTab) {
+      throw new Error('Popup blocked. Please allow popups for this site.')
+    }
+  } catch (error) {
+    console.error('Download error:', error)
+    alert('Failed to download file')
+  }
+}
+
+/**
+ * Update preview index
+ */
+function updatePreviewIndex(index: number) {
+  previewImageIndex.value = index
+}
+
+/**
  * Refresh the timeline by fetching both sessions and appointments
  * Exposed to parent components for manual refresh triggers
  * IMPORTANT: Must fetch sessions FIRST before appointments (fetchAppointments depends on sessions.value)
@@ -802,29 +885,40 @@ defineExpose({
 
                     <!-- Content -->
                     <div class="min-w-0 flex-1">
-                      <div class="mb-1.5 flex items-center gap-2 pr-12">
+                      <div class="mb-1.5 flex items-center justify-between gap-2 pr-12">
                         <!-- pr-12 reserves 48px for trash icon on right -->
 
-                        <!-- Status Badge (moved to left, before date) -->
-                        <span
-                          :class="[
-                            'inline-flex flex-shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                            session.is_draft
-                              ? 'bg-amber-100 text-amber-800'
-                              : 'bg-green-100 text-green-800',
-                          ]"
-                        >
+                        <!-- Left Side: Status and Date -->
+                        <div class="flex min-w-0 flex-1 items-center gap-2">
+                          <!-- Status Badge -->
                           <span
-                            class="h-1.5 w-1.5 rounded-full"
-                            :class="session.is_draft ? 'bg-amber-500' : 'bg-green-500'"
-                          ></span>
-                          {{ session.is_draft ? 'Draft' : 'Finalized' }}
-                        </span>
+                            :class="[
+                              'inline-flex flex-shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium',
+                              session.is_draft
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-green-100 text-green-800',
+                            ]"
+                          >
+                            <span
+                              class="h-1.5 w-1.5 rounded-full"
+                              :class="session.is_draft ? 'bg-amber-500' : 'bg-green-500'"
+                            ></span>
+                            {{ session.is_draft ? 'Draft' : 'Finalized' }}
+                          </span>
 
-                        <!-- Date and Time (now follows status) -->
-                        <h4 class="text-sm font-medium text-slate-900">
-                          {{ formatDate(session.session_date) }}
-                        </h4>
+                          <!-- Date and Time -->
+                          <h4 class="truncate text-sm font-medium text-slate-900">
+                            {{ formatDate(session.session_date) }}
+                          </h4>
+                        </div>
+
+                        <!-- Right Side: Attachment Badge -->
+                        <AttachmentBadge
+                          v-if="session.attachment_count > 0"
+                          :count="session.attachment_count"
+                          size="sm"
+                          @click="handleAttachmentBadgeClick(session.id)"
+                        />
                       </div>
 
                       <!-- Appointment Context (if appointment exists) -->
@@ -1042,6 +1136,18 @@ defineExpose({
         </div>
       </Transition>
     </Teleport>
+
+    <!-- Attachment Preview Modal -->
+    <ImagePreviewModal
+      v-if="previewSessionId && sessionAttachments.length > 0"
+      :open="showAttachmentPreview"
+      :attachments="sessionAttachments.filter((a) => isImageType(a.file_type))"
+      :current-index="previewImageIndex"
+      :session-id="previewSessionId"
+      @close="showAttachmentPreview = false"
+      @download="handleDownloadFromPreview"
+      @update:current-index="updatePreviewIndex"
+    />
   </div>
 </template>
 

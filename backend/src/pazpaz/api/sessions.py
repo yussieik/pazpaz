@@ -6,7 +6,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.api.deps import (
@@ -21,6 +21,7 @@ from pazpaz.core.redis import get_redis
 from pazpaz.models.appointment import Appointment, AppointmentStatus
 from pazpaz.models.audit_event import AuditAction, ResourceType
 from pazpaz.models.session import Session
+from pazpaz.models.session_attachment import SessionAttachment
 from pazpaz.models.session_version import SessionVersion
 from pazpaz.models.user import User
 from pazpaz.schemas.session import (
@@ -185,7 +186,7 @@ async def get_session(
         db: Database session
 
     Returns:
-        Session details with decrypted PHI fields
+        Session details with decrypted PHI fields and attachment count
 
     Raises:
         HTTPException: 401 if not authenticated,
@@ -196,8 +197,31 @@ async def get_session(
     """
     workspace_id = current_user.workspace_id
 
-    # Fetch with workspace scoping (validates existence and workspace access)
-    session = await get_or_404(db, Session, session_id, workspace_id)
+    # Fetch session with attachment count
+    query = (
+        select(
+            Session,
+            func.count(SessionAttachment.id).label("attachment_count"),
+        )
+        .outerjoin(
+            SessionAttachment,
+            (SessionAttachment.session_id == Session.id)
+            & (SessionAttachment.deleted_at.is_(None)),
+        )
+        .where(Session.id == session_id, Session.workspace_id == workspace_id)
+        .group_by(Session.id)
+    )
+
+    result = await db.execute(query)
+    row = result.one_or_none()
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resource not found",
+        )
+
+    session, attachment_count = row
 
     # NOTE: PHI access is automatically logged by AuditMiddleware for GET /sessions/{id}
     logger.debug(
@@ -207,8 +231,12 @@ async def get_session(
         user_id=str(current_user.id),
     )
 
-    # Return response (PHI automatically decrypted by ORM)
-    return SessionResponse.model_validate(session)
+    # Convert to response with attachment_count
+    session_dict = {
+        **SessionResponse.model_validate(session).model_dump(),
+        "attachment_count": attachment_count,
+    }
+    return SessionResponse.model_validate(session_dict)
 
 
 @router.get("", response_model=SessionListResponse)
@@ -388,8 +416,34 @@ async def list_sessions(
         end_idx = start_idx + page_size
         paginated_sessions = matching_sessions[start_idx:end_idx]
 
+        # Get attachment counts for paginated sessions
+        session_ids = [s.id for s in paginated_sessions]
+        attachment_counts = {}
+        if session_ids:
+            count_query = (
+                select(
+                    SessionAttachment.session_id,
+                    func.count(SessionAttachment.id).label("count"),
+                )
+                .where(
+                    SessionAttachment.session_id.in_(session_ids),
+                    SessionAttachment.deleted_at.is_(None),
+                )
+                .group_by(SessionAttachment.session_id)
+            )
+            count_result = await db.execute(count_query)
+            attachment_counts = {row.session_id: row.count for row in count_result}
+
         # Build response items (PHI automatically decrypted)
-        items = [SessionResponse.model_validate(s) for s in paginated_sessions]
+        items = [
+            SessionResponse.model_validate(
+                {
+                    **SessionResponse.model_validate(s).model_dump(),
+                    "attachment_count": attachment_counts.get(s.id, 0),
+                }
+            )
+            for s in paginated_sessions
+        ]
 
         # Calculate total pages
         total_pages = calculate_total_pages(total, page_size)
@@ -439,15 +493,51 @@ async def list_sessions(
     # Get total count using utility
     total = await get_query_total_count(db, base_query)
 
-    # Get paginated results ordered by session_date descending
+    # Get paginated results with attachment counts ordered by session_date descending
     query = (
-        base_query.order_by(Session.session_date.desc()).offset(offset).limit(page_size)
+        select(
+            Session,
+            func.count(SessionAttachment.id).label("attachment_count"),
+        )
+        .select_from(Session)
+        .outerjoin(
+            SessionAttachment,
+            (SessionAttachment.session_id == Session.id)
+            & (SessionAttachment.deleted_at.is_(None)),
+        )
+        .where(Session.workspace_id == workspace_id)
     )
+
+    # Re-apply filters from base_query
+    if not include_deleted:
+        query = query.where(Session.deleted_at.is_(None))
+    if client_id:
+        query = query.where(Session.client_id == client_id)
+    if appointment_id:
+        query = query.where(Session.appointment_id == appointment_id)
+    if is_draft is not None:
+        query = query.where(Session.is_draft == is_draft)
+
+    query = (
+        query.group_by(Session.id)
+        .order_by(Session.session_date.desc())
+        .offset(offset)
+        .limit(page_size)
+    )
+
     result = await db.execute(query)
-    sessions = result.scalars().all()
+    rows = result.all()
 
     # Build response items (PHI automatically decrypted)
-    items = [SessionResponse.model_validate(session) for session in sessions]
+    items = [
+        SessionResponse.model_validate(
+            {
+                **SessionResponse.model_validate(session).model_dump(),
+                "attachment_count": attachment_count,
+            }
+        )
+        for session, attachment_count in rows
+    ]
 
     # Calculate total pages using utility
     total_pages = calculate_total_pages(total, page_size)
@@ -1425,24 +1515,33 @@ async def get_latest_finalized_session(
         workspace_id=str(workspace_id),
     )
 
-    # Query for most recent finalized session
+    # Query for most recent finalized session with attachment count
     # Uses ix_sessions_workspace_client_date index for performance
     query = (
-        select(Session)
+        select(
+            Session,
+            func.count(SessionAttachment.id).label("attachment_count"),
+        )
+        .outerjoin(
+            SessionAttachment,
+            (SessionAttachment.session_id == Session.id)
+            & (SessionAttachment.deleted_at.is_(None)),
+        )
         .where(
             Session.workspace_id == workspace_id,
             Session.client_id == client_id,
             Session.is_draft == False,  # noqa: E712 - SQLAlchemy requires == for boolean
             Session.deleted_at.is_(None),  # Exclude soft-deleted sessions
         )
+        .group_by(Session.id)
         .order_by(Session.session_date.desc())
         .limit(1)
     )
 
     result = await db.execute(query)
-    session = result.scalar_one_or_none()
+    row = result.one_or_none()
 
-    if not session:
+    if not row:
         logger.info(
             "no_finalized_sessions_found",
             client_id=str(client_id),
@@ -1452,6 +1551,8 @@ async def get_latest_finalized_session(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No finalized sessions found for this client",
         )
+
+    session, attachment_count = row
 
     logger.debug(
         "latest_finalized_session_found",
@@ -1463,4 +1564,9 @@ async def get_latest_finalized_session(
 
     # Return response (PHI automatically decrypted by ORM)
     # Note: PHI access is automatically logged by AuditMiddleware
-    return SessionResponse.model_validate(session)
+    return SessionResponse.model_validate(
+        {
+            **SessionResponse.model_validate(session).model_dump(),
+            "attachment_count": attachment_count,
+        }
+    )

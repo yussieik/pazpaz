@@ -1489,6 +1489,399 @@ class TestIntegrationWorkflow:
         assert response.status_code == status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
 
 
+class TestRenameAttachment:
+    """Tests for PATCH /api/v1/sessions/{session_id}/attachments/{id} endpoint."""
+
+    async def test_rename_success(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+    ):
+        """Test successful rename of session attachment."""
+        # Create test attachment
+        attachment = SessionAttachment(
+            session_id=test_session.id,
+            client_id=test_session.client_id,
+            workspace_id=test_session.workspace_id,
+            file_name="IMG_1234.jpg",
+            file_type="image/jpeg",
+            file_size_bytes=1024,
+            s3_key=f"workspaces/{test_session.workspace_id}/sessions/{test_session.id}/attachments/{uuid.uuid4()}.jpg",
+            uploaded_by_user_id=test_session.created_by_user_id,
+        )
+        db_session.add(attachment)
+        await db_session.commit()
+        await db_session.refresh(attachment)
+
+        # Rename attachment
+        response = await authenticated_client.patch(
+            f"/api/v1/sessions/{test_session.id}/attachments/{attachment.id}",
+            json={"file_name": "Left shoulder pain - Oct 2025"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["file_name"] == "Left shoulder pain - Oct 2025.jpg"
+        assert data["id"] == str(attachment.id)
+
+        # Verify database was updated
+        await db_session.refresh(attachment)
+        assert attachment.file_name == "Left shoulder pain - Oct 2025.jpg"
+
+    async def test_rename_preserves_extension(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+    ):
+        """Test extension is automatically appended if not provided."""
+        # Create PDF attachment
+        attachment = SessionAttachment(
+            session_id=test_session.id,
+            client_id=test_session.client_id,
+            workspace_id=test_session.workspace_id,
+            file_name="document.pdf",
+            file_type="application/pdf",
+            file_size_bytes=2048,
+            s3_key=f"workspaces/{test_session.workspace_id}/sessions/{test_session.id}/attachments/{uuid.uuid4()}.pdf",
+            uploaded_by_user_id=test_session.created_by_user_id,
+        )
+        db_session.add(attachment)
+        await db_session.commit()
+        await db_session.refresh(attachment)
+
+        # Rename without extension
+        response = await authenticated_client.patch(
+            f"/api/v1/sessions/{test_session.id}/attachments/{attachment.id}",
+            json={"file_name": "Treatment plan"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["file_name"] == "Treatment plan.pdf"
+
+    async def test_rename_trims_whitespace(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+    ):
+        """Test leading and trailing whitespace is trimmed."""
+        attachment = SessionAttachment(
+            session_id=test_session.id,
+            client_id=test_session.client_id,
+            workspace_id=test_session.workspace_id,
+            file_name="old.jpg",
+            file_type="image/jpeg",
+            file_size_bytes=1024,
+            s3_key=f"workspaces/{test_session.workspace_id}/sessions/{test_session.id}/attachments/{uuid.uuid4()}.jpg",
+            uploaded_by_user_id=test_session.created_by_user_id,
+        )
+        db_session.add(attachment)
+        await db_session.commit()
+        await db_session.refresh(attachment)
+
+        # Rename with extra whitespace
+        response = await authenticated_client.patch(
+            f"/api/v1/sessions/{test_session.id}/attachments/{attachment.id}",
+            json={"file_name": "   Wound photo   "},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["file_name"] == "Wound photo.jpg"
+
+    async def test_rename_empty_filename_fails(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+    ):
+        """Test empty filename is rejected with 400."""
+        attachment = SessionAttachment(
+            session_id=test_session.id,
+            client_id=test_session.client_id,
+            workspace_id=test_session.workspace_id,
+            file_name="test.jpg",
+            file_type="image/jpeg",
+            file_size_bytes=1024,
+            s3_key=f"workspaces/{test_session.workspace_id}/sessions/{test_session.id}/attachments/{uuid.uuid4()}.jpg",
+            uploaded_by_user_id=test_session.created_by_user_id,
+        )
+        db_session.add(attachment)
+        await db_session.commit()
+        await db_session.refresh(attachment)
+
+        # Try empty filename (after trimming)
+        response = await authenticated_client.patch(
+            f"/api/v1/sessions/{test_session.id}/attachments/{attachment.id}",
+            json={"file_name": "   "},
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "cannot be empty" in response.json()["detail"].lower()
+
+    async def test_rename_invalid_characters_fails(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+    ):
+        """Test invalid characters are rejected with 400."""
+        attachment = SessionAttachment(
+            session_id=test_session.id,
+            client_id=test_session.client_id,
+            workspace_id=test_session.workspace_id,
+            file_name="test.jpg",
+            file_type="image/jpeg",
+            file_size_bytes=1024,
+            s3_key=f"workspaces/{test_session.workspace_id}/sessions/{test_session.id}/attachments/{uuid.uuid4()}.jpg",
+            uploaded_by_user_id=test_session.created_by_user_id,
+        )
+        db_session.add(attachment)
+        await db_session.commit()
+        await db_session.refresh(attachment)
+
+        # Try various invalid characters
+        invalid_names = [
+            "file/name.jpg",
+            "file\\name.jpg",
+            "file:name.jpg",
+            "file*name.jpg",
+            'file"name.jpg',
+            "file<name.jpg",
+            "file>name.jpg",
+            "file|name.jpg",
+            "../../etc/passwd",
+        ]
+
+        for invalid_name in invalid_names:
+            response = await authenticated_client.patch(
+                f"/api/v1/sessions/{test_session.id}/attachments/{attachment.id}",
+                json={"file_name": invalid_name},
+            )
+            assert response.status_code == status.HTTP_400_BAD_REQUEST
+            assert "invalid characters" in response.json()["detail"].lower()
+
+    async def test_rename_too_long_fails(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+    ):
+        """Test filename exceeding 255 characters is rejected."""
+        attachment = SessionAttachment(
+            session_id=test_session.id,
+            client_id=test_session.client_id,
+            workspace_id=test_session.workspace_id,
+            file_name="test.jpg",
+            file_type="image/jpeg",
+            file_size_bytes=1024,
+            s3_key=f"workspaces/{test_session.workspace_id}/sessions/{test_session.id}/attachments/{uuid.uuid4()}.jpg",
+            uploaded_by_user_id=test_session.created_by_user_id,
+        )
+        db_session.add(attachment)
+        await db_session.commit()
+        await db_session.refresh(attachment)
+
+        # Try filename > 255 characters
+        long_name = "x" * 300
+        response = await authenticated_client.patch(
+            f"/api/v1/sessions/{test_session.id}/attachments/{attachment.id}",
+            json={"file_name": long_name},
+        )
+
+        # Pydantic validation returns 422 for max_length constraint
+        assert response.status_code in [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        ]
+
+    async def test_rename_duplicate_filename_fails(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+    ):
+        """Test duplicate filename for same client returns 409 Conflict."""
+        # Create two attachments for same client
+        attachment1 = SessionAttachment(
+            session_id=test_session.id,
+            client_id=test_session.client_id,
+            workspace_id=test_session.workspace_id,
+            file_name="existing.jpg",
+            file_type="image/jpeg",
+            file_size_bytes=1024,
+            s3_key=f"workspaces/{test_session.workspace_id}/sessions/{test_session.id}/attachments/{uuid.uuid4()}.jpg",
+            uploaded_by_user_id=test_session.created_by_user_id,
+        )
+        attachment2 = SessionAttachment(
+            session_id=test_session.id,
+            client_id=test_session.client_id,
+            workspace_id=test_session.workspace_id,
+            file_name="other.jpg",
+            file_type="image/jpeg",
+            file_size_bytes=2048,
+            s3_key=f"workspaces/{test_session.workspace_id}/sessions/{test_session.id}/attachments/{uuid.uuid4()}.jpg",
+            uploaded_by_user_id=test_session.created_by_user_id,
+        )
+        db_session.add_all([attachment1, attachment2])
+        await db_session.commit()
+        await db_session.refresh(attachment2)
+
+        # Try to rename attachment2 to match attachment1's name
+        response = await authenticated_client.patch(
+            f"/api/v1/sessions/{test_session.id}/attachments/{attachment2.id}",
+            json={"file_name": "existing.jpg"},
+        )
+
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert "already exists" in response.json()["detail"].lower()
+
+    async def test_rename_same_name_allowed(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+    ):
+        """Test renaming to the same name is allowed (no-op)."""
+        attachment = SessionAttachment(
+            session_id=test_session.id,
+            client_id=test_session.client_id,
+            workspace_id=test_session.workspace_id,
+            file_name="photo.jpg",
+            file_type="image/jpeg",
+            file_size_bytes=1024,
+            s3_key=f"workspaces/{test_session.workspace_id}/sessions/{test_session.id}/attachments/{uuid.uuid4()}.jpg",
+            uploaded_by_user_id=test_session.created_by_user_id,
+        )
+        db_session.add(attachment)
+        await db_session.commit()
+        await db_session.refresh(attachment)
+
+        # Rename to same name
+        response = await authenticated_client.patch(
+            f"/api/v1/sessions/{test_session.id}/attachments/{attachment.id}",
+            json={"file_name": "photo.jpg"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["file_name"] == "photo.jpg"
+
+    async def test_rename_creates_audit_event(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session,
+        test_user,
+        test_workspace,
+    ):
+        """Test rename creates audit event with old and new filenames."""
+        attachment = SessionAttachment(
+            session_id=test_session.id,
+            client_id=test_session.client_id,
+            workspace_id=test_session.workspace_id,
+            file_name="old_name.jpg",
+            file_type="image/jpeg",
+            file_size_bytes=1024,
+            s3_key=f"workspaces/{test_session.workspace_id}/sessions/{test_session.id}/attachments/{uuid.uuid4()}.jpg",
+            uploaded_by_user_id=test_session.created_by_user_id,
+        )
+        db_session.add(attachment)
+        await db_session.commit()
+        await db_session.refresh(attachment)
+
+        # Rename attachment
+        response = await authenticated_client.patch(
+            f"/api/v1/sessions/{test_session.id}/attachments/{attachment.id}",
+            json={"file_name": "new_name"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+
+        # Verify audit event created
+        result = await db_session.execute(
+            select(AuditEvent)
+            .where(
+                AuditEvent.resource_type == ResourceType.SESSION_ATTACHMENT.value,
+                AuditEvent.action == AuditAction.UPDATE,
+                AuditEvent.resource_id == attachment.id,
+            )
+            .order_by(AuditEvent.created_at.desc())
+            .limit(1)
+        )
+        audit_event = result.scalar_one_or_none()
+        assert audit_event is not None
+        assert audit_event.workspace_id == test_workspace.id
+        assert audit_event.user_id == test_user.id
+        # Note: Filenames are sanitized from metadata (PII protection)
+        # but session_id and client_id should be present
+        assert "session_id" in audit_event.event_metadata
+        assert "client_id" in audit_event.event_metadata
+
+    # Security tests
+    async def test_rename_requires_authentication(
+        self,
+        client: AsyncClient,
+        test_session,
+    ):
+        """Test unauthenticated rename is rejected."""
+        fake_attachment_id = uuid.uuid4()
+        response = await client.patch(
+            f"/api/v1/sessions/{test_session.id}/attachments/{fake_attachment_id}",
+            json={"file_name": "new_name"},
+        )
+
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        ]
+
+    async def test_rename_requires_workspace_access(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_session2,  # Session in workspace 2
+    ):
+        """Test cannot rename attachment from different workspace."""
+        # Create attachment in workspace 2
+        attachment = SessionAttachment(
+            session_id=test_session2.id,
+            client_id=test_session2.client_id,
+            workspace_id=test_session2.workspace_id,
+            file_name="test.jpg",
+            file_type="image/jpeg",
+            file_size_bytes=1024,
+            s3_key=f"workspaces/{test_session2.workspace_id}/sessions/{test_session2.id}/attachments/{uuid.uuid4()}.jpg",
+            uploaded_by_user_id=test_session2.created_by_user_id,
+        )
+        db_session.add(attachment)
+        await db_session.commit()
+        await db_session.refresh(attachment)
+
+        # Try to rename from workspace 1
+        response = await authenticated_client.patch(
+            f"/api/v1/sessions/{test_session2.id}/attachments/{attachment.id}",
+            json={"file_name": "hacked"},
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_rename_nonexistent_attachment_404(
+        self,
+        authenticated_client: AsyncClient,
+        test_session,
+    ):
+        """Test renaming non-existent attachment returns 404."""
+        fake_attachment_id = uuid.uuid4()
+
+        response = await authenticated_client.patch(
+            f"/api/v1/sessions/{test_session.id}/attachments/{fake_attachment_id}",
+            json={"file_name": "new_name"},
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
 class TestWorkspaceIsolation:
     """Tests for workspace isolation (critical security requirement)."""
 

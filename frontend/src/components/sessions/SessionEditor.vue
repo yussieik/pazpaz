@@ -35,6 +35,7 @@ import SessionVersionHistory from './SessionVersionHistory.vue'
 import SessionAmendmentIndicator from './SessionAmendmentIndicator.vue'
 import PreviousSessionPanel from './PreviousSessionPanel.vue'
 import PreviousSessionSummaryStrip from './PreviousSessionSummaryStrip.vue'
+import SessionAttachments from './SessionAttachments.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 import AutosaveBanner from '@/components/common/AutosaveBanner.vue'
 
@@ -923,6 +924,12 @@ onBeforeUnmount(() => {
               class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             ></textarea>
           </div>
+        </div>
+
+        <!-- Attachments Section (only for existing sessions) -->
+        <div v-if="session && !session.deleted_at" class="mt-8">
+          <h3 class="mb-4 text-lg font-semibold text-slate-900">Attachments</h3>
+          <SessionAttachments :session-id="props.sessionId" />
         </div>
       </div>
 

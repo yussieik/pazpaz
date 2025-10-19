@@ -217,8 +217,9 @@ def build_object_key(
 
 def generate_secure_filename(
     workspace_id: uuid.UUID,
-    session_id: uuid.UUID,
+    session_id: uuid.UUID | None,
     file_type: "FileType",
+    client_id: uuid.UUID | None = None,
 ) -> str:
     """
     Generate secure S3 key with UUID-based filename.
@@ -227,32 +228,51 @@ def generate_secure_filename(
     - No user-controlled content in filename
     - Unique filenames (no collisions)
     - No path traversal attacks
-    - Organized by workspace and session
+    - Organized by workspace and session/client
 
     Key structure:
-        workspaces/{workspace_id}/sessions/{session_id}/attachments/{uuid}.{ext}
+        - Session-level: workspaces/{workspace_id}/sessions/{session_id}/attachments/{uuid}.{ext}
+        - Client-level: workspaces/{workspace_id}/clients/{client_id}/attachments/{uuid}.{ext}
 
     This is the PREFERRED method for generating S3 keys.
 
     Args:
         workspace_id: Workspace UUID (for isolation)
-        session_id: Session UUID (for organization)
+        session_id: Session UUID (for organization). None for client-level files.
         file_type: FileType enum (determines extension)
+        client_id: Client UUID (required if session_id is None)
 
     Returns:
         S3 object key (path) with UUID-based filename
 
+    Raises:
+        ValueError: If both session_id and client_id are None
+
     Example:
         >>> from pazpaz.utils.file_validation import FileType
+        >>> # Session-level file
         >>> s3_key = generate_secure_filename(
         ...     workspace_id=uuid.UUID("..."),
         ...     session_id=uuid.UUID("..."),
         ...     file_type=FileType.JPEG,
         ... )
         >>> # Returns: "workspaces/{uuid}/sessions/{uuid}/attachments/{uuid}.jpg"
+        >>>
+        >>> # Client-level file
+        >>> s3_key = generate_secure_filename(
+        ...     workspace_id=uuid.UUID("..."),
+        ...     session_id=None,
+        ...     file_type=FileType.PDF,
+        ...     client_id=uuid.UUID("..."),
+        ... )
+        >>> # Returns: "workspaces/{uuid}/clients/{uuid}/attachments/{uuid}.pdf"
     """
     # Import here to avoid circular dependency
     from pazpaz.utils.file_validation import FILE_TYPE_TO_EXTENSION
+
+    # Validate: must have either session_id or client_id
+    if session_id is None and client_id is None:
+        raise ValueError("Either session_id or client_id must be provided")
 
     # Generate unique attachment ID
     attachment_id = uuid.uuid4()
@@ -260,19 +280,35 @@ def generate_secure_filename(
     # Get file extension from shared constant
     extension = FILE_TYPE_TO_EXTENSION[file_type]
 
-    # Build S3 key with workspace/session hierarchy
-    s3_key = (
-        f"workspaces/{workspace_id}/sessions/{session_id}/"
-        f"attachments/{attachment_id}.{extension}"
-    )
-
-    logger.debug(
-        "secure_filename_generated",
-        workspace_id=str(workspace_id),
-        session_id=str(session_id),
-        attachment_id=str(attachment_id),
-        s3_key=s3_key,
-    )
+    # Build S3 key with workspace/session or workspace/client hierarchy
+    if session_id is not None:
+        # Session-level file
+        s3_key = (
+            f"workspaces/{workspace_id}/sessions/{session_id}/"
+            f"attachments/{attachment_id}.{extension}"
+        )
+        logger.debug(
+            "secure_filename_generated",
+            workspace_id=str(workspace_id),
+            session_id=str(session_id),
+            attachment_id=str(attachment_id),
+            s3_key=s3_key,
+            file_level="session",
+        )
+    else:
+        # Client-level file
+        s3_key = (
+            f"workspaces/{workspace_id}/clients/{client_id}/"
+            f"attachments/{attachment_id}.{extension}"
+        )
+        logger.debug(
+            "secure_filename_generated",
+            workspace_id=str(workspace_id),
+            client_id=str(client_id),
+            attachment_id=str(attachment_id),
+            s3_key=s3_key,
+            file_level="client",
+        )
 
     return s3_key
 
@@ -325,6 +361,7 @@ def generate_presigned_url(
     object_key: str,
     expires_in: int = 900,
     http_method: str = "get_object",
+    force_download: bool = True,
 ) -> str:
     """
     Generate presigned URL for temporary file access.
@@ -339,6 +376,7 @@ def generate_presigned_url(
         object_key: S3 object key (from build_object_key)
         expires_in: URL expiration in seconds (default: 900 = 15 minutes)
         http_method: S3 method ("get_object" or "put_object")
+        force_download: If True, adds response-content-disposition header to force download
 
     Returns:
         Presigned URL string
@@ -348,16 +386,25 @@ def generate_presigned_url(
 
     Example:
         >>> url = generate_presigned_url("123/sessions/456/photo.jpg")
-        >>> # URL valid for 15 minutes
+        >>> # URL valid for 15 minutes and forces download
     """
     try:
         s3_client = get_s3_client()
+
+        params = {
+            "Bucket": settings.s3_bucket_name,
+            "Key": object_key,
+        }
+
+        # Add response-content-disposition to force download instead of inline display
+        if force_download:
+            # Extract filename from object key
+            filename = object_key.split("/")[-1]
+            params["ResponseContentDisposition"] = f'attachment; filename="{filename}"'
+
         url = s3_client.generate_presigned_url(
             http_method,
-            Params={
-                "Bucket": settings.s3_bucket_name,
-                "Key": object_key,
-            },
+            Params=params,
             ExpiresIn=expires_in,
         )
         return url

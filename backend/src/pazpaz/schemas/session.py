@@ -129,6 +129,9 @@ class SessionResponse(SessionBase):
             "Date when session will be permanently purged (deleted_at + 30 days)"
         ),
     )
+    attachment_count: int = Field(
+        0, description="Number of file attachments for this session (excludes deleted)"
+    )
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -62,6 +62,7 @@ def generate_presigned_download_url(
     s3_key: str,
     expiration: timedelta = timedelta(hours=1),
     bucket_name: str | None = None,
+    force_download: bool = True,
 ) -> str:
     """
     Generate pre-signed URL for secure file download.
@@ -77,6 +78,7 @@ def generate_presigned_download_url(
         s3_key: S3 object key (path)
         expiration: URL expiration time (default: 1 hour)
         bucket_name: Bucket name (ignored, uses settings.s3_bucket_name)
+        force_download: If True, URL forces download; if False, displays inline
 
     Returns:
         Pre-signed URL string
@@ -86,7 +88,7 @@ def generate_presigned_download_url(
     """
     # Convert timedelta to seconds for core function
     expires_in = int(expiration.total_seconds())
-    return generate_presigned_url_core(s3_key, expires_in=expires_in)
+    return generate_presigned_url_core(s3_key, expires_in=expires_in, force_download=force_download)
 
 
 def upload_file_to_s3(

@@ -28,6 +28,7 @@ export interface SessionResponse {
   finalized_at: string | null
   amended_at: string | null
   amendment_count: number
+  attachment_count: number // number of attachments for this session
 
   // Soft delete fields
   deleted_at?: string | null
