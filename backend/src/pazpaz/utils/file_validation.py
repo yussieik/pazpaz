@@ -1,15 +1,17 @@
 """File upload validation utilities with defense-in-depth approach.
 
-This module implements triple validation for uploaded files:
+This module implements quadruple validation for uploaded files:
 1. MIME type validation (reads file header with python-magic)
 2. Extension validation (whitelist-based)
 3. Content validation (pillow for images, pypdf for PDFs)
+4. Malware scanning (ClamAV antivirus)
 
 Security principles:
 - Fail closed: Reject on any validation error
 - Defense in depth: Multiple validation layers
 - Type confusion prevention: Verify MIME matches extension
 - Content scanning: Validate file can be parsed safely
+- Malware detection: ClamAV scans for known malware signatures
 
 Supported file types (HIPAA-compliant clinical documentation):
 - Images: JPEG, PNG, WebP (for wound photos, treatment documentation)
@@ -27,6 +29,7 @@ from PIL import Image
 from pypdf import PdfReader
 
 from pazpaz.core.logging import get_logger
+from pazpaz.utils.malware_scanner import scan_file_for_malware
 
 logger = get_logger(__name__)
 
@@ -423,13 +426,14 @@ def validate_pdf_content(file_content: bytes) -> None:
 
 def validate_file(filename: str, file_content: bytes) -> FileType:
     """
-    Comprehensive file validation with triple-validation approach.
+    Comprehensive file validation with quadruple-validation approach.
 
     Validation layers (all must pass):
     1. Extension validation (whitelist-based)
     2. MIME type detection (reads file header)
     3. MIME/extension match validation (prevents type confusion)
     4. Content validation (format-specific parsing)
+    5. Malware scanning (ClamAV antivirus)
 
     Args:
         filename: Original filename from upload
@@ -440,15 +444,20 @@ def validate_file(filename: str, file_content: bytes) -> FileType:
 
     Raises:
         FileValidationError: If any validation layer fails
+        MalwareDetectedError: If file contains malware
+        ScannerUnavailableError: If ClamAV unavailable (production/staging only)
 
     Example:
         ```python
         try:
             file_type = validate_file("photo.jpg", file_bytes)
-            # File passed all validation checks
+            # File passed all validation checks including malware scan
         except FileValidationError as e:
             # Handle validation failure
             logger.warning("file_rejected", reason=str(e))
+        except MalwareDetectedError as e:
+            # Handle malware detection
+            logger.error("malware_detected", reason=str(e))
         ```
     """
     logger.info("file_validation_started", filename=filename)
@@ -470,6 +479,9 @@ def validate_file(filename: str, file_content: bytes) -> FileType:
         validate_image_content(file_content, detected_mime)
     elif detected_mime == FileType.PDF:
         validate_pdf_content(file_content)
+
+    # 6. Scan for malware (NEW: ClamAV integration)
+    scan_file_for_malware(file_content, filename)
 
     logger.info(
         "file_validation_passed",

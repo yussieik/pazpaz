@@ -123,7 +123,29 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  clamav:
+    image: clamav/clamav:latest
+    container_name: pazpaz-clamav
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+    networks:
+      - pazpaz
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # ClamAV needs time to download virus definitions
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
   minio_data:
+  clamav_data:
+
+networks:
+  pazpaz:
+    driver: bridge
