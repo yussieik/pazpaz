@@ -246,6 +246,25 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "max-age=31536000; includeSubDomains"
             )
 
+        # Referrer Policy
+        # Controls how much referrer information is included with requests
+        # strict-origin-when-cross-origin: Send full URL for same-origin,
+        # origin only for cross-origin HTTPS, nothing for HTTP downgrade
+        # Prevents leaking sensitive data in URLs (session IDs, tokens, PHI)
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+        # Permissions Policy (formerly Feature-Policy)
+        # Disables browser features that could be exploited or leak sensitive data
+        # geolocation=() - No location tracking (HIPAA privacy)
+        # microphone=() - No audio recording (PHI protection)
+        # camera=() - No video recording (PHI protection)
+        # payment=() - No payment APIs (not needed for this app)
+        # usb=() - No USB device access (security)
+        # Note: Some features like fullscreen, clipboard-write are allowed by default
+        response.headers["Permissions-Policy"] = (
+            "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+        )
+
         return response
 
 
