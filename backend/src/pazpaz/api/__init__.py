@@ -11,6 +11,7 @@ from pazpaz.api.locations import router as locations_router
 from pazpaz.api.services import router as services_router
 from pazpaz.api.session_attachments import router as session_attachments_router
 from pazpaz.api.sessions import router as sessions_router
+from pazpaz.api.workspaces import router as workspaces_router
 
 api_router = APIRouter()
 
@@ -25,4 +26,5 @@ api_router.include_router(session_attachments_router)
 api_router.include_router(client_attachments_router)
 api_router.include_router(services_router)
 api_router.include_router(locations_router)
+api_router.include_router(workspaces_router)
 api_router.include_router(audit_router)

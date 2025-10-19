@@ -6,7 +6,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import BigInteger, Boolean, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pazpaz.db.base import Base
@@ -50,6 +50,22 @@ class Workspace(Base):
         nullable=False,
     )
 
+    # Storage Quota Fields
+    storage_used_bytes: Mapped[int] = mapped_column(
+        BigInteger,
+        default=0,
+        nullable=False,
+        server_default="0",
+        comment="Total bytes used by all files in workspace",
+    )
+    storage_quota_bytes: Mapped[int] = mapped_column(
+        BigInteger,
+        default=10 * 1024 * 1024 * 1024,  # 10 GB default
+        nullable=False,
+        server_default="10737418240",  # 10 GB in bytes
+        comment="Maximum storage allowed for workspace in bytes",
+    )
+
     # Relationships
     users: Mapped[list[User]] = relationship(
         "User",
@@ -86,6 +102,56 @@ class Workspace(Base):
         back_populates="workspace",
         cascade="all, delete-orphan",
     )
+
+    @property
+    def storage_usage_percentage(self) -> float:
+        """
+        Calculate storage usage as percentage of quota.
+
+        Returns:
+            Percentage of quota used (0.0 to 100.0+)
+
+        Example:
+            >>> workspace.storage_used_bytes = 5_000_000_000  # 5 GB
+            >>> workspace.storage_quota_bytes = 10_000_000_000  # 10 GB
+            >>> workspace.storage_usage_percentage
+            50.0
+        """
+        if self.storage_quota_bytes == 0:
+            return 0.0
+        return (self.storage_used_bytes / self.storage_quota_bytes) * 100
+
+    @property
+    def is_quota_exceeded(self) -> bool:
+        """
+        Check if workspace has exceeded storage quota.
+
+        Returns:
+            True if storage_used_bytes >= storage_quota_bytes
+
+        Example:
+            >>> workspace.storage_used_bytes = 11_000_000_000  # 11 GB
+            >>> workspace.storage_quota_bytes = 10_000_000_000  # 10 GB
+            >>> workspace.is_quota_exceeded
+            True
+        """
+        return self.storage_used_bytes >= self.storage_quota_bytes
+
+    @property
+    def storage_remaining_bytes(self) -> int:
+        """
+        Calculate remaining storage quota.
+
+        Returns:
+            Bytes remaining (can be negative if quota exceeded)
+
+        Example:
+            >>> workspace.storage_used_bytes = 3_000_000_000  # 3 GB
+            >>> workspace.storage_quota_bytes = 10_000_000_000  # 10 GB
+            >>> workspace.storage_remaining_bytes
+            7000000000  # 7 GB remaining
+        """
+        return self.storage_quota_bytes - self.storage_used_bytes
 
     def __repr__(self) -> str:
         return f"<Workspace(id={self.id}, name={self.name})>"

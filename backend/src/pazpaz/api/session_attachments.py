@@ -54,6 +54,11 @@ from pazpaz.utils.file_validation import (
     validate_file,
     validate_total_attachments_size,
 )
+from pazpaz.utils.storage_quota import (
+    StorageQuotaExceededError,
+    update_workspace_storage,
+    validate_workspace_storage_quota,
+)
 
 router = APIRouter(prefix="/sessions", tags=["session-attachments"])
 logger = get_logger(__name__)
@@ -281,6 +286,37 @@ async def upload_session_attachment(
         client_id=None,  # Explicit: session-level file
     )
 
+    # STORAGE QUOTA: Validate BEFORE S3 upload (fail fast)
+    try:
+        await validate_workspace_storage_quota(
+            workspace_id=workspace_id,
+            new_file_size=len(sanitized_content),
+            db=db,
+        )
+    except StorageQuotaExceededError as e:
+        logger.warning(
+            "file_upload_rejected_quota",
+            session_id=str(session_id),
+            workspace_id=str(workspace_id),
+            filename=file.filename,
+            file_size=len(sanitized_content),
+            reason=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_507_INSUFFICIENT_STORAGE,
+            detail=str(e),
+        ) from e
+    except ValueError as e:
+        logger.error(
+            "workspace_not_found_quota_check",
+            workspace_id=str(workspace_id),
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found",
+        ) from e
+
     # Upload to S3/MinIO
     try:
         _ = upload_file_to_s3(
@@ -318,6 +354,16 @@ async def upload_session_attachment(
     try:
         await db.commit()
         await db.refresh(attachment)
+
+        # STORAGE QUOTA: Update workspace storage usage AFTER successful commit
+        # This ensures consistency: file metadata in DB = storage counted in quota
+        await update_workspace_storage(
+            workspace_id=workspace_id,
+            bytes_delta=len(sanitized_content),  # Positive delta for upload
+            db=db,
+        )
+        await db.commit()  # Commit storage usage update
+
     except Exception as e:
         logger.error(
             "attachment_db_commit_failed",
@@ -809,13 +855,40 @@ async def delete_session_attachment(
 
     attachment.deleted_at = datetime.now(UTC)
 
-    await db.commit()
+    # STORAGE QUOTA: Decrement workspace storage usage (negative delta)
+    # Store file size before commit in case of error
+    file_size_bytes = attachment.file_size_bytes
+
+    try:
+        await db.commit()
+
+        # Update storage quota AFTER successful soft delete commit
+        await update_workspace_storage(
+            workspace_id=workspace_id,
+            bytes_delta=-file_size_bytes,  # Negative delta for delete
+            db=db,
+        )
+        await db.commit()  # Commit storage usage update
+
+    except Exception as e:
+        logger.error(
+            "attachment_delete_commit_failed",
+            attachment_id=str(attachment_id),
+            session_id=str(session_id),
+            workspace_id=str(workspace_id),
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete attachment",
+        ) from e
 
     logger.info(
         "attachment_deleted",
         attachment_id=str(attachment_id),
         session_id=str(session_id),
         workspace_id=str(workspace_id),
+        file_size_bytes=file_size_bytes,
     )
 
     # Note: S3 cleanup is handled by background job
