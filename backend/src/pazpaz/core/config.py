@@ -19,7 +19,10 @@ class Settings(BaseSettings):
     """Application settings."""
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=False
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",  # Ignore extra fields like DATABASE_URL (handled by property)
     )
 
     # App
@@ -33,28 +36,28 @@ class Settings(BaseSettings):
     )
 
     # Database
-    database_url: str = "postgresql+asyncpg://pazpaz:pazpaz@localhost:5432/pazpaz"
+    # NOTE: In production/staging, database_url is fetched from AWS Secrets Manager
+    # In local development, it's read from DATABASE_URL environment variable
+    # See @property database_url below for dynamic credential fetching
 
     # Database SSL/TLS Configuration (HIPAA requirement)
     db_ssl_enabled: bool = Field(
         default=True,
-        description="Enable SSL/TLS for database connections (required for production)"
+        description="Enable SSL/TLS for database connections (required for production)",
     )
     db_ssl_mode: str = Field(
         default="verify-ca",
-        description="SSL mode: disable, allow, prefer, require, verify-ca, verify-full"
+        description="SSL mode: disable, allow, prefer, require, verify-ca, verify-full",
     )
     db_ssl_ca_cert_path: str = Field(
         default="/Users/yussieik/Desktop/projects/pazpaz/backend/certs/ca-cert.pem",
-        description="Path to PostgreSQL CA certificate for SSL verification"
+        description="Path to PostgreSQL CA certificate for SSL verification",
     )
     db_ssl_client_cert_path: str | None = Field(
-        default=None,
-        description="Path to client certificate for mutual TLS (optional)"
+        default=None, description="Path to client certificate for mutual TLS (optional)"
     )
     db_ssl_client_key_path: str | None = Field(
-        default=None,
-        description="Path to client private key for mutual TLS (optional)"
+        default=None, description="Path to client private key for mutual TLS (optional)"
     )
 
     # Redis
@@ -130,6 +133,12 @@ class Settings(BaseSettings):
     # Frontend
     frontend_url: str = "http://localhost:5173"
 
+    # AWS Secrets Manager configuration for database credentials
+    db_secrets_manager_key_name: str = Field(
+        default="pazpaz/database-credentials",
+        description="AWS Secrets Manager secret name for database credentials",
+    )
+
     # S3/MinIO Storage Configuration
     s3_endpoint_url: str = Field(
         default="http://localhost:9000",
@@ -188,6 +197,44 @@ class Settings(BaseSettings):
 
         return get_encryption_key(
             secret_name=self.secrets_manager_key_name,
+            region=self.aws_region,
+            environment=self.environment,
+        )
+
+    @property
+    def database_url(self) -> str:
+        """
+        Get database URL from AWS Secrets Manager (prod/staging) or env var (dev).
+
+        This property implements a secure credential management strategy:
+        - Production/Staging: Fetch from AWS Secrets Manager
+        - Local Development: Read from DATABASE_URL environment variable
+
+        The database credentials are cached via @lru_cache to avoid repeated
+        AWS API calls (50-200ms latency). The cache persists for the lifetime
+        of the application instance.
+
+        Graceful fallback strategy:
+        1. Production/Staging: Try AWS Secrets Manager first, fall back to env var
+        2. Local: Try env var first, fall back to AWS (for testing)
+        3. Raise error if both fail
+
+        Returns:
+            PostgreSQL connection URL (postgresql+asyncpg://...)
+
+        Raises:
+            KeyNotFoundError: If credentials not found in AWS or environment
+
+        Security Notes:
+            - Credentials are NEVER logged (only host/database name)
+            - Production MUST use AWS Secrets Manager for HIPAA compliance
+            - Local .env file is acceptable for development only
+            - SSL/TLS parameters are configured separately in db/base.py
+        """
+        from pazpaz.utils.secrets_manager import get_database_credentials
+
+        return get_database_credentials(
+            secret_name=self.db_secrets_manager_key_name,
             region=self.aws_region,
             environment=self.environment,
         )
