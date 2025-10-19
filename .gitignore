@@ -31,10 +31,23 @@ dist-ssr/
 *.swo
 *~
 
-# Environment
+# Environment files with secrets
+# SECURITY: Never commit .env files to git
+# These files contain sensitive credentials (database passwords, API keys, encryption keys)
 .env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
 .env.local
 .env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # OS
 .DS_Store
