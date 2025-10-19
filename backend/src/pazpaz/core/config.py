@@ -35,6 +35,28 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql+asyncpg://pazpaz:pazpaz@localhost:5432/pazpaz"
 
+    # Database SSL/TLS Configuration (HIPAA requirement)
+    db_ssl_enabled: bool = Field(
+        default=True,
+        description="Enable SSL/TLS for database connections (required for production)"
+    )
+    db_ssl_mode: str = Field(
+        default="verify-ca",
+        description="SSL mode: disable, allow, prefer, require, verify-ca, verify-full"
+    )
+    db_ssl_ca_cert_path: str = Field(
+        default="/Users/yussieik/Desktop/projects/pazpaz/backend/certs/ca-cert.pem",
+        description="Path to PostgreSQL CA certificate for SSL verification"
+    )
+    db_ssl_client_cert_path: str | None = Field(
+        default=None,
+        description="Path to client certificate for mutual TLS (optional)"
+    )
+    db_ssl_client_key_path: str | None = Field(
+        default=None,
+        description="Path to client private key for mutual TLS (optional)"
+    )
+
     # Redis
     redis_password: str = "change-me-in-production"
     redis_url: str = "redis://:change-me-in-production@localhost:6379/0"

@@ -2,19 +2,42 @@ services:
   db:
     image: postgres:16-alpine
     container_name: pazpaz-db
+    user: postgres
     environment:
       POSTGRES_USER: pazpaz
       POSTGRES_PASSWORD: pazpaz
       POSTGRES_DB: pazpaz
+    command: >
+      sh -c "
+      mkdir -p /var/lib/postgresql/ssl &&
+      cp /tmp/ssl/server-cert.pem /var/lib/postgresql/ssl/ &&
+      cp /tmp/ssl/server-key.pem /var/lib/postgresql/ssl/ &&
+      cp /tmp/ssl/ca-cert.pem /var/lib/postgresql/ssl/ &&
+      chmod 600 /var/lib/postgresql/ssl/server-key.pem &&
+      chmod 644 /var/lib/postgresql/ssl/server-cert.pem &&
+      chmod 644 /var/lib/postgresql/ssl/ca-cert.pem &&
+      postgres
+      -c ssl=on
+      -c ssl_cert_file=/var/lib/postgresql/ssl/server-cert.pem
+      -c ssl_key_file=/var/lib/postgresql/ssl/server-key.pem
+      -c ssl_ca_file=/var/lib/postgresql/ssl/ca-cert.pem
+      -c ssl_min_protocol_version=TLSv1.2
+      -c ssl_prefer_server_ciphers=on
+      -c ssl_ciphers='HIGH:!aNULL:!MD5'
+      "
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Mount SSL certificates from host (development only)
+      # Production: Use AWS RDS with built-in SSL certificates
+      - ./backend/certs:/tmp/ssl:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pazpaz"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   redis:
     image: redis:7-alpine

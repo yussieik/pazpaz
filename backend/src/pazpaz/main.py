@@ -60,6 +60,41 @@ async def lifespan(app: FastAPI):
         debug=settings.debug,
     )
 
+    # Verify database SSL/TLS connection (HIPAA requirement)
+    try:
+        from pazpaz.db.base import verify_ssl_connection
+
+        logger.info("Verifying database SSL/TLS connection...")
+        ssl_enabled = await verify_ssl_connection()
+        if ssl_enabled:
+            logger.info(
+                "Database SSL/TLS connection verified",
+                extra={
+                    "ssl_mode": settings.db_ssl_mode,
+                    "environment": settings.environment,
+                },
+            )
+        else:
+            logger.warning(
+                "Database SSL/TLS is disabled",
+                extra={
+                    "environment": settings.environment,
+                    "message": "Enable SSL for HIPAA compliance in production",
+                },
+            )
+    except Exception as e:
+        logger.error(
+            "Database SSL/TLS verification failed",
+            extra={"error": str(e)},
+        )
+        # In production/staging, fail-closed (re-raise exception)
+        # In development, allow startup but log error
+        if settings.environment in ("production", "staging"):
+            raise RuntimeError(
+                f"Database SSL/TLS verification failed: {e}. "
+                "Cannot start application without secure database connection."
+            )
+
     # Initialize S3/MinIO storage (create bucket if not exists)
     try:
         from pazpaz.core.storage import verify_bucket_exists
