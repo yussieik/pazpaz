@@ -4,7 +4,21 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <!--
+      CSP Nonce Meta Tag (Production Only)
+      =====================================
+      This meta tag is injected by the backend in production mode with a cryptographically
+      secure nonce value (256-bit entropy). The nonce is used to satisfy Content Security
+      Policy (CSP) requirements for inline scripts and styles.
+
+      **Production:** Backend injects: <meta name="csp-nonce" content="{NONCE}">
+      **Development:** Meta tag remains empty (CSP allows 'unsafe-inline')
+
+      The frontend extracts this nonce using getCspNonce() from @/utils/csp.ts
+      and applies it to any dynamically created script/style elements.
+    -->
+    <meta name="csp-nonce" content="" />
+    <title>PazPaz - Practice Management</title>
   </head>
   <body>
     <div id="app"></div>

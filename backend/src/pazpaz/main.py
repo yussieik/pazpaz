@@ -1,5 +1,6 @@
 """FastAPI application entry point."""
 
+import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -145,9 +146,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     -----------------
     1. Content-Security-Policy (CSP):
        - Prevents XSS attacks by controlling resource loading
-       - Restricts inline scripts and styles
-       - Note: Vue 3 requires 'unsafe-inline' and 'unsafe-eval' in development
-       - Future improvement: Use nonce-based CSP in production for stricter security
+       - Production: Nonce-based CSP (no unsafe-inline, no unsafe-eval)
+       - Development: Permissive CSP (allows unsafe-inline/eval for Vite HMR)
+       - Nonce rotates per request (cryptographically secure random)
 
     2. X-Content-Type-Options:
        - Prevents MIME type sniffing attacks
@@ -165,25 +166,61 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
        - Forces HTTPS connections for future requests
        - Only enabled for non-localhost domains (production)
        - Protects against protocol downgrade attacks
+
+    6. X-CSP-Nonce (Custom):
+       - Returns CSP nonce for frontend to use in inline scripts
+       - Frontend must include nonce in script/style tags: <script nonce={nonce}>
     """
 
     async def dispatch(self, request: Request, call_next):
-        """Add security headers to response."""
+        """Add security headers to response with nonce-based CSP."""
+        # Generate cryptographically secure nonce (32 bytes = 256 bits)
+        # Base64url encoding makes it safe for HTTP headers and HTML attributes
+        nonce = secrets.token_urlsafe(32)
+
+        # Store nonce in request state for access by other middleware/endpoints
+        request.state.csp_nonce = nonce
+
+        # Process request
         response: Response = await call_next(request)
 
         # Content Security Policy (XSS prevention)
-        # Restricts resource loading to same origin and trusted sources
-        # Vue 3 requires 'unsafe-inline' and 'unsafe-eval' for development builds
-        # Production builds should use nonce-based CSP with stricter policies
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "  # Default: only same origin
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "  # Vue requires these
-            "style-src 'self' 'unsafe-inline'; "  # Allow inline styles for Vue
-            "img-src 'self' data: https:; "  # Allow images from self, data URIs, HTTPS
-            "font-src 'self'; "  # Fonts only from same origin
-            "connect-src 'self'; "  # API calls only to same origin
-            "frame-ancestors 'none';"  # Disallow framing (same as X-Frame-Options)
-        )
+        if settings.debug or settings.environment == "local":
+            # DEVELOPMENT: Permissive CSP for Vite HMR
+            # Allows unsafe-inline and unsafe-eval for development convenience
+            # Vite dev server uses eval() for module hot reloading
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:*; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data: https: http://localhost:*; "
+                "font-src 'self' data:; "
+                "connect-src 'self' ws://localhost:* http://localhost:*; "
+                "frame-ancestors 'none'; "
+                "base-uri 'self'; "
+                "form-action 'self';"
+            )
+        else:
+            # PRODUCTION: Nonce-based CSP (strict security)
+            # NO unsafe-inline, NO unsafe-eval
+            # Only scripts/styles with matching nonce attribute will execute
+            response.headers["Content-Security-Policy"] = (
+                f"default-src 'self'; "
+                f"script-src 'self' 'nonce-{nonce}'; "
+                f"style-src 'self' 'nonce-{nonce}'; "
+                f"img-src 'self' data: https:; "
+                f"font-src 'self' data:; "
+                f"connect-src 'self'; "
+                f"frame-ancestors 'none'; "
+                f"base-uri 'self'; "
+                f"form-action 'self'; "
+                f"upgrade-insecure-requests;"
+            )
+
+        # Return nonce to frontend via custom header
+        # Frontend can access via response.headers.get('X-CSP-Nonce')
+        # and inject into script/style tags: <script nonce={nonce}>
+        response.headers["X-CSP-Nonce"] = nonce
 
         # Prevent MIME type sniffing
         # Browsers must respect the declared Content-Type header
