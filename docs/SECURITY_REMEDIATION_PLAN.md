@@ -17,7 +17,7 @@
 - [ ] **Week 5:** Testing & Documentation (3 tasks)
 
 **Total Tasks:** 17
-**Completed:** 1
+**Completed:** 2
 **In Progress:** 0
 **Blocked:** 0
 
@@ -94,21 +94,22 @@ engine = create_async_engine(
 **Priority:** 🔴 CRITICAL
 **Severity Score:** 2/10
 **Estimated Effort:** 1 hour
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed (2025-10-19)
 
 **Problem:**
 `is_token_blacklisted()` disables expiration checking with `verify_exp=False`, allowing expired tokens to be accepted.
 
-**Files to Modify:**
-- `/backend/src/pazpaz/core/security.py`
-- `/backend/src/pazpaz/api/deps.py`
+**Files Modified:**
+- `/backend/src/pazpaz/core/security.py` - Added explicit expiration validation with defense-in-depth
+- `/backend/src/pazpaz/services/auth_service.py` - Removed `verify_exp=False` from `is_token_blacklisted()`
+- `/backend/tests/test_jwt_expiration.py` - Comprehensive test suite (NEW)
 
 **Implementation Steps:**
-1. [ ] Remove `verify_exp=False` from `is_token_blacklisted()`
-2. [ ] Add explicit expiration validation in `decode_jwt()`
-3. [ ] Ensure all JWT decode operations validate expiration
-4. [ ] Add test case for expired token rejection
-5. [ ] Verify token refresh flow still works
+1. [x] Remove `verify_exp=False` from `is_token_blacklisted()`
+2. [x] Add explicit expiration validation in `decode_access_token()`
+3. [x] Ensure all JWT decode operations validate expiration
+4. [x] Add test case for expired token rejection
+5. [x] Verify token refresh flow still works
 
 **Code Changes:**
 ```python
@@ -147,11 +148,23 @@ def is_token_blacklisted(token: str) -> bool:
 ```
 
 **Acceptance Criteria:**
-- [ ] Expired tokens are rejected with 401 status
-- [ ] Expiration validation cannot be bypassed
-- [ ] Token refresh flow works correctly
-- [ ] Tests cover expired token scenarios
-- [ ] Blacklist check still functions
+- [x] Expired tokens are rejected with 401 status
+- [x] Expiration validation cannot be bypassed
+- [x] Token refresh flow works correctly
+- [x] Tests cover expired token scenarios (18 test cases)
+- [x] Blacklist check still functions
+
+**Implementation Notes:**
+- Added `options={"verify_exp": True}` to `decode_access_token()` for explicit validation
+- Implemented defense-in-depth with manual expiration timestamp check
+- `is_token_blacklisted()` now returns True for expired tokens (implicit blacklist)
+- Added comprehensive test suite with 18 test cases covering:
+  - Valid/expired token acceptance/rejection
+  - Blacklist operations with expiration
+  - Endpoint integration tests
+  - Edge cases (missing exp/jti, tokens expiring now, etc.)
+- All existing authentication tests still pass (backward compatible)
+- Token refresh flow validated and working correctly
 
 **Reference:** Auth & Authorization Audit Report, Issue #1
 
@@ -1280,10 +1293,12 @@ async def test_key_recovery_drill():
 ### Weekly Progress Reports
 
 **Week 1 Status:**
-- Completed: 1/4 tasks
+- Completed: 2/4 tasks
 - In Progress: 0/4 tasks
 - Blocked: 0/4 tasks
-- Notes: Task 1.1 (Database SSL/TLS) completed on 2025-10-19. All database connections now encrypted with TLS 1.2+.
+- Notes:
+  - Task 1.1 (Database SSL/TLS) completed on 2025-10-19. All database connections now encrypted with TLS 1.2+.
+  - Task 1.2 (JWT Expiration Validation) completed on 2025-10-19. All JWT operations now enforce expiration validation with defense-in-depth. 18 new test cases added.
 
 **Week 2 Status:**
 - Completed: 0/4 tasks

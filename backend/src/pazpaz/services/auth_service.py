@@ -292,16 +292,17 @@ async def is_token_blacklisted(redis_client: redis.Redis, token: str) -> bool:
         True if token is blacklisted, False otherwise
     """
     from jose import jwt
+    from jose.exceptions import ExpiredSignatureError
 
     from pazpaz.core.config import settings
 
     try:
-        # Decode token to extract JTI
+        # Decode token to extract JTI (WITH expiration validation)
         payload = jwt.decode(
             token,
             settings.secret_key,
             algorithms=["HS256"],
-            options={"verify_exp": False},
+            # Removed verify_exp=False - use default expiration validation
         )
 
         jti = payload.get("jti")
@@ -320,6 +321,10 @@ async def is_token_blacklisted(redis_client: redis.Redis, token: str) -> bool:
 
         return is_blacklisted
 
+    except ExpiredSignatureError:
+        # Expired tokens are implicitly invalid
+        logger.debug("token_expired_treating_as_blacklisted")
+        return True
     except Exception as e:
         logger.error(
             "failed_to_check_blacklist",

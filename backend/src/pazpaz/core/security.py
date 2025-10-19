@@ -58,7 +58,7 @@ def create_access_token(
 
 def decode_access_token(token: str) -> dict[str, str]:
     """
-    Decode and validate a JWT access token.
+    Decode and validate a JWT access token with expiration checking.
 
     Args:
         token: JWT token string
@@ -70,14 +70,27 @@ def decode_access_token(token: str) -> dict[str, str]:
         JWTError: If token is invalid, expired, or malformed
     """
     try:
+        # Decode JWT with expiration validation explicitly enabled
         payload = jwt.decode(
             token,
             settings.secret_key,
             algorithms=["HS256"],
+            options={"verify_exp": True},  # Explicitly enforce expiration validation
         )
+
+        # Defense-in-depth: Additional expiration check
+        exp = payload.get("exp")
+        if not exp:
+            raise JWTError("Token missing expiration claim")
+
+        # Verify expiration hasn't been tampered with
+        exp_datetime = datetime.fromtimestamp(exp, tz=UTC)
+        if exp_datetime < datetime.now(UTC):
+            raise JWTError("Token has expired")
+
         return payload
     except JWTError as e:
-        raise JWTError("Invalid token") from e
+        raise JWTError("Invalid or expired token") from e
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
