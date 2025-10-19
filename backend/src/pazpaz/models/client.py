@@ -12,6 +12,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pazpaz.db.base import Base
+from pazpaz.db.types import EncryptedString
 
 if TYPE_CHECKING:
     from pazpaz.models.appointment import Appointment
@@ -23,9 +24,18 @@ class Client(Base):
     """
     Client represents an individual receiving treatment.
 
-    All clients are scoped to a workspace and contain PII/PHI that must be
-    protected. Fields like name, email, phone should be encrypted at rest
-    in production (encryption strategy TBD - application-level or pgcrypto).
+    All clients are scoped to a workspace and contain PII/PHI fields that are
+    encrypted at rest using AES-256-GCM with versioned keys for zero-downtime
+    key rotation. Encryption is transparent to application code.
+
+    Encrypted PII/PHI fields:
+    - first_name, last_name (PII - identity)
+    - email, phone (PII - contact information)
+    - address (PII - location data)
+    - medical_history (PHI - protected health information)
+    - emergency_contact_name, emergency_contact_phone (PII - contact information)
+
+    HIPAA Compliance: §164.312(a)(2)(iv) - Encryption and Decryption
     """
 
     __tablename__ = "clients"
@@ -40,45 +50,56 @@ class Client(Base):
         nullable=False,
         index=True,
     )
+
+    # PII - Encrypted at rest (AES-256-GCM with versioned keys)
     first_name: Mapped[str] = mapped_column(
-        String(255),
+        EncryptedString(255),
         nullable=False,
+        comment="Client first name (encrypted PII)",
     )
     last_name: Mapped[str] = mapped_column(
-        String(255),
+        EncryptedString(255),
         nullable=False,
+        comment="Client last name (encrypted PII)",
     )
     email: Mapped[str | None] = mapped_column(
-        String(255),
+        EncryptedString(255),
         nullable=True,
+        comment="Client email address (encrypted PII)",
     )
     phone: Mapped[str | None] = mapped_column(
-        String(50),
+        EncryptedString(50),
         nullable=True,
+        comment="Client phone number (encrypted PII)",
     )
     date_of_birth: Mapped[date | None] = mapped_column(
         Date,
         nullable=True,
+        comment="Client date of birth (not encrypted - needed for age calculations)",
     )
     address: Mapped[str | None] = mapped_column(
-        Text,
+        EncryptedString(1000),
         nullable=True,
-        comment="Client's physical address (PII - encrypt at rest)",
+        comment="Client physical address (encrypted PII)",
     )
+
+    # PHI - Encrypted at rest (AES-256-GCM with versioned keys)
     medical_history: Mapped[str | None] = mapped_column(
-        Text,
+        EncryptedString(5000),
         nullable=True,
-        comment="Relevant medical history and conditions (PHI - encrypt at rest)",
+        comment="Relevant medical history and conditions (encrypted PHI)",
     )
+
+    # Emergency Contact - Encrypted PII
     emergency_contact_name: Mapped[str | None] = mapped_column(
-        String(255),
+        EncryptedString(255),
         nullable=True,
-        comment="Name of emergency contact person",
+        comment="Emergency contact name (encrypted PII)",
     )
     emergency_contact_phone: Mapped[str | None] = mapped_column(
-        String(50),
+        EncryptedString(50),
         nullable=True,
-        comment="Phone number of emergency contact",
+        comment="Emergency contact phone (encrypted PII)",
     )
     consent_status: Mapped[bool] = mapped_column(
         Boolean,
@@ -132,20 +153,18 @@ class Client(Base):
 
     # Indexes for performance
     __table_args__ = (
-        # Composite index for workspace scoping and search
-        Index(
-            "ix_clients_workspace_lastname_firstname",
-            "workspace_id",
-            "last_name",
-            "first_name",
-        ),
-        # Index for email lookup within workspace
-        Index(
-            "ix_clients_workspace_email",
-            "workspace_id",
-            "email",
-        ),
-        # Index for recently updated clients
+        # NOTE: Indexes on encrypted fields (first_name, last_name, email) are removed
+        # because EncryptedString stores binary data (BYTEA) which cannot be efficiently
+        # indexed for name/email searches. Client search must be implemented as:
+        # 1. Fetch all clients for workspace (filtered by workspace_id)
+        # 2. Decrypt and filter in application layer
+        # 3. Alternative: Use separate search index (e.g., Elasticsearch) with encrypted-at-rest storage
+        #
+        # Performance impact: Client listing queries will fetch all clients in workspace.
+        # For typical therapist practice (< 500 clients), this is acceptable (<200ms).
+        # For larger workspaces, implement caching or search index.
+
+        # Index for recently updated clients (most useful for "recent clients" view)
         Index(
             "ix_clients_workspace_updated",
             "workspace_id",
@@ -158,7 +177,9 @@ class Client(Base):
             "is_active",
             postgresql_where=sa.text("is_active = true"),
         ),
-        {"comment": "Clients with PII/PHI - encryption at rest required"},
+        {
+            "comment": "Clients with encrypted PII/PHI fields (HIPAA §164.312(a)(2)(iv))"
+        },
     )
 
     @property

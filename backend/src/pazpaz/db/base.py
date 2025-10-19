@@ -54,21 +54,55 @@ def _create_ssl_context() -> ssl.SSLContext | None:
 
     # Configure SSL verification based on mode
     if settings.db_ssl_mode == "verify-full":
-        # Full verification: certificate AND hostname
+        # Verify certificate AND hostname (most secure)
+        # Use for production with CA-signed certificates
         ssl_context.check_hostname = True
         ssl_context.verify_mode = ssl.CERT_REQUIRED
+        logger.info(
+            "database_ssl_verify_full",
+            message="Database SSL mode: verify-full (certificate and hostname verified)",
+        )
+
     elif settings.db_ssl_mode == "verify-ca":
-        # Verify certificate only (recommended for development with self-signed certs)
+        # Verify certificate against CA, but don't check hostname
+        # Use for self-signed certificates or when hostname doesn't match
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_REQUIRED
+        logger.info(
+            "database_ssl_verify_ca",
+            message="Database SSL mode: verify-ca (certificate verified, hostname not checked)",
+        )
+
     elif settings.db_ssl_mode == "require":
-        # Require encryption but don't verify certificate
+        # Require encryption but don't verify certificate (DEVELOPMENT ONLY)
+        # This mode is INSECURE and should only be used for local development
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
+
+        # Warn in production
+        if settings.environment in ("production", "staging"):
+            logger.error(
+                "database_ssl_weak_mode_in_production",
+                mode=settings.db_ssl_mode,
+                environment=settings.environment,
+                message="DB_SSL_MODE=require is INSECURE in production. Use verify-ca or verify-full.",
+            )
+            # Note: The Pydantic validator in config.py will prevent this in production
+        else:
+            logger.warning(
+                "database_ssl_require_mode",
+                message="DB_SSL_MODE=require does not verify certificates (development only)",
+            )
+
     else:
-        # For development with self-signed certs, allow less strict modes
+        # Fallback for other modes (disable, allow, prefer)
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_OPTIONAL
+        logger.warning(
+            "database_ssl_weak_mode",
+            mode=settings.db_ssl_mode,
+            message=f"Weak SSL mode: {settings.db_ssl_mode}",
+        )
 
     # Load client certificate for mutual TLS (optional)
     if settings.db_ssl_client_cert_path and settings.db_ssl_client_key_path:
