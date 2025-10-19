@@ -20,8 +20,9 @@ onMounted(async () => {
 
   try {
     // Call the verify endpoint - this sets the JWT cookie
-    await apiClient.get('/auth/verify', {
-      params: { token },
+    // Changed to POST per backend security requirements (CSRF middleware ordering)
+    await apiClient.post('/auth/verify', {
+      token,
     })
 
     status.value = 'success'
