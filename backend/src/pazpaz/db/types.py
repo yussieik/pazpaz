@@ -45,14 +45,21 @@ logger = get_logger(__name__)
 
 class EncryptedString(TypeDecorator):
     """
-    SQLAlchemy type for transparent encryption/decryption of string fields.
+    SQLAlchemy type for transparent encryption/decryption of string fields with key rotation support.
 
     This type automatically encrypts data on INSERT/UPDATE and decrypts on SELECT,
-    making encryption transparent to application code. The encrypted data is stored
-    as BYTEA (binary) in PostgreSQL.
+    making encryption transparent to application code. Supports both legacy (non-versioned)
+    and versioned encryption formats for zero-downtime key rotation.
 
-    Storage format in database:
+    Storage format in database (new versioned format):
+        BYTEA: b"v2:"[12-byte nonce][ciphertext][16-byte authentication tag]
+
+    Legacy storage format (backward compatible):
         BYTEA: [12-byte nonce][ciphertext][16-byte authentication tag]
+
+    The type automatically detects the format on decryption:
+    - If version prefix exists (b"v2:"), uses versioned decryption with key registry
+    - If no version prefix, uses legacy decryption with settings.encryption_key
 
     Application usage:
         Transparent string get/set - no manual encryption needed
@@ -70,14 +77,14 @@ class EncryptedString(TypeDecorator):
         session.add(client)
         await session.commit()
 
-        # Decryption is automatic on SELECT
+        # Decryption is automatic on SELECT (supports both legacy and versioned formats)
         result = await session.get(Client, client_id)
         print(result.medical_history)  # "Patient has diabetes" (decrypted)
 
     Args:
         length: Maximum plaintext length (for documentation/validation)
                 Note: Actual database column will be larger due to encryption overhead
-                (12 bytes nonce + 16 bytes tag = 28 bytes extra)
+                (version prefix + 12 bytes nonce + 16 bytes tag)
 
     Security considerations:
         - Cannot perform LIKE queries on encrypted fields
@@ -85,6 +92,12 @@ class EncryptedString(TypeDecorator):
         - Decrypted values exist in application memory
         - All queries must decrypt entire field (no partial decryption)
         - Use audit logging to track access to encrypted fields
+        - Supports zero-downtime key rotation via versioned format
+
+    Key Rotation:
+        - New encryptions use current key version from key registry
+        - Old data decrypts with appropriate key version
+        - Migration path: legacy (no prefix) → versioned (with prefix)
     """
 
     impl = LargeBinary
@@ -106,14 +119,15 @@ class EncryptedString(TypeDecorator):
         Encrypt value before storing in database (INSERT/UPDATE).
 
         This method is called by SQLAlchemy when binding a parameter to a query.
-        It transparently encrypts the plaintext string before storage.
+        It transparently encrypts the plaintext string before storage using the
+        current key version from the key registry.
 
         Args:
             value: Plaintext string to encrypt (or None)
             dialect: SQLAlchemy dialect (unused)
 
         Returns:
-            Encrypted bytes in format: nonce || ciphertext || tag
+            Encrypted bytes in versioned format: b"v2:" + nonce || ciphertext || tag
             Or None if value is None
 
         Raises:
@@ -122,27 +136,67 @@ class EncryptedString(TypeDecorator):
         if value is None:
             return None
 
-        # Get encryption key from settings
-        from pazpaz.core.config import settings
+        # Try to use key registry for versioned encryption
+        try:
+            from pazpaz.utils.encryption import (
+                get_current_key_version,
+                get_key_for_version,
+            )
 
-        # Encrypt the field
-        encrypted = encrypt_field(value, settings.encryption_key)
+            # Get current key version from registry
+            version = get_current_key_version()
+            key = get_key_for_version(version)
 
-        # Log encryption operation (do NOT log plaintext value)
-        logger.debug(
-            "field_encrypted",
-            plaintext_length=len(value),
-            ciphertext_length=len(encrypted) if encrypted else 0,
-        )
+            # Encrypt with versioned format
+            encrypted = encrypt_field(value, key)
 
-        return encrypted
+            # Prepend version prefix for key selection during decryption
+            versioned_ciphertext = f"{version}:".encode() + encrypted
+
+            # Log encryption operation (do NOT log plaintext value)
+            logger.debug(
+                "field_encrypted_versioned",
+                plaintext_length=len(value),
+                ciphertext_length=len(versioned_ciphertext),
+                key_version=version,
+            )
+
+            return versioned_ciphertext
+
+        except (ValueError, ImportError) as e:
+            # Fallback to legacy encryption with settings key
+            logger.warning(
+                "key_registry_not_available_using_settings_key",
+                error=str(e),
+                message="Key registry not initialized, falling back to settings.encryption_key",
+            )
+
+            from pazpaz.core.config import settings
+
+            # Encrypt the field with legacy format (no version prefix)
+            encrypted = encrypt_field(value, settings.encryption_key)
+
+            # Log encryption operation (do NOT log plaintext value)
+            logger.debug(
+                "field_encrypted_legacy",
+                plaintext_length=len(value),
+                ciphertext_length=len(encrypted) if encrypted else 0,
+            )
+
+            return encrypted
 
     def process_result_value(self, value: bytes | None, dialect: Any) -> str | None:
         """
         Decrypt value after retrieving from database (SELECT).
 
         This method is called by SQLAlchemy when processing a result set.
-        It transparently decrypts the stored bytes back to plaintext.
+        It transparently decrypts the stored bytes back to plaintext, supporting
+        both versioned (with prefix) and legacy (without prefix) formats.
+
+        Decryption strategy:
+        1. Check if ciphertext has version prefix (b"v2:")
+        2. If yes, extract version and use corresponding key from registry
+        3. If no, use legacy decryption with settings.encryption_key
 
         Args:
             value: Encrypted bytes from database (or None)
@@ -157,15 +211,54 @@ class EncryptedString(TypeDecorator):
         if value is None:
             return None
 
-        # Get encryption key from settings
+        # Check if versioned format (contains ":" separator in first 10 bytes)
+        # Version prefix format: b"v1:", b"v2:", b"v3:", etc.
+        if b":" in value[:10]:
+            # New versioned format - extract version and use key registry
+            try:
+                # Find colon position
+                colon_index = value.index(b":")
+
+                # Extract version string (e.g., b"v2" -> "v2")
+                version = value[:colon_index].decode("ascii")
+
+                # Extract ciphertext (everything after colon)
+                ciphertext = value[colon_index + 1 :]
+
+                # Get key for this version from registry
+                from pazpaz.utils.encryption import get_key_for_version
+
+                key = get_key_for_version(version)
+
+                # Decrypt with version-specific key
+                plaintext = decrypt_field(ciphertext, key)
+
+                # Log decryption operation (do NOT log plaintext value)
+                logger.debug(
+                    "field_decrypted_versioned",
+                    ciphertext_length=len(value),
+                    plaintext_length=len(plaintext) if plaintext else 0,
+                    key_version=version,
+                )
+
+                return plaintext
+
+            except (ValueError, IndexError, UnicodeDecodeError) as e:
+                # Malformed version prefix - fall back to legacy decryption
+                logger.warning(
+                    "invalid_version_prefix_falling_back_to_legacy",
+                    error=str(e),
+                    message="Failed to parse version prefix, trying legacy decryption",
+                )
+
+        # Legacy non-versioned format - use master key from settings
         from pazpaz.core.config import settings
 
-        # Decrypt the field
         plaintext = decrypt_field(value, settings.encryption_key)
 
         # Log decryption operation (do NOT log plaintext value)
         logger.debug(
-            "field_decrypted",
+            "field_decrypted_legacy",
             ciphertext_length=len(value),
             plaintext_length=len(plaintext) if plaintext else 0,
         )

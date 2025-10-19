@@ -10,27 +10,43 @@ Security properties:
 - 16-byte authentication tag
 - Constant-time operations via cryptography library
 - Key versioning for zero-downtime key rotation
+- 90-day key rotation policy (HIPAA requirement)
 
 Performance targets:
 - Encryption: <5ms per field
 - Decryption: <10ms per field
 - Bulk operations: <100ms for 100 fields
 
+Key Rotation Architecture:
+- Multiple key versions stored in AWS Secrets Manager (v1, v2, v3, ...)
+- Each ciphertext includes version prefix for key selection
+- Old data decrypts with old keys (backward compatible)
+- New data encrypts with current key version
+- Background job re-encrypts old data to latest version
+- Keys expire after 90 days (HIPAA requirement)
+
 Usage:
     from pazpaz.core.config import settings
     from pazpaz.utils.encryption import encrypt_field, decrypt_field
 
-    # Simple encryption/decryption
+    # Simple encryption/decryption (legacy, non-versioned)
     ciphertext = encrypt_field("sensitive data", settings.encryption_key)
     plaintext = decrypt_field(ciphertext, settings.encryption_key)
 
     # Versioned encryption (for key rotation)
-    encrypted_data = encrypt_field_versioned("sensitive data", key_version="v1")
-    plaintext = decrypt_field_versioned(encrypted_data, {"v1": key_v1, "v2": key_v2})
+    encrypted_data = encrypt_field_versioned("sensitive data", key_version="v2")
+    plaintext = decrypt_field_versioned(encrypted_data)
+
+    # Multi-version decryption (automatic key selection)
+    from pazpaz.utils.encryption import get_key_registry
+    keys = get_key_registry()  # {"v1": key1, "v2": key2, "v3": key3}
+    plaintext = decrypt_field_versioned(encrypted_data, keys)
 """
 
 import base64
 import secrets
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -51,6 +67,301 @@ class DecryptionError(Exception):
     """Exception raised when decryption or authentication fails."""
 
     pass
+
+
+# ============================================================================
+# KEY VERSIONING & ROTATION
+# ============================================================================
+
+
+@dataclass
+class EncryptionKeyMetadata:
+    """
+    Metadata for an encryption key version.
+
+    This dataclass tracks metadata for each encryption key version to support
+    zero-downtime key rotation and 90-day rotation policy (HIPAA requirement).
+
+    Attributes:
+        key: 32-byte AES-256 encryption key
+        version: Version identifier (e.g., "v1", "v2", "v3")
+        created_at: When the key was created/activated
+        expires_at: When the key should be rotated (created_at + 90 days)
+        is_current: Whether this is the active key for new encryptions
+        rotated_at: When the key was rotated to new version (None if still current)
+
+    HIPAA Requirement:
+        Keys must be rotated every 90 days. The needs_rotation property
+        returns True when datetime.now() > created_at + 90 days.
+
+    Example:
+        >>> key = secrets.token_bytes(32)
+        >>> metadata = EncryptionKeyMetadata(
+        ...     key=key,
+        ...     version="v2",
+        ...     created_at=datetime.now(UTC),
+        ...     expires_at=datetime.now(UTC) + timedelta(days=90),
+        ...     is_current=True,
+        ...     rotated_at=None
+        ... )
+        >>> metadata.needs_rotation
+        False
+        >>> metadata.days_until_rotation
+        90
+    """
+
+    key: bytes
+    version: str
+    created_at: datetime
+    expires_at: datetime
+    is_current: bool = False
+    rotated_at: datetime | None = None
+
+    def __post_init__(self):
+        """Validate key metadata after initialization."""
+        if len(self.key) != ENCRYPTION_KEY_SIZE:
+            raise ValueError(
+                f"Encryption key must be {ENCRYPTION_KEY_SIZE} bytes, "
+                f"got {len(self.key)} bytes"
+            )
+
+        if not self.version.startswith("v"):
+            raise ValueError(
+                f"Key version must start with 'v' (e.g., 'v1', 'v2'), "
+                f"got '{self.version}'"
+            )
+
+        if self.expires_at <= self.created_at:
+            raise ValueError("expires_at must be after created_at")
+
+    @property
+    def needs_rotation(self) -> bool:
+        """
+        Check if key needs rotation (90-day policy).
+
+        HIPAA requires encryption keys to be rotated every 90 days.
+        This property returns True if the current time exceeds the
+        creation time plus 90 days.
+
+        Returns:
+            True if key needs rotation, False otherwise
+
+        Example:
+            >>> metadata.needs_rotation
+            False  # If created < 90 days ago
+        """
+        return datetime.now(UTC) > self.expires_at
+
+    @property
+    def days_until_rotation(self) -> int:
+        """
+        Calculate days remaining until key rotation required.
+
+        Returns:
+            Number of days until rotation (negative if overdue)
+
+        Example:
+            >>> metadata.days_until_rotation
+            85  # If created 5 days ago
+        """
+        delta = self.expires_at - datetime.now(UTC)
+        return delta.days
+
+    @property
+    def age_days(self) -> int:
+        """
+        Calculate key age in days.
+
+        Returns:
+            Number of days since key was created
+
+        Example:
+            >>> metadata.age_days
+            5  # If created 5 days ago
+        """
+        delta = datetime.now(UTC) - self.created_at
+        return delta.days
+
+
+# Global key registry (populated from AWS Secrets Manager)
+# Format: {"v1": EncryptionKeyMetadata(...), "v2": EncryptionKeyMetadata(...), ...}
+_KEY_REGISTRY: dict[str, EncryptionKeyMetadata] = {}
+
+
+def register_key(metadata: EncryptionKeyMetadata) -> None:
+    """
+    Register an encryption key version in the global registry.
+
+    This function adds a key version to the in-memory registry for use
+    in encryption/decryption operations. Keys are typically loaded from
+    AWS Secrets Manager at application startup.
+
+    Args:
+        metadata: Encryption key metadata
+
+    Raises:
+        ValueError: If key version already registered
+
+    Example:
+        >>> key = secrets.token_bytes(32)
+        >>> metadata = EncryptionKeyMetadata(
+        ...     key=key,
+        ...     version="v2",
+        ...     created_at=datetime.now(UTC),
+        ...     expires_at=datetime.now(UTC) + timedelta(days=90),
+        ...     is_current=True
+        ... )
+        >>> register_key(metadata)
+    """
+    if metadata.version in _KEY_REGISTRY:
+        logger.warning(
+            "key_already_registered",
+            version=metadata.version,
+            message="Key version already in registry, replacing",
+        )
+
+    _KEY_REGISTRY[metadata.version] = metadata
+
+    logger.info(
+        "key_registered",
+        version=metadata.version,
+        is_current=metadata.is_current,
+        age_days=metadata.age_days,
+        days_until_rotation=metadata.days_until_rotation,
+    )
+
+
+def get_key_registry() -> dict[str, bytes]:
+    """
+    Get all registered encryption keys for multi-version decryption.
+
+    This function returns a dictionary mapping version identifiers to
+    encryption keys. It's used by decrypt_field_versioned() to support
+    decryption of data encrypted with any registered key version.
+
+    Returns:
+        Dictionary mapping version -> key bytes
+        Example: {"v1": key1_bytes, "v2": key2_bytes, "v3": key3_bytes}
+
+    Example:
+        >>> keys = get_key_registry()
+        >>> len(keys)
+        3
+        >>> "v1" in keys
+        True
+    """
+    return {version: metadata.key for version, metadata in _KEY_REGISTRY.items()}
+
+
+def get_current_key_version() -> str:
+    """
+    Get the current (active) key version for new encryptions.
+
+    This function returns the version identifier of the key marked as
+    is_current=True. All new encryptions should use this key version.
+
+    Returns:
+        Current key version (e.g., "v2")
+
+    Raises:
+        ValueError: If no current key is registered
+
+    Example:
+        >>> get_current_key_version()
+        'v2'
+    """
+    for version, metadata in _KEY_REGISTRY.items():
+        if metadata.is_current:
+            return version
+
+    # No current key found - this should not happen in production
+    raise ValueError(
+        "No current encryption key found in registry. "
+        "Ensure at least one key is marked as is_current=True."
+    )
+
+
+def get_key_for_version(version: str) -> bytes:
+    """
+    Get encryption key for a specific version.
+
+    This function retrieves the encryption key for a given version identifier.
+    If the key is not in the registry, it attempts to fetch it from AWS
+    Secrets Manager and register it.
+
+    Args:
+        version: Key version identifier (e.g., "v1", "v2")
+
+    Returns:
+        32-byte encryption key
+
+    Raises:
+        ValueError: If key version not found in registry or AWS
+
+    Example:
+        >>> key = get_key_for_version("v2")
+        >>> len(key)
+        32
+    """
+    if version in _KEY_REGISTRY:
+        return _KEY_REGISTRY[version].key
+
+    # Key not in registry - try to fetch from AWS Secrets Manager
+    logger.info(
+        "key_not_in_registry_fetching",
+        version=version,
+        message="Key version not in registry, attempting to fetch from AWS",
+    )
+
+    try:
+        from pazpaz.utils.secrets_manager import get_encryption_key_version
+
+        key = get_encryption_key_version(version)
+
+        # Register fetched key
+        metadata = EncryptionKeyMetadata(
+            key=key,
+            version=version,
+            created_at=datetime.now(UTC),  # Approximate (actual created_at in AWS)
+            expires_at=datetime.now(UTC)
+            + timedelta(days=90),  # Approximate expiration
+            is_current=False,  # Fetched keys are not current
+        )
+        register_key(metadata)
+
+        return key
+
+    except Exception as e:
+        logger.error(
+            "failed_to_fetch_key_version",
+            version=version,
+            error=str(e),
+        )
+        raise ValueError(
+            f"Encryption key version '{version}' not found in registry or AWS Secrets Manager. "
+            f"Available versions: {list(_KEY_REGISTRY.keys())}"
+        ) from e
+
+
+def get_keys_needing_rotation() -> list[str]:
+    """
+    Get list of key versions that need rotation (>90 days old).
+
+    This function checks all registered keys and returns versions that
+    have exceeded the 90-day rotation policy.
+
+    Returns:
+        List of key versions needing rotation (e.g., ["v1", "v2"])
+
+    Example:
+        >>> get_keys_needing_rotation()
+        ['v1']  # If v1 is >90 days old
+    """
+    return [
+        version
+        for version, metadata in _KEY_REGISTRY.items()
+        if metadata.needs_rotation
+    ]
 
 
 def encrypt_field(plaintext: str | None, key: bytes) -> bytes | None:
@@ -191,7 +502,7 @@ def decrypt_field(ciphertext: bytes | None, key: bytes) -> str | None:
 
 
 def encrypt_field_versioned(
-    plaintext: str | None, key_version: str = "v1"
+    plaintext: str | None, key_version: str | None = None
 ) -> dict[str, Any] | None:
     """
     Encrypt field with version metadata for key rotation support.
@@ -210,23 +521,29 @@ def encrypt_field_versioned(
 
     Args:
         plaintext: The plain text to encrypt (or None)
-        key_version: Key version identifier (default: "v1")
+        key_version: Key version identifier (e.g., "v2")
+                    If None, uses current key version from registry
 
     Returns:
         Dictionary with version metadata and base64-encoded ciphertext:
         {
-            "version": "v1",
+            "version": "v2",
             "ciphertext": "base64-encoded-bytes",
             "algorithm": "AES-256-GCM"
         }
         Or None if plaintext is None
 
     Raises:
-        ValueError: If key not found in key registry
+        ValueError: If key version not found in key registry
         EncryptionError: If encryption fails
 
     Example:
-        >>> from pazpaz.core.config import settings
+        >>> # Encrypt with current key (automatic version selection)
+        >>> encrypted = encrypt_field_versioned("sensitive data")
+        >>> encrypted
+        {'version': 'v2', 'ciphertext': 'SGVsbG8...', 'algorithm': 'AES-256-GCM'}
+
+        >>> # Encrypt with specific key version
         >>> encrypted = encrypt_field_versioned("sensitive data", key_version="v1")
         >>> encrypted
         {'version': 'v1', 'ciphertext': 'SGVsbG8...', 'algorithm': 'AES-256-GCM'}
@@ -234,19 +551,38 @@ def encrypt_field_versioned(
     if plaintext is None:
         return None
 
-    # Import here to avoid circular dependency
-    from pazpaz.core.config import settings
+    # Auto-select current key version if not specified
+    if key_version is None:
+        try:
+            key_version = get_current_key_version()
+        except ValueError:
+            # Fallback to settings if registry not initialized
+            logger.warning(
+                "key_registry_not_initialized_using_settings",
+                message="Key registry not initialized, falling back to settings.encryption_key as v1",
+            )
+            from pazpaz.core.config import settings
 
-    # Get key for this version
-    # For now, we only have one key. In production with key rotation,
-    # you would maintain a registry: {"v1": key1, "v2": key2, ...}
-    key = settings.encryption_key
+            key = settings.encryption_key
+            key_version = "v1"
+        else:
+            # Get key from registry
+            key = get_key_for_version(key_version)
+    else:
+        # Get key for specified version
+        key = get_key_for_version(key_version)
 
     # Encrypt the field
     ciphertext = encrypt_field(plaintext, key)
 
     if ciphertext is None:
         return None
+
+    logger.debug(
+        "field_encrypted_versioned",
+        key_version=key_version,
+        plaintext_length=len(plaintext),
+    )
 
     # Return versioned structure
     return {
@@ -266,13 +602,18 @@ def decrypt_field_versioned(
     appropriate decryption key based on the version metadata stored
     with the encrypted data.
 
+    Key Selection Strategy:
+    1. If `keys` dict provided: Use specified keys (manual multi-version)
+    2. If `keys` is None: Auto-fetch from key registry (recommended)
+    3. Fallback: Use settings.encryption_key if registry not initialized
+
     Args:
         encrypted_data: Dictionary from encrypt_field_versioned() with keys:
                        - version: Key version identifier
                        - ciphertext: Base64-encoded encrypted bytes
                        - algorithm: Encryption algorithm (must be "AES-256-GCM")
-        keys: Dictionary mapping version -> key bytes
-              If None, uses current encryption key from settings
+        keys: Optional dictionary mapping version -> key bytes
+              If None, uses key registry (supports all registered versions)
 
     Returns:
         Decrypted plaintext string (or None if encrypted_data is None)
@@ -282,6 +623,12 @@ def decrypt_field_versioned(
         DecryptionError: If decryption/authentication fails
 
     Example:
+        >>> # Automatic key selection from registry (recommended)
+        >>> plaintext = decrypt_field_versioned(encrypted_data)
+        >>> plaintext
+        'sensitive data'
+
+        >>> # Manual key specification (for testing)
         >>> keys = {"v1": old_key, "v2": new_key}
         >>> plaintext = decrypt_field_versioned(encrypted_data, keys)
         >>> plaintext
@@ -312,18 +659,35 @@ def decrypt_field_versioned(
     version = encrypted_data["version"]
 
     if keys is None:
-        # Use current key from settings (single-key mode)
-        from pazpaz.core.config import settings
+        # Auto-fetch from key registry (supports all registered versions)
+        try:
+            key = get_key_for_version(version)
+            logger.debug(
+                "field_decrypted_versioned_from_registry",
+                key_version=version,
+            )
+        except ValueError as e:
+            # Fallback to settings if registry not initialized
+            logger.warning(
+                "key_registry_not_initialized_using_settings_fallback",
+                key_version=version,
+                message="Key registry not initialized, falling back to settings.encryption_key",
+            )
+            from pazpaz.core.config import settings
 
-        key = settings.encryption_key
+            key = settings.encryption_key
     else:
-        # Multi-key mode (key rotation)
+        # Manual key specification (multi-key mode)
         if version not in keys:
             raise ValueError(
-                f"Key version '{version}' not found in key registry. "
+                f"Key version '{version}' not found in provided keys. "
                 f"Available versions: {list(keys.keys())}"
             )
         key = keys[version]
+        logger.debug(
+            "field_decrypted_versioned_from_manual_keys",
+            key_version=version,
+        )
 
     # Decode base64 ciphertext
     try:
