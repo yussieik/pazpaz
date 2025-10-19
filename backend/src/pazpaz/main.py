@@ -7,9 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
+from slowapi import Limiter
 from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -26,6 +24,7 @@ from pazpaz.core.redis import close_redis
 from pazpaz.middleware.audit import AuditMiddleware
 from pazpaz.middleware.content_type import ContentTypeValidationMiddleware
 from pazpaz.middleware.csrf import CSRFProtectionMiddleware
+from pazpaz.middleware.rate_limit import IPRateLimitMiddleware
 from pazpaz.middleware.request_size import RequestSizeLimitMiddleware
 
 
@@ -133,7 +132,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Initialize rate limiter and attach to app state
+# Initialize rate limiter for slowapi decorator (used in specific routes)
+# Note: Global IP-based rate limiting is handled by IPRateLimitMiddleware
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
@@ -335,16 +335,18 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 # MIDDLEWARE ORDERING (executed OUTER to INNER, i.e., bottom to top):
 # 1. SecurityHeadersMiddleware - Add security headers to ALL responses
 # 2. RequestLoggingMiddleware - Log requests/responses (skip /health)
-# 3. RequestSizeLimitMiddleware - Check Content-Length BEFORE parsing body (DoS protection)
-# 4. ContentTypeValidationMiddleware - Validate Content-Type header (prevent parser confusion)
-# 5. CSRFProtectionMiddleware - Validate CSRF tokens on state-changing operations
-# 6. AuditMiddleware - Log data access/modifications (AFTER CSRF validation)
+# 3. IPRateLimitMiddleware - Global IP-based rate limiting (100/min, 1000/hr)
+# 4. RequestSizeLimitMiddleware - Check Content-Length BEFORE parsing body (DoS protection)
+# 5. ContentTypeValidationMiddleware - Validate Content-Type header (prevent parser confusion)
+# 6. CSRFProtectionMiddleware - Validate CSRF tokens on state-changing operations
+# 7. AuditMiddleware - Log data access/modifications (AFTER CSRF validation)
 #
 # Why this order?
-# - Size limit FIRST: Reject huge payloads before any processing (DoS prevention)
+# - Rate limiting EARLY: Block excessive requests before processing (DoS prevention)
+# - Size limit AFTER rate limiting: Reject huge payloads before any parsing
 # - Content-Type validation AFTER size check: Validate header before body parsing
 # - CSRF BEFORE Audit: Only audit legitimate requests
-# - Logging wraps everything to track all requests
+# - Logging wraps everything to track all requests (including rate-limited)
 
 # Add security headers middleware (applies to all responses)
 app.add_middleware(SecurityHeadersMiddleware)
@@ -362,13 +364,13 @@ app.add_middleware(AuditMiddleware)
 # Validates Content-Type header to prevent parser confusion attacks
 app.add_middleware(ContentTypeValidationMiddleware)
 
-# Add request size limit middleware (FIRST - before everything else to prevent DoS)
-# This must be LAST in add_middleware calls (executes FIRST due to middleware order)
+# Add request size limit middleware (AFTER rate limiting to prevent DoS)
 app.add_middleware(RequestSizeLimitMiddleware)
 
-# Add rate limiting middleware
-app.add_middleware(SlowAPIMiddleware)
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# Add IP-based rate limiting middleware (EARLY to block excessive requests)
+# Global limits: 100 requests/minute, 1000 requests/hour per IP
+# Fail-closed in production (503 if Redis down), fail-open in development
+app.add_middleware(IPRateLimitMiddleware)
 
 # Configure CORS for development
 if settings.debug:

@@ -1748,67 +1748,236 @@ Execution time: 10.77 seconds
 **Priority:** 🟡 MEDIUM
 **Severity Score:** 7/10
 **Estimated Effort:** 2 hours
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed (2025-10-19)
 
 **Problem:**
 Rate limiting fails open when Redis is down. No IP-based global rate limiting.
 
-**Files to Modify:**
-- `/backend/src/pazpaz/api/deps.py`
-- `/backend/src/pazpaz/main.py`
+**Files Modified:**
+- `/backend/src/pazpaz/core/rate_limiting.py` - Modified (+27 lines) - Added fail-closed/fail-open behavior
+- `/backend/src/pazpaz/middleware/rate_limit.py` (NEW FILE - 359 lines) - IP-based rate limiting middleware
+- `/backend/src/pazpaz/main.py` - Modified (+10 lines, -8 lines) - Added IPRateLimitMiddleware to stack
+- `/backend/tests/test_rate_limiting.py` (NEW FILE - 449 lines) - Comprehensive test suite with 18 tests
 
 **Implementation Steps:**
-1. [ ] Make rate limiting fail closed in production
-2. [ ] Add IP-based global rate limiting
-3. [ ] Add rate limit headers to responses
-4. [ ] Test with Redis down (should fail closed)
+1. [x] Make rate limiting fail closed in production - Modified check_rate_limit_redis() to raise HTTPException(503) in production/staging
+2. [x] Add IP-based global rate limiting - Created IPRateLimitMiddleware with 100/min, 1000/hr per IP using Redis sliding window
+3. [x] Add rate limit headers to responses - Added X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After headers
+4. [x] Test with Redis down (should fail closed) - Created 18 comprehensive tests covering fail-closed/fail-open scenarios
 
 **Code Changes:**
+
+**Fail-Closed/Fail-Open Behavior (core/rate_limiting.py):**
 ```python
-# deps.py
 async def check_rate_limit_redis(
-    redis_client: Redis,
+    redis_client: redis.Redis,
     key: str,
     max_requests: int,
     window_seconds: int,
 ) -> bool:
-    """Check rate limit with fail-closed behavior."""
+    """Check rate limit with environment-aware fail-closed/fail-open behavior."""
     try:
-        # Existing rate limit logic...
+        # Increment counter
         current = await redis_client.incr(key)
+
+        # Set TTL on first request
         if current == 1:
             await redis_client.expire(key, window_seconds)
-        return current <= max_requests
-    except Exception as e:
-        logger.error("rate_limit_check_failed", error=str(e))
 
-        # FAIL CLOSED in production
+        # Check if limit exceeded
+        return current <= max_requests
+
+    except Exception as e:
+        logger.error("rate_limit_check_failed", key=key, error=str(e))
+
+        # FAIL CLOSED in production/staging (reject request)
         if settings.environment in ("production", "staging"):
             raise HTTPException(
                 status_code=503,
-                detail="Rate limiting service unavailable"
-            )
+                detail="Rate limiting service temporarily unavailable. Please try again later."
+            ) from e
 
-        # FAIL OPEN in development (warn only)
-        logger.warning("rate_limit_bypassed_dev")
+        # FAIL OPEN in development/local (allow request with warning)
+        logger.warning(
+            "rate_limit_failing_open",
+            environment=settings.environment,
+            message="Allowing request despite rate limit check failure"
+        )
         return True
+```
 
-# main.py - Add IP-based rate limiting
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+**IP-Based Rate Limiting Middleware (middleware/rate_limit.py):**
+```python
+class IPRateLimitMiddleware(BaseHTTPMiddleware):
+    """
+    Global IP-based rate limiting middleware.
 
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["100/minute", "1000/hour"],
-)
-app.state.limiter = limiter
+    Limits:
+    - 100 requests per minute per IP
+    - 1000 requests per hour per IP
+
+    Features:
+    - Redis-backed sliding window algorithm
+    - Rate limit headers on all responses
+    - Exempt paths: /health, /metrics
+    - Smart IP extraction (X-Forwarded-For, X-Real-IP, direct)
+    """
+
+    MINUTE_LIMIT = 100  # requests per minute
+    HOUR_LIMIT = 1000   # requests per hour
+
+    async def dispatch(self, request: Request, call_next):
+        # Skip exempt endpoints
+        if request.url.path in ["/health", "/api/v1/health", "/metrics"]:
+            return await call_next(request)
+
+        # Extract client IP
+        client_ip = self.get_client_ip(request)
+
+        # Check both minute and hour limits (sliding window)
+        minute_allowed, minute_remaining, minute_reset = await check_rate_limit_sliding_window(
+            redis_client=redis_client,
+            key=f"rate_limit:minute:{client_ip}",
+            limit=self.MINUTE_LIMIT,
+            window_seconds=60
+        )
+
+        hour_allowed, hour_remaining, hour_reset = await check_rate_limit_sliding_window(
+            redis_client=redis_client,
+            key=f"rate_limit:hour:{client_ip}",
+            limit=self.HOUR_LIMIT,
+            window_seconds=3600
+        )
+
+        # Enforce BOTH limits (request must pass both)
+        allowed = minute_allowed and hour_allowed
+
+        # Determine most restrictive limit for headers
+        if minute_remaining < hour_remaining:
+            limit, remaining, reset = self.MINUTE_LIMIT, minute_remaining, minute_reset
+        else:
+            limit, remaining, reset = self.HOUR_LIMIT, hour_remaining, hour_reset
+
+        if not allowed:
+            # Return 429 Too Many Requests
+            response = Response(
+                "Rate limit exceeded. Please try again later.",
+                status_code=429,
+                media_type="text/plain"
+            )
+            response.headers["X-RateLimit-Limit"] = str(limit)
+            response.headers["X-RateLimit-Remaining"] = "0"
+            response.headers["X-RateLimit-Reset"] = str(int(reset))
+            response.headers["Retry-After"] = str(int(reset - time.time()))
+            return response
+
+        # Process request
+        response = await call_next(request)
+
+        # Add rate limit headers to successful response
+        response.headers["X-RateLimit-Limit"] = str(limit)
+        response.headers["X-RateLimit-Remaining"] = str(remaining)
+        response.headers["X-RateLimit-Reset"] = str(int(reset))
+
+        return response
+
+    def get_client_ip(self, request: Request) -> str:
+        """Extract client IP from X-Forwarded-For, X-Real-IP, or direct connection."""
+        # Check X-Forwarded-For (proxy/load balancer)
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            return forwarded.split(",")[0].strip()  # Leftmost IP = original client
+
+        # Check X-Real-IP (nginx proxy)
+        real_ip = request.headers.get("X-Real-IP")
+        if real_ip:
+            return real_ip.strip()
+
+        # Direct connection
+        if request.client and request.client.host:
+            return request.client.host
+
+        return "unknown"
+```
+
+**Middleware Registration (main.py):**
+```python
+# Middleware stack (executed bottom-to-top)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(IPRateLimitMiddleware)             # NEW: IP-based rate limiting
+app.add_middleware(RequestSizeLimitMiddleware)
+app.add_middleware(ContentTypeValidationMiddleware)
+app.add_middleware(CSRFProtectionMiddleware)
+app.add_middleware(AuditMiddleware)
 ```
 
 **Acceptance Criteria:**
-- [ ] Production fails closed if Redis down
-- [ ] IP-based rate limiting active
-- [ ] Rate limit headers in responses
-- [ ] Tests cover Redis failure scenario
+- [x] Production fails closed if Redis down - HTTPException(503) raised in production/staging environments
+- [x] Development fails open if Redis down - Returns True (allows request) with warning log in development
+- [x] IP-based rate limiting active - 100 requests/minute, 1000 requests/hour per IP enforced
+- [x] Rate limit headers in responses - X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After added to all responses
+- [x] Tests cover Redis failure scenario - 18 comprehensive tests (100% pass rate) covering fail-closed/fail-open, IP extraction, sliding window, metadata
+
+**Implementation Notes:**
+- **Fail-Closed Strategy (Production/Staging)**:
+  - Redis unavailable → Raises HTTPException(503)
+  - Prevents rate limit bypass when Redis is down
+  - HIPAA compliance: §164.308(a)(7)(ii)(B) resource availability
+- **Fail-Open Strategy (Development/Local)**:
+  - Redis unavailable → Returns True (allows request)
+  - Logs warning for developer awareness
+  - Maintains developer productivity during local development
+- **IP-Based Limiting**:
+  - Uses Redis sliding window algorithm for accurate counting
+  - Separate counters for minute and hour windows
+  - Enforces BOTH limits (request must pass both)
+  - Distributed-safe for multi-server deployments
+- **Smart IP Extraction**:
+  1. X-Forwarded-For header (leftmost IP = original client)
+  2. X-Real-IP header (nginx proxy)
+  3. Direct connection IP (request.client.host)
+  4. Fallback to "unknown" if none available
+- **Rate Limit Headers**:
+  - `X-RateLimit-Limit`: Maximum requests in current window
+  - `X-RateLimit-Remaining`: Requests remaining in window
+  - `X-RateLimit-Reset`: Unix timestamp when limit resets
+  - `Retry-After`: Seconds until limit resets (on 429 responses)
+- **Exempt Paths**: Health checks (`/health`, `/api/v1/health`, `/metrics`) bypass rate limiting for monitoring
+- **Test Coverage**: 18 comprehensive tests covering:
+  - Fail-closed behavior (production/staging) - 2 tests
+  - Fail-open behavior (development) - 1 test
+  - check_rate_limit_redis() success/failure - 2 tests
+  - IP address extraction logic - 4 tests
+  - Sliding window algorithm - 3 tests
+  - Rate limit metadata calculations - 3 tests
+  - Edge cases (TTL, cleanup, dual limits) - 3 tests
+
+**Security Benefits:**
+- **DoS Protection**: Prevents abuse from single IPs (100 req/min, 1000 req/hour)
+- **Fail-Closed Security**: Production cannot bypass rate limiting even when Redis is down
+- **Rate Limit Transparency**: Clients know their limits and remaining requests via headers
+- **Distributed Safety**: Redis-backed counters work across multiple servers
+- **Attack Mitigation**: Prevents brute force attacks, credential stuffing, API abuse
+- **HIPAA Compliance**: §164.308(a)(7)(ii)(B) resource availability and abuse prevention
+
+**Test Results:**
+```
+tests/test_rate_limiting.py - 18/18 PASSED (100%)
+Execution time: 5.40 seconds
+
+Test Breakdown:
+- Fail-closed behavior (production/staging) - 2 tests
+- Fail-open behavior (development) - 1 test
+- Redis success/failure scenarios - 2 tests
+- IP address extraction - 4 tests
+- Sliding window algorithm - 3 tests
+- Rate limit metadata calculations - 3 tests
+- Edge cases (TTL, cleanup, dual limits) - 3 tests
+
+All linting checks passed ✅
+Zero regressions in existing tests ✅
+```
 
 **Reference:** Auth & Authorization Audit Report, Issue #3
 

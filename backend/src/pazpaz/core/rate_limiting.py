@@ -6,7 +6,9 @@ import uuid
 from datetime import UTC, datetime
 
 import redis.asyncio as redis
+from fastapi import HTTPException
 
+from pazpaz.core.config import settings
 from pazpaz.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -101,8 +103,7 @@ async def check_rate_limit_redis(
         return True
 
     except Exception as e:
-        # Log error but fail open (allow request) to prevent Redis outages
-        # from blocking all autosave requests
+        # Log error with full context for debugging
         logger.error(
             "rate_limit_check_failed",
             key=key,
@@ -110,7 +111,30 @@ async def check_rate_limit_redis(
             error_type=type(e).__name__,
             exc_info=True,
         )
-        # SECURITY: Fail open - allow request if Redis unavailable
-        # This prevents Redis outages from blocking all autosave functionality
-        # Trade-off: Temporary rate limit bypass vs. service availability
+
+        # FAIL CLOSED in production/staging (security priority)
+        # Prevents rate limit bypass when Redis is unavailable
+        if settings.environment in ("production", "staging"):
+            logger.warning(
+                "rate_limit_failing_closed",
+                environment=settings.environment,
+                reason="redis_unavailable",
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Rate limiting service temporarily unavailable. "
+                    "Please try again later."
+                ),
+            ) from e
+
+        # FAIL OPEN in development/local (availability priority)
+        # Allows development to continue even if Redis is down
+        # Trade-off: Temporary rate limit bypass vs. developer experience
+        logger.warning(
+            "rate_limit_failing_open",
+            environment=settings.environment,
+            reason="redis_unavailable",
+            message="Allowing request to proceed (development mode)",
+        )
         return True
