@@ -23,6 +23,7 @@ from pazpaz.core.logging import (
 )
 from pazpaz.core.redis import close_redis
 from pazpaz.middleware.audit import AuditMiddleware
+from pazpaz.middleware.content_type import ContentTypeValidationMiddleware
 from pazpaz.middleware.csrf import CSRFProtectionMiddleware
 from pazpaz.middleware.request_size import RequestSizeLimitMiddleware
 
@@ -279,11 +280,13 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 # 1. SecurityHeadersMiddleware - Add security headers to ALL responses
 # 2. RequestLoggingMiddleware - Log requests/responses (skip /health)
 # 3. RequestSizeLimitMiddleware - Check Content-Length BEFORE parsing body (DoS protection)
-# 4. CSRFProtectionMiddleware - Validate CSRF tokens on state-changing operations
-# 5. AuditMiddleware - Log data access/modifications (AFTER CSRF validation)
+# 4. ContentTypeValidationMiddleware - Validate Content-Type header (prevent parser confusion)
+# 5. CSRFProtectionMiddleware - Validate CSRF tokens on state-changing operations
+# 6. AuditMiddleware - Log data access/modifications (AFTER CSRF validation)
 #
 # Why this order?
-# - Size limit BEFORE CSRF: Reject huge payloads before token validation (DoS prevention)
+# - Size limit FIRST: Reject huge payloads before any processing (DoS prevention)
+# - Content-Type validation AFTER size check: Validate header before body parsing
 # - CSRF BEFORE Audit: Only audit legitimate requests
 # - Logging wraps everything to track all requests
 
@@ -298,6 +301,10 @@ app.add_middleware(CSRFProtectionMiddleware)
 
 # Add audit logging middleware (AFTER CSRF to ensure only valid requests are audited)
 app.add_middleware(AuditMiddleware)
+
+# Add Content-Type validation middleware (AFTER size limit, BEFORE CSRF)
+# Validates Content-Type header to prevent parser confusion attacks
+app.add_middleware(ContentTypeValidationMiddleware)
 
 # Add request size limit middleware (FIRST - before everything else to prevent DoS)
 # This must be LAST in add_middleware calls (executes FIRST due to middleware order)
