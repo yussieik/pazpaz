@@ -48,6 +48,7 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             "/openapi.json",
             f"{settings.api_v1_prefix}/openapi.json",
             f"{settings.api_v1_prefix}/auth/magic-link",  # Entry point for auth
+            f"{settings.api_v1_prefix}/auth/verify",  # Magic link verification (POST)
         ]
 
         if request.url.path in exempt_paths:

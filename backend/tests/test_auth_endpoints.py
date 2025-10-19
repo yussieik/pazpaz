@@ -168,7 +168,7 @@ class TestMagicLinkRequest:
 
 
 class TestMagicLinkVerify:
-    """Test GET /api/v1/auth/verify endpoint."""
+    """Test POST /api/v1/auth/verify endpoint."""
 
     async def test_verify_valid_token(
         self,
@@ -204,7 +204,10 @@ class TestMagicLinkVerify:
         )
 
         # Verify token
-        response = await client.get(f"/api/v1/auth/verify?token={token}")
+        response = await client.post(
+            "/api/v1/auth/verify",
+            json={"token": token},
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -247,7 +250,10 @@ class TestMagicLinkVerify:
     ):
         """Verify expired token should return 401."""
         # Don't create token in Redis (simulate expiry)
-        response = await client.get("/api/v1/auth/verify?token=expired-token")
+        response = await client.post(
+            "/api/v1/auth/verify",
+            json={"token": "expired-token"},
+        )
 
         assert response.status_code == 401
         data = response.json()
@@ -261,7 +267,10 @@ class TestMagicLinkVerify:
         redis_client,
     ):
         """Verify invalid token should return 401."""
-        response = await client.get("/api/v1/auth/verify?token=invalid-token-xyz")
+        response = await client.post(
+            "/api/v1/auth/verify",
+            json={"token": "invalid-token-xyz"},
+        )
 
         assert response.status_code == 401
 
@@ -285,7 +294,10 @@ class TestMagicLinkVerify:
         )
 
         # Verify token
-        response = await client.get(f"/api/v1/auth/verify?token={token}")
+        response = await client.post(
+            "/api/v1/auth/verify",
+            json={"token": token},
+        )
 
         assert response.status_code == 401
 
@@ -497,7 +509,10 @@ class TestJWTBlacklist:
         )
 
         # Verify magic link to get JWT
-        response = await client.get(f"/api/v1/auth/verify?token={magic_token}")
+        response = await client.post(
+            "/api/v1/auth/verify",
+            json={"token": magic_token},
+        )
         assert response.status_code == 200
 
         # Extract JWT from cookies

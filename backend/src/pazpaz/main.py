@@ -280,11 +280,11 @@ app.add_middleware(SecurityHeadersMiddleware)
 # Add request logging middleware
 app.add_middleware(RequestLoggingMiddleware)
 
-# Add audit logging middleware (before CSRF to ensure auditing happens)
-app.add_middleware(AuditMiddleware)
-
-# Add CSRF protection middleware
+# Add CSRF protection middleware (BEFORE Audit to validate state-changing operations)
 app.add_middleware(CSRFProtectionMiddleware)
+
+# Add audit logging middleware (AFTER CSRF to ensure only valid requests are audited)
+app.add_middleware(AuditMiddleware)
 
 # Add rate limiting middleware
 app.add_middleware(SlowAPIMiddleware)

@@ -343,8 +343,9 @@ class TestCSRFAuthenticationFlow:
         )
 
         # Verify magic link (should set CSRF token)
-        response = await client.get(
-            f"/api/v1/auth/verify?token={magic_token}",
+        response = await client.post(
+            "/api/v1/auth/verify",
+            json={"token": magic_token},
         )
 
         assert response.status_code == 200

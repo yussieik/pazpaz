@@ -23,6 +23,12 @@ class MagicLinkResponse(BaseModel):
     )
 
 
+class TokenVerifyRequest(BaseModel):
+    """Request schema for magic link token verification."""
+
+    token: str = Field(..., description="Magic link token from email")
+
+
 class TokenVerifyResponse(BaseModel):
     """Response schema for token verification."""
 

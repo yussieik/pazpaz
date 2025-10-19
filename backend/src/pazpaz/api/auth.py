@@ -17,6 +17,7 @@ from pazpaz.schemas.auth import (
     LogoutResponse,
     MagicLinkRequest,
     MagicLinkResponse,
+    TokenVerifyRequest,
     TokenVerifyResponse,
     UserInToken,
 )
@@ -71,7 +72,7 @@ async def request_magic_link_endpoint(
     return MagicLinkResponse()
 
 
-@router.get(
+@router.post(
     "/verify",
     response_model=TokenVerifyResponse,
     status_code=200,
@@ -85,13 +86,14 @@ async def request_magic_link_endpoint(
     - JWT contains user_id and workspace_id for authorization
     - JWT stored in HttpOnly cookie for XSS protection
     - 7-day JWT expiry
+    - Uses POST method to prevent CSRF attacks (state-changing operation)
 
-    The token parameter is typically received via email link.
+    The token parameter is received from the email link and sent in request body.
     On success, a JWT is set as an HttpOnly cookie and returned in response.
     """,
 )
 async def verify_magic_link_endpoint(
-    token: str,
+    data: TokenVerifyRequest,
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     redis_client: Annotated[redis.Redis, Depends(get_redis)],
@@ -100,7 +102,7 @@ async def verify_magic_link_endpoint(
     Verify magic link token and issue JWT.
 
     Args:
-        token: Magic link token from email
+        data: Token verification request containing magic link token
         response: FastAPI response object (for setting cookie)
         db: Database session
         redis_client: Redis client
@@ -113,13 +115,13 @@ async def verify_magic_link_endpoint(
     """
     # Verify token and get JWT
     result = await verify_magic_link_token(
-        token=token,
+        token=data.token,
         db=db,
         redis_client=redis_client,
     )
 
     if not result:
-        logger.warning("magic_link_verification_failed", token=token[:16])
+        logger.warning("magic_link_verification_failed", token=data.token[:16])
         raise HTTPException(
             status_code=401,
             detail="Invalid or expired magic link token",
