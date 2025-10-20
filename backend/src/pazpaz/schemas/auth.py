@@ -24,9 +24,20 @@ class MagicLinkResponse(BaseModel):
 
 
 class TokenVerifyRequest(BaseModel):
-    """Request schema for magic link token verification."""
+    """Request schema for magic link token verification.
 
-    token: str = Field(..., description="Magic link token from email")
+    Security: Token length validation prevents malformed or suspicious tokens.
+    - Min 32 chars: Ensures sufficient entropy (256 bits for URL-safe base64)
+    - Max 128 chars: Prevents buffer overflow or DOS attacks via oversized tokens
+    """
+
+    token: str = Field(
+        ...,
+        description="Magic link token from email",
+        min_length=32,
+        max_length=128,
+        examples=["abc123def456ghi789jkl012mno345pqr678stu901vwx234yz"],
+    )
 
 
 class TokenVerifyResponse(BaseModel):

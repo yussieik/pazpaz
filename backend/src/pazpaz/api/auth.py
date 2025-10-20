@@ -38,6 +38,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
     Security features:
     - Rate limited to 3 requests per hour per IP address
+    - Rate limited to 5 requests per hour per email address (prevents email bombing)
     - Returns generic success message to prevent email enumeration
     - Tokens are 256-bit entropy with 10-minute expiry
     - Single-use tokens (deleted after verification)
@@ -53,14 +54,39 @@ async def request_magic_link_endpoint(
     redis_client: Annotated[redis.Redis, Depends(get_redis)],
 ) -> MagicLinkResponse:
     """
-    Request a magic link login email.
+    Request a magic link login email with enhanced protection.
 
-    Rate limited to 3 requests per hour per IP address.
+    Rate limited by:
+    - IP address: 3 requests per hour (handled by request_magic_link service)
+    - Email address: 5 requests per hour (prevents email bombing attacks)
     """
+    from pazpaz.core.rate_limiting import check_rate_limit_redis
+
     # Get request IP for rate limiting
     client_ip = request.client.host if request.client else "unknown"
 
-    # Request magic link (handles rate limiting internally too)
+    # ADDITIONAL PROTECTION: Per-email rate limiting (5 requests per hour)
+    # Prevents email bombing even if attacker uses multiple IPs/proxies
+    # This check happens BEFORE IP rate limiting to provide earliest protection
+    email_rate_limit_key = f"magic_link_rate_limit_email:{data.email}"
+
+    if not await check_rate_limit_redis(
+        redis_client=redis_client,
+        key=email_rate_limit_key,
+        max_requests=5,  # Max 5 requests per email per hour
+        window_seconds=3600,  # 1 hour
+    ):
+        logger.warning(
+            "magic_link_rate_limit_exceeded_for_email",
+            email=data.email,
+            ip=client_ip,
+        )
+        # Return generic success to prevent email enumeration
+        # Even though rate limit is exceeded, we don't reveal this to the attacker
+        # But we log the event for security monitoring
+        return MagicLinkResponse()
+
+    # Request magic link (handles IP-based rate limiting internally)
     await request_magic_link(
         email=data.email,
         db=db,

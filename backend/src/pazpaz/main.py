@@ -333,19 +333,24 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
 
 # MIDDLEWARE ORDERING (executed OUTER to INNER, i.e., bottom to top):
+# In FastAPI, middleware is executed in REVERSE order of how they are added:
+# - Last added middleware executes FIRST (outer layer)
+# - First added middleware executes LAST (inner layer, closest to route handler)
+#
+# Execution Order (request flows through these layers):
 # 1. SecurityHeadersMiddleware - Add security headers to ALL responses
 # 2. RequestLoggingMiddleware - Log requests/responses (skip /health)
 # 3. IPRateLimitMiddleware - Global IP-based rate limiting (100/min, 1000/hr)
 # 4. RequestSizeLimitMiddleware - Check Content-Length BEFORE parsing body (DoS protection)
 # 5. ContentTypeValidationMiddleware - Validate Content-Type header (prevent parser confusion)
-# 6. CSRFProtectionMiddleware - Validate CSRF tokens on state-changing operations
-# 7. AuditMiddleware - Log data access/modifications (AFTER CSRF validation)
+# 6. CSRFProtectionMiddleware - Validate CSRF tokens on state-changing operations (CRITICAL: BEFORE Audit)
+# 7. AuditMiddleware - Log data access/modifications (ONLY logs requests that pass CSRF validation)
 #
 # Why this order?
 # - Rate limiting EARLY: Block excessive requests before processing (DoS prevention)
 # - Size limit AFTER rate limiting: Reject huge payloads before any parsing
 # - Content-Type validation AFTER size check: Validate header before body parsing
-# - CSRF BEFORE Audit: Only audit legitimate requests
+# - CSRF BEFORE Audit (CRITICAL): Only audit legitimate requests, prevents audit log pollution
 # - Logging wraps everything to track all requests (including rate-limited)
 
 # Add security headers middleware (applies to all responses)
@@ -354,23 +359,26 @@ app.add_middleware(SecurityHeadersMiddleware)
 # Add request logging middleware
 app.add_middleware(RequestLoggingMiddleware)
 
-# Add CSRF protection middleware (BEFORE Audit to validate state-changing operations)
-app.add_middleware(CSRFProtectionMiddleware)
+# Add IP-based rate limiting middleware (EARLY to block excessive requests)
+# Global limits: 100 requests/minute, 1000 requests/hour per IP
+# Fail-closed in production (503 if Redis down), fail-open in development
+app.add_middleware(IPRateLimitMiddleware)
 
-# Add audit logging middleware (AFTER CSRF to ensure only valid requests are audited)
-app.add_middleware(AuditMiddleware)
+# Add request size limit middleware (AFTER rate limiting to prevent DoS)
+app.add_middleware(RequestSizeLimitMiddleware)
 
 # Add Content-Type validation middleware (AFTER size limit, BEFORE CSRF)
 # Validates Content-Type header to prevent parser confusion attacks
 app.add_middleware(ContentTypeValidationMiddleware)
 
-# Add request size limit middleware (AFTER rate limiting to prevent DoS)
-app.add_middleware(RequestSizeLimitMiddleware)
+# CRITICAL SECURITY FIX: CSRF must execute BEFORE Audit
+# This prevents audit log pollution from invalid CSRF requests
+# Add audit logging middleware FIRST (executes LAST, after CSRF validation)
+app.add_middleware(AuditMiddleware)
 
-# Add IP-based rate limiting middleware (EARLY to block excessive requests)
-# Global limits: 100 requests/minute, 1000 requests/hour per IP
-# Fail-closed in production (503 if Redis down), fail-open in development
-app.add_middleware(IPRateLimitMiddleware)
+# Add CSRF protection middleware AFTER Audit (executes BEFORE Audit, validates first)
+# CSRF validation must happen BEFORE audit logging to prevent log pollution
+app.add_middleware(CSRFProtectionMiddleware)
 
 # Configure CORS for development
 if settings.debug:

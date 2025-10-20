@@ -42,6 +42,19 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Exempt documentation and auth entry endpoints
+        # SECURITY NOTE: These endpoints are exempt from CSRF protection because:
+        # 1. /docs, /redoc, /openapi.json - Read-only API documentation
+        # 2. /auth/magic-link - Cannot require CSRF token before authentication
+        #    Protected by:
+        #    - IP-based rate limiting (3 requests/hour per IP)
+        #    - Email-based rate limiting (5 requests/hour per email)
+        #    - Generic responses (prevent email enumeration)
+        #    - Optional CAPTCHA in production (TODO: implement for v2)
+        # 3. /auth/verify - Magic link verification (single-use tokens)
+        #    Protected by:
+        #    - Single-use tokens (deleted after verification)
+        #    - 10-minute token expiry
+        #    - User existence revalidation
         exempt_paths = [
             "/docs",
             "/redoc",

@@ -166,6 +166,117 @@ class TestMagicLinkRequest:
         )
         assert response.status_code == 429  # Too Many Requests
 
+    async def test_request_magic_link_email_rate_limit(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        db: AsyncSession,
+        redis_client,
+    ):
+        """Request magic link should be rate limited to 5 per hour per email.
+
+        This test verifies the per-email rate limiting protection that prevents
+        email bombing attacks even if the attacker uses multiple IPs.
+
+        Note: The IP rate limit (3/hour) is lower than email limit (5/hour),
+        so we need to clear IP rate limit between requests to test email limit.
+        """
+        # Create a test user
+        user = User(
+            id=uuid.uuid4(),
+            workspace_id=workspace_1.id,
+            email="emailratelimit@example.com",
+            full_name="Email Rate Limit Test",
+            role=UserRole.OWNER,
+            is_active=True,
+        )
+        db.add(user)
+        await db.commit()
+
+        # Clear any existing IP rate limit for this test
+        # This allows us to test email rate limit independently
+        ip_rate_limit_key = "magic_link_rate_limit:127.0.0.1"
+        await redis_client.delete(ip_rate_limit_key)
+
+        # Make 5 requests (should all succeed - email limit is 5/hour)
+        for i in range(5):
+            # Clear IP rate limit before each request to isolate email rate limit
+            await redis_client.delete(ip_rate_limit_key)
+
+            response = await client.post(
+                "/api/v1/auth/magic-link",
+                json={"email": "emailratelimit@example.com"},
+            )
+            assert response.status_code == 200, (
+                f"Request {i + 1} should succeed (email limit: 5/hour)"
+            )
+
+        # 6th request should be silently rate limited (returns 200 to prevent enumeration)
+        # Clear IP rate limit to ensure we're testing email limit
+        await redis_client.delete(ip_rate_limit_key)
+
+        response = await client.post(
+            "/api/v1/auth/magic-link",
+            json={"email": "emailratelimit@example.com"},
+        )
+        # Returns 200 to prevent email enumeration, but doesn't send email
+        assert response.status_code == 200
+
+        # Verify that the 6th request didn't create a new token
+        # Count tokens in Redis - should still be 5 (from first 5 requests)
+        keys = await redis_client.keys("magic_link:*")
+        # Note: We expect 5 tokens (one per successful request)
+        assert len(keys) == 5, (
+            f"Expected 5 magic link tokens, found {len(keys)}. Email rate limit should prevent 6th token."
+        )
+
+    async def test_request_magic_link_combined_rate_limits(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        db: AsyncSession,
+        redis_client,
+    ):
+        """Test that both IP and email rate limits work together.
+
+        Verifies that:
+        1. IP rate limit (3/hour) is enforced first
+        2. Email rate limit (5/hour) provides additional protection
+        3. Whichever limit is hit first blocks the request
+        """
+        # Create a test user
+        user = User(
+            id=uuid.uuid4(),
+            workspace_id=workspace_1.id,
+            email="combined@example.com",
+            full_name="Combined Rate Limit Test",
+            role=UserRole.OWNER,
+            is_active=True,
+        )
+        db.add(user)
+        await db.commit()
+
+        # Make 3 requests (should all succeed - within both limits)
+        for i in range(3):
+            response = await client.post(
+                "/api/v1/auth/magic-link",
+                json={"email": "combined@example.com"},
+            )
+            assert response.status_code == 200, (
+                f"Request {i + 1} should succeed (within both rate limits)"
+            )
+
+        # 4th request hits IP rate limit (3/hour per IP)
+        # Returns 429 because IP rate limit raises HTTPException
+        response = await client.post(
+            "/api/v1/auth/magic-link",
+            json={"email": "combined@example.com"},
+        )
+        assert response.status_code == 429, "IP rate limit should block 4th request"
+
+        # Verify error message indicates rate limit
+        assert "rate limit" in response.json()["detail"].lower()
+
 
 class TestMagicLinkVerify:
     """Test POST /api/v1/auth/verify endpoint."""
@@ -190,8 +301,8 @@ class TestMagicLinkVerify:
         db.add(user)
         await db.commit()
 
-        # Create magic link token in Redis
-        token = "test-token-12345"
+        # Create magic link token in Redis (minimum 32 chars for validation)
+        token = "test-token-12345-with-enough-length-for-validation-abcd"
         token_data = {
             "user_id": str(user.id),
             "workspace_id": str(user.workspace_id),
@@ -250,9 +361,10 @@ class TestMagicLinkVerify:
     ):
         """Verify expired token should return 401."""
         # Don't create token in Redis (simulate expiry)
+        # Token must be 32+ chars to pass validation
         response = await client.post(
             "/api/v1/auth/verify",
-            json={"token": "expired-token"},
+            json={"token": "expired-token-with-enough-chars-for-validation"},
         )
 
         assert response.status_code == 401
@@ -267,9 +379,10 @@ class TestMagicLinkVerify:
         redis_client,
     ):
         """Verify invalid token should return 401."""
+        # Token must be 32+ chars to pass validation
         response = await client.post(
             "/api/v1/auth/verify",
-            json={"token": "invalid-token-xyz"},
+            json={"token": "invalid-token-with-enough-chars-for-validation"},
         )
 
         assert response.status_code == 401
@@ -280,8 +393,8 @@ class TestMagicLinkVerify:
         redis_client,
     ):
         """Verify token for non-existent user should return 401."""
-        # Create token for non-existent user
-        token = "orphan-token"
+        # Create token for non-existent user (minimum 32 chars)
+        token = "orphan-token-with-enough-chars-for-validation-xyz"
         token_data = {
             "user_id": str(uuid.uuid4()),  # Random UUID
             "workspace_id": str(uuid.uuid4()),
