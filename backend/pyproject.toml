@@ -71,4 +71,6 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = [
     "performance: marks tests as performance tests (run with: pytest -m performance)",
+    "no_db: marks tests that don't require database access (run with: pytest -m no_db)",
+    "quarterly_drill: marks tests for quarterly disaster recovery drills (run with: pytest -m quarterly_drill)",
 ]
