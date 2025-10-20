@@ -85,6 +85,67 @@ class TestJWTAlgorithmValidation:
 
         assert exc.value.status_code == 401
 
+    def test_rejects_hs512_algorithm(self):
+        """Test that HS512 tokens are rejected (only HS256 allowed)."""
+        payload = {
+            "sub": "test",
+            "user_id": str(uuid.uuid4()),
+            "workspace_id": str(uuid.uuid4()),
+            "email": "test@example.com",
+            "jti": str(uuid.uuid4()),
+            "exp": (datetime.now(UTC) + timedelta(days=1)).timestamp(),
+        }
+
+        # Create token with HS512 algorithm header
+        header = {"alg": "HS512", "typ": "JWT"}
+        header_bytes = base64.urlsafe_b64encode(
+            json.dumps(header).encode()
+        ).rstrip(b"=")
+        payload_bytes = base64.urlsafe_b64encode(
+            json.dumps(payload).encode()
+        ).rstrip(b"=")
+
+        # Create fake signature
+        signature = base64.urlsafe_b64encode(b"fake-hs512-signature").rstrip(b"=")
+        token = (header_bytes + b"." + payload_bytes + b"." + signature).decode()
+
+        # Should reject due to algorithm mismatch
+        with pytest.raises(HTTPException) as exc:
+            decode_access_token(token)
+
+        assert exc.value.status_code == 401
+        assert "Invalid authentication token" in exc.value.detail
+
+    def test_rejects_token_without_algorithm_header(self):
+        """Test that tokens without 'alg' field in header are rejected."""
+        payload = {
+            "sub": "test",
+            "user_id": str(uuid.uuid4()),
+            "workspace_id": str(uuid.uuid4()),
+            "email": "test@example.com",
+            "jti": str(uuid.uuid4()),
+            "exp": (datetime.now(UTC) + timedelta(days=1)).timestamp(),
+        }
+
+        # Create token without 'alg' field
+        header = {"typ": "JWT"}  # Missing "alg"
+        header_bytes = base64.urlsafe_b64encode(
+            json.dumps(header).encode()
+        ).rstrip(b"=")
+        payload_bytes = base64.urlsafe_b64encode(
+            json.dumps(payload).encode()
+        ).rstrip(b"=")
+
+        # Create fake signature
+        signature = base64.urlsafe_b64encode(b"fake-signature").rstrip(b"=")
+        token = (header_bytes + b"." + payload_bytes + b"." + signature).decode()
+
+        # Should reject due to missing algorithm
+        with pytest.raises(HTTPException) as exc:
+            decode_access_token(token)
+
+        assert exc.value.status_code == 401
+
     def test_accepts_valid_hs256_algorithm(self):
         """Test that valid HS256 tokens are accepted."""
         user_id = uuid.uuid4()
@@ -385,6 +446,49 @@ class TestJWTExpirationValidation:
 
 class TestJWTErrorHandling:
     """Test JWT error handling and logging."""
+
+    def test_logs_algorithm_mismatch(self, capsys):
+        """Test that algorithm rejection is logged for security monitoring.
+
+        Note: This test captures stdout to verify security logging.
+        structlog outputs to stdout by default in the test environment.
+        """
+        # Create token with wrong algorithm
+        payload = {
+            "sub": "test",
+            "user_id": str(uuid.uuid4()),
+            "workspace_id": str(uuid.uuid4()),
+            "email": "test@example.com",
+            "jti": str(uuid.uuid4()),
+            "exp": (datetime.now(UTC) + timedelta(days=1)).timestamp(),
+        }
+
+        # Create token with HS512 algorithm
+        header = {"alg": "HS512", "typ": "JWT"}
+        header_bytes = base64.urlsafe_b64encode(
+            json.dumps(header).encode()
+        ).rstrip(b"=")
+        payload_bytes = base64.urlsafe_b64encode(
+            json.dumps(payload).encode()
+        ).rstrip(b"=")
+        signature = base64.urlsafe_b64encode(b"fake-signature").rstrip(b"=")
+        token = (header_bytes + b"." + payload_bytes + b"." + signature).decode()
+
+        # Should reject and log the event
+        with pytest.raises(HTTPException) as exc:
+            decode_access_token(token)
+
+        # Verify 401 status code
+        assert exc.value.status_code == 401
+
+        # Capture stdout/stderr to verify logging occurred
+        captured = capsys.readouterr()
+
+        # Verify security event was logged to stdout (structlog default)
+        assert (
+            "jwt_algorithm_mismatch" in captured.out
+            or "jwt_algorithm_mismatch" in captured.err
+        ), f"Algorithm mismatch should be logged. Captured stdout: {captured.out}, stderr: {captured.err}"
 
     def test_malformed_token_returns_401(self):
         """Test that malformed tokens return 401."""
