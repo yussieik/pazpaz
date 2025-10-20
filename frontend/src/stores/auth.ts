@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { useSecureOfflineBackup } from '@/composables/useSecureOfflineBackup'
+import { ref, computed } from 'vue'
 import apiClient from '@/api/client'
 
 /**
@@ -8,10 +7,12 @@ import apiClient from '@/api/client'
  *
  * Manages user authentication state and provides logout functionality.
  * Ensures encrypted session backups are cleared on logout for HIPAA compliance.
+ * Handles 401 Unauthorized responses with automatic logout.
  *
  * Usage:
  *   const authStore = useAuthStore()
- *   authStore.logout()
+ *   await authStore.initializeAuth()  // Check authentication on app load
+ *   await authStore.logout()          // Manual logout
  */
 
 export interface User {
@@ -21,52 +22,108 @@ export interface User {
   role: string
 }
 
-export const useAuthStore = defineStore('auth', () => {
-  const { clearAllBackups } = useSecureOfflineBackup()
+/**
+ * Clear all encrypted session backups from localStorage
+ * HIPAA COMPLIANCE: Prevents PHI leakage on shared computers
+ *
+ * NOTE: This function is defined here to avoid circular dependency
+ * (auth store -> useSecureOfflineBackup -> auth store)
+ */
+function clearAllBackups(): void {
+  const keys = Object.keys(localStorage)
+  let cleared = 0
 
+  for (const key of keys) {
+    if (key.startsWith('session_') && key.endsWith('_backup')) {
+      localStorage.removeItem(key)
+      cleared++
+    }
+  }
+
+  if (cleared > 0) {
+    console.info(`[SecureBackup] Cleared ${cleared} backup(s) on logout`)
+  }
+}
+
+export const useAuthStore = defineStore('auth', () => {
   // Auth state
   const user = ref<User | null>(null)
-  const isAuthenticated = ref(false)
+
+  // Computed property for authentication status
+  const isAuthenticated = computed(() => user.value !== null)
+
+  /**
+   * Initialize authentication state
+   * Call on app mount to check if user has valid session
+   */
+  async function initializeAuth(): Promise<void> {
+    try {
+      const response = await apiClient.get('/auth/me')
+      user.value = response.data
+      console.info('[Auth] User authenticated:', user.value?.id)
+    } catch (error) {
+      // Not authenticated or session expired
+      if ((error as { response?: { status?: number } }).response?.status === 401) {
+        console.info('[Auth] No active session')
+      } else {
+        console.error('[Auth] Failed to check authentication:', error)
+      }
+      user.value = null
+    }
+  }
 
   /**
    * Logout user and clear all encrypted session backups
    * HIPAA COMPLIANCE: Prevents PHI leakage on shared computers
+   *
+   * This method:
+   * 1. Calls backend logout endpoint to invalidate JWT
+   * 2. Clears encrypted session backups from localStorage
+   * 3. Clears auth state
+   * 4. Does NOT redirect (caller handles redirect)
    */
-  async function logout() {
+  async function logout(): Promise<void> {
+    console.info('[Auth] Logging out...')
+
     try {
-      // 1. Call backend logout endpoint (blacklist JWT)
+      // Call backend logout endpoint (invalidates JWT)
       await apiClient.post('/auth/logout')
     } catch (error) {
-      console.error('Logout API call failed:', error)
-      // Continue with client-side cleanup even if server logout fails
+      // Logout anyway, even if backend call fails
+      console.error('[Auth] Logout API call failed (continuing anyway):', error)
+    } finally {
+      // Clear all frontend state
+      user.value = null
+
+      // Clear encrypted session backups from localStorage
+      try {
+        clearAllBackups()
+        console.info('[Auth] Cleared encrypted backups')
+      } catch (error) {
+        console.error('[Auth] Failed to clear backups:', error)
+      }
+
+      // Clear any cached data in other stores
+      // (Add here if you have other stores that need clearing)
+
+      console.info('[Auth] Logout complete')
     }
-
-    // 2. Clear all encrypted session backups from localStorage
-    clearAllBackups()
-
-    // 3. Clear auth state
-    user.value = null
-    isAuthenticated.value = false
-
-    // 4. Redirect to login
-    // Note: Adjust this path based on your routing setup
-    window.location.href = '/login'
   }
 
   /**
    * Set authenticated user
+   * Called after successful login/verification
    */
-  function setUser(userData: User) {
+  function setUser(userData: User): void {
     user.value = userData
-    isAuthenticated.value = true
   }
 
   /**
-   * Clear user state (used during logout)
+   * Clear user state
+   * Used internally or for testing
    */
-  function clearUser() {
+  function clearUser(): void {
     user.value = null
-    isAuthenticated.value = false
   }
 
   return {
@@ -75,6 +132,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
 
     // Actions
+    initializeAuth,
     logout,
     setUser,
     clearUser,

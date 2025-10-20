@@ -292,10 +292,7 @@ onBeforeUnmount(() => {
           <!-- Image Display -->
           <div class="relative flex max-h-full max-w-full items-center justify-center">
             <!-- Loading State -->
-            <div
-              v-if="imageLoading"
-              class="flex items-center justify-center"
-            >
+            <div v-if="imageLoading" class="flex items-center justify-center">
               <svg
                 class="h-12 w-12 animate-spin text-white"
                 fill="none"
@@ -318,10 +315,7 @@ onBeforeUnmount(() => {
             </div>
 
             <!-- Error State -->
-            <div
-              v-else-if="imageError"
-              class="text-center text-white"
-            >
+            <div v-else-if="imageError" class="text-center text-white">
               <svg
                 class="mx-auto h-16 w-16 text-white/50"
                 fill="none"
@@ -380,9 +374,8 @@ onBeforeUnmount(() => {
 
         <!-- Screen reader announcements -->
         <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">
-          Viewing image {{ currentIndex + 1 }} of {{ imageAttachments.length }}: {{
-            currentAttachment.file_name
-          }}
+          Viewing image {{ currentIndex + 1 }} of {{ imageAttachments.length }}:
+          {{ currentAttachment.file_name }}
         </div>
       </div>
     </Transition>

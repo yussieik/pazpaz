@@ -119,7 +119,7 @@ async function processFiles(files: File[]) {
     }
   }
 
-  // Show validation errors
+  // Show validation errors (no request ID for client-side validation)
   if (errors.length > 0) {
     errors.forEach((error) => showError(error))
   }
@@ -149,7 +149,8 @@ async function processFiles(files: File[]) {
       }
     })
     .filter(
-      (item): item is { name: string; progressRef: Ref<UploadProgress> } => item !== null
+      (item): item is { name: string; progressRef: Ref<UploadProgress> } =>
+        item !== null
     )
 
   try {
@@ -171,7 +172,9 @@ async function processFiles(files: File[]) {
   } catch (error) {
     console.error('Upload error:', error)
     if (error instanceof Error) {
-      showError(error.message)
+      // Extract request ID if available (from FileUploadError)
+      const requestId = (error as { requestId?: string }).requestId
+      showError(error.message, requestId)
     }
   } finally {
     isUploading.value = false
@@ -245,9 +248,7 @@ function handleKeydown(e: KeyboardEvent) {
       </p>
 
       <!-- File Constraints -->
-      <p class="mt-1 text-xs text-gray-500">
-        JPEG, PNG, WebP, or PDF (max 10 MB each)
-      </p>
+      <p class="mt-1 text-xs text-gray-500">JPEG, PNG, WebP, or PDF (max 10 MB each)</p>
 
       <!-- Hidden file input -->
       <input

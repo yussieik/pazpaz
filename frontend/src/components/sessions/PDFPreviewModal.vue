@@ -159,7 +159,9 @@ onBeforeUnmount(() => {
         aria-labelledby="pdf-preview-title"
       >
         <!-- Header Bar -->
-        <div class="flex items-center justify-between border-b border-slate-700 bg-slate-800 px-4 py-3">
+        <div
+          class="flex items-center justify-between border-b border-slate-700 bg-slate-800 px-4 py-3"
+        >
           <!-- PDF Info -->
           <div class="min-w-0 flex-1">
             <h2
@@ -183,7 +185,12 @@ onBeforeUnmount(() => {
               aria-label="Download PDF"
               title="Download"
             >
-              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg
+                class="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -200,7 +207,12 @@ onBeforeUnmount(() => {
               aria-label="Close PDF preview"
               title="Close (Esc)"
             >
-              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg
+                class="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -215,10 +227,7 @@ onBeforeUnmount(() => {
         <!-- PDF Viewer Container -->
         <div class="relative flex-1 bg-slate-800">
           <!-- Loading State -->
-          <div
-            v-if="pdfLoading"
-            class="flex h-full items-center justify-center"
-          >
+          <div v-if="pdfLoading" class="flex h-full items-center justify-center">
             <div class="text-center">
               <svg
                 class="mx-auto h-12 w-12 animate-spin text-white"
@@ -244,10 +253,7 @@ onBeforeUnmount(() => {
           </div>
 
           <!-- Error State -->
-          <div
-            v-else-if="pdfError"
-            class="flex h-full items-center justify-center"
-          >
+          <div v-else-if="pdfError" class="flex h-full items-center justify-center">
             <div class="text-center text-white">
               <svg
                 class="mx-auto h-16 w-16 text-red-400"

@@ -83,7 +83,12 @@ async function loadAttachmentsList() {
   } finally {
     isLoading.value = false
     isInitialLoad.value = false // Mark initial load as complete
-    console.log('[AttachmentList] Loading complete. isInitialLoad:', isInitialLoad.value, 'attachments count:', attachments.value.length)
+    console.log(
+      '[AttachmentList] Loading complete. isInitialLoad:',
+      isInitialLoad.value,
+      'attachments count:',
+      attachments.value.length
+    )
   }
 }
 
@@ -289,9 +294,7 @@ defineExpose({
         <div
           class="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded bg-slate-100"
           :class="isImageType(attachment.file_type) && 'cursor-pointer'"
-          @click="
-            isImageType(attachment.file_type) && handlePreviewImage(attachment)
-          "
+          @click="isImageType(attachment.file_type) && handlePreviewImage(attachment)"
         >
           <!-- Image Thumbnail (placeholder - will be enhanced with actual thumbnails) -->
           <div
@@ -334,7 +337,10 @@ defineExpose({
           </div>
 
           <!-- Generic File Icon -->
-          <div v-else class="flex h-full w-full items-center justify-center bg-slate-200">
+          <div
+            v-else
+            class="flex h-full w-full items-center justify-center bg-slate-200"
+          >
             <svg
               class="h-8 w-8 text-slate-600"
               fill="none"
@@ -377,10 +383,16 @@ defineExpose({
 
           <!-- Edit Mode: Inline rename form -->
           <div v-else class="flex flex-col gap-1">
-            <form @submit.prevent="handleRenameSave(attachment)" class="flex items-center gap-2">
+            <form
+              @submit.prevent="handleRenameSave(attachment)"
+              class="flex items-center gap-2"
+            >
               <div class="relative flex-1">
                 <input
-                  :ref="(el) => renameInputRefs.set(attachment.id, el as HTMLInputElement | null)"
+                  :ref="
+                    (el) =>
+                      renameInputRefs.set(attachment.id, el as HTMLInputElement | null)
+                  "
                   :value="getEditedName(attachment.id)"
                   type="text"
                   class="w-full rounded border-2 px-2 py-1 text-sm font-medium transition-colors focus:outline-none md:min-w-[16rem]"
@@ -392,9 +404,16 @@ defineExpose({
                   :disabled="isRenaming(attachment.id)"
                   :aria-label="'New filename'"
                   :aria-invalid="!!getError(attachment.id)"
-                  :aria-describedby="getError(attachment.id) ? `error-${attachment.id}` : undefined"
+                  :aria-describedby="
+                    getError(attachment.id) ? `error-${attachment.id}` : undefined
+                  "
                   @keydown="handleRenameKeydown($event, attachment)"
-                  @input="setEditedName(attachment.id, ($event.target as HTMLInputElement).value)"
+                  @input="
+                    setEditedName(
+                      attachment.id,
+                      ($event.target as HTMLInputElement).value
+                    )
+                  "
                 />
                 <!-- Extension badge (read-only) -->
                 <span
@@ -501,12 +520,7 @@ defineExpose({
             :aria-label="`Download ${attachment.file_name}`"
             title="Download"
           >
-            <svg
-              class="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -523,12 +537,7 @@ defineExpose({
             :aria-label="`Delete ${attachment.file_name}`"
             title="Delete"
           >
-            <svg
-              class="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"

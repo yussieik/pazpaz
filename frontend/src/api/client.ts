@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance } from 'axios'
+import axios, { type AxiosInstance, type AxiosResponse, type AxiosError } from 'axios'
 import type { paths } from './schema'
 
 /**
@@ -6,11 +6,22 @@ import type { paths } from './schema'
  *
  * Provides typed axios client for all API endpoints.
  * Automatically includes workspace ID in headers for authentication.
+ * Extracts request_id from responses for debugging and support.
  *
  * Usage:
  *   import apiClient from '@/api/client'
  *   const response = await apiClient.get('/clients')  // baseURL already includes /api/v1
  */
+
+// Extend AxiosResponse and AxiosError to include requestId
+declare module 'axios' {
+  export interface AxiosResponse {
+    requestId?: string
+  }
+  export interface AxiosError {
+    requestId?: string
+  }
+}
 
 // Create axios instance with default configuration
 const apiClient: AxiosInstance = axios.create({
@@ -63,23 +74,105 @@ apiClient.interceptors.request.use(
 
 /**
  * Response interceptor
- * Handles common error cases
+ * Extracts request_id and handles common error cases
  */
 apiClient.interceptors.response.use(
-  (response) => {
+  (response: AxiosResponse) => {
+    // Extract request_id from successful responses
+    const requestId =
+      response.data?.request_id || response.headers?.['x-request-id'] || null
+
+    if (requestId) {
+      response.requestId = requestId
+      // Log successful requests with request_id in development
+      if (import.meta.env.DEV) {
+        console.debug(
+          `[API Success] ${response.config.method?.toUpperCase()} ${response.config.url} - Request ID: ${requestId}`
+        )
+      }
+    }
+
     return response
   },
-  (error) => {
+  (error: AxiosError) => {
+    // Extract request_id from error responses
+    const errorData = error.response?.data as { request_id?: string } | undefined
+    const requestId =
+      errorData?.request_id || error.response?.headers?.['x-request-id'] || null
+
+    if (requestId) {
+      error.requestId = requestId
+      console.error(`[API Error] Request ID: ${requestId}`, {
+        method: error.config?.method?.toUpperCase(),
+        url: error.config?.url,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+      })
+    } else {
+      console.error('[API Error] No request ID available', {
+        method: error.config?.method?.toUpperCase(),
+        url: error.config?.url,
+        message: error.message,
+      })
+    }
+
     // Handle common HTTP errors
     if (error.response) {
       switch (error.response.status) {
-        case 401:
-          // TODO: Redirect to login or refresh token
-          console.error('Unauthorized - authentication required')
+        case 401: {
+          // Session expired or invalid - trigger automatic logout
+          const currentPath = window.location.pathname
+
+          // Avoid infinite loops - don't redirect if already on auth pages
+          const isAuthPage =
+            currentPath === '/login' || currentPath.startsWith('/auth/')
+
+          if (!isAuthPage) {
+            console.warn('[API] 401 Unauthorized - Session expired, logging out')
+
+            // Dynamically import auth store to avoid circular dependencies
+            import('@/stores/auth').then(async ({ useAuthStore }) => {
+              const authStore = useAuthStore()
+
+              // Only logout if user thinks they're authenticated
+              if (authStore.isAuthenticated) {
+                await authStore.logout()
+
+                // Dynamically import router to avoid circular dependencies
+                const { router } = await import('@/router')
+
+                // Redirect to login with session expired message
+                router.push({
+                  path: '/login',
+                  query: {
+                    redirect: currentPath,
+                    message: 'session_expired',
+                  },
+                })
+              } else {
+                // User not authenticated, just redirect to login
+                const { router } = await import('@/router')
+                router.push({
+                  path: '/login',
+                  query: { redirect: currentPath },
+                })
+              }
+            })
+          }
           break
-        case 403:
-          console.error('Forbidden - insufficient permissions')
+        }
+        case 403: {
+          const forbiddenData = error.response.data as { detail?: string } | undefined
+          const detail = forbiddenData?.detail || ''
+          if (detail.toLowerCase().includes('csrf')) {
+            console.error(
+              '[API] CSRF token validation failed - Please refresh the page'
+            )
+          } else {
+            console.error('Forbidden - insufficient permissions')
+          }
           break
+        }
         case 404:
           console.error('Resource not found')
           break

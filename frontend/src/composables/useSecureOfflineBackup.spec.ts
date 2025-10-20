@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
 import { useSecureOfflineBackup } from './useSecureOfflineBackup'
+import { useAuthStore } from '@/stores/auth'
 import apiClient from '@/api/client'
 import type { AxiosResponse } from 'axios'
 
@@ -13,13 +15,19 @@ vi.mock('@/api/client', () => ({
 /**
  * Tests for useSecureOfflineBackup composable
  *
+ * CRITICAL: Tests encryption key derivation from user context (NOT HttpOnly JWT cookie)
  * Verifies encryption/decryption functionality, TTL enforcement,
  * localStorage persistence, and error handling for offline SOAP notes backup.
  */
 describe('useSecureOfflineBackup', () => {
   const mockSessionId = 'session-123'
-  const mockJwtToken =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
+
+  const mockUser = {
+    id: 'user-uuid-123',
+    email: 'therapist@example.com',
+    workspace_id: 'workspace-uuid-456',
+    role: 'therapist' as const,
+  }
 
   const mockDraft = {
     subjective: 'Patient reports shoulder pain',
@@ -31,14 +39,15 @@ describe('useSecureOfflineBackup', () => {
   }
 
   beforeEach(() => {
+    // Setup Pinia for auth store
+    setActivePinia(createPinia())
+
     vi.clearAllMocks()
     localStorage.clear()
 
-    // Mock document.cookie for JWT token
-    Object.defineProperty(document, 'cookie', {
-      writable: true,
-      value: `access_token=${mockJwtToken}`,
-    })
+    // Set authenticated user (replaces JWT cookie mock)
+    const authStore = useAuthStore()
+    authStore.setUser(mockUser)
   })
 
   afterEach(() => {
@@ -121,20 +130,19 @@ describe('useSecureOfflineBackup', () => {
     })
   })
 
-  describe('JWT Token Handling', () => {
-    it('returns null when JWT token is missing', async () => {
-      Object.defineProperty(document, 'cookie', {
-        writable: true,
-        value: '',
-      })
+  describe('User Context Handling', () => {
+    it('returns null when user is not authenticated', async () => {
+      // Clear user (simulate logged out state)
+      const authStore = useAuthStore()
+      authStore.clearUser()
 
       const { backupDraft, restoreDraft } = useSecureOfflineBackup()
 
-      // Backup should fail silently without JWT
+      // Backup should fail silently without authenticated user
       await backupDraft(mockSessionId, mockDraft, 1)
       expect(localStorage.getItem(`session_${mockSessionId}_backup`)).toBeNull()
 
-      // Restore should return null without JWT
+      // Restore should return null without authenticated user
       // First, manually add encrypted data to test restore path
       localStorage.setItem(
         `session_${mockSessionId}_backup`,
@@ -153,30 +161,35 @@ describe('useSecureOfflineBackup', () => {
       expect(localStorage.getItem(`session_${mockSessionId}_backup`)).toBeNull()
     })
 
-    it('uses first 32 characters of JWT for key derivation', async () => {
-      const shortToken = 'short-jwt-token'
-      Object.defineProperty(document, 'cookie', {
-        writable: true,
-        value: `access_token=${shortToken}`,
+    it('uses user_id + workspace_id for key derivation', async () => {
+      const authStore = useAuthStore()
+      authStore.setUser({
+        id: 'test-user-id',
+        email: 'test@example.com',
+        workspace_id: 'test-workspace-id',
+        role: 'therapist',
       })
 
       const { backupDraft } = useSecureOfflineBackup()
 
-      // Should work even with short token (uses substring safely)
+      // Should successfully encrypt with user context
       await backupDraft(mockSessionId, mockDraft, 1)
       expect(localStorage.getItem(`session_${mockSessionId}_backup`)).toBeTruthy()
     })
 
-    it('fails to decrypt with different JWT token', async () => {
+    it('fails to decrypt with different user context', async () => {
       const { backupDraft, restoreDraft } = useSecureOfflineBackup()
 
-      // Encrypt with first token
+      // Encrypt with first user
       await backupDraft(mockSessionId, mockDraft, 1)
 
-      // Change JWT token
-      Object.defineProperty(document, 'cookie', {
-        writable: true,
-        value: 'access_token=different-token-with-different-key-material',
+      // Change user context (simulate user switching accounts)
+      const authStore = useAuthStore()
+      authStore.setUser({
+        id: 'different-user-id',
+        email: 'different@example.com',
+        workspace_id: 'different-workspace-id',
+        role: 'therapist',
       })
 
       // Decrypt should fail and remove backup
@@ -298,9 +311,9 @@ describe('useSecureOfflineBackup', () => {
     })
   })
 
-  describe('clearAllBackups', () => {
-    it('removes all session backups from localStorage', () => {
-      const { clearAllBackups } = useSecureOfflineBackup()
+  describe('clearAllBackups (via auth store logout)', () => {
+    it('removes all session backups on logout', async () => {
+      const authStore = useAuthStore()
 
       // Add multiple session backups
       localStorage.setItem('session_abc_backup', 'data1')
@@ -308,7 +321,8 @@ describe('useSecureOfflineBackup', () => {
       localStorage.setItem('session_123_backup', 'data3')
       localStorage.setItem('other_key', 'should-remain')
 
-      clearAllBackups()
+      // Logout should clear all backups
+      await authStore.logout()
 
       expect(localStorage.getItem('session_abc_backup')).toBeNull()
       expect(localStorage.getItem('session_xyz_backup')).toBeNull()
@@ -316,15 +330,15 @@ describe('useSecureOfflineBackup', () => {
       expect(localStorage.getItem('other_key')).toBe('should-remain')
     })
 
-    it('handles empty localStorage', () => {
-      const { clearAllBackups } = useSecureOfflineBackup()
+    it('handles empty localStorage on logout', async () => {
+      const authStore = useAuthStore()
 
       localStorage.clear()
-      expect(() => clearAllBackups()).not.toThrow()
+      await expect(authStore.logout()).resolves.not.toThrow()
     })
 
-    it('only removes keys matching session_*_backup pattern', () => {
-      const { clearAllBackups } = useSecureOfflineBackup()
+    it('only removes keys matching session_*_backup pattern on logout', async () => {
+      const authStore = useAuthStore()
 
       // Set up keys with correct and incorrect patterns
       localStorage.setItem('not_a_session_key', 'stays')
@@ -336,7 +350,7 @@ describe('useSecureOfflineBackup', () => {
       expect(localStorage.getItem('session_abc_backup')).toBe('should-be-removed')
       expect(localStorage.getItem('not_a_session_key')).toBe('stays')
 
-      clearAllBackups()
+      await authStore.logout()
 
       // Only session_*_backup keys should be removed
       expect(localStorage.getItem('session_abc_backup')).toBeNull()

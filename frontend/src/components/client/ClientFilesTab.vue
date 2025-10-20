@@ -320,7 +320,9 @@ function cancelDelete() {
 async function handleDelete() {
   if (!attachmentToDelete.value) return
 
-  const fileToDelete = allAttachments.value.find((f) => f.id === attachmentToDelete.value!.id)
+  const fileToDelete = allAttachments.value.find(
+    (f) => f.id === attachmentToDelete.value!.id
+  )
   if (!fileToDelete) {
     showError('File not found')
     cancelDelete()
@@ -655,7 +657,9 @@ function isFileSelected(fileId: string): boolean {
 function extractFilename(contentDisposition: string | undefined): string | null {
   if (!contentDisposition) return null
 
-  const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+  const filenameMatch = contentDisposition.match(
+    /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+  )
   if (filenameMatch && filenameMatch[1]) {
     return filenameMatch[1].replace(/['"]/g, '')
   }
@@ -863,7 +867,9 @@ function handleGlobalKeydown(event: KeyboardEvent) {
         v-if="isDragging"
         class="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-blue-500/10 backdrop-blur-sm"
       >
-        <div class="rounded-2xl border-4 border-dashed border-blue-500 bg-white p-12 shadow-2xl">
+        <div
+          class="rounded-2xl border-4 border-dashed border-blue-500 bg-white p-12 shadow-2xl"
+        >
           <svg
             class="mx-auto h-16 w-16 text-blue-500"
             fill="none"
@@ -878,7 +884,9 @@ function handleGlobalKeydown(event: KeyboardEvent) {
             />
           </svg>
           <p class="mt-4 text-xl font-semibold text-slate-900">Drop files to upload</p>
-          <p class="mt-2 text-sm text-slate-600">JPEG, PNG, WebP, or PDF up to 10 MB each</p>
+          <p class="mt-2 text-sm text-slate-600">
+            JPEG, PNG, WebP, or PDF up to 10 MB each
+          </p>
         </div>
       </div>
     </Transition>
@@ -992,12 +1000,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
             d="M12 4v16m8-8H4"
           />
         </svg>
-        <svg
-          v-else
-          class="h-4 w-4 animate-spin"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
+        <svg v-else class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
           <circle
             class="opacity-25"
             cx="12"
@@ -1048,7 +1051,10 @@ function handleGlobalKeydown(event: KeyboardEvent) {
             v-if="selectedFilesCount > 0"
             class="text-sm font-medium text-emerald-700"
           >
-            {{ selectedFilesCount }} file{{ selectedFilesCount !== 1 ? 's' : '' }} selected
+            {{ selectedFilesCount }} file{{
+              selectedFilesCount !== 1 ? 's' : ''
+            }}
+            selected
           </div>
         </div>
 
@@ -1081,7 +1087,13 @@ function handleGlobalKeydown(event: KeyboardEvent) {
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
-            <svg v-else class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg
+              v-else
+              class="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -1169,12 +1181,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
                 d="M12 4v16m8-8H4"
               />
             </svg>
-            <svg
-              v-else
-              class="h-4 w-4 animate-spin"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
+            <svg v-else class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle
                 class="opacity-25"
                 cx="12"
@@ -1281,10 +1288,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
               "
             >
               <!-- Image Thumbnail -->
-              <div
-                v-if="isImageType(file.file_type)"
-                class="relative h-full w-full"
-              >
+              <div v-if="isImageType(file.file_type)" class="relative h-full w-full">
                 <!-- Loading state -->
                 <div
                   v-if="isThumbnailLoading(file.id)"
@@ -1312,7 +1316,9 @@ function handleGlobalKeydown(event: KeyboardEvent) {
                 </div>
 
                 <!-- Thumbnail image -->
-                <template v-if="getThumbnailUrl(file.id) && !hasThumbnailError(file.id)">
+                <template
+                  v-if="getThumbnailUrl(file.id) && !hasThumbnailError(file.id)"
+                >
                   <img
                     :src="getThumbnailUrl(file.id) || ''"
                     :alt="file.file_name"
@@ -1364,7 +1370,10 @@ function handleGlobalKeydown(event: KeyboardEvent) {
               </div>
 
               <!-- Generic File Icon -->
-              <div v-else class="flex h-full w-full items-center justify-center bg-slate-200">
+              <div
+                v-else
+                class="flex h-full w-full items-center justify-center bg-slate-200"
+              >
                 <svg
                   class="h-8 w-8 text-slate-600"
                   fill="none"
@@ -1407,10 +1416,16 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 
               <!-- Edit Mode: Inline rename form -->
               <div v-else class="flex flex-col gap-1">
-                <form @submit.prevent="handleRenameSave(file)" class="flex items-center gap-2">
+                <form
+                  @submit.prevent="handleRenameSave(file)"
+                  class="flex items-center gap-2"
+                >
                   <div class="relative flex-1">
                     <input
-                      :ref="(el) => renameInputRefs.set(file.id, el as HTMLInputElement | null)"
+                      :ref="
+                        (el) =>
+                          renameInputRefs.set(file.id, el as HTMLInputElement | null)
+                      "
                       :value="getEditedName(file.id)"
                       type="text"
                       class="w-full rounded border-2 px-2 py-1 text-sm font-medium transition-colors focus:outline-none md:min-w-[16rem]"
@@ -1422,9 +1437,16 @@ function handleGlobalKeydown(event: KeyboardEvent) {
                       :disabled="isRenaming(file.id)"
                       :aria-label="'New filename'"
                       :aria-invalid="!!getError(file.id)"
-                      :aria-describedby="getError(file.id) ? `error-${file.id}` : undefined"
+                      :aria-describedby="
+                        getError(file.id) ? `error-${file.id}` : undefined
+                      "
                       @keydown="handleRenameKeydown($event, file)"
-                      @input="setEditedName(file.id, ($event.target as HTMLInputElement).value)"
+                      @input="
+                        setEditedName(
+                          file.id,
+                          ($event.target as HTMLInputElement).value
+                        )
+                      "
                     />
                     <!-- Extension badge (read-only) -->
                     <span
@@ -1476,7 +1498,9 @@ function handleGlobalKeydown(event: KeyboardEvent) {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       />
                     </svg>
-                    <span class="ml-1.5 hidden text-sm font-medium md:inline">Save</span>
+                    <span class="ml-1.5 hidden text-sm font-medium md:inline"
+                      >Save</span
+                    >
                   </button>
 
                   <!-- Cancel Button -->
@@ -1501,7 +1525,9 @@ function handleGlobalKeydown(event: KeyboardEvent) {
                         d="M6 18L18 6M6 6l12 12"
                       />
                     </svg>
-                    <span class="ml-1.5 hidden text-sm font-medium md:inline">Cancel</span>
+                    <span class="ml-1.5 hidden text-sm font-medium md:inline"
+                      >Cancel</span
+                    >
                   </button>
                 </form>
 
@@ -1522,7 +1548,10 @@ function handleGlobalKeydown(event: KeyboardEvent) {
               </div>
 
               <!-- Session Context Link -->
-              <div v-if="file.is_session_file && file.session_id && file.session_date" class="mt-1.5">
+              <div
+                v-if="file.is_session_file && file.session_id && file.session_date"
+                class="mt-1.5"
+              >
                 <button
                   @click="navigateToSession(file.session_id)"
                   class="text-xs font-medium text-blue-600 hover:text-blue-800 focus:underline focus:outline-none"
@@ -1542,7 +1571,12 @@ function handleGlobalKeydown(event: KeyboardEvent) {
                 :aria-label="`Download ${file.file_name}`"
                 title="Download"
               >
-                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg
+                  class="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -1559,7 +1593,12 @@ function handleGlobalKeydown(event: KeyboardEvent) {
                 :aria-label="`Delete ${file.file_name}`"
                 title="Delete"
               >
-                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg
+                  class="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -1606,7 +1645,10 @@ function handleGlobalKeydown(event: KeyboardEvent) {
               </svg>
             </div>
             <div>
-              <h3 id="bulk-delete-dialog-title" class="text-lg font-semibold text-slate-900">
+              <h3
+                id="bulk-delete-dialog-title"
+                class="text-lg font-semibold text-slate-900"
+              >
                 Delete {{ selectedFilesCount }} File{{
                   selectedFilesCount !== 1 ? 's' : ''
                 }}
@@ -1614,7 +1656,9 @@ function handleGlobalKeydown(event: KeyboardEvent) {
               <p class="mt-2 text-sm text-slate-600">
                 Are you sure you want to delete these
                 <strong class="font-medium text-slate-900"
-                  >{{ selectedFilesCount }} file{{ selectedFilesCount !== 1 ? 's' : '' }}</strong
+                  >{{ selectedFilesCount }} file{{
+                    selectedFilesCount !== 1 ? 's' : ''
+                  }}</strong
                 >? This action cannot be undone.
               </p>
             </div>

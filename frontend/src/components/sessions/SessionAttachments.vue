@@ -49,7 +49,10 @@ async function handleUploadComplete() {
   console.log('[SessionAttachments] Upload complete, refreshing list...')
   // Refresh attachment list
   await attachmentListRef.value?.refresh()
-  console.log('[SessionAttachments] Refresh complete, attachments:', attachmentListRef.value?.attachments)
+  console.log(
+    '[SessionAttachments] Refresh complete, attachments:',
+    attachmentListRef.value?.attachments
+  )
 }
 
 // Handle image preview

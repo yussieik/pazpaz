@@ -53,7 +53,9 @@ const tooltipText = computed(() => {
 
   const parts: string[] = []
   if (props.fileTypes.images > 0) {
-    parts.push(`${props.fileTypes.images} image${props.fileTypes.images !== 1 ? 's' : ''}`)
+    parts.push(
+      `${props.fileTypes.images} image${props.fileTypes.images !== 1 ? 's' : ''}`
+    )
   }
   if (props.fileTypes.pdfs > 0) {
     parts.push(`${props.fileTypes.pdfs} PDF${props.fileTypes.pdfs !== 1 ? 's' : ''}`)
@@ -171,7 +173,7 @@ function handleKeyPress(e: KeyboardEvent) {
 
     <!-- Tooltip on hover (desktop only) -->
     <span
-      class="pointer-events-none absolute -top-8 left-1/2 z-20 hidden -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 sm:block"
+      class="pointer-events-none absolute -top-8 left-1/2 z-20 hidden -translate-x-1/2 rounded bg-slate-900 px-2 py-1 text-xs whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 sm:block"
       aria-hidden="true"
     >
       {{ tooltipText }}

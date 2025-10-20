@@ -449,6 +449,54 @@ async def verify_magic_link_2fa_endpoint(
     )
 
 
+@router.get(
+    "/me",
+    response_model=UserInToken,
+    status_code=200,
+    summary="Get current user",
+    description="""
+    Get information about the currently authenticated user.
+
+    Security features:
+    - Requires valid JWT authentication (HttpOnly cookie)
+    - Returns user information from validated session
+    - Used by frontend to check authentication status
+
+    This endpoint is typically called:
+    - On app startup to restore authentication state
+    - After login to verify successful authentication
+    - To check if session is still valid
+
+    Returns 401 Unauthorized if not authenticated or session expired.
+    """,
+)
+async def get_current_user_endpoint(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> UserInToken:
+    """
+    Get currently authenticated user information.
+
+    This endpoint validates the JWT cookie and returns the user's profile.
+    Used by frontend route guards to check authentication status.
+
+    Args:
+        current_user: Authenticated user from JWT (injected)
+
+    Returns:
+        UserInToken: User profile information
+
+    Raises:
+        HTTPException: 401 if not authenticated or token invalid
+    """
+    logger.debug(
+        "current_user_requested",
+        user_id=str(current_user.id),
+        workspace_id=str(current_user.workspace_id),
+    )
+
+    return UserInToken.model_validate(current_user)
+
+
 @router.post(
     "/logout",
     response_model=LogoutResponse,

@@ -62,7 +62,10 @@ const roundedClass = {
       <div
         v-for="i in count"
         :key="i"
-        :class="['rounded-lg border border-slate-200 bg-white p-4', i < count ? 'mb-4' : '']"
+        :class="[
+          'rounded-lg border border-slate-200 bg-white p-4',
+          i < count ? 'mb-4' : '',
+        ]"
       >
         <div class="animate-pulse space-y-3">
           <div class="h-4 w-3/4 rounded bg-slate-200"></div>
@@ -77,9 +80,12 @@ const roundedClass = {
       <div
         v-for="i in count"
         :key="i"
-        :class="['flex items-center gap-3 p-3', i < count ? 'border-b border-slate-200' : '']"
+        :class="[
+          'flex items-center gap-3 p-3',
+          i < count ? 'border-b border-slate-200' : '',
+        ]"
       >
-        <div class="animate-pulse flex items-center gap-3 flex-1">
+        <div class="flex flex-1 animate-pulse items-center gap-3">
           <div class="h-10 w-10 rounded-full bg-slate-200"></div>
           <div class="flex-1 space-y-2">
             <div class="h-4 w-1/2 rounded bg-slate-200"></div>
@@ -99,7 +105,7 @@ const roundedClass = {
           i < count ? 'mb-2' : '',
         ]"
       >
-        <div class="animate-pulse flex items-center gap-3 flex-1">
+        <div class="flex flex-1 animate-pulse items-center gap-3">
           <div class="h-16 w-16 flex-shrink-0 rounded bg-slate-200"></div>
           <div class="flex-1 space-y-2">
             <div class="h-4 w-48 rounded bg-slate-200"></div>
@@ -115,15 +121,15 @@ const roundedClass = {
       <div
         v-for="i in count"
         :key="i"
-        :class="['relative pl-8 pb-8', i === count ? 'pb-0' : '']"
+        :class="['relative pb-8 pl-8', i === count ? 'pb-0' : '']"
       >
         <div class="animate-pulse">
           <!-- Timeline dot -->
-          <div class="absolute left-0 top-1 h-3 w-3 rounded-full bg-slate-200"></div>
+          <div class="absolute top-1 left-0 h-3 w-3 rounded-full bg-slate-200"></div>
           <!-- Timeline line -->
           <div
             v-if="i < count"
-            class="absolute left-1.5 top-4 bottom-0 w-0.5 bg-slate-200"
+            class="absolute top-4 bottom-0 left-1.5 w-0.5 bg-slate-200"
           ></div>
           <!-- Content -->
           <div class="space-y-2">

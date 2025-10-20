@@ -89,7 +89,10 @@ export function useAttachmentRename() {
    * @param attachment - Attachment to rename
    * @param inputRef - Input element ref for focus management
    */
-  function enterRenameMode(attachment: AttachmentResponse, inputRef?: Ref<HTMLInputElement | null>) {
+  function enterRenameMode(
+    attachment: AttachmentResponse,
+    inputRef?: Ref<HTMLInputElement | null>
+  ) {
     const state = getEditState(attachment.id)
     state.isEditing = true
     state.editedName = sanitizeFilenameForRename(attachment.file_name)
@@ -138,7 +141,9 @@ export function useAttachmentRename() {
    * @param options - Rename options
    * @returns Rename result with updated attachment or error
    */
-  async function renameAttachment(options: RenameAttachmentOptions): Promise<RenameResult> {
+  async function renameAttachment(
+    options: RenameAttachmentOptions
+  ): Promise<RenameResult> {
     const { sessionId, clientId, attachmentId, newName } = options
     const state = getEditState(attachmentId)
 

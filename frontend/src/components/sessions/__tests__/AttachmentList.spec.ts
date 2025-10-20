@@ -288,7 +288,10 @@ describe('AttachmentList', () => {
       await confirmButton?.trigger('click')
       await nextTick()
 
-      expect(mockFileUpload.deleteAttachment).toHaveBeenCalledWith('session-123', 'att-1')
+      expect(mockFileUpload.deleteAttachment).toHaveBeenCalledWith(
+        'session-123',
+        'att-1'
+      )
     })
 
     it('shows success toast after deletion', async () => {

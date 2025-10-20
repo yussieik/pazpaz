@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import apiClient from '@/api/client'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 
 const status = ref<'loading' | 'success' | 'error'>('loading')
 const errorMessage = ref<string>('')
@@ -19,22 +21,42 @@ onMounted(async () => {
   }
 
   try {
-    // Call the verify endpoint - this sets the JWT cookie
+    // Call the verify endpoint - this sets the JWT cookie and returns user data
     // Changed to POST per backend security requirements (CSRF middleware ordering)
-    await apiClient.post('/auth/verify', {
+    const response = await apiClient.post('/auth/verify', {
       token,
     })
 
     status.value = 'success'
 
-    // Redirect to calendar after successful authentication
+    // Set user in auth store from verification response
+    if (response.data?.user) {
+      authStore.setUser(response.data.user)
+      console.info('[AuthVerify] User authenticated:', response.data.user.id)
+    }
+
+    // Get redirect URL from query params (set by login page or route guard)
+    const redirectTo = (route.query.redirect as string) || '/'
+
+    // Redirect to intended destination after successful authentication
     setTimeout(() => {
-      router.push('/')
+      router.push(redirectTo)
     }, 1500)
-  } catch (error: any) {
+  } catch (error: unknown) {
     status.value = 'error'
+    const axiosError = error as { response?: { data?: { detail?: string } } }
     errorMessage.value =
-      error?.response?.data?.detail || 'Invalid or expired magic link'
+      axiosError?.response?.data?.detail || 'Invalid or expired magic link'
+
+    console.error('[AuthVerify] Verification failed:', error)
+
+    // Redirect to login page after 3 seconds
+    setTimeout(() => {
+      router.push({
+        path: '/login',
+        query: { error: 'invalid_link' },
+      })
+    }, 3000)
   }
 })
 </script>
@@ -95,7 +117,7 @@ onMounted(async () => {
         <h2 class="mt-4 text-2xl font-bold text-gray-900">Verification Failed</h2>
         <p class="mt-2 text-gray-600">{{ errorMessage }}</p>
         <p class="mt-4 text-sm text-gray-500">
-          The magic link may have expired. Please request a new one.
+          The magic link may have expired. Redirecting you to login...
         </p>
       </div>
     </div>

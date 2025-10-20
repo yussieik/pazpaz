@@ -27,7 +27,9 @@ export interface FilenameValidationSuccess {
 /**
  * Validation result
  */
-export type FilenameValidationResult = FilenameValidationSuccess | FilenameValidationError
+export type FilenameValidationResult =
+  | FilenameValidationSuccess
+  | FilenameValidationError
 
 /**
  * Invalid characters pattern (matches backend)

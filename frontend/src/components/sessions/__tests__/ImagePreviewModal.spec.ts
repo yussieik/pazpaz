@@ -156,7 +156,9 @@ describe('ImagePreviewModal', () => {
       await nextTick()
 
       const img = wrapper.find('img')
-      expect(img.attributes('src')).toContain('/sessions/session-123/attachments/att-1/download')
+      expect(img.attributes('src')).toContain(
+        '/sessions/session-123/attachments/att-1/download'
+      )
     })
 
     it('has proper alt text on image', async () => {

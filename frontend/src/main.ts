@@ -7,8 +7,22 @@ import router from './router'
 import './style.css'
 import './assets/calendar-patterns.css'
 import App from './App.vue'
+import { useAuthStore } from './stores/auth'
+
+/**
+ * Application Bootstrap
+ *
+ * HIPAA REQUIREMENT: Initialize authentication before mounting app.
+ * This ensures route guards have access to auth state and can protect PHI/PII routes.
+ *
+ * Flow:
+ * 1. Create Vue app and Pinia store
+ * 2. Initialize authentication (check if user has valid session)
+ * 3. Mount app with router (route guards now have auth state)
+ */
 
 const app = createApp(App)
+const pinia = createPinia()
 
 // Configure toast notifications
 const toastOptions: PluginOptions = {
@@ -41,8 +55,21 @@ const toastOptions: PluginOptions = {
   },
 }
 
-app.use(createPinia())
-app.use(router)
+// Install plugins
+app.use(pinia)
 app.use(Toast, toastOptions)
 
-app.mount('#app')
+// Initialize authentication BEFORE mounting router
+// This ensures route guards have access to auth state
+const authStore = useAuthStore()
+
+authStore.initializeAuth().finally(() => {
+  // Mount app after auth check completes (success or failure)
+  app.use(router)
+  app.mount('#app')
+
+  console.info('[App] Mounted with authentication state:', {
+    isAuthenticated: authStore.isAuthenticated,
+    userId: authStore.user?.id,
+  })
+})

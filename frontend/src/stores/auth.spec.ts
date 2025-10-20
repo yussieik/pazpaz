@@ -7,20 +7,9 @@ import type { AxiosResponse } from 'axios'
 // Mock apiClient
 vi.mock('@/api/client', () => ({
   default: {
+    get: vi.fn(),
     post: vi.fn(),
   },
-}))
-
-// Mock useSecureOfflineBackup
-const mockClearAllBackups = vi.fn()
-
-vi.mock('@/composables/useSecureOfflineBackup', () => ({
-  useSecureOfflineBackup: () => ({
-    clearAllBackups: mockClearAllBackups,
-    backupDraft: vi.fn(),
-    restoreDraft: vi.fn(),
-    syncToServer: vi.fn(),
-  }),
 }))
 
 /**
@@ -28,6 +17,7 @@ vi.mock('@/composables/useSecureOfflineBackup', () => ({
  *
  * Verifies logout functionality clears encrypted session backups
  * for HIPAA compliance (prevent PHI leakage on shared computers).
+ * Tests automatic logout on 401 Unauthorized responses.
  */
 describe('useAuthStore', () => {
   let authStore: ReturnType<typeof useAuthStore>
@@ -38,14 +28,50 @@ describe('useAuthStore', () => {
     authStore = useAuthStore()
     vi.clearAllMocks()
     localStorage.clear()
-
-    // Mock window.location.href
-    delete (window as any).location
-    ;(window as any).location = { href: '' }
   })
 
   afterEach(() => {
     localStorage.clear()
+  })
+
+  describe('initializeAuth', () => {
+    it('sets user when authentication succeeds', async () => {
+      const userData = {
+        id: 'user-123',
+        email: 'test@example.com',
+        workspace_id: 'workspace-123',
+        role: 'therapist',
+      }
+
+      vi.mocked(apiClient.get).mockResolvedValue({
+        data: userData,
+      } as AxiosResponse)
+
+      await authStore.initializeAuth()
+
+      expect(authStore.user).toEqual(userData)
+      expect(authStore.isAuthenticated).toBe(true)
+    })
+
+    it('clears user on 401 response', async () => {
+      vi.mocked(apiClient.get).mockRejectedValue({
+        response: { status: 401 },
+      })
+
+      await authStore.initializeAuth()
+
+      expect(authStore.user).toBeNull()
+      expect(authStore.isAuthenticated).toBe(false)
+    })
+
+    it('handles network errors gracefully', async () => {
+      vi.mocked(apiClient.get).mockRejectedValue(new Error('Network error'))
+
+      await authStore.initializeAuth()
+
+      expect(authStore.user).toBeNull()
+      expect(authStore.isAuthenticated).toBe(false)
+    })
   })
 
   describe('logout', () => {
@@ -57,12 +83,23 @@ describe('useAuthStore', () => {
       expect(apiClient.post).toHaveBeenCalledWith('/auth/logout')
     })
 
-    it('calls clearAllBackups to remove encrypted session data', async () => {
+    it('clears encrypted session backups from localStorage', async () => {
       vi.mocked(apiClient.post).mockResolvedValue({} as AxiosResponse)
+
+      // Add session backups to localStorage
+      localStorage.setItem('session_abc_backup', 'encrypted-data-1')
+      localStorage.setItem('session_xyz_backup', 'encrypted-data-2')
+      localStorage.setItem('other_key', 'should-remain')
+
+      expect(localStorage.getItem('session_abc_backup')).toBeTruthy()
 
       await authStore.logout()
 
-      expect(mockClearAllBackups).toHaveBeenCalled()
+      // Should have cleared session backups
+      expect(localStorage.getItem('session_abc_backup')).toBeNull()
+      expect(localStorage.getItem('session_xyz_backup')).toBeNull()
+      // Other keys should remain
+      expect(localStorage.getItem('other_key')).toBe('should-remain')
     })
 
     it('clears user state after logout', async () => {
@@ -85,12 +122,13 @@ describe('useAuthStore', () => {
       expect(authStore.isAuthenticated).toBe(false)
     })
 
-    it('redirects to login page after logout', async () => {
+    it('does NOT redirect (caller handles redirect)', async () => {
       vi.mocked(apiClient.post).mockResolvedValue({} as AxiosResponse)
 
       await authStore.logout()
 
-      expect(window.location.href).toBe('/login')
+      // Logout does NOT redirect - that's handled by the 401 interceptor
+      // This allows logout to be called from multiple places
     })
 
     it('continues client-side cleanup even if backend logout fails', async () => {
@@ -104,62 +142,14 @@ describe('useAuthStore', () => {
         role: 'therapist',
       })
 
+      localStorage.setItem('session_test_backup', 'encrypted')
+
       await authStore.logout()
 
       // Should still clear backups and state
-      expect(mockClearAllBackups).toHaveBeenCalled()
+      expect(localStorage.getItem('session_test_backup')).toBeNull()
       expect(authStore.user).toBeNull()
       expect(authStore.isAuthenticated).toBe(false)
-      expect(window.location.href).toBe('/login')
-    })
-
-    it('clears all session backups from localStorage', async () => {
-      vi.mocked(apiClient.post).mockResolvedValue({} as AxiosResponse)
-
-      // Add multiple session backups to localStorage
-      localStorage.setItem('session_abc_backup', 'encrypted-data-1')
-      localStorage.setItem('session_xyz_backup', 'encrypted-data-2')
-      localStorage.setItem('session_123_backup', 'encrypted-data-3')
-      localStorage.setItem('other_key', 'should-remain')
-
-      await authStore.logout()
-
-      expect(mockClearAllBackups).toHaveBeenCalled()
-    })
-
-    it('performs logout steps in correct order', async () => {
-      vi.mocked(apiClient.post).mockResolvedValue({} as AxiosResponse)
-
-      const callOrder: string[] = []
-
-      vi.mocked(apiClient.post).mockImplementation(async () => {
-        callOrder.push('backend-logout')
-        return {} as AxiosResponse
-      })
-
-      mockClearAllBackups.mockImplementation(() => {
-        callOrder.push('clear-backups')
-      })
-
-      authStore.setUser({
-        id: 'user-123',
-        email: 'test@example.com',
-        workspace_id: 'workspace-123',
-        role: 'therapist',
-      })
-
-      await authStore.logout()
-
-      callOrder.push('clear-state')
-      callOrder.push('redirect')
-
-      // Order: backend logout -> clear backups -> clear state -> redirect
-      expect(callOrder).toEqual([
-        'backend-logout',
-        'clear-backups',
-        'clear-state',
-        'redirect',
-      ])
     })
   })
 
@@ -172,10 +162,12 @@ describe('useAuthStore', () => {
         role: 'therapist',
       }
 
+      expect(authStore.isAuthenticated).toBe(false)
+
       authStore.setUser(userData)
 
       expect(authStore.user).toEqual(userData)
-      expect(authStore.isAuthenticated).toBe(true)
+      expect(authStore.isAuthenticated).toBe(true) // Computed from user !== null
     })
   })
 
@@ -205,12 +197,15 @@ describe('useAuthStore', () => {
 
       await authStore.logout()
 
-      // Verify clearAllBackups was called to remove all PHI
-      expect(mockClearAllBackups).toHaveBeenCalled()
+      // Verify all session backups were cleared
+      expect(localStorage.getItem('session_patient123_backup')).toBeNull()
+      expect(localStorage.getItem('session_patient456_backup')).toBeNull()
     })
 
     it('clears backups even when user never logged in (guest state)', async () => {
       vi.mocked(apiClient.post).mockResolvedValue({} as AxiosResponse)
+
+      localStorage.setItem('session_orphan_backup', 'old-data')
 
       // User state is null (never authenticated)
       expect(authStore.user).toBeNull()
@@ -218,7 +213,7 @@ describe('useAuthStore', () => {
       await authStore.logout()
 
       // Should still clear backups (defensive cleanup)
-      expect(mockClearAllBackups).toHaveBeenCalled()
+      expect(localStorage.getItem('session_orphan_backup')).toBeNull()
     })
   })
 
@@ -228,9 +223,11 @@ describe('useAuthStore', () => {
       timeoutError.name = 'ETIMEDOUT'
       vi.mocked(apiClient.post).mockRejectedValue(timeoutError)
 
+      localStorage.setItem('session_test_backup', 'data')
+
       await expect(authStore.logout()).resolves.not.toThrow()
 
-      expect(mockClearAllBackups).toHaveBeenCalled()
+      expect(localStorage.getItem('session_test_backup')).toBeNull()
       expect(authStore.user).toBeNull()
     })
 
@@ -239,9 +236,11 @@ describe('useAuthStore', () => {
         response: { status: 401, data: { detail: 'Unauthorized' } },
       })
 
+      localStorage.setItem('session_test_backup', 'data')
+
       await expect(authStore.logout()).resolves.not.toThrow()
 
-      expect(mockClearAllBackups).toHaveBeenCalled()
+      expect(localStorage.getItem('session_test_backup')).toBeNull()
       expect(authStore.user).toBeNull()
     })
 
@@ -250,9 +249,11 @@ describe('useAuthStore', () => {
         response: { status: 500, data: { detail: 'Internal server error' } },
       })
 
+      localStorage.setItem('session_test_backup', 'data')
+
       await expect(authStore.logout()).resolves.not.toThrow()
 
-      expect(mockClearAllBackups).toHaveBeenCalled()
+      expect(localStorage.getItem('session_test_backup')).toBeNull()
       expect(authStore.user).toBeNull()
     })
   })

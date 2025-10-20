@@ -901,7 +901,9 @@ defineExpose({
                           >
                             <span
                               class="h-1.5 w-1.5 rounded-full"
-                              :class="session.is_draft ? 'bg-amber-500' : 'bg-green-500'"
+                              :class="
+                                session.is_draft ? 'bg-amber-500' : 'bg-green-500'
+                              "
                             ></span>
                             {{ session.is_draft ? 'Draft' : 'Finalized' }}
                           </span>

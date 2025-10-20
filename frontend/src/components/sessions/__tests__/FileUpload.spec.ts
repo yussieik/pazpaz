@@ -72,7 +72,9 @@ describe('FileUpload', () => {
 
       const dropZone = wrapper.find('[role="button"]')
       expect(dropZone.attributes('tabindex')).toBe('0')
-      expect(dropZone.attributes('aria-label')).toContain('Click or drag to upload files')
+      expect(dropZone.attributes('aria-label')).toContain(
+        'Click or drag to upload files'
+      )
     })
   })
 

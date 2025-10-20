@@ -25,6 +25,20 @@ import type {
 } from '@/types/attachments'
 import { validateFile } from '@/types/attachments'
 
+/**
+ * Extended error type that includes request ID for debugging
+ */
+export interface FileUploadError extends Error {
+  requestId?: string
+}
+
+/**
+ * Extended AxiosError type that includes request ID
+ */
+interface AxiosErrorWithRequestId extends AxiosError<{ detail?: string }> {
+  requestId?: string
+}
+
 export function useFileUpload() {
   /**
    * Upload a single file to a session with automatic retry on failure
@@ -99,9 +113,16 @@ export function useFileUpload() {
 
         return response.data
       } catch (error) {
-        const axiosError = error as AxiosError<{ detail?: string }>
+        const axiosError = error as AxiosErrorWithRequestId
         const errorMessage = getUploadErrorMessage(axiosError)
-        lastError = new Error(errorMessage)
+        const requestId = axiosError.requestId
+
+        // Create error with request ID
+        const uploadError = new Error(errorMessage) as FileUploadError
+        if (requestId) {
+          uploadError.requestId = requestId
+        }
+        lastError = uploadError
 
         // Don't retry for client errors (4xx) except 408 (timeout) and 429 (rate limit)
         const status = axiosError.response?.status
@@ -177,9 +198,10 @@ export function useFileUpload() {
       )
       return response.data
     } catch (error) {
-      const axiosError = error as AxiosError<{ detail?: string }>
+      const axiosError = error as AxiosErrorWithRequestId
       const status = axiosError.response?.status
       const detail = axiosError.response?.data?.detail
+      const requestId = axiosError.requestId
 
       let errorMessage = 'Failed to load attachments'
       if (status === 404) {
@@ -190,7 +212,11 @@ export function useFileUpload() {
         errorMessage = detail
       }
 
-      throw new Error(errorMessage)
+      const uploadError = new Error(errorMessage) as FileUploadError
+      if (requestId) {
+        uploadError.requestId = requestId
+      }
+      throw uploadError
     }
   }
 
@@ -217,10 +243,16 @@ export function useFileUpload() {
       )
       return response.data
     } catch (error) {
-      const axiosError = error as AxiosError<{ detail?: string }>
-      throw new Error(
+      const axiosError = error as AxiosErrorWithRequestId
+      const requestId = axiosError.requestId
+      const errorMessage =
         axiosError.response?.data?.detail || 'Failed to get download URL'
-      )
+
+      const uploadError = new Error(errorMessage) as FileUploadError
+      if (requestId) {
+        uploadError.requestId = requestId
+      }
+      throw uploadError
     }
   }
 
@@ -264,9 +296,10 @@ export function useFileUpload() {
     try {
       await apiClient.delete(`/sessions/${sessionId}/attachments/${attachmentId}`)
     } catch (error) {
-      const axiosError = error as AxiosError<{ detail?: string }>
+      const axiosError = error as AxiosErrorWithRequestId
       const status = axiosError.response?.status
       const detail = axiosError.response?.data?.detail
+      const requestId = axiosError.requestId
 
       let errorMessage = 'Failed to delete attachment'
       if (status === 404) {
@@ -277,7 +310,11 @@ export function useFileUpload() {
         errorMessage = detail
       }
 
-      throw new Error(errorMessage)
+      const uploadError = new Error(errorMessage) as FileUploadError
+      if (requestId) {
+        uploadError.requestId = requestId
+      }
+      throw uploadError
     }
   }
 

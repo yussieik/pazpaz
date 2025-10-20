@@ -142,13 +142,66 @@ export function useToast() {
   }
 
   /**
-   * Show error toast
+   * Show error toast with optional request ID for debugging
+   *
+   * @param message - Error message to display
+   * @param requestId - Optional request ID from API error response
+   * @param options - Additional options like timeout
    */
-  function showError(message: string, options?: { timeout?: number }) {
-    toast.error(message, {
-      timeout: options?.timeout || 6000,
-      icon: true,
-    })
+  function showError(
+    message: string,
+    requestId?: string,
+    options?: { timeout?: number }
+  ) {
+    if (requestId) {
+      // Create custom error content with request ID
+      const content = h('div', { class: 'flex flex-col gap-2 w-full' }, [
+        h('span', { class: 'font-medium' }, message),
+        h('div', { class: 'flex items-center gap-2 text-xs' }, [
+          h('span', { class: 'text-red-200' }, 'Request ID:'),
+          h(
+            'code',
+            {
+              class:
+                'bg-red-900 bg-opacity-30 px-2 py-0.5 rounded font-mono text-red-100',
+            },
+            requestId
+          ),
+          h(
+            'button',
+            {
+              onClick: async () => {
+                try {
+                  await navigator.clipboard.writeText(requestId)
+                  // Show brief feedback toast
+                  toast.success('Request ID copied', {
+                    timeout: 2000,
+                    icon: false,
+                  })
+                } catch (err) {
+                  console.error('Failed to copy request ID:', err)
+                }
+              },
+              class:
+                'text-red-200 hover:text-red-100 underline focus:outline-none focus:ring-2 focus:ring-red-200 focus:ring-offset-2 focus:ring-offset-red-600 rounded px-1',
+              type: 'button',
+            },
+            'Copy'
+          ),
+        ]),
+      ])
+
+      toast.error(content, {
+        timeout: options?.timeout || 0, // Don't auto-dismiss errors with request IDs
+        icon: true,
+      })
+    } else {
+      // Simple error without request ID
+      toast.error(message, {
+        timeout: options?.timeout || 6000,
+        icon: true,
+      })
+    }
   }
 
   /**

@@ -45,7 +45,7 @@ function handleAction() {
 </script>
 
 <template>
-  <div class="empty-state text-center py-12">
+  <div class="empty-state py-12 text-center">
     <!-- Icon -->
     <div class="mx-auto h-12 w-12 text-slate-400" aria-hidden="true">
       <!-- Document Icon -->
@@ -64,7 +64,12 @@ function handleAction() {
       </svg>
 
       <!-- Photo Icon -->
-      <svg v-else-if="icon === 'photo'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg
+        v-else-if="icon === 'photo'"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -74,7 +79,12 @@ function handleAction() {
       </svg>
 
       <!-- Folder Icon -->
-      <svg v-else-if="icon === 'folder'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg
+        v-else-if="icon === 'folder'"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -99,7 +109,12 @@ function handleAction() {
       </svg>
 
       <!-- User Icon -->
-      <svg v-else-if="icon === 'user'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg
+        v-else-if="icon === 'user'"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -124,7 +139,12 @@ function handleAction() {
       </svg>
 
       <!-- Search Icon -->
-      <svg v-else-if="icon === 'search'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg
+        v-else-if="icon === 'search'"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -138,7 +158,7 @@ function handleAction() {
     <h3 class="mt-4 text-sm font-medium text-slate-900">{{ title }}</h3>
 
     <!-- Description -->
-    <p v-if="description" class="mt-2 text-sm text-slate-600 max-w-md mx-auto">
+    <p v-if="description" class="mx-auto mt-2 max-w-md text-sm text-slate-600">
       {{ description }}
     </p>
 
@@ -147,7 +167,7 @@ function handleAction() {
       <button
         @click="handleAction"
         :class="[
-          'inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2',
+          'inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none',
           actionVariant === 'primary'
             ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-600'
             : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus:ring-slate-500',
