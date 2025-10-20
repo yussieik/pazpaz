@@ -741,6 +741,58 @@ async def verify_user_totp(
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
+@router.post(
+    "/session/refresh",
+    status_code=200,
+    summary="Refresh user session",
+    description="""
+    Refresh user session to extend JWT expiry.
+
+    Security features:
+    - HIPAA compliance for session timeout warnings (§164.312(a)(2)(iii))
+    - Extends JWT expiry by resetting activity timestamp
+    - Prevents data loss from silent session expiration
+    - Used by frontend session timeout warning modal
+
+    This endpoint:
+    - Validates current JWT authentication
+    - Updates session activity timestamp
+    - Returns success response (JWT automatically refreshed via dependency)
+    - Frontend should call this when user clicks "Stay logged in" button
+
+    Returns 401 Unauthorized if session already expired.
+    """,
+)
+async def refresh_session_endpoint(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict:
+    """
+    Refresh user session to extend JWT expiry.
+
+    Called by frontend session timeout warning to prevent automatic logout.
+    Validates authentication and extends session duration.
+
+    Args:
+        current_user: Authenticated user from JWT (injected)
+
+    Returns:
+        Success message indicating session was refreshed
+
+    Raises:
+        HTTPException: 401 if not authenticated or token invalid
+    """
+    logger.info(
+        "session_refreshed",
+        user_id=str(current_user.id),
+        workspace_id=str(current_user.workspace_id),
+    )
+
+    return {
+        "status": "ok",
+        "message": "Session refreshed successfully",
+    }
+
+
 @router.delete(
     "/totp",
     status_code=200,

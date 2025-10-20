@@ -447,7 +447,7 @@ async function uploadClientFile(file: File): Promise<void> {
   formData.append('file', file)
 
   try {
-    const response = await apiClient.post(
+    await apiClient.post(
       `/clients/${props.clientId}/attachments`,
       formData,
       {
@@ -466,8 +466,6 @@ async function uploadClientFile(file: File): Promise<void> {
 
     // Remove progress tracking
     uploadProgress.value.delete(file.name)
-
-    console.log(`Uploaded ${file.name}`, response.data)
   } catch (error) {
     console.error(`Failed to upload ${file.name}:`, error)
     uploadProgress.value.delete(file.name)

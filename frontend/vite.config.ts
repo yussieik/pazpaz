@@ -59,5 +59,11 @@ export default defineConfig({
 
     // Minification removes inline scripts and consolidates code
     minify: 'esbuild',
+
+    // HIPAA Compliance: Remove console.debug statements in production builds
+    // console.error and console.warn are preserved for error handling
+    esbuild: {
+      drop: ['console.debug'],
+    },
   },
 })

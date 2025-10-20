@@ -7,6 +7,16 @@
 
 import { beforeAll, afterEach, afterAll, vi } from 'vitest'
 import { config } from '@vue/test-utils'
+import nodeCrypto from 'crypto'
+
+// Polyfill for crypto.hash (Node.js 20.11 compatibility with Vite Vue plugin)
+// The crypto.hash method was added in Node.js v21.7.0, but we're on v20.11
+if (!nodeCrypto.hash) {
+  // @ts-ignore - Adding missing method for Node.js v20
+  nodeCrypto.hash = (algorithm: string, data: string | Buffer): string => {
+    return nodeCrypto.createHash(algorithm).update(data).digest('hex')
+  }
+}
 
 // Setup Vue Test Utils global config
 config.global.mocks = {

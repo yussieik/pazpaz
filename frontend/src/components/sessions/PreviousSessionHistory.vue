@@ -331,11 +331,6 @@ async function performBackendSearch(query: string) {
     searchLoading.value = true
     searchError.value = null
 
-    console.log('[PreviousSessionHistory] Backend search:', {
-      query,
-      clientId: props.clientId,
-    })
-
     const response = await apiClient.get<{
       items: SessionResponse[]
       total: number
@@ -352,11 +347,6 @@ async function performBackendSearch(query: string) {
 
     searchResults.value = response.data.items
     searchResultsTotal.value = response.data.total
-
-    console.log('[PreviousSessionHistory] Backend search results:', {
-      showing: searchResults.value.length,
-      total: searchResultsTotal.value,
-    })
   } catch (error) {
     console.error('[PreviousSessionHistory] Backend search failed:', error)
     searchError.value = 'Search failed. Showing loaded sessions only.'
@@ -401,10 +391,6 @@ async function loadAllSearchResults() {
     })
 
     searchResults.value = response.data.items
-
-    console.log('[PreviousSessionHistory] Loaded all search results:', {
-      count: searchResults.value.length,
-    })
   } catch (error) {
     console.error('[PreviousSessionHistory] Failed to load all results:', error)
     searchError.value = 'Failed to load all results.'

@@ -65,13 +65,11 @@ const isDeleting = ref(false)
 
 // Load attachments
 async function loadAttachmentsList() {
-  console.log('[AttachmentList] Loading attachments for session:', props.sessionId)
   isLoading.value = true
   loadError.value = null
 
   try {
     const response = await listAttachments(props.sessionId)
-    console.log('[AttachmentList] Received attachments:', response.items)
     attachments.value = response.items
   } catch (error) {
     console.error('[AttachmentList] Failed to load attachments:', error)
@@ -83,12 +81,6 @@ async function loadAttachmentsList() {
   } finally {
     isLoading.value = false
     isInitialLoad.value = false // Mark initial load as complete
-    console.log(
-      '[AttachmentList] Loading complete. isInitialLoad:',
-      isInitialLoad.value,
-      'attachments count:',
-      attachments.value.length
-    )
   }
 }
 

@@ -37,12 +37,6 @@ export function usePreviousSession(startLoading = false) {
       )
 
       session.value = response.data
-      console.log('Previous session loaded:', {
-        id: session.value.id,
-        is_draft: session.value.is_draft,
-        finalized_at: session.value.finalized_at,
-        session_date: session.value.session_date,
-      })
       return session.value
     } catch (err) {
       const axiosError = err as AxiosError<{ detail?: string }>
