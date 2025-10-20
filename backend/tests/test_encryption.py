@@ -228,14 +228,13 @@ def test_encrypt_field_versioned():
     """Test 10: Versioned encryption/decryption."""
     plaintext = "versioned sensitive data"
 
-    # Encrypt with version metadata
+    # Encrypt with version prefix
     encrypted_data = encrypt_field_versioned(plaintext, key_version="v1")
 
     assert encrypted_data is not None
-    assert isinstance(encrypted_data, dict)
-    assert encrypted_data["version"] == "v1"
-    assert encrypted_data["algorithm"] == "AES-256-GCM"
-    assert "ciphertext" in encrypted_data
+    assert isinstance(encrypted_data, str)
+    assert encrypted_data.startswith("v1:")
+    assert ":" in encrypted_data
 
     # Decrypt using version
     keys = {"v1": settings.encryption_key}
@@ -599,12 +598,18 @@ def test_versioned_encryption_metadata():
 
     encrypted_data = encrypt_field_versioned(plaintext, key_version="v1")
 
-    # Verify structure
-    assert encrypted_data["version"] == "v1"
-    assert encrypted_data["algorithm"] == "AES-256-GCM"
+    # Verify structure (string format: "version:ciphertext")
+    assert isinstance(encrypted_data, str)
+    assert encrypted_data.startswith("v1:")
+
+    # Extract ciphertext part (after version prefix)
+    parts = encrypted_data.split(":", 1)
+    assert len(parts) == 2
+    version, ciphertext_b64 = parts
+    assert version == "v1"
 
     # Verify ciphertext is base64-encoded
-    ciphertext_bytes = base64.b64decode(encrypted_data["ciphertext"])
+    ciphertext_bytes = base64.b64decode(ciphertext_b64)
     assert len(ciphertext_bytes) > 0
 
     # Verify ciphertext can be decrypted

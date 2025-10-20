@@ -503,15 +503,13 @@ def decrypt_field(ciphertext: bytes | None, key: bytes) -> str | None:
 
 def encrypt_field_versioned(
     plaintext: str | None, key_version: str | None = None
-) -> dict[str, Any] | None:
+) -> str | None:
     """
-    Encrypt field with version metadata for key rotation support.
+    Encrypt field with version prefix for key rotation support.
 
-    This function wraps encrypt_field() and adds metadata to support
-    zero-downtime key rotation. The encrypted data includes:
-    - version: Key version identifier (e.g., "v1", "v2")
-    - ciphertext: Base64-encoded encrypted bytes
-    - algorithm: Encryption algorithm identifier
+    This function wraps encrypt_field() and adds a version prefix to support
+    zero-downtime key rotation. The encrypted data format is:
+    "version:base64_ciphertext"
 
     During key rotation:
     1. Deploy new code with both old and new keys
@@ -525,12 +523,8 @@ def encrypt_field_versioned(
                     If None, uses current key version from registry
 
     Returns:
-        Dictionary with version metadata and base64-encoded ciphertext:
-        {
-            "version": "v2",
-            "ciphertext": "base64-encoded-bytes",
-            "algorithm": "AES-256-GCM"
-        }
+        String with version prefix and base64-encoded ciphertext:
+        "v2:SGVsbG8..."
         Or None if plaintext is None
 
     Raises:
@@ -541,12 +535,12 @@ def encrypt_field_versioned(
         >>> # Encrypt with current key (automatic version selection)
         >>> encrypted = encrypt_field_versioned("sensitive data")
         >>> encrypted
-        {'version': 'v2', 'ciphertext': 'SGVsbG8...', 'algorithm': 'AES-256-GCM'}
+        'v2:SGVsbG8...'
 
         >>> # Encrypt with specific key version
         >>> encrypted = encrypt_field_versioned("sensitive data", key_version="v1")
         >>> encrypted
-        {'version': 'v1', 'ciphertext': 'SGVsbG8...', 'algorithm': 'AES-256-GCM'}
+        'v1:SGVsbG8...'
     """
     if plaintext is None:
         return None
@@ -557,6 +551,7 @@ def encrypt_field_versioned(
             key_version = get_current_key_version()
         except ValueError:
             # Fallback to settings if registry not initialized
+            # Auto-register the fallback key as current
             logger.warning(
                 "key_registry_not_initialized_using_settings",
                 message="Key registry not initialized, falling back to settings.encryption_key as v1",
@@ -565,6 +560,16 @@ def encrypt_field_versioned(
 
             key = settings.encryption_key
             key_version = "v1"
+
+            # Auto-register fallback key as current
+            metadata = EncryptionKeyMetadata(
+                key=key,
+                version=key_version,
+                created_at=datetime.now(UTC),
+                expires_at=datetime.now(UTC) + timedelta(days=90),
+                is_current=True,
+            )
+            register_key(metadata)
         else:
             # Get key from registry
             key = get_key_for_version(key_version)
@@ -584,23 +589,19 @@ def encrypt_field_versioned(
         plaintext_length=len(plaintext),
     )
 
-    # Return versioned structure
-    return {
-        "version": key_version,
-        "ciphertext": base64.b64encode(ciphertext).decode("ascii"),
-        "algorithm": "AES-256-GCM",
-    }
+    # Return versioned string format: "version:ciphertext"
+    return f"{key_version}:{base64.b64encode(ciphertext).decode('ascii')}"
 
 
 def decrypt_field_versioned(
-    encrypted_data: dict[str, Any] | None, keys: dict[str, bytes] | None = None
+    encrypted_data: str | dict[str, Any] | None, keys: dict[str, bytes] | None = None
 ) -> str | None:
     """
-    Decrypt field using version metadata to select correct key.
+    Decrypt field using version prefix to select correct key.
 
     This function enables zero-downtime key rotation by selecting the
-    appropriate decryption key based on the version metadata stored
-    with the encrypted data.
+    appropriate decryption key based on the version prefix in the
+    encrypted data string.
 
     Key Selection Strategy:
     1. If `keys` dict provided: Use specified keys (manual multi-version)
@@ -608,10 +609,9 @@ def decrypt_field_versioned(
     3. Fallback: Use settings.encryption_key if registry not initialized
 
     Args:
-        encrypted_data: Dictionary from encrypt_field_versioned() with keys:
-                       - version: Key version identifier
-                       - ciphertext: Base64-encoded encrypted bytes
-                       - algorithm: Encryption algorithm (must be "AES-256-GCM")
+        encrypted_data: String from encrypt_field_versioned() in format:
+                       "version:base64_ciphertext" (e.g., "v1:SGVsbG8...")
+                       OR legacy dict format (for backward compatibility)
         keys: Optional dictionary mapping version -> key bytes
               If None, uses key registry (supports all registered versions)
 
@@ -619,45 +619,70 @@ def decrypt_field_versioned(
         Decrypted plaintext string (or None if encrypted_data is None)
 
     Raises:
-        ValueError: If version not found in keys, invalid format, or wrong algorithm
+        ValueError: If version not found in keys or invalid format
         DecryptionError: If decryption/authentication fails
 
     Example:
         >>> # Automatic key selection from registry (recommended)
-        >>> plaintext = decrypt_field_versioned(encrypted_data)
+        >>> plaintext = decrypt_field_versioned("v1:SGVsbG8...")
         >>> plaintext
         'sensitive data'
 
         >>> # Manual key specification (for testing)
         >>> keys = {"v1": old_key, "v2": new_key}
-        >>> plaintext = decrypt_field_versioned(encrypted_data, keys)
+        >>> plaintext = decrypt_field_versioned("v1:SGVsbG8...", keys)
         >>> plaintext
         'sensitive data'
     """
     if encrypted_data is None:
         return None
 
-    # Validate structure
-    if not isinstance(encrypted_data, dict):
-        raise ValueError(
-            f"encrypted_data must be a dict, got {type(encrypted_data).__name__}"
-        )
+    # Support both string format (current) and dict format (legacy)
+    if isinstance(encrypted_data, dict):
+        # Legacy dict format: {"version": "v1", "ciphertext": "...", "algorithm": "..."}
+        required_keys = {"version", "ciphertext", "algorithm"}
+        if not required_keys.issubset(encrypted_data.keys()):
+            raise ValueError(
+                f"encrypted_data missing required keys. "
+                f"Expected: {required_keys}, got: {set(encrypted_data.keys())}"
+            )
 
-    required_keys = {"version", "ciphertext", "algorithm"}
-    if not required_keys.issubset(encrypted_data.keys()):
-        raise ValueError(
-            f"encrypted_data missing required keys. "
-            f"Expected: {required_keys}, got: {set(encrypted_data.keys())}"
-        )
+        # Validate algorithm
+        algorithm = encrypted_data["algorithm"]
+        if algorithm != "AES-256-GCM":
+            raise ValueError(f"Unsupported algorithm: {algorithm}")
 
-    # Validate algorithm
-    algorithm = encrypted_data["algorithm"]
-    if algorithm != "AES-256-GCM":
-        raise ValueError(f"Unsupported algorithm: {algorithm}")
+        version = encrypted_data["version"]
+        ciphertext_b64 = encrypted_data["ciphertext"]
+
+    elif isinstance(encrypted_data, str):
+        # Current string format: "version:base64_ciphertext"
+        if ":" not in encrypted_data:
+            raise ValueError(
+                f"Invalid encrypted_data format. Expected 'version:ciphertext', got: {encrypted_data[:50]}"
+            )
+
+        parts = encrypted_data.split(":", 1)
+        if len(parts) != 2:
+            raise ValueError(
+                f"Invalid encrypted_data format. Expected 'version:ciphertext', got: {encrypted_data[:50]}"
+            )
+
+        version = parts[0]
+        ciphertext_b64 = parts[1]
+
+        # Validate version format
+        if not version.startswith("v"):
+            raise ValueError(
+                f"Invalid version format. Expected 'vN', got: {version}"
+            )
+
+    else:
+        raise ValueError(
+            f"encrypted_data must be str or dict, got {type(encrypted_data).__name__}"
+        )
 
     # Get key for this version
-    version = encrypted_data["version"]
-
     if keys is None:
         # Auto-fetch from key registry (supports all registered versions)
         try:
@@ -691,7 +716,7 @@ def decrypt_field_versioned(
 
     # Decode base64 ciphertext
     try:
-        ciphertext = base64.b64decode(encrypted_data["ciphertext"])
+        ciphertext = base64.b64decode(ciphertext_b64)
     except Exception as e:
         raise ValueError(f"Invalid base64 ciphertext: {e}") from e
 

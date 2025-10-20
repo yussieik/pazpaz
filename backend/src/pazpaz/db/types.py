@@ -349,7 +349,7 @@ class EncryptedStringVersioned(TypeDecorator):
         self, value: str | None, dialect: Any
     ) -> dict[str, Any] | None:
         """
-        Encrypt value with version metadata before storing (INSERT/UPDATE).
+        Encrypt value with version prefix before storing (INSERT/UPDATE).
 
         Args:
             value: Plaintext string to encrypt (or None)
@@ -357,6 +357,7 @@ class EncryptedStringVersioned(TypeDecorator):
 
         Returns:
             Dictionary with version metadata and encrypted ciphertext
+            (for JSONB storage)
             Or None if value is None
 
         Raises:
@@ -365,8 +366,25 @@ class EncryptedStringVersioned(TypeDecorator):
         if value is None:
             return None
 
-        # Encrypt with version metadata
-        encrypted_data = encrypt_field_versioned(value, key_version=self.key_version)
+        # Encrypt with version prefix (returns string format)
+        encrypted_string = encrypt_field_versioned(value, key_version=self.key_version)
+
+        # Convert string format "version:ciphertext" to dict for JSONB storage
+        # This provides compatibility with existing JSONB column type
+        if ":" in encrypted_string:
+            version, ciphertext = encrypted_string.split(":", 1)
+            encrypted_data = {
+                "version": version,
+                "ciphertext": ciphertext,
+                "algorithm": "AES-256-GCM",
+            }
+        else:
+            # Fallback in case format is unexpected
+            encrypted_data = {
+                "version": self.key_version,
+                "ciphertext": encrypted_string,
+                "algorithm": "AES-256-GCM",
+            }
 
         # Log encryption operation (do NOT log plaintext value)
         logger.debug(
@@ -378,13 +396,14 @@ class EncryptedStringVersioned(TypeDecorator):
         return encrypted_data
 
     def process_result_value(
-        self, value: dict[str, Any] | None, dialect: Any
+        self, value: str | dict[str, Any] | None, dialect: Any
     ) -> str | None:
         """
-        Decrypt value using version metadata after retrieval (SELECT).
+        Decrypt value using version prefix after retrieval (SELECT).
 
         Args:
-            value: Dictionary with version metadata from database (or None)
+            value: Encrypted string in format "version:ciphertext" or
+                   legacy dict format (for backward compatibility)
             dialect: SQLAlchemy dialect (unused)
 
         Returns:
@@ -404,13 +423,21 @@ class EncryptedStringVersioned(TypeDecorator):
 
         keys = {self.key_version: settings.encryption_key}
 
-        # Decrypt using version metadata
+        # Decrypt using version metadata/prefix
         plaintext = decrypt_field_versioned(value, keys=keys)
+
+        # Extract version for logging
+        if isinstance(value, str):
+            # New string format: "version:ciphertext"
+            version = value.split(":", 1)[0] if ":" in value else "unknown"
+        else:
+            # Legacy dict format
+            version = value.get("version", "unknown")
 
         # Log decryption operation (do NOT log plaintext value)
         logger.debug(
             "field_decrypted_versioned",
-            key_version=value.get("version"),
+            key_version=version,
             plaintext_length=len(plaintext) if plaintext else 0,
         )
 

@@ -127,8 +127,9 @@ def test_encryption_key_metadata_days_until_rotation():
     )
 
     assert metadata.needs_rotation is False  # Not yet expired
-    assert metadata.days_until_rotation == 10  # 10 days remaining
-    assert metadata.age_days == 80
+    # Allow for timing variations (9-11 days)
+    assert 9 <= metadata.days_until_rotation <= 11  # ~10 days remaining
+    assert 79 <= metadata.age_days <= 81  # ~80 days old
 
 
 # =============================================================================
@@ -347,8 +348,9 @@ def test_encrypt_field_versioned_with_registry():
     # Encrypt (should use v2 automatically)
     encrypted_data = encrypt_field_versioned(plaintext)
 
-    assert encrypted_data["version"] == "v2"
-    assert encrypted_data["algorithm"] == "AES-256-GCM"
+    # Verify string format: "v2:ciphertext"
+    assert isinstance(encrypted_data, str)
+    assert encrypted_data.startswith("v2:")
 
     # Decrypt (should auto-fetch key from registry)
     decrypted = decrypt_field_versioned(encrypted_data)
@@ -396,7 +398,9 @@ def test_decrypt_field_versioned_from_registry():
     # Encrypt with v1 explicitly
     encrypted_data = encrypt_field_versioned(plaintext, key_version="v1")
 
-    assert encrypted_data["version"] == "v1"
+    # Verify string format: "v1:ciphertext"
+    assert isinstance(encrypted_data, str)
+    assert encrypted_data.startswith("v1:")
 
     # Decrypt (should auto-fetch v1 key from registry)
     decrypted = decrypt_field_versioned(encrypted_data)
@@ -531,7 +535,7 @@ def test_decrypt_with_multiple_key_versions():
 
 
 def test_decrypt_versioned_missing_key():
-    """Test 16: Raise error when key version not in registry."""
+    """Test 16: Auto-fetch key from AWS when not in registry."""
     from pazpaz.utils.encryption import _KEY_REGISTRY
 
     # Clear registry
@@ -542,12 +546,16 @@ def test_decrypt_versioned_missing_key():
     # Encrypt with v1
     encrypted_data = encrypt_field_versioned(plaintext, key_version="v1")
 
-    # Clear registry so v1 is not available
+    # Clear registry so v1 is not available locally
     _KEY_REGISTRY.clear()
 
-    # Try to decrypt (should fail because v1 key is missing)
-    with pytest.raises(ValueError, match="Key version 'v1' not found"):
-        decrypt_field_versioned(encrypted_data)
+    # Decrypt should auto-fetch from AWS and succeed (graceful fallback)
+    # This tests the automatic key fetching mechanism
+    decrypted = decrypt_field_versioned(encrypted_data)
+    assert decrypted == plaintext
+
+    # Verify the key was auto-registered after fetching
+    assert "v1" in _KEY_REGISTRY
 
     # Cleanup
     _KEY_REGISTRY.clear()
@@ -576,12 +584,14 @@ def test_decrypt_corrupted_versioned_data():
     plaintext = "test data"
     encrypted_data = encrypt_field_versioned(plaintext, key_version="v1")
 
-    # Corrupt the ciphertext (tamper with base64)
-    encrypted_data["ciphertext"] = "corrupted_base64_data"
+    # Corrupt the ciphertext (tamper with string format)
+    # Original format: "v1:base64_ciphertext"
+    # Corrupted format: "v1:corrupted_base64_data"
+    corrupted_data = "v1:corrupted_base64_data"
 
     # Decrypt should fail
     with pytest.raises((DecryptionError, ValueError)):
-        decrypt_field_versioned(encrypted_data)
+        decrypt_field_versioned(corrupted_data)
 
     # Cleanup
     _KEY_REGISTRY.clear()

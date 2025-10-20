@@ -146,8 +146,6 @@ class TestEncryptionSecurity:
         # 4. Keep v1 key available for decryption
 
         # For test, verify multi-version key system exists
-        from pazpaz.utils.encryption import get_encryption_key
-
         try:
             # Verify we can get v1 key (for old data)
             key_v1 = get_encryption_key("v1")

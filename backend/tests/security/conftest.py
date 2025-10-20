@@ -12,6 +12,7 @@ when tests exceed the 1000 requests/hour global rate limit.
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -211,3 +212,43 @@ async def clear_all_test_data(redis_client, db_session):
 
     # Cleanup after test
     await redis_client.flushdb()
+
+
+@pytest.fixture(autouse=True)
+def init_encryption_key_registry():
+    """Initialize encryption key registry for tests.
+
+    This fixture ensures the encryption key registry is properly initialized
+    with the current key before each test. This is critical for encryption
+    tests that rely on key versioning and rotation.
+
+    The fixture:
+    1. Registers settings.encryption_key as v1 (current)
+    2. Clears the registry after each test to prevent pollution
+
+    This runs automatically for all security tests (autouse=True).
+    """
+    from pazpaz.core.config import settings
+    from pazpaz.utils.encryption import (
+        EncryptionKeyMetadata,
+        _KEY_REGISTRY,
+        register_key,
+    )
+
+    # Clear registry before test
+    _KEY_REGISTRY.clear()
+
+    # Register settings.encryption_key as v1 (current key)
+    metadata = EncryptionKeyMetadata(
+        key=settings.encryption_key,
+        version="v1",
+        created_at=datetime.now(UTC),
+        expires_at=datetime.now(UTC) + timedelta(days=90),
+        is_current=True,
+    )
+    register_key(metadata)
+
+    yield
+
+    # Clear registry after test
+    _KEY_REGISTRY.clear()
