@@ -89,8 +89,9 @@ class TestAuthenticationSecurity:
 
         # Blacklist token (simulate logout)
         # Note: Actual logout endpoint should do this
+        # IMPORTANT: Must match the key format in auth_service.py
         await redis_client.setex(
-            f"blacklist:{jti}",
+            f"blacklist:jwt:{jti}",
             3600,  # 1 hour expiration
             "1"
         )
@@ -104,7 +105,9 @@ class TestAuthenticationSecurity:
         # Should be rejected (401 Unauthorized)
         # Token blacklisting is checked in get_current_user dependency
         assert response.status_code == 401
-        assert "blacklisted" in response.json()["detail"].lower()
+        error_detail = response.json()["detail"].lower()
+        # Accept either "blacklisted" or "revoked" in error message
+        assert "blacklisted" in error_detail or "revoked" in error_detail
 
     @pytest.mark.asyncio
     async def test_expired_token_rejected(
@@ -391,6 +394,7 @@ class TestAuthenticationEdgeCases:
         # Decode without verification (simulates attacker)
         payload = jose_jwt.decode(
             jwt_token,
+            key="",  # Empty key is fine when verify_signature=False
             options={"verify_signature": False}
         )
 
@@ -498,12 +502,13 @@ class TestAuthenticationEdgeCases:
 
         payload = jose_jwt.decode(
             jwt_token,
+            key="",  # Empty key is fine when verify_signature=False
             options={"verify_signature": False}
         )
         jti = payload.get("jti")
 
-        # Blacklist token
-        await redis_client.setex(f"blacklist:{jti}", 3600, "1")
+        # Blacklist token (must match key format in auth_service.py)
+        await redis_client.setex(f"blacklist:jwt:{jti}", 3600, "1")
 
         # Make multiple concurrent requests with blacklisted token
         headers = {

@@ -174,18 +174,68 @@ async def test_db_engine():
     await engine.dispose()
 
 
+@pytest_asyncio.fixture(scope="session", autouse=True, loop_scope="session")
+async def create_sentinel_workspace(test_db_engine):
+    """
+    Create sentinel workspace for unauthenticated audit events.
+
+    This workspace (UUID 00000000-0000-0000-0000-000000000000) is used by
+    the audit logging system for unauthenticated events like failed login attempts.
+    It's created once per session and persists across all tests.
+    """
+    from pazpaz.services.audit_service import UNAUTHENTICATED_WORKSPACE_ID
+
+    async_session_maker = async_sessionmaker(
+        test_db_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    # Create sentinel workspace using raw SQL with ON CONFLICT to handle duplicates
+    async with test_db_engine.connect() as conn:
+        await conn.execute(
+            text(f"""
+                INSERT INTO workspaces (id, name, is_active, created_at, updated_at, storage_used_bytes, storage_quota_bytes)
+                VALUES (
+                    '{UNAUTHENTICATED_WORKSPACE_ID}',
+                    '[Sentinel] Unauthenticated Events',
+                    true,
+                    NOW(),
+                    NOW(),
+                    0,
+                    10737418240
+                )
+                ON CONFLICT (id) DO NOTHING
+            """)
+        )
+        await conn.commit()
+
+    yield
+
+    # Clean up after session
+    async with test_db_engine.connect() as conn:
+        await conn.execute(
+            text(f"DELETE FROM workspaces WHERE id = '{UNAUTHENTICATED_WORKSPACE_ID}'")
+        )
+        await conn.commit()
+
+
 @pytest_asyncio.fixture(scope="function", autouse=True)
-async def truncate_tables(test_db_engine):
+async def truncate_tables(test_db_engine, create_sentinel_workspace):
     """
     Truncate all tables before each test for clean state.
 
     PERFORMANCE OPTIMIZATION: TRUNCATE is ~100x faster than DROP/CREATE tables.
     Using autouse=True ensures this runs before every test automatically.
+
+    Note: Depends on create_sentinel_workspace to ensure sentinel workspace exists.
     """
     yield  # Let the test run first
 
-    # Truncate all tables after test
+    # Truncate all tables after test, EXCEPT the sentinel workspace
     async with test_db_engine.connect() as conn:
+        from pazpaz.services.audit_service import UNAUTHENTICATED_WORKSPACE_ID
+
         # Get all table names dynamically
         result = await conn.execute(
             text("""
@@ -198,9 +248,27 @@ async def truncate_tables(test_db_engine):
 
         if tables:
             # Truncate all tables with CASCADE and RESTART IDENTITY
+            # But preserve the sentinel workspace
             tables_str = ", ".join(tables)
             await conn.execute(
                 text(f"TRUNCATE TABLE {tables_str} RESTART IDENTITY CASCADE")
+            )
+
+            # Re-insert sentinel workspace after truncation
+            await conn.execute(
+                text(f"""
+                    INSERT INTO workspaces (id, name, is_active, created_at, updated_at, storage_used_bytes, storage_quota_bytes)
+                    VALUES (
+                        '{UNAUTHENTICATED_WORKSPACE_ID}',
+                        '[Sentinel] Unauthenticated Events',
+                        true,
+                        NOW(),
+                        NOW(),
+                        0,
+                        10737418240
+                    )
+                    ON CONFLICT (id) DO NOTHING
+                """)
             )
             await conn.commit()
 

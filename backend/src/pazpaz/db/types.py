@@ -396,7 +396,7 @@ class EncryptedStringVersioned(TypeDecorator):
         return encrypted_data
 
     def process_result_value(
-        self, value: str | dict[str, Any] | None, dialect: Any
+        self, value: str | dict[str, Any] | None, _dialect: Any
     ) -> str | None:
         """
         Decrypt value using version prefix after retrieval (SELECT).

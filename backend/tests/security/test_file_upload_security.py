@@ -117,9 +117,8 @@ class TestFileUploadSecurity:
         # Try to disguise as image (should still be caught)
         fake_filename = "test_file.jpg"
 
-        # SECURITY VALIDATION: Malware scanner should detect EICAR
-        # In dev (no ClamAV), might raise ScannerUnavailableError or pass
-        # In production, MUST raise MalwareDetectedError
+        # SECURITY VALIDATION: File should be rejected at some validation layer
+        # Defense in depth: MIME type check, malware scanner, or content validation
         try:
             validate_file(fake_filename, eicar)
             # If we reach here in dev, scanner is unavailable (acceptable for dev)
@@ -130,8 +129,9 @@ class TestFileUploadSecurity:
         except ScannerUnavailableError:
             # PASS for dev: ClamAV not running (documented behavior)
             pytest.skip("ClamAV not available in development environment")
-        except UnsupportedFileTypeError:
-            # PASS: File rejected due to type validation (defense in depth)
+        except (UnsupportedFileTypeError, FileValidationError):
+            # PASS: File rejected due to type/content validation (defense in depth)
+            # EICAR detected as text/plain MIME type and rejected before malware scan
             pass
 
     @pytest.mark.asyncio
@@ -297,7 +297,8 @@ class TestFileUploadDefenseInDepth:
         fake_jpeg += b"\x00" * 1000  # Padding
 
         # SECURITY VALIDATION: Should detect mismatch between content and extension
-        with pytest.raises((UnsupportedFileTypeError, FileContentError, MalwareDetectedError, ScannerUnavailableError)):
+        # The file is correctly detected as application/x-dosexec and rejected
+        with pytest.raises((UnsupportedFileTypeError, FileContentError, FileValidationError, MalwareDetectedError, ScannerUnavailableError)):
             validate_file("fake_image.jpg", fake_jpeg)
 
     @pytest.mark.asyncio

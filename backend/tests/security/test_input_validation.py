@@ -45,8 +45,18 @@ class TestInputValidationSecurity:
         ATTACK SCENARIO: Attacker sends 1 GB JSON to consume memory and
         crash API server.
         """
+        from tests.conftest import add_csrf_to_client, get_auth_headers
+
         # Note: We can't actually send 1 GB in tests (too slow)
         # Instead, test with Content-Length header claiming large size
+
+        # Generate CSRF token for authenticated request
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(
+            workspace_1.id, test_user_ws1.id, test_user_ws1.email, csrf_token
+        )
 
         # First test: Verify middleware checks Content-Length
         # Create small payload but claim it's 1 GB
@@ -57,8 +67,10 @@ class TestInputValidationSecurity:
             "/api/v1/clients",
             content=json.dumps(small_payload),
             headers={
+                **headers,
                 "Content-Type": "application/json",
                 "Content-Length": str(1024 * 1024 * 1024),  # Claim 1 GB
+                "X-CSRF-Token": csrf_token,
             },
         )
 
