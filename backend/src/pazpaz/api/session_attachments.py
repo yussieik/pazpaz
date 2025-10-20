@@ -286,13 +286,16 @@ async def upload_session_attachment(
         client_id=None,  # Explicit: session-level file
     )
 
-    # STORAGE QUOTA: Validate BEFORE S3 upload (fail fast)
+    # ATOMIC STORAGE QUOTA: Validate and reserve quota (locks workspace row)
+    # This prevents race conditions where multiple concurrent uploads could bypass quota
     try:
         await validate_workspace_storage_quota(
             workspace_id=workspace_id,
             new_file_size=len(sanitized_content),
             db=db,
         )
+        # Quota reserved in database (workspace.storage_used_bytes incremented)
+        # If transaction fails, quota reservation rolls back automatically
     except StorageQuotaExceededError as e:
         logger.warning(
             "file_upload_rejected_quota",
@@ -302,6 +305,8 @@ async def upload_session_attachment(
             file_size=len(sanitized_content),
             reason=str(e),
         )
+        # Rollback quota reservation (no changes made yet, but explicit is better)
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_507_INSUFFICIENT_STORAGE,
             detail=str(e),
@@ -312,12 +317,14 @@ async def upload_session_attachment(
             workspace_id=str(workspace_id),
             error=str(e),
         )
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Workspace not found",
         ) from e
 
     # Upload to S3/MinIO
+    # If this fails, transaction will rollback and release reserved quota
     try:
         _ = upload_file_to_s3(
             file_content=sanitized_content,
@@ -332,6 +339,8 @@ async def upload_session_attachment(
             s3_key=s3_key,
             error=str(e),
         )
+        # Rollback transaction (releases reserved quota)
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"File upload failed: {e}",
@@ -351,18 +360,14 @@ async def upload_session_attachment(
 
     db.add(attachment)
 
+    # Commit transaction (quota reservation becomes permanent)
     try:
         await db.commit()
         await db.refresh(attachment)
 
-        # STORAGE QUOTA: Update workspace storage usage AFTER successful commit
-        # This ensures consistency: file metadata in DB = storage counted in quota
-        await update_workspace_storage(
-            workspace_id=workspace_id,
-            bytes_delta=len(sanitized_content),  # Positive delta for upload
-            db=db,
-        )
-        await db.commit()  # Commit storage usage update
+        # REMOVED: No separate update_workspace_storage() call needed
+        # Storage quota was already updated atomically in validate_workspace_storage_quota()
+        # This fixes the race condition (CWE-362) where concurrent uploads could bypass quota
 
     except Exception as e:
         logger.error(
@@ -371,6 +376,9 @@ async def upload_session_attachment(
             s3_key=s3_key,
             error=str(e),
         )
+        # Rollback transaction (releases reserved quota)
+        await db.rollback()
+
         # Cleanup: Delete uploaded S3 object
         try:
             delete_file_from_s3(s3_key)
@@ -855,20 +863,20 @@ async def delete_session_attachment(
 
     attachment.deleted_at = datetime.now(UTC)
 
-    # STORAGE QUOTA: Decrement workspace storage usage (negative delta)
-    # Store file size before commit in case of error
+    # ATOMIC STORAGE QUOTA: Decrement workspace storage usage
+    # Store file size for quota update
     file_size_bytes = attachment.file_size_bytes
 
     try:
-        await db.commit()
-
-        # Update storage quota AFTER successful soft delete commit
+        # Atomically update storage quota (locks workspace row)
         await update_workspace_storage(
             workspace_id=workspace_id,
             bytes_delta=-file_size_bytes,  # Negative delta for delete
             db=db,
         )
-        await db.commit()  # Commit storage usage update
+
+        # Commit transaction (soft delete + quota update are atomic)
+        await db.commit()
 
     except Exception as e:
         logger.error(
@@ -878,6 +886,8 @@ async def delete_session_attachment(
             workspace_id=str(workspace_id),
             error=str(e),
         )
+        # Rollback transaction (attachment not deleted, quota not updated)
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete attachment",

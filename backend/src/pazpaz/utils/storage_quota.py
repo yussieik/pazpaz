@@ -71,33 +71,53 @@ async def validate_workspace_storage_quota(
     db: AsyncSession,
 ) -> None:
     """
-    Validate that adding a new file will not exceed workspace storage quota.
+    Validate and atomically reserve storage quota.
 
-    This function performs a quota check BEFORE file upload to fail fast and
-    avoid uploading files that will be rejected due to quota limits.
+    This function uses database row-level locking (SELECT FOR UPDATE) to prevent
+    race conditions where multiple concurrent uploads could bypass quota limits.
 
-    CRITICAL: Call this BEFORE uploading to S3 to prevent wasted bandwidth
-    and API costs.
+    ATOMIC OPERATION FLOW:
+    1. Lock workspace row (SELECT FOR UPDATE) - blocks other transactions
+    2. Check if quota would be exceeded
+    3. Atomically increment storage_used_bytes (reserve quota)
+    4. Transaction commits when S3 upload succeeds (quota reservation becomes permanent)
+    5. If S3 upload fails, transaction rolls back automatically (quota released)
+
+    SECURITY: Fixes CWE-362 (Race Condition) vulnerability where concurrent uploads
+    could bypass quota limits by checking and updating in separate transactions.
 
     Args:
         workspace_id: Workspace UUID
-        new_file_size: Size of file to be uploaded (bytes)
-        db: Database session
+        new_file_size: Size of file being uploaded (bytes)
+        db: Database session (must be in active transaction)
 
     Raises:
-        StorageQuotaExceededError: If adding file would exceed quota
+        StorageQuotaExceededError: If quota would be exceeded
         ValueError: If workspace not found
 
     Example:
-        >>> await validate_workspace_storage_quota(
-        ...     workspace_id=uuid.UUID("..."),
-        ...     new_file_size=5_000_000,  # 5 MB
-        ...     db=db,
-        ... )
-        # Returns None if quota OK, raises StorageQuotaExceededError if not
+        >>> # Within transaction context
+        >>> async with db.begin():
+        ...     # Validate and reserve quota (locks workspace row)
+        ...     await validate_workspace_storage_quota(
+        ...         workspace_id=workspace.id,
+        ...         new_file_size=5_000_000,  # 5 MB
+        ...         db=db,
+        ...     )
+        ...     # Upload to S3
+        ...     upload_file_to_s3(...)
+        ...     # Create attachment record
+        ...     db.add(attachment)
+        ...     # Commit - quota reservation becomes permanent
     """
-    # Fetch workspace with current storage usage
-    stmt = select(Workspace).where(Workspace.id == workspace_id)
+    # ATOMIC: Lock workspace row for update (prevents concurrent quota bypass)
+    # This blocks other transactions from reading/modifying this workspace
+    # until our transaction commits or rolls back
+    stmt = (
+        select(Workspace)
+        .where(Workspace.id == workspace_id)
+        .with_for_update()  # ROW-LEVEL LOCK: Blocks concurrent transactions
+    )
     result = await db.execute(stmt)
     workspace = result.scalar_one_or_none()
 
@@ -109,12 +129,14 @@ async def validate_workspace_storage_quota(
         raise ValueError(f"Workspace {workspace_id} not found")
 
     # Calculate projected storage after upload
-    projected_usage = workspace.storage_used_bytes + new_file_size
+    current_usage = workspace.storage_used_bytes
+    quota = workspace.storage_quota_bytes
+    projected_usage = current_usage + new_file_size
 
     # Check if projected usage exceeds quota
-    if projected_usage > workspace.storage_quota_bytes:
-        usage_mb = workspace.storage_used_bytes / (1024 * 1024)
-        quota_mb = workspace.storage_quota_bytes / (1024 * 1024)
+    if projected_usage > quota:
+        usage_mb = current_usage / (1024 * 1024)
+        quota_mb = quota / (1024 * 1024)
         new_file_mb = new_file_size / (1024 * 1024)
         projected_mb = projected_usage / (1024 * 1024)
 
@@ -125,6 +147,7 @@ async def validate_workspace_storage_quota(
             quota_mb=round(quota_mb, 2),
             new_file_mb=round(new_file_mb, 2),
             projected_usage_mb=round(projected_mb, 2),
+            would_exceed_by_bytes=projected_usage - quota,
             action="upload_rejected",
         )
 
@@ -133,19 +156,27 @@ async def validate_workspace_storage_quota(
             f"Current usage: {usage_mb:.1f} MB, "
             f"Quota: {quota_mb:.1f} MB, "
             f"New file: {new_file_mb:.1f} MB. "
-            f"Projected usage ({projected_mb:.1f} MB) exceeds quota. "
+            f"Would exceed by {(projected_usage - quota) / (1024 * 1024):.1f} MB. "
             f"Please delete some files or contact support to increase quota."
         )
 
-    logger.debug(
-        "storage_quota_validated",
+    # ATOMICALLY reserve quota (increment storage_used_bytes immediately)
+    # Transaction commits when S3 upload succeeds (quota reservation becomes permanent)
+    # If S3 upload fails, transaction rolls back automatically (quota released)
+    workspace.storage_used_bytes = projected_usage
+
+    logger.info(
+        "storage_quota_reserved",
         workspace_id=str(workspace_id),
-        current_usage_bytes=workspace.storage_used_bytes,
-        quota_bytes=workspace.storage_quota_bytes,
-        new_file_bytes=new_file_size,
-        projected_usage_bytes=projected_usage,
-        remaining_bytes=workspace.storage_quota_bytes - projected_usage,
+        previous_usage_bytes=current_usage,
+        new_usage_bytes=projected_usage,
+        reserved_bytes=new_file_size,
+        remaining_quota_bytes=quota - projected_usage,
+        usage_percentage=round((projected_usage / quota) * 100, 2),
     )
+
+    # NOTE: Do NOT commit here - transaction commits after S3 upload succeeds
+    # If S3 upload fails, caller must rollback to release reserved quota
 
 
 async def update_workspace_storage(
