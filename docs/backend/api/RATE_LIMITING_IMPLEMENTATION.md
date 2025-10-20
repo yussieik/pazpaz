@@ -232,7 +232,7 @@ Rate limiting is applied in:
 
 - [API Endpoint Reference](./API.md) - Complete API documentation
 - [Flexible Record Management](./FLEXIBLE_RECORD_MANAGEMENT.md) - Medical record patterns
-- [Redis Configuration](/backend/docs/infrastructure/REDIS.md) - Redis setup
+- [Redis Configuration](/docs/security/REDIS_CONFIGURATION.md) - Redis setup
 - [Security Patterns](/docs/security/) - Security implementation
 
 ## Conclusion

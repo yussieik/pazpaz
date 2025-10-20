@@ -124,7 +124,7 @@ gpg --decrypt /secure/backups/encryption-key-production-*.gpg
 
 ### 2. Verify AWS Secrets Manager Setup
 
-**Prerequisites** (from [AWS_SECRETS_MANAGER_SETUP.md](AWS_SECRETS_MANAGER_SETUP.md)):
+**Prerequisites** (from [AWS_SECRETS_MANAGER_SETUP.md](/docs/security/encryption/AWS_SECRETS_MANAGER_SETUP.md)):
 
 - [ ] AWS Secrets Manager secret created: `pazpaz/encryption-key-v1`
 - [ ] KMS key created (optional): `alias/pazpaz-secrets`

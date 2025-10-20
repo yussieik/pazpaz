@@ -8,38 +8,34 @@
 
 ## Start Development Servers
 
-### Option 1: Use startup scripts (recommended)
+### Backend Startup
 
-**Start Backend:**
+**Using startup script:**
 ```bash
 cd backend
 ./start_backend.sh
 ```
-Backend will be available at:
-- API: http://localhost:8000
-- Docs: http://localhost:8000/docs
-- OpenAPI: http://localhost:8000/api/v1/openapi.json
 
-**Start Frontend:**
-```bash
-cd frontend
-./start_frontend.sh
-```
-Frontend will be available at: http://localhost:5173
+**Manual command:**
 
-### Option 2: Manual commands
-
-**Start Backend:**
 ```bash
 cd backend
 PYTHONPATH=src uv run uvicorn pazpaz.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-**Start Frontend:**
+Backend will be available at:
+- API: http://localhost:8000
+- Docs: http://localhost:8000/docs
+- OpenAPI: http://localhost:8000/api/v1/openapi.json
+
+### Frontend Startup
+
 ```bash
 cd frontend
 npm run dev
 ```
+
+Frontend will be available at: http://localhost:5173
 
 ## Database Setup
 

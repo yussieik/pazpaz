@@ -54,14 +54,13 @@ docs/backend/                    # Backend documentation root
 ├── database/                    # Database Schema & Migrations
 │   ├── README.md               # Database overview
 │   ├── DATABASE_ARCHITECTURE_REVIEW.md
-│   ├── SESSIONS_SCHEMA.md
-│   └── WEEK2_DAY1_MORNING_SESSIONS_MIGRATION_REPORT.md
+│   └── SESSIONS_SCHEMA.md
 │
 ├── storage/                     # S3/MinIO File Storage
+│   ├── README.md               # Storage overview
 │   ├── STORAGE_CONFIGURATION.md
 │   ├── FILE_UPLOAD_SECURITY.md
-│   ├── S3_CREDENTIAL_MANAGEMENT.md
-│   └── WEEK3_DAY11_STORAGE_IMPLEMENTATION_SUMMARY.md
+│   └── S3_CREDENTIAL_MANAGEMENT.md
 │
 ├── PDF_METADATA_SANITIZATION_IMPLEMENTATION.md  # PDF PHI protection
 └── SOFT_DELETE_PURGE_JOB.md                    # Soft delete implementation
@@ -85,16 +84,15 @@ docs/backend/                    # Backend documentation root
 - [**README.md**](database/README.md) - Database schema overview
 - [**DATABASE_ARCHITECTURE_REVIEW.md**](database/DATABASE_ARCHITECTURE_REVIEW.md) - Comprehensive architecture review
 - [**SESSIONS_SCHEMA.md**](database/SESSIONS_SCHEMA.md) - SOAP session notes schema with encryption
-- [**Migration Report**](database/WEEK2_DAY1_MORNING_SESSIONS_MIGRATION_REPORT.md) - Sessions table migration implementation
 
 ### Storage (`storage/`)
 
 **S3/MinIO file storage, security, and credential management.**
 
+- [**README.md**](storage/README.md) - Storage system overview
 - [**STORAGE_CONFIGURATION.md**](storage/STORAGE_CONFIGURATION.md) - Complete S3/MinIO configuration guide
 - [**FILE_UPLOAD_SECURITY.md**](storage/FILE_UPLOAD_SECURITY.md) - Triple validation, EXIF stripping, security
-- [**S3_CREDENTIAL_MANAGEMENT.md**](storage/S3_CREDENTIAL_MANAGEMENT.md) - 840+ line credential management guide
-- [**Implementation Summary**](storage/WEEK3_DAY11_STORAGE_IMPLEMENTATION_SUMMARY.md) - Week 3 Day 11 storage implementation
+- [**S3_CREDENTIAL_MANAGEMENT.md**](storage/S3_CREDENTIAL_MANAGEMENT.md) - Comprehensive credential management guide
 
 ### Security & Compliance
 
@@ -290,6 +288,6 @@ class Session(Base):
 
 ---
 
-**Last Updated:** 2025-10-13
+**Last Updated:** 2025-10-20
 
 For project-wide documentation, see [/docs/README.md](/docs/README.md)

@@ -206,7 +206,7 @@ aws secretsmanager get-secret-value \
 
 ### Step 4: Configure Secret Rotation (Optional)
 
-**Note**: Automatic rotation requires a Lambda function. For manual rotation, see [KEY_ROTATION_PROCEDURE.md](KEY_ROTATION_PROCEDURE.md).
+**Note**: Automatic rotation requires a Lambda function. For manual rotation, see [/docs/backend/encryption/ENCRYPTION_KEY_ROTATION.md](/docs/backend/encryption/ENCRYPTION_KEY_ROTATION.md).
 
 ```bash
 # Enable automatic rotation (requires Lambda function)
@@ -692,9 +692,10 @@ aws secretsmanager update-secret \
 
 ## Next Steps
 
-- **Key Rotation**: See [KEY_ROTATION_PROCEDURE.md](KEY_ROTATION_PROCEDURE.md)
+- **Key Rotation**: See [/docs/backend/encryption/ENCRYPTION_KEY_ROTATION.md](/docs/backend/encryption/ENCRYPTION_KEY_ROTATION.md)
+- **Key Backup & Recovery**: See [/docs/backend/encryption/KEY_BACKUP_RECOVERY.md](/docs/backend/encryption/KEY_BACKUP_RECOVERY.md)
 - **Migration**: See [AWS_SECRETS_MANAGER_MIGRATION.md](AWS_SECRETS_MANAGER_MIGRATION.md)
-- **Encryption Usage**: See [ENCRYPTION_USAGE_GUIDE.md](ENCRYPTION_USAGE_GUIDE.md)
+- **Encryption Implementation**: Refer to code in `/backend/src/pazpaz/utils/encryption.py` and `/backend/src/pazpaz/db/types.py`
 
 ---
 

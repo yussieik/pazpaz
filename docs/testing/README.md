@@ -58,7 +58,7 @@ Located in `/docs/reports/qa/`:
 
 ### Security Testing
 
-**[X_FORWARDED_FOR_SECURITY_TEST_REPORT.md](/docs/reports/qa/X_FORWARDED_FOR_SECURITY_TEST_REPORT.md)**
+**[X_FORWARDED_FOR_SECURITY_TEST_REPORT.md](../reports/qa/X_FORWARDED_FOR_SECURITY_TEST_REPORT.md)**
 - Critical IP spoofing vulnerability fix (2025-10-20)
 - 77 comprehensive tests covering trusted proxy validation
 - Attack scenario testing (SQL injection, XSS, null byte injection)
@@ -66,7 +66,7 @@ Located in `/docs/reports/qa/`:
 
 ### Feature QA
 
-**[QA_REPORT_PDF_METADATA_STRIPPING.md](/docs/reports/qa/QA_REPORT_PDF_METADATA_STRIPPING.md)**
+**[QA_REPORT_PDF_METADATA_STRIPPING.md](../reports/qa/QA_REPORT_PDF_METADATA_STRIPPING.md)**
 - PDF metadata sanitization (PHI protection)
 - HIPAA compliance verification
 - Performance benchmarks (0.3-1.4ms processing time)
@@ -240,7 +240,7 @@ For detailed troubleshooting, see [BACKEND_TESTING_GUIDE.md](./backend/BACKEND_T
 
 - **Backend Testing Guide:** [backend/BACKEND_TESTING_GUIDE.md](./backend/BACKEND_TESTING_GUIDE.md)
 - **CSRF Testing:** [backend/CSRF_TEST_GUIDE.md](./backend/CSRF_TEST_GUIDE.md)
-- **QA Reports:** [/docs/reports/qa/](/docs/reports/qa/)
+- **QA Reports:** [../reports/qa/](../reports/qa/)
 - **pytest Documentation:** https://docs.pytest.org/
 - **pytest-asyncio:** https://pytest-asyncio.readthedocs.io/
 - **FastAPI Testing:** https://fastapi.tiangolo.com/tutorial/testing/

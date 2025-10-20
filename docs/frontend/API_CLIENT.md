@@ -91,11 +91,21 @@ The API client is configured in `src/api/client.ts`:
 
 ### Request Interceptor
 
-Automatically adds workspace ID to all requests:
+Automatically adds workspace ID and CSRF token to all requests:
 
 ```typescript
 apiClient.interceptors.request.use((config) => {
+  // TODO: Get workspace ID from auth store (currently hardcoded for testing)
   config.headers['X-Workspace-ID'] = '00000000-0000-0000-0000-000000000001'
+
+  // Add CSRF token for state-changing requests (POST, PUT, PATCH, DELETE)
+  if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase())) {
+    const csrfToken = getCsrfToken()
+    if (csrfToken) {
+      config.headers['X-CSRF-Token'] = csrfToken
+    }
+  }
+
   return config
 })
 ```
@@ -116,7 +126,8 @@ Handles common HTTP errors and logs them appropriately.
 - Workspace ID is currently hardcoded for testing
 - TODO: Replace with real authentication when magic link auth is implemented
 - All API calls include `withCredentials: true` for cookie-based auth
-- CSRF protection will be added when authentication is implemented
+- CSRF protection is implemented for state-changing requests (POST, PUT, PATCH, DELETE)
+- CSRF token is read from `csrf_token` cookie and sent in `X-CSRF-Token` header
 
 ## Troubleshooting
 

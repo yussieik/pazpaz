@@ -267,11 +267,6 @@ docs/
 - **MUST UPDATE:** Design patterns, UI guidelines, accessibility standards
 - **MUST CREATE:** Design decisions, UX flows, component specifications
 
-**code-cleaner:**
-- **MUST READ:** All relevant documentation for context
-- **MUST VERIFY:** Documentation references to files being cleaned
-- **MUST UPDATE:** Remove references to deleted files
-
 ### Documentation Workflow
 
 **Before Starting Any Task:**

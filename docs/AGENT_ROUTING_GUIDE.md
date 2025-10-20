@@ -20,6 +20,7 @@ This document ensures proper delegation of tasks to specialized agents in the Pa
 | API client integration | `fullstack-frontend-specialist` | `fullstack-backend-specialist` | Never |
 | Security review | `security-auditor` | - | Never |
 | Backend code review | `backend-qa-specialist` | - | Never |
+| Code cleanup/refactoring | `code-cleaner` | - | Never |
 | Config files (Docker, etc.) | Self | - | Yes (trivial changes) |
 | Documentation | Self | - | Yes |
 | Codebase exploration | Self | - | Yes |
@@ -129,6 +130,19 @@ def route_task(task_description: str) -> Agent:
 - "is this code production-ready?"
 - "check the test coverage"
 - "validate performance requirements"
+
+### Code-Cleaner Triggers
+**Positive patterns:**
+- "cleanup", "clean up", "remove", "delete unused"
+- "refactor", "simplify", "consolidate", "organize"
+- "dead code", "unused imports", "obsolete files"
+- "technical debt", "code smell"
+
+**Example phrases:**
+- "clean up unused imports"
+- "remove dead code"
+- "refactor this messy function"
+- "organize the codebase"
 
 ### UX-Design-Consultant Triggers
 **Positive patterns:**

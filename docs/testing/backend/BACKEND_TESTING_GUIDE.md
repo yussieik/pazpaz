@@ -586,7 +586,7 @@ async def add_csrf_to_client(
     """
     Generate CSRF token and store in Redis.
 
-    Returns token value to be added to headers.
+    Returns token string to be added to headers.
 
     Usage:
         csrf_token = await add_csrf_to_client(
@@ -596,6 +596,8 @@ async def add_csrf_to_client(
         headers["X-CSRF-Token"] = csrf_token
         response = await client.post("/api/v1/clients", headers=headers, json=data)
     """
+    from pazpaz.middleware.csrf import generate_csrf_token
+
     csrf_token = await generate_csrf_token(
         user_id=user_id,
         workspace_id=workspace_id,
@@ -1000,8 +1002,8 @@ app.dependency_overrides.clear()
 - [pytest-asyncio Documentation](https://pytest-asyncio.readthedocs.io/)
 - [SQLAlchemy Async Documentation](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html)
 - [FastAPI Testing Documentation](https://fastapi.tiangolo.com/tutorial/testing/)
-- [CSRF Test Guide](/Users/yussieik/Desktop/projects/pazpaz/docs/testing/backend/CSRF_TEST_GUIDE.md)
-- [X-Forwarded-For Security Test Report](/Users/yussieik/Desktop/projects/pazpaz/backend/tests/X_FORWARDED_FOR_SECURITY_TEST_REPORT.md)
+- [CSRF Test Guide](./CSRF_TEST_GUIDE.md)
+- [X-Forwarded-For Security Test Report](../../reports/qa/X_FORWARDED_FOR_SECURITY_TEST_REPORT.md)
 
 ---
 

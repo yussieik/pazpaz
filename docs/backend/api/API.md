@@ -535,13 +535,13 @@ uv run pytest -m performance -v
 - [API Documentation Index](./README.md) - API documentation overview
 
 ### Related Documentation
-- [Backend Architecture](/backend/docs/README.md) - Overall backend structure
-- [Database Schema](/backend/docs/database/) - Database design
-- [PHI Encryption](/backend/docs/encryption/) - Encryption patterns
+- [Backend Architecture](/docs/backend/README.md) - Overall backend structure
+- [Database Schema](/docs/backend/database/) - Database design
+- [PHI Encryption](/docs/security/encryption/) - Encryption patterns
 - [Security Patterns](/docs/security/) - HIPAA compliance
-- [Testing Strategy](/backend/docs/testing/) - Testing patterns
+- [Testing Strategy](/docs/testing/backend/) - Testing patterns
 
 ### Source Code
-- [API Implementations](/backend/src/pazpaz/api/) - Endpoint source code
-- [Pydantic Schemas](/backend/src/pazpaz/schemas/) - Request/response models
-- [Database Models](/backend/src/pazpaz/models/) - SQLAlchemy models
+- API Implementations: `/backend/src/pazpaz/api/` - Endpoint source code
+- Pydantic Schemas: `/backend/src/pazpaz/schemas/` - Request/response models
+- Database Models: `/backend/src/pazpaz/models/` - SQLAlchemy models

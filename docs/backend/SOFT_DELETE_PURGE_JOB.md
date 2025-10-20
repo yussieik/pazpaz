@@ -354,14 +354,14 @@ scheduler.start()
 ## See Also
 
 ### Related Documentation
-- [**Flexible Record Management**](api/FLEXIBLE_RECORD_MANAGEMENT.md) - Soft delete API patterns
-- [**Sessions Schema**](database/SESSIONS_SCHEMA.md) - Session table design with soft delete columns
+- [**Flexible Record Management**](/docs/backend/api/FLEXIBLE_RECORD_MANAGEMENT.md) - Soft delete API patterns
+- [**Sessions Schema**](/docs/backend/database/SESSIONS_SCHEMA.md) - Session table design with soft delete columns
 - [**Audit Logging Schema**](/docs/security/AUDIT_LOGGING_SCHEMA.md) - Audit trail for deletions
-- [**Storage Configuration**](storage/STORAGE_CONFIGURATION.md) - S3/MinIO file management
+- [**Storage Configuration**](/docs/backend/storage/STORAGE_CONFIGURATION.md) - S3/MinIO file management
 
 ### Related Implementation
 - [**Security-First Implementation Plan**](/docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md) - Week 5 background jobs
-- [**Database Architecture Review**](database/DATABASE_ARCHITECTURE_REVIEW.md) - Soft delete design decisions
+- [**Database Architecture Review**](/docs/backend/database/DATABASE_ARCHITECTURE_REVIEW.md) - Soft delete design decisions
 
 ### Testing
 - [**Test Fixture Guide**](/docs/testing/backend/TEST_FIXTURE_QUICK_REFERENCE.md) - Testing soft delete functionality

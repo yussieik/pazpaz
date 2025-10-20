@@ -3,7 +3,7 @@
 **PazPaz Practice Management System**
 **Module**: Session Attachments File Upload
 **Security Level**: HIPAA-compliant PHI handling
-**Last Updated**: 2025-10-12
+**Last Updated**: 2025-10-20
 
 ## Overview
 
@@ -774,14 +774,14 @@ curl -X POST ... -F "file=@large.jpg"
 ### Related Documentation
 
 - [Encryption Usage Guide](/docs/security/encryption/ENCRYPTION_USAGE_GUIDE.md) - PHI encryption
-- [AWS Secrets Manager](/docs/deployment/AWS_SECRETS_MANAGER.md) - Credential management
 - [S3 Credential Management](S3_CREDENTIAL_MANAGEMENT.md) - Storage security
-- [Security Implementation Plan](/docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md) - Week 3 Day 11
-- [API Design Patterns](/docs/backend/api/API_DESIGN_PATTERNS.md) - Endpoint design
+- [Storage Configuration](STORAGE_CONFIGURATION.md) - S3/MinIO setup
+- [Security Implementation Plan](/docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md) - Master plan
+- [Security Audit Reports](/docs/reports/security/) - Security audits
 
 ---
 
-**Document Version**: 1.0
-**Author**: Claude (AI Assistant)
-**Review**: Required before production deployment
-**Next Review**: After security audit (Week 3 Day 12)
+**Document Version**: 1.1
+**Last Updated**: 2025-10-20
+**Status**: Validated against codebase
+**Review**: Completed 2025-10-20

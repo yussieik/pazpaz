@@ -67,11 +67,11 @@ This directory contains comprehensive documentation for PazPaz's RESTful API:
   - `audit.py` - Audit log viewer
 
 ### Related Documentation
-- [Backend Architecture](/backend/docs/README.md) - Overall backend structure
-- [Database Schema](/backend/docs/database/) - Database design and migrations
+- [Backend Architecture](/docs/backend/README.md) - Overall backend structure
+- [Database Schema](/docs/backend/database/) - Database design and migrations
 - [Security Patterns](/docs/security/) - HIPAA compliance and security
-- [Testing Strategy](/backend/docs/testing/) - API testing patterns
-- [Performance Benchmarks](/backend/docs/performance/) - Performance testing results
+- [Testing Strategy](/docs/testing/backend/) - API testing patterns
+- [Performance Benchmarks](/docs/performance/backend/) - Performance testing results
 
 ## 🚀 Getting Started
 
@@ -165,4 +165,4 @@ await log_audit_event(
 
 - [Security First Implementation Plan](/docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md)
 - [Project Overview](/docs/PROJECT_OVERVIEW.md)
-- [Encryption Usage Guide](/backend/docs/encryption/ENCRYPTION_USAGE_GUIDE.md)
+- [Encryption Usage Guide](/docs/security/encryption/ENCRYPTION_USAGE_GUIDE.md)

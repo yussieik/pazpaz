@@ -71,19 +71,24 @@ The PazPaz frontend is built with:
 frontend/
 ├── src/
 │   ├── api/                    # API client & OpenAPI types
-│   │   ├── client.ts
-│   │   └── schema.ts           # Auto-generated from backend
+│   │   ├── client.ts           # Axios client with interceptors
+│   │   └── schema.ts           # Auto-generated from backend OpenAPI
 │   ├── components/
 │   │   ├── appointments/       # Appointment modals & forms
 │   │   ├── calendar/           # Calendar view components
-│   │   ├── clients/            # Client management UI
+│   │   ├── client/             # Individual client components
+│   │   ├── clients/            # Client list/management UI
 │   │   ├── common/             # Reusable components
+│   │   ├── icons/              # SVG icon components
 │   │   ├── navigation/         # App navigation
 │   │   └── sessions/           # SOAP notes editor
 │   ├── composables/            # Reusable Vue composition functions
 │   │   ├── useAutosave.ts
 │   │   ├── useSecureOfflineBackup.ts
-│   │   └── useCalendar.ts
+│   │   ├── useCalendar.ts
+│   │   ├── useFileUpload.ts
+│   │   ├── useAppointmentDrag.ts
+│   │   └── useGlobalKeyboardShortcuts.ts
 │   ├── stores/                 # Pinia state management
 │   │   ├── auth.ts
 │   │   ├── appointments.ts
@@ -93,12 +98,27 @@ frontend/
 │   │   ├── ClientDetailView.vue
 │   │   └── SessionView.vue
 │   ├── utils/                  # Helper functions
-│   │   ├── csp.ts              # CSP utilities
-│   │   ├── calendar/           # Calendar helpers
+│   │   ├── csp.ts              # CSP nonce utilities
+│   │   ├── calendar/           # Calendar date/time helpers
+│   │   ├── dragHelpers.ts      # Drag & drop utilities
+│   │   ├── filenameValidation.ts
 │   │   └── textFormatters.ts
-│   └── types/                  # TypeScript type definitions
-└── docs/                       # This directory
-
+│   ├── types/                  # TypeScript type definitions
+│   │   ├── calendar.ts
+│   │   ├── client.ts
+│   │   ├── sessions.ts
+│   │   └── attachments.ts
+│   ├── config/                 # Configuration files
+│   │   └── keyboardShortcuts.ts
+│   ├── constants/              # Application constants
+│   │   └── sessions.ts
+│   ├── directives/             # Custom Vue directives
+│   │   └── clickOutside.ts
+│   ├── router/                 # Vue Router configuration
+│   └── test/                   # Test utilities
+│       ├── setup.ts
+│       └── integration/        # Integration tests
+└── (docs are in /docs/frontend/)
 ```
 
 ## 🧪 Testing Philosophy

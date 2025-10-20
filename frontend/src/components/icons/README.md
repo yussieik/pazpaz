@@ -28,12 +28,17 @@ import IconTrash from '@/components/icons/IconTrash.vue'
 
 ## Available Icons
 
-- **IconClose** - X/close icon (M6 18L18 6M6 6l12 12)
-- **IconCheck** - Checkmark icon (M5 13l4 4L19 7)
-- **IconTrash** - Delete/trash icon (M19 7l-.867...)
-- **IconCalendar** - Calendar icon (M8 7V3m8 4V3...)
-- **IconChevronRight** - Right arrow (M9 5l7 7-7 7)
-- **IconChevronLeft** - Left arrow (M15 19l-7-7 7-7)
+- **IconCalendar** - Calendar icon
+- **IconCheck** - Checkmark icon
+- **IconChevronLeft** - Left arrow
+- **IconChevronRight** - Right arrow
+- **IconClock** - Clock/time icon
+- **IconClose** - X/close icon
+- **IconCopy** - Copy to clipboard icon
+- **IconDocument** - Document/file icon
+- **IconTrash** - Delete/trash icon
+- **IconWarning** - Warning/alert icon
+- **IconXCircle** - X in circle (error/remove icon)
 
 ## Props
 

@@ -413,7 +413,7 @@ violates the following Content Security Policy directive: "script-src 'self' 'no
 
 Run CSP utility tests:
 ```bash
-cd /Users/yussieik/Desktop/projects/pazpaz/frontend
+cd frontend
 npm run test:run -- src/utils/csp.spec.ts
 ```
 
@@ -455,7 +455,7 @@ Total: 20 tests passed
 
 1. **Start Backend (Production Mode):**
    ```bash
-   cd /Users/yussieik/Desktop/projects/pazpaz/backend
+   cd backend
    ENVIRONMENT=production DEBUG=false uv run uvicorn pazpaz.main:app
    ```
 

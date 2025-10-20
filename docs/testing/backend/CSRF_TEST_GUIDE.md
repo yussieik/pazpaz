@@ -25,12 +25,12 @@ async def add_csrf_to_client(
     workspace_id: uuid.UUID,
     user_id: uuid.UUID,
     redis_client: redis.Redis,
-) -> dict[str, str]
+) -> str
 ```
 
-**Purpose**: Generates a CSRF token, stores it in Redis, sets it as a cookie on the test client, and returns headers to merge into requests.
+**Purpose**: Generates a CSRF token, stores it in Redis, and returns the token string to be used with `get_auth_headers()`.
 
-**Returns**: `{"X-CSRF-Token": "generated-token"}`
+**Returns**: CSRF token string (e.g., `"a1b2c3d4-e5f6-7890-abcd-ef1234567890"`)
 
 ### 2. Test User Fixtures
 
@@ -91,11 +91,11 @@ response = await client.post(
 **After**:
 ```python
 # Add CSRF token
-csrf_headers = await add_csrf_to_client(
+csrf_token = await add_csrf_to_client(
     client, workspace_1.id, test_user_ws1.id, redis_client
 )
-headers = get_auth_headers(workspace_1.id)
-headers.update(csrf_headers)
+headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+headers["X-CSRF-Token"] = csrf_token
 
 response = await client.post(
     "/api/v1/appointments",
@@ -141,12 +141,12 @@ async def test_cannot_update_client_from_different_workspace(
 ):
     """Cannot update client from different workspace."""
     # Add CSRF token for workspace 2
-    csrf_headers = await add_csrf_to_client(
+    csrf_token = await add_csrf_to_client(
         client, workspace_2.id, test_user_ws2.id, redis_client
     )
 
-    headers = get_auth_headers(workspace_2.id)
-    headers.update(csrf_headers)
+    headers = get_auth_headers(workspace_2.id, csrf_cookie=csrf_token)
+    headers["X-CSRF-Token"] = csrf_token
 
     response = await client.put(
         f"/api/v1/clients/{sample_client_ws1.id}",
@@ -185,17 +185,17 @@ async def test_multiple_operations(
     redis_client,
 ):
     # Add CSRF once at the beginning
-    csrf_headers = await add_csrf_to_client(
+    csrf_token = await add_csrf_to_client(
         client, workspace_1.id, test_user_ws1.id, redis_client
     )
 
-    headers = get_auth_headers(workspace_1.id)
-    headers.update(csrf_headers)
+    headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+    headers["X-CSRF-Token"] = csrf_token
 
     # First request
     await client.post("/api/v1/resource1", headers=headers, json={...})
 
-    # Second request - cookie persists, just include header
+    # Second request - token persists, just use same headers
     await client.post("/api/v1/resource2", headers=headers, json={...})
 ```
 

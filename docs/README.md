@@ -124,24 +124,25 @@ docs/
 **Authentication, authorization, audit logging, encryption, and HIPAA compliance documentation.**
 
 #### Encryption (`security/encryption/`)
-- **ENCRYPTION_ARCHITECTURE.md** (41 KB) - Encryption system design (AES-256-GCM)
-- **ENCRYPTION_IMPLEMENTATION_GUIDE.md** (33 KB) - Step-by-step implementation guide
-- **ENCRYPTION_USAGE_GUIDE.md** (19 KB) - How to use encryption in your code
-- **KEY_ROTATION_PROCEDURE.md** (31 KB) - Routine and emergency key rotation procedures
-- **DATABASE_ENCRYPTION_MIGRATION_TEMPLATE.md** (29 KB) - Migration template for encrypted columns
 - **AWS_SECRETS_MANAGER_SETUP.md** - AWS Secrets Manager configuration for key management
+- **AWS_SECRETS_MANAGER_MIGRATION.md** - Migration guide for AWS Secrets Manager
 
 **Note:** Additional operational encryption docs exist in `backend/encryption/` (ENCRYPTION_KEY_ROTATION.md, KEY_BACKUP_RECOVERY.md) for operational procedures.
 
 #### Authentication & Authorization
 - **DEV_AUTHENTICATION_GUIDE.md** - Development authentication setup and testing
 
-#### Redis & Audit Logging
+#### Security Documentation
+- **SECURITY_ARCHITECTURE.md** - Overall security architecture and design
+- **SECURITY_CHECKLIST.md** - Pre-deployment security checklist
+- **KEY_MANAGEMENT.md** - Key generation, rotation, and management
+- **INCIDENT_RESPONSE.md** - Security incident response procedures
+- **PENETRATION_TEST_RESULTS.md** - Security audit and penetration test results
+- **REDIS_SECURITY.md** - Redis security configuration and hardening
+- **CREDENTIAL_ROTATION_CHECKLIST.md** - Credential rotation procedures
+
+#### Audit Logging
 - **AUDIT_LOGGING_SCHEMA.md** - Database schema for audit events (immutable logs)
-- **AUDIT_LOGGING_IMPLEMENTATION_REPORT.md** - Audit middleware implementation details
-- **REDIS_CONFIGURATION.md** - Redis security configuration guide
-- **REDIS_MIGRATION_GUIDE.md** - Migration guide for Redis authentication
-- **REDIS_SECURITY_IMPLEMENTATION_SUMMARY.md** - Redis security implementation summary
 
 ### Architecture (`architecture/`)
 
@@ -183,25 +184,17 @@ docs/
 - **README.md** - Frontend architecture overview
 - **API_CLIENT.md** - API client integration and usage
 - **TESTING.md** - Frontend testing strategy and patterns
-- **SESSION_EDITOR_IMPLEMENTATION_SUMMARY.md** - SOAP notes editor implementation
+- **CSP_INTEGRATION.md** - Content Security Policy integration guide
 - **LOCALSTORAGE_ENCRYPTION_VERIFICATION.md** - Client-side encryption verification
-- **AUTOSAVE_TEST_FIX_REPORT.md** - Autosave functionality test fixes
-- **TIME_PICKER_UX_IMPROVEMENTS.md** - Time picker UX enhancements
-- **p0-keyboard-implementation.md** - Keyboard shortcuts implementation (P0)
-- **keyboard-shortcuts-manual-test.md** - Manual testing guide for keyboard shortcuts
 
 ### Testing (`testing/`)
 
 **Testing strategy, test patterns, and quality assurance.**
 
-- **ROUTING_TEST_SCENARIOS.md** - API routing test scenarios
-- **MANUAL_TEST_GUIDE.md** - Manual testing procedures and checklists
+- **README.md** - Testing overview and strategy
 
 #### Backend Testing (`testing/backend/`)
-- **PYTEST_CONFIGURATION_GUIDE.md** (22 KB) - Comprehensive pytest configuration reference
-- **TEST_FIXTURE_ANALYSIS.md** (15 KB) - Test fixture architecture and troubleshooting
-- **TEST_FIXTURE_BEST_PRACTICES.md** - Best practices for writing maintainable tests
-- **TEST_FIXTURE_QUICK_REFERENCE.md** (6 KB) - Quick reference for common test patterns
+- **BACKEND_TESTING_GUIDE.md** - Comprehensive backend testing guide with pytest configuration
 - **CSRF_TEST_GUIDE.md** - CSRF protection testing guide
 
 ### Reports (`reports/`)
@@ -209,12 +202,8 @@ docs/
 **Quality assurance, security audit reports, and implementation summaries.**
 
 #### QA Reports (`reports/qa/`)
-- **QA_REPORT_WEEK1_COMPLETION.md** - Week 1 completion QA report
-- **QA_REPORT_WEEK2_DAY10_FINAL.md** - Week 2 Day 10 final QA report
 - **QA_REPORT_PDF_METADATA_STRIPPING.md** - PDF metadata stripping QA report (9.7/10 quality)
-- **WEEK_1_DAY_5_CORRECTED_STATUS.md** - Week 1 Day 5 corrected status
-- **TOAST_AUDIT_AND_FIXES.md** - Toast notification system audit and fixes
-- **TOAST_FIX_TESTING.md** - Toast fix testing results
+- **X_FORWARDED_FOR_SECURITY_TEST_REPORT.md** - X-Forwarded-For security testing report
 
 #### Security Reports (`reports/security/`)
 - **FILE_UPLOAD_SECURITY_AUDIT_WEEK3.md** - Week 3 file upload security audit
@@ -224,11 +213,12 @@ docs/
 - **LOCALSTORAGE_ENCRYPTION_VERIFICATION_REPORT.md** - localStorage encryption verification
 - **S3_CREDENTIAL_SECURITY_REMEDIATION_REPORT.md** - S3 credential security remediation
 - **WEEK2_SECURITY_SUMMARY.md** - Week 2 security summary
+- **AWS_SECRETS_MANAGER_AUDIT.md** - AWS Secrets Manager security audit
+- **2025-01-19-auth-authorization-audit.md** - Authentication and authorization audit
 
-#### Implementation Reports (`reports/implementation/`)
-- **DAY9_IMPLEMENTATION_SUMMARY.md** - Day 9 implementation summary
-- **ENCRYPTED_OFFLINE_BACKUP_IMPLEMENTATION.md** - Encrypted offline backup implementation
-- **PDF_METADATA_STRIPPING_SUMMARY.md** - PDF metadata stripping implementation summary
+#### Implementation Reports (`reports/implementations/`)
+- **redis-security-week1-day1.md** - Redis security implementation (Week 1 Day 1)
+- **audit-logging-week1-day2.md** - Audit logging implementation (Week 1 Day 2)
 
 ### Performance (`performance/`)
 
@@ -279,32 +269,27 @@ Future additions (Week 5):
 
 **Read in this order:**
 
-1. **security/encryption/ENCRYPTION_ARCHITECTURE.md** - Understand the design decisions
-   - AES-256-GCM encryption
-   - Application-level vs database-level
+1. **security/SECURITY_ARCHITECTURE.md** - Understand the encryption design
+   - AES-256-GCM encryption implementation
+   - Application-level encryption approach
    - Key management strategy (AWS Secrets Manager)
 
-2. **security/encryption/ENCRYPTION_USAGE_GUIDE.md** - Quick start guide
-   - How to encrypt/decrypt fields
-   - Using `EncryptedString` SQLAlchemy type
-   - Performance considerations
+2. **security/encryption/AWS_SECRETS_MANAGER_SETUP.md** - Key management setup
+   - AWS Secrets Manager configuration
+   - Key rotation procedures
+   - Backup and recovery
 
-3. **security/encryption/ENCRYPTION_IMPLEMENTATION_GUIDE.md** - Detailed implementation
-   - Step-by-step migration guide
-   - Code examples
-   - Testing encrypted models
-
-4. **security/encryption/ENCRYPTED_MODELS_EXAMPLE.py** - Working code examples
-   - Session model with encrypted SOAP notes
-   - Treatment plan with encrypted goals
-   - Best practices
+3. **backend/encryption/KEY_BACKUP_RECOVERY.md** - Operational procedures
+   - Key backup procedures
+   - Recovery processes
+   - Emergency procedures
 
 ### For Security Review
 
-1. **SECURITY_FIRST_IMPLEMENTATION_PLAN.md** - Week 1 security foundation
-2. **security/AUDIT_LOGGING_SCHEMA.md** - Audit trail design
-3. **security/REDIS_SECURITY_IMPLEMENTATION_SUMMARY.md** - Redis hardening
-4. **security/encryption/ENCRYPTION_ARCHITECTURE.md** - PHI encryption implementation
+1. **SECURITY_FIRST_IMPLEMENTATION_PLAN.md** - Security-first implementation plan
+2. **security/SECURITY_ARCHITECTURE.md** - Overall security architecture
+3. **security/AUDIT_LOGGING_SCHEMA.md** - Audit trail design
+4. **security/REDIS_SECURITY.md** - Redis security hardening
 5. **backend/storage/FILE_UPLOAD_SECURITY.md** - File upload security
 6. **reports/security/** - Security audit reports
 
@@ -318,22 +303,16 @@ Future additions (Week 5):
 
 **Read in this order:**
 
-1. **testing/backend/TEST_FIXTURE_QUICK_REFERENCE.md** - Quick patterns
-   - Common fixtures (`test_user_ws1`, `workspace_1`)
-   - JWT authentication patterns
-   - CSRF token handling
-
-2. **testing/backend/PYTEST_CONFIGURATION_GUIDE.md** - Comprehensive reference
-   - pytest configuration (`pytest.ini`)
-   - Fixture architecture
+1. **testing/backend/BACKEND_TESTING_GUIDE.md** - Comprehensive testing guide
+   - pytest configuration and setup
+   - Common fixtures and patterns
+   - JWT authentication in tests
    - Database setup/teardown
    - Troubleshooting
 
-3. **testing/backend/TEST_FIXTURE_ANALYSIS.md** - Deep dive
-   - Architecture decisions
-   - Why function-scoped fixtures
-   - Transaction rollback strategy
-   - Stability verification
+2. **testing/backend/CSRF_TEST_GUIDE.md** - CSRF protection testing
+   - Testing CSRF-protected endpoints
+   - Token handling in tests
 
 ### For File Upload Implementation
 
@@ -356,15 +335,8 @@ All PHI (Protected Health Information) fields **MUST** be encrypted at rest:
 - ✅ **Contact info:** Email, phone (if considered PHI)
 
 **Implementation:**
-```python
-from pazpaz.db.types import EncryptedString
 
-class Session(Base):
-    subjective = Column(EncryptedString(5000))  # Encrypted PHI
-    objective = Column(EncryptedString(5000))   # Encrypted PHI
-    assessment = Column(EncryptedString(5000))  # Encrypted PHI
-    plan = Column(EncryptedString(5000))        # Encrypted PHI
-```
+See the actual Session model in `backend/src/pazpaz/models/session.py` for working implementation examples. All PHI fields use the `EncryptedString` SQLAlchemy custom type for transparent encryption/decryption.
 
 ### Performance Targets
 
@@ -411,24 +383,25 @@ class Session(Base):
 
 ### Security
 
-- [Encryption Architecture](security/encryption/ENCRYPTION_ARCHITECTURE.md)
-- [Encryption Usage Guide](security/encryption/ENCRYPTION_USAGE_GUIDE.md)
+- [Security Architecture](security/SECURITY_ARCHITECTURE.md)
+- [Key Management](security/KEY_MANAGEMENT.md)
 - [Audit Logging Schema](security/AUDIT_LOGGING_SCHEMA.md)
-- [Redis Security](security/REDIS_SECURITY_IMPLEMENTATION_SUMMARY.md)
+- [Redis Security](security/REDIS_SECURITY.md)
 - [File Upload Security](backend/storage/FILE_UPLOAD_SECURITY.md)
+- [Penetration Test Results](security/PENETRATION_TEST_RESULTS.md)
 
 ### Backend
 
 - [API Patterns](backend/api/)
 - [Database Schema](backend/database/)
 - [Storage Configuration](backend/storage/)
-- [Testing Guide](testing/backend/PYTEST_CONFIGURATION_GUIDE.md)
+- [Testing Guide](testing/backend/BACKEND_TESTING_GUIDE.md)
 
 ### Frontend
 
 - [Frontend Overview](frontend/README.md)
-- [Session Editor](frontend/SESSION_EDITOR_IMPLEMENTATION_SUMMARY.md)
-- [Keyboard Shortcuts](frontend/p0-keyboard-implementation.md)
+- [API Client](frontend/API_CLIENT.md)
+- [Testing](frontend/TESTING.md)
 
 ### Reports
 
@@ -439,19 +412,19 @@ class Session(Base):
 
 ## 🚀 Next Steps
 
-### For Week 3 (File Upload & Plan of Care)
+### For File Upload Implementation
 
 1. Review **backend/storage/STORAGE_CONFIGURATION.md** for S3/MinIO setup
 2. Review **backend/storage/FILE_UPLOAD_SECURITY.md** for security implementation
-3. Use **security/encryption/ENCRYPTION_USAGE_GUIDE.md** for encrypting Plan of Care fields
-4. Run performance tests (target: <150ms p95 response time)
+3. Review **backend/storage/S3_CREDENTIAL_MANAGEMENT.md** for credential management
+4. Review **backend/PDF_METADATA_SANITIZATION_IMPLEMENTATION.md** for PDF sanitization
+5. Run performance tests (target: <150ms p95 response time)
 
 ### For Key Rotation (Quarterly)
 
-1. Follow **security/encryption/KEY_ROTATION_PROCEDURE.md** routine procedure
-2. Use **security/encryption/DATABASE_ENCRYPTION_MIGRATION_TEMPLATE.md** for migration
-3. Verify dual-write pattern during transition
-4. Monitor performance during rotation
+1. Follow **backend/encryption/ENCRYPTION_KEY_ROTATION.md** routine procedure
+2. Use **security/CREDENTIAL_ROTATION_CHECKLIST.md** for comprehensive rotation
+3. Monitor performance during rotation
 
 ---
 

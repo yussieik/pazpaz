@@ -646,11 +646,11 @@ interface SessionVersionResponse {
 - [Rate Limiting Implementation](./RATE_LIMITING_IMPLEMENTATION.md) - Rate limiting patterns
 
 ### Backend Documentation
-- [Audit System](/backend/docs/audit/) - Audit logging patterns
-- [PHI Encryption](/backend/docs/encryption/) - Encryption implementation
-- [Database Schema](/backend/docs/database/) - Schema and migrations
-- [Testing Strategy](/backend/docs/testing/) - Testing patterns
+- [Audit System](/docs/security/AUDIT_LOGGING_SCHEMA.md) - Audit logging patterns
+- [PHI Encryption](/docs/security/encryption/) - Encryption implementation
+- [Database Schema](/docs/backend/database/) - Schema and migrations
+- [Testing Strategy](/docs/testing/backend/) - Testing patterns
 
 ### Security & Compliance
 - [Security First Implementation Plan](/docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md) - Security roadmap
-- [HIPAA Compliance](/docs/security/HIPAA_COMPLIANCE.md) - HIPAA requirements
+- [Audit Logging Schema](/docs/security/AUDIT_LOGGING_SCHEMA.md) - HIPAA-compliant audit trails

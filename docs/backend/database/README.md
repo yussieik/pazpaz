@@ -11,7 +11,8 @@ Comprehensive documentation for PazPaz database architecture, schema design, mig
 
 ### Related Documentation
 - [/docs/security/AUDIT_LOGGING_SCHEMA.md](/docs/security/AUDIT_LOGGING_SCHEMA.md) - Audit events table design
-- [/backend/docs/encryption/](/backend/docs/encryption/) - PHI encryption implementation guides
+- [/docs/security/KEY_MANAGEMENT.md](/docs/security/KEY_MANAGEMENT.md) - Encryption key management and rotation procedures
+- [/docs/security/encryption/](/docs/security/encryption/) - PHI encryption implementation guides
 - [/backend/alembic/versions/](/backend/alembic/versions/) - All database migrations
 
 ## 🗄️ Current Database Schema
@@ -30,15 +31,16 @@ Comprehensive documentation for PazPaz database architecture, schema design, mig
 11. **alembic_version** - Migration tracking
 
 ### Key Features
-- **100% PHI Encryption**: All sensitive fields use AES-256-GCM via `EncryptedString` type
+- **100% PHI Encryption**: All sensitive fields use AES-256-GCM via `EncryptedString` type with versioned keys
 - **Workspace Isolation**: Every table includes workspace_id with CASCADE delete
 - **Soft Delete**: All patient data uses soft delete (deleted_at) for audit trails
 - **Performance Optimized**: Composite and partial indexes for <150ms p95 queries
 - **Audit Logging**: Immutable audit_events table tracks all PHI access
+- **Client PII/PHI Fully Encrypted**: All client PII fields (name, email, phone, address, emergency contacts) and PHI fields (medical_history, date_of_birth) now encrypted ✅
 
 ## 🚀 Migration History
 
-### Applied Migrations
+### Applied Migrations (Current HEAD: 92df859932f2)
 1. `65ac34a08850` - Initial schema (workspaces, users, clients, appointments)
 2. `f6092aa0856d` - Add service and location entities
 3. `83680210d7d2` - Add client healthcare fields (address, medical_history, emergency contacts)
@@ -46,9 +48,15 @@ Comprehensive documentation for PazPaz database architecture, schema design, mig
 5. `6be7adba063b` - Add pgcrypto extension
 6. `8283b279aeac` - Fix pgcrypto functions
 7. `430584776d5b` - Create sessions tables (SOAP notes)
-8. `9262695391b3` - Create session_versions table (amendment tracking)
-9. `03742492d865` - Add session amendment tracking fields
-10. `2de77d93d190` - Add soft delete fields to sessions
+8. `0131df2d459b` - Add appointment edit tracking fields
+9. `9262695391b3` - Create session_versions table (amendment tracking)
+10. `03742492d865` - Add session amendment tracking fields
+11. `2de77d93d190` - Add soft delete fields to sessions
+12. `11a114ee018b` - Add check constraint for finalized sessions
+13. `ea67a34acb9c` - Add client-level attachments table
+14. `d1f764670a60` - Add workspace storage quota fields
+15. `a2341bb8aa45` - **Encrypt client PII fields (first_name, last_name, email, phone, address, medical_history, emergency contacts)**
+16. `92df859932f2` - **Encrypt client date_of_birth field** (current HEAD)
 
 ### Running Migrations
 ```bash

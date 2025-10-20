@@ -38,8 +38,7 @@ frontend/
 │   │       └── appointments.integration.spec.ts  # Integration tests
 │   ├── App.vue
 │   └── App.spec.ts                 # Root component tests
-├── vitest.config.ts                # Vitest configuration
-└── TEST_SUMMARY.md                 # Detailed test documentation
+└── vitest.config.ts                # Vitest configuration
 ```
 
 ## Writing Tests
@@ -246,10 +245,10 @@ beforeEach(() => {
 
 ## Next Steps
 
-1. Read [TEST_SUMMARY.md](./TEST_SUMMARY.md) for detailed test documentation
-2. Run `npm run test:ui` to explore existing tests
-3. Add tests for new features before implementation (TDD)
-4. Maintain >85% coverage for all new code
+1. Run `npm run test:ui` to explore existing tests
+2. Add tests for new features before implementation (TDD)
+3. Maintain >85% coverage for all new code
+4. Review test files co-located with source files (e.g., `useAutosave.spec.ts`)
 
 ## Resources
 
