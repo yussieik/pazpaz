@@ -42,6 +42,9 @@ docs/
 │   │   ├── DATABASE_ARCHITECTURE_REVIEW.md
 │   │   ├── SESSIONS_SCHEMA.md
 │   │   └── WEEK2_DAY1_MORNING_SESSIONS_MIGRATION_REPORT.md
+│   ├── encryption/                        # Encryption Operations (Supplemental)
+│   │   ├── ENCRYPTION_KEY_ROTATION.md     # Key rotation procedures
+│   │   └── KEY_BACKUP_RECOVERY.md         # Key backup and recovery
 │   ├── storage/                           # S3/MinIO File Storage
 │   │   ├── STORAGE_CONFIGURATION.md
 │   │   ├── FILE_UPLOAD_SECURITY.md
@@ -127,6 +130,8 @@ docs/
 - **KEY_ROTATION_PROCEDURE.md** (31 KB) - Routine and emergency key rotation procedures
 - **DATABASE_ENCRYPTION_MIGRATION_TEMPLATE.md** (29 KB) - Migration template for encrypted columns
 - **AWS_SECRETS_MANAGER_SETUP.md** - AWS Secrets Manager configuration for key management
+
+**Note:** Additional operational encryption docs exist in `backend/encryption/` (ENCRYPTION_KEY_ROTATION.md, KEY_BACKUP_RECOVERY.md) for operational procedures.
 
 #### Authentication & Authorization
 - **DEV_AUTHENTICATION_GUIDE.md** - Development authentication setup and testing
@@ -450,4 +455,4 @@ class Session(Base):
 
 ---
 
-**Note:** All documentation is consolidated under this main `docs/` directory. There are no separate `backend/docs` or `frontend/docs` folders.
+**Note:** All documentation is consolidated under this main `docs/` directory. Legacy folders (`/backend/docs/`, `/frontend/docs/`) exist but are deprecated and contain minimal content. All new documentation should be added to `/docs/`.

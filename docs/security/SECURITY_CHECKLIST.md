@@ -41,6 +41,10 @@
 - [ ] CORS restricted (same-origin only in production)
 - [ ] Rate limiting enabled (authentication endpoints: 5/min, general: 100/min)
 - [ ] Request size limits enforced (20 MB max)
+- [ ] Trusted proxy IPs configured (TRUSTED_PROXY_IPS) for rate limiting
+- [ ] X-Forwarded-For validation enabled (production requires specific proxy IPs)
+- [ ] Rate limiting tested from trusted proxies
+- [ ] IP spoofing protection validated (untrusted proxies blocked)
 
 **File Storage (S3/MinIO)**:
 - [ ] Bucket encryption enabled (SSE-S3 or SSE-KMS)

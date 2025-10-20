@@ -1,6 +1,14 @@
 """Application configuration."""
 
-import os
+from ipaddress import (
+    AddressValueError,
+    IPv4Address,
+    IPv4Network,
+    IPv6Address,
+    IPv6Network,
+    ip_address,
+    ip_network,
+)
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -71,6 +79,19 @@ class Settings(BaseSettings):
     # CSRF Protection
     csrf_token_expire_minutes: int = 60 * 24 * 7  # 7 days (match JWT expiry)
 
+    # Trusted Proxy Configuration (Rate Limiting Security)
+    trusted_proxy_ips: str = Field(
+        default="127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7,fe80::/10",
+        description=(
+            "Comma-separated list of trusted proxy IP addresses/CIDR ranges. "
+            "Only these IPs are allowed to set X-Forwarded-For headers for "
+            "rate limiting. Default includes localhost (IPv4/IPv6), private networks "
+            "(IPv4: RFC 1918, IPv6: ULA fc00::/7 and link-local fe80::/10) for "
+            "development. Production should use specific proxy IPs "
+            "(e.g., load balancer IP)."
+        ),
+    )
+
     @field_validator("secret_key")
     @classmethod
     def validate_secret_key(cls, v: str, info) -> str:
@@ -125,6 +146,93 @@ class Settings(BaseSettings):
                 "SECRET_KEY appears to be weak (insufficient entropy). "
                 "Use a cryptographically random key. "
                 "Generate with: openssl rand -hex 32"
+            )
+
+        return v
+
+    @field_validator("trusted_proxy_ips")
+    @classmethod
+    def validate_trusted_proxy_ips(cls, v: str, info) -> str:
+        """
+        Validate trusted proxy IPs are valid IP addresses or CIDR ranges.
+
+        This validator ensures that the TRUSTED_PROXY_IPS configuration contains
+        only valid IP addresses and CIDR network ranges. This is a critical
+        security control for rate limiting - only requests from these IPs will
+        be trusted to set X-Forwarded-For headers.
+
+        Format: Comma-separated list of IPs and/or CIDR ranges
+        Examples:
+            - "127.0.0.1,::1,10.0.0.0/8" (localhost IPv4/IPv6 + private network)
+            - "192.168.1.1,172.16.0.0/12,10.10.10.10" (specific IPs + CIDR)
+
+        Args:
+            v: Comma-separated string of IP addresses/CIDR ranges
+            info: Validation context
+
+        Returns:
+            Original string if all IPs/CIDRs are valid
+
+        Raises:
+            ValueError: If any IP address or CIDR range is invalid
+
+        Security Note:
+            Misconfigured trusted proxies can allow IP spoofing attacks,
+            bypassing rate limits and other IP-based security controls.
+        """
+        # Get environment from validation context
+        environment = info.data.get("environment", "local")
+
+        # Default trusted proxy configuration (must match Field default)
+        default_config = "127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7,fe80::/10"
+
+        # Production/Staging SHOULD explicitly configure trusted proxies
+        # Using default configuration trusts ALL private networks, which is overly
+        # permissive if an attacker is in the same VPC/network (IP spoofing risk)
+        if environment in ("production", "staging"):
+            if v == default_config:
+                logger.warning(
+                    "trusted_proxies_default_in_production",
+                    environment=environment,
+                    message=(
+                        "Using default trusted proxy configuration in production is insecure. "
+                        "Set TRUSTED_PROXY_IPS to your specific load balancer/proxy IPs. "
+                        "Example: TRUSTED_PROXY_IPS='203.0.113.10,203.0.113.11'"
+                    ),
+                )
+                # Still allow, but log warning for security team to review
+
+        if not v or not v.strip():
+            raise ValueError(
+                "TRUSTED_PROXY_IPS cannot be empty. "
+                "Specify at minimum '127.0.0.1' for localhost."
+            )
+
+        # Parse and validate each IP/CIDR
+        ips = [ip.strip() for ip in v.split(",") if ip.strip()]
+
+        if not ips:
+            raise ValueError(
+                "TRUSTED_PROXY_IPS contains no valid entries after parsing. "
+                "Expected comma-separated IPs or CIDR ranges."
+            )
+
+        invalid_entries = []
+        for ip_or_cidr in ips:
+            try:
+                # Try parsing as CIDR range first (handles both x.x.x.x/y and x.x.x.x)
+                ip_network(ip_or_cidr, strict=False)
+            except (AddressValueError, ValueError) as e:
+                invalid_entries.append((ip_or_cidr, str(e)))
+
+        if invalid_entries:
+            error_details = "\n".join(
+                [f"  - '{entry}': {error}" for entry, error in invalid_entries]
+            )
+            raise ValueError(
+                f"TRUSTED_PROXY_IPS contains invalid IP addresses or CIDR ranges:\n"
+                f"{error_details}\n"
+                f"Expected format: '127.0.0.1,10.0.0.0/8,192.168.1.1'"
             )
 
         return v
@@ -360,6 +468,80 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     emails_from_email: str = "noreply@pazpaz.local"
+
+    def is_trusted_proxy(self, client_ip: str) -> bool:
+        """
+        Check if a client IP address is in the trusted proxy list.
+
+        This method validates whether a given IP address is authorized to set
+        X-Forwarded-For headers for rate limiting and other IP-based security
+        controls. Only IPs in the trusted_proxy_ips configuration should be
+        allowed to pass through client IP addresses.
+
+        The method supports both individual IP addresses and CIDR ranges:
+        - Individual IPs: "192.168.1.1" matches exactly
+        - CIDR ranges: "10.0.0.0/8" matches all 10.x.x.x addresses
+        - Mixed: "127.0.0.1,10.0.0.0/8,192.168.1.1" checks all
+
+        Args:
+            client_ip: IP address to check (e.g., "192.168.1.100")
+
+        Returns:
+            True if client_ip is in trusted proxy list, False otherwise
+
+        Example:
+            >>> settings.trusted_proxy_ips = "127.0.0.1,10.0.0.0/8"
+            >>> settings.is_trusted_proxy("127.0.0.1")
+            True
+            >>> settings.is_trusted_proxy("10.5.10.20")
+            True
+            >>> settings.is_trusted_proxy("203.0.113.45")
+            False
+
+        Security Note:
+            This is a critical security check. If this method returns False,
+            X-Forwarded-For headers should be IGNORED to prevent IP spoofing
+            attacks that bypass rate limits.
+        """
+        try:
+            # Parse the client IP address
+            client_addr: IPv4Address | IPv6Address = ip_address(client_ip)
+        except (AddressValueError, ValueError):
+            # Invalid IP address format - not trusted
+            logger.warning(
+                "invalid_client_ip_format",
+                client_ip=client_ip,
+                message="Attempted to check trust for invalid IP address format",
+            )
+            return False
+
+        # Parse trusted proxy IPs (cached by pydantic)
+        trusted_ips = [
+            ip.strip() for ip in self.trusted_proxy_ips.split(",") if ip.strip()
+        ]
+
+        # Check if client IP matches any trusted IP or CIDR range
+        for trusted_ip_or_cidr in trusted_ips:
+            try:
+                # Parse as network (supports both x.x.x.x and x.x.x.x/y)
+                trusted_network: IPv4Network | IPv6Network = ip_network(
+                    trusted_ip_or_cidr, strict=False
+                )
+
+                # Check if client IP is within this network
+                if client_addr in trusted_network:
+                    return True
+            except (AddressValueError, ValueError):
+                # Skip invalid entries (already validated at startup, but defensive)
+                logger.warning(
+                    "invalid_trusted_proxy_entry",
+                    trusted_ip=trusted_ip_or_cidr,
+                    message="Skipping invalid trusted proxy configuration entry",
+                )
+                continue
+
+        # Client IP is not in trusted proxy list
+        return False
 
     @property
     def encryption_key(self) -> bytes:

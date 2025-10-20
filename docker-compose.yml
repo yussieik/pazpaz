@@ -89,7 +89,7 @@ services:
       #   - Include uppercase, lowercase, numbers, symbols
       #   - Rotate every 90 days (production), 180 days (development)
       #
-      # See: backend/docs/storage/S3_CREDENTIAL_MANAGEMENT.md
+      # See: docs/backend/storage/S3_CREDENTIAL_MANAGEMENT.md
       # ===================================================================
       MINIO_ROOT_USER: ${S3_ACCESS_KEY:-CHANGE_ME_GENERATE_RANDOM}
       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-CHANGE_ME_GENERATE_RANDOM}

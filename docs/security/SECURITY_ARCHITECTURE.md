@@ -462,6 +462,14 @@ class Workspace(Base):
 
 ## Network Security
 
+### Recent Security Fixes
+
+**X-Forwarded-For Validation (2025-10-20):**
+- **Issue**: Rate limiting could be bypassed via spoofed X-Forwarded-For headers
+- **Fix**: Trusted proxy IP validation implemented (TRUSTED_PROXY_IPS configuration)
+- **Impact**: IP spoofing attacks now blocked; only trusted proxies can set client IPs
+- **Documentation**: See [X_FORWARDED_FOR_SECURITY_FIX.md](X_FORWARDED_FOR_SECURITY_FIX.md) for details
+
 ### Firewall & Network Segmentation
 
 **Production Architecture**:

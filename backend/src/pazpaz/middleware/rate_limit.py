@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import time
 from datetime import UTC, datetime
+from ipaddress import AddressValueError, ip_address
 
 from fastapi import HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -48,15 +49,22 @@ HOUR_WINDOW = 3600  # seconds
 
 def get_client_ip(request: Request) -> str:
     """
-    Extract client IP address from request.
+    Extract client IP with X-Forwarded-For validation against trusted proxies.
 
-    Checks for forwarded IP headers (from reverse proxy/load balancer) first,
-    then falls back to direct connection IP.
+    Security Model:
+    - Only trusts X-Forwarded-For headers from verified reverse proxies
+    - Prevents IP spoofing attacks that could bypass rate limiting
+    - Uses leftmost IP in X-Forwarded-For chain (original client)
+    - Validates IP format to prevent injection attacks
+    - Logs potential spoofing attempts for security monitoring
 
-    Security Note:
-    - In production, ensure reverse proxy is configured to set X-Forwarded-For
-    - Validate that X-Forwarded-For is set by trusted proxy (not client)
-    - Use leftmost IP in X-Forwarded-For chain (original client)
+    Trust Model:
+    1. Get direct connection IP (immediate client that connected to this server)
+    2. If direct IP is in trusted_proxy_ips, trust X-Forwarded-For header
+    3. Otherwise, use direct connection IP (ignore any forwarding headers)
+
+    This prevents malicious clients from sending fake X-Forwarded-For headers
+    to bypass rate limits, location-based restrictions, or audit logging.
 
     Args:
         request: FastAPI request object
@@ -64,30 +72,97 @@ def get_client_ip(request: Request) -> str:
     Returns:
         Client IP address as string
 
-    Example:
-        X-Forwarded-For: 203.0.113.1, 198.51.100.1, 192.0.2.1
-        Returns: 203.0.113.1 (original client, not intermediate proxies)
+    Example (trusted proxy):
+        Direct connection: 10.0.1.5 (trusted proxy)
+        X-Forwarded-For: 203.0.113.1, 198.51.100.1
+        Returns: 203.0.113.1 (original client)
+
+    Example (untrusted client attempting spoofing):
+        Direct connection: 198.51.100.50 (not in trusted list)
+        X-Forwarded-For: 203.0.113.1 (fake header)
+        Returns: 198.51.100.50 (direct IP, ignoring fake header)
+        Logs: Warning about potential spoofing attempt
     """
-    # Check X-Forwarded-For header (from reverse proxy)
-    # Format: X-Forwarded-For: client, proxy1, proxy2
-    # We want the leftmost IP (original client)
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        # Take first IP in chain (original client)
-        client_ip = forwarded_for.split(",")[0].strip()
-        return client_ip
+    # Get direct connection IP (immediate client that connected to this server)
+    # This is the TCP connection source IP, which cannot be spoofed
+    direct_ip = request.client.host if request.client else None
 
-    # Check X-Real-IP header (alternative from some proxies)
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip.strip()
+    if not direct_ip:
+        # This should never happen in practice (FastAPI always provides request.client)
+        # Log as warning for debugging
+        logger.warning(
+            "no_client_ip_in_request",
+            message="request.client is None - cannot extract IP address",
+        )
+        return "unknown"
 
-    # Fallback to direct connection IP
-    if request.client:
-        return request.client.host
+    # Security: Only trust X-Forwarded-For from verified reverse proxies
+    # If direct connection is from a trusted proxy, we can trust its forwarded headers
+    if settings.is_trusted_proxy(direct_ip):
+        forwarded_for = request.headers.get("X-Forwarded-For")
 
-    # Ultimate fallback (should never happen in practice)
-    return "unknown"
+        if forwarded_for:
+            # Parse leftmost IP in chain (original client)
+            # Format: X-Forwarded-For: client, proxy1, proxy2, ...
+            client_ip = forwarded_for.split(",")[0].strip()
+
+            # Validate IP format to prevent injection attacks
+            # Accepts both IPv4 (e.g., 192.0.2.1) and IPv6 (e.g., 2001:db8::1)
+            try:
+                ip_address(client_ip)  # Raises ValueError if invalid
+
+                logger.debug(
+                    "client_ip_from_trusted_proxy",
+                    direct_ip=direct_ip,
+                    forwarded_ip=client_ip,
+                    message="Accepted X-Forwarded-For from trusted proxy",
+                )
+                return client_ip
+
+            except (ValueError, AddressValueError) as e:
+                # Invalid IP format in X-Forwarded-For header
+                # This could be a malformed header or an injection attempt
+                logger.warning(
+                    "invalid_forwarded_ip_format",
+                    direct_ip=direct_ip,
+                    forwarded_for=forwarded_for,
+                    error=str(e),
+                    message="Invalid IP in X-Forwarded-For - using direct IP",
+                )
+                # Fall through to use direct_ip below
+
+        # Trusted proxy didn't send X-Forwarded-For (unusual but valid)
+        # Use direct connection IP (proxy itself)
+        logger.debug(
+            "trusted_proxy_no_forwarded_for",
+            direct_ip=direct_ip,
+            message="Trusted proxy did not send X-Forwarded-For header",
+        )
+
+    else:
+        # Direct connection is NOT from a trusted proxy
+        # Check if they sent X-Forwarded-For anyway (potential spoofing attempt)
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            # Security Event: Untrusted client sent X-Forwarded-For header
+            # This is likely an IP spoofing attempt to bypass rate limits
+            logger.warning(
+                "untrusted_proxy_sent_forwarded_for",
+                direct_ip=direct_ip,
+                forwarded_for=forwarded_for,
+                message=(
+                    "Potential IP spoofing - "
+                    "untrusted client sent X-Forwarded-For"
+                ),
+            )
+            # Continue to use direct_ip (ignore the fake header)
+
+    # Default: Use direct connection IP
+    # This is used when:
+    # 1. Direct connection is not from a trusted proxy
+    # 2. Trusted proxy sent invalid X-Forwarded-For
+    # 3. No X-Forwarded-For header present
+    return direct_ip
 
 
 async def check_rate_limit_sliding_window(

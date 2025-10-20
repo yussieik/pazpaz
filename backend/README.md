@@ -64,14 +64,15 @@ grep -E "minioadmin|minioadmin123" .env
 
 #### Encryption
 All PHI (Protected Health Information) must be encrypted at rest and in transit:
-- Database fields: See [Encryption Architecture](docs/encryption/ENCRYPTION_ARCHITECTURE.md)
+- Database fields: See [Encryption Architecture](../docs/security/encryption/ENCRYPTION_ARCHITECTURE.md)
 - S3/MinIO files: Server-side encryption (SSE-S3/AES-256) enabled automatically
 - Master encryption key: Stored in AWS Secrets Manager (production) or `.env` (development only)
 
 #### Additional Security Resources
-- [File Upload Security](docs/storage/FILE_UPLOAD_SECURITY.md)
-- [Storage Configuration](docs/storage/STORAGE_CONFIGURATION.md)
-- [Security Audit Reports](../docs/)
+- [File Upload Security](../docs/backend/storage/FILE_UPLOAD_SECURITY.md)
+- [Storage Configuration](../docs/backend/storage/STORAGE_CONFIGURATION.md)
+- [S3 Credential Management](../docs/backend/storage/S3_CREDENTIAL_MANAGEMENT.md)
+- [Security Audit Reports](../docs/reports/security/)
 
 ## Project Structure
 

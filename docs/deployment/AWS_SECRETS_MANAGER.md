@@ -1,28 +1,61 @@
-# AWS Secrets Manager Setup Guide
+# AWS Secrets Manager - Comprehensive Guide
 
-**Last Updated:** 2025-10-19
+**Last Updated:** 2025-10-20
+**Status:** Production-Ready
+**HIPAA Compliance:** Required
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Security Benefits](#security-benefits)
+3. [Prerequisites](#prerequisites)
+4. [Secrets Reference](#secrets-reference)
+5. [Setup Instructions](#setup-instructions)
+6. [IAM Permissions](#iam-permissions)
+7. [Multi-Region Replication](#multi-region-replication)
+8. [Automatic Rotation](#automatic-rotation)
+9. [Application Integration](#application-integration)
+10. [Monitoring & Alerts](#monitoring--alerts)
+11. [Troubleshooting](#troubleshooting)
+12. [HIPAA Compliance](#hipaa-compliance)
+
+---
 
 ## Overview
 
-This guide documents the migration of encryption keys and sensitive credentials from `.env` files to AWS Secrets Manager for production deployments. This is a **CRITICAL** security requirement for HIPAA compliance.
+PazPaz uses AWS Secrets Manager to securely store and retrieve sensitive credentials in production and staging environments. This eliminates storing plaintext passwords in `.env` files, which is a **CRITICAL** HIPAA compliance requirement.
 
-**Security Problem Addressed:**
-- **Risk:** Encryption keys stored in `.env` files can be exposed via:
-  - Git history (accidental commits)
-  - Backup systems (plaintext backups)
-  - Log files (environment variable dumps)
-  - Developer machines (stolen laptops, malware)
-- **Impact:** HIPAA violation §164.308(a)(4)(ii)(A) - Access Authorization
-- **Solution:** Centralized secret management with AWS Secrets Manager
+### Why AWS Secrets Manager?
+
+**Security Problem:**
+- Encryption keys stored in `.env` files can be exposed via git history, backups, logs, or stolen laptops
+- Impact: HIPAA violation §164.308(a)(4)(ii)(A) - Access Authorization
+- Solution: Centralized secret management with AWS Secrets Manager
 
 **Security Benefits:**
-1. **Centralized Secret Management:** All secrets in one auditable location
-2. **Access Control:** IAM policies restrict who can fetch secrets
-3. **Audit Trail:** CloudTrail logs all `GetSecretValue` API calls
-4. **Encryption at Rest:** Secrets encrypted with AWS KMS
-5. **Automatic Rotation:** 90-day key rotation (HIPAA requirement)
-6. **Multi-Region Replication:** Disaster recovery with `us-west-2` replica
-7. **No Plaintext Storage:** Keys never written to disk unencrypted
+1. **Centralized Management** - All secrets in one auditable location
+2. **Access Control** - IAM policies restrict who can fetch secrets
+3. **Audit Trail** - CloudTrail logs all `GetSecretValue` API calls
+4. **Encryption at Rest** - Secrets encrypted with AWS KMS
+5. **Automatic Rotation** - 90-day key rotation (HIPAA requirement)
+6. **Multi-Region Replication** - Disaster recovery with failover
+7. **No Plaintext Storage** - Keys never written to disk unencrypted
+
+---
+
+## Security Benefits
+
+| Feature | Benefit |
+|---------|---------|
+| **Centralized Secret Management** | All secrets in one auditable location |
+| **IAM Access Control** | Fine-grained permissions via IAM policies |
+| **CloudTrail Audit Logs** | Complete record of all secret access |
+| **KMS Encryption at Rest** | Secrets encrypted with AES-256 |
+| **Automatic Rotation** | 90-day rotation for HIPAA compliance |
+| **Multi-Region Replication** | Failover to `us-west-2` for disaster recovery |
+| **No Plaintext in Code** | Keys never hardcoded or committed to git |
 
 ---
 
@@ -42,9 +75,33 @@ Before running these commands:
 
 ---
 
-## Section 1: Secret Creation
+## Secrets Reference
 
-### 1.1 Encryption Master Key (v2)
+### Production Secrets Inventory
+
+| Secret Name | Purpose | Format | Rotation | Priority |
+|-------------|---------|--------|----------|----------|
+| `pazpaz/encryption-key-v2` | PHI encryption master key | Fernet key (44 chars) | Versioned (not rotated) | CRITICAL |
+| `pazpaz/encryption-key-v1` | Legacy PHI decryption | Fernet key (44 chars) | Retained until migration | HIGH |
+| `pazpaz/jwt-secret` | JWT token signing | Random string (64+ chars) | 90 days | HIGH |
+| `pazpaz/database-credentials` | PostgreSQL connection | JSON object | 90 days | CRITICAL |
+| `pazpaz/redis-url` | Redis connection | Connection URL | 180 days | MEDIUM |
+| `pazpaz/email-credentials` | SMTP email sending | JSON object | 180 days | LOW |
+
+### Secret Naming Convention
+
+**Format:** `pazpaz/{environment}/{secret-type}`
+
+**Examples:**
+- Production: `pazpaz/encryption-key-v2`
+- Staging: `pazpaz/staging/encryption-key-v2`
+- Development: Use `.env` files (not Secrets Manager)
+
+---
+
+## Setup Instructions
+
+### 1. Encryption Master Key (v2)
 
 **Purpose:** AES-256-GCM encryption key for PHI data in database
 
@@ -69,13 +126,13 @@ aws secretsmanager describe-secret --secret-id pazpaz/encryption-key-v2 --region
 **Migration Note:** If you have existing data encrypted with `pazpaz/encryption-key-v1`, you MUST:
 1. Keep `pazpaz/encryption-key-v1` secret active for decryption
 2. Update application configuration to use `pazpaz/encryption-key-v2` for NEW encryptions
-3. See [Key Rotation Procedure](../security/encryption/KEY_ROTATION_PROCEDURE.md) for full migration steps
+3. See [Key Rotation Procedure](/docs/security/encryption/KEY_ROTATION_PROCEDURE.md) for full migration steps
 
 **DO NOT** delete `pazpaz/encryption-key-v1` until all historical data has been re-encrypted with v2.
 
 ---
 
-### 1.2 JWT Secret
+### 2. JWT Secret
 
 **Purpose:** Signing key for JWT access tokens (authentication)
 
@@ -99,20 +156,13 @@ aws secretsmanager describe-secret --secret-id pazpaz/jwt-secret --region us-eas
 
 ---
 
-### 1.3 Database Credentials
+### 3. Database Credentials
 
 **Purpose:** PostgreSQL connection string for RDS instance
 
 **Format:** JSON with connection parameters for structured credential management
 
 ```bash
-# Create database credentials secret (JSON format)
-# Replace placeholders with actual values:
-# - USERNAME: PostgreSQL username (e.g., "pazpaz")
-# - PASSWORD: Strong database password (generate with command below)
-# - HOST: RDS endpoint (e.g., "pazpaz-prod.abc123.us-east-1.rds.amazonaws.com")
-# - DATABASE: Database name (e.g., "pazpaz")
-
 # Generate strong database password (64-character random password)
 DB_PASSWORD=$(openssl rand -base64 48 | tr -d '/+=' | cut -c1-64)
 
@@ -167,7 +217,7 @@ aws secretsmanager create-secret \
 
 ---
 
-### 1.4 Redis Credentials
+### 4. Redis Credentials
 
 **Purpose:** Redis connection string for session cache and rate limiting
 
@@ -193,9 +243,62 @@ aws secretsmanager describe-secret --secret-id pazpaz/redis-url --region us-east
 
 ---
 
-## Section 2: IAM Permissions
+### 5. S3/Storage Credentials
 
-### 2.1 Application Task Role Policy
+**Purpose:** S3 access credentials for file attachments (session photos, PDFs)
+
+**IMPORTANT:** For production, use **IAM roles** instead of access keys when possible (see [AWS_IAM_ROLES.md](./AWS_IAM_ROLES.md)).
+
+If IAM roles are not available (e.g., on-premises deployment):
+
+```bash
+# Create IAM user for S3 access
+aws iam create-user --user-name pazpaz-s3-prod
+
+# Create access key
+aws iam create-access-key --user-name pazpaz-s3-prod
+# Save output: AccessKeyId and SecretAccessKey
+
+# Store credentials in Secrets Manager
+aws secretsmanager create-secret \
+  --name pazpaz/s3-credentials \
+  --description "S3 credentials for PazPaz production attachments" \
+  --secret-string '{
+    "access_key_id": "AKIAIOSFODNN7EXAMPLE",
+    "secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  }' \
+  --region us-east-1 \
+  --tags Key=Environment,Value=production Key=Application,Value=PazPaz
+```
+
+**Best Practice:** Use IAM roles attached to EC2/ECS instead. See [AWS_IAM_ROLES.md](./AWS_IAM_ROLES.md) for configuration.
+
+---
+
+### 6. Email Credentials (Optional)
+
+**Purpose:** SMTP credentials for sending email notifications
+
+```bash
+# Create email credentials secret (if using SMTP)
+aws secretsmanager create-secret \
+  --name pazpaz/email-credentials \
+  --description "SMTP credentials for PazPaz email notifications" \
+  --secret-string '{
+    "username": "smtp-username",
+    "password": "smtp-password",
+    "smtp_host": "smtp.example.com",
+    "smtp_port": 587
+  }' \
+  --region us-east-1 \
+  --tags Key=Environment,Value=production Key=Application,Value=PazPaz
+```
+
+---
+
+## IAM Permissions
+
+### Application Task Role Policy
 
 The application running in ECS needs permission to read secrets. Add this policy to the `pazpaz-backend-task-role` IAM role.
 
@@ -214,10 +317,13 @@ The application running in ECS needs permission to read secrets. Add this policy
       ],
       "Resource": [
         "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:pazpaz/encryption-key-v2-*",
+        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:pazpaz/encryption-key-v1-*",
         "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:pazpaz/jwt-secret-*",
         "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:pazpaz/database-credentials-*",
         "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:pazpaz/database-url-*",
-        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:pazpaz/redis-url-*"
+        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:pazpaz/redis-url-*",
+        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:pazpaz/s3-credentials-*",
+        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:pazpaz/email-credentials-*"
       ],
       "Condition": {
         "StringEquals": {
@@ -249,10 +355,13 @@ cat > /tmp/secrets-policy.json <<EOF
       ],
       "Resource": [
         "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:pazpaz/encryption-key-v2-*",
+        "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:pazpaz/encryption-key-v1-*",
         "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:pazpaz/jwt-secret-*",
         "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:pazpaz/database-credentials-*",
         "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:pazpaz/database-url-*",
-        "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:pazpaz/redis-url-*"
+        "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:pazpaz/redis-url-*",
+        "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:pazpaz/s3-credentials-*",
+        "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:pazpaz/email-credentials-*"
       ],
       "Condition": {
         "StringEquals": {
@@ -287,57 +396,21 @@ aws iam get-role-policy \
 
 ---
 
-### 2.2 ECS Task Execution Role Policy
-
-The ECS task execution role (used by ECS to start containers) needs permission to fetch environment variable secrets during container startup.
-
-**IAM Policy:** Already documented in [AWS_IAM_ROLES.md](./AWS_IAM_ROLES.md) section 1.
-
-Verify it includes:
-
-```json
-{
-  "Sid": "SecretsManagerForEnv",
-  "Effect": "Allow",
-  "Action": ["secretsmanager:GetSecretValue"],
-  "Resource": [
-    "arn:aws:secretsmanager:us-east-1:*:secret:pazpaz/database-url-*",
-    "arn:aws:secretsmanager:us-east-1:*:secret:pazpaz/redis-url-*"
-  ]
-}
-```
-
----
-
-## Section 3: Multi-Region Replication
+## Multi-Region Replication
 
 Enable cross-region replication for disaster recovery. If `us-east-1` fails, the application can failover to `us-west-2`.
 
-**Replicate Encryption Key:**
-
-```bash
-# Enable replication for encryption key v2
-aws secretsmanager replicate-secret-to-regions \
-  --secret-id pazpaz/encryption-key-v2 \
-  --add-replica-regions Region=us-west-2 \
-  --region us-east-1
-
-# Verify replication
-aws secretsmanager describe-secret \
-  --secret-id pazpaz/encryption-key-v2 \
-  --region us-east-1 \
-  --query 'ReplicationStatus'
-```
-
-**Replicate All Secrets:**
+### Replicate All Secrets
 
 ```bash
 # Replicate all PazPaz secrets to us-west-2
 for secret in \
   pazpaz/encryption-key-v2 \
+  pazpaz/encryption-key-v1 \
   pazpaz/jwt-secret \
   pazpaz/database-credentials \
-  pazpaz/redis-url; do
+  pazpaz/redis-url \
+  pazpaz/s3-credentials; do
 
   echo "Replicating $secret to us-west-2..."
 
@@ -359,7 +432,7 @@ aws secretsmanager describe-secret \
 
 **Replication Lag:** Typically <1 minute. Replication is asynchronous.
 
-**Disaster Recovery Test:**
+### Disaster Recovery Test
 
 ```bash
 # Fetch secret from replica region (simulates failover)
@@ -370,7 +443,7 @@ aws secretsmanager get-secret-value \
   --output text
 ```
 
-**Failover Configuration:**
+### Failover Configuration
 
 Update application configuration to support multi-region failover:
 
@@ -382,9 +455,9 @@ aws_region_failover: str = Field(default="us-west-2", description="Failover AWS 
 
 ---
 
-## Section 4: Automatic Rotation Configuration
+## Automatic Rotation
 
-### 4.1 Encryption Key Rotation
+### Encryption Key Rotation
 
 **IMPORTANT:** Encryption keys use **versioning**, not rotation. Do NOT enable automatic rotation for encryption keys.
 
@@ -414,7 +487,7 @@ aws secretsmanager create-secret \
 
 ---
 
-### 4.2 JWT Secret Rotation
+### JWT Secret Rotation
 
 Enable automatic rotation for JWT secrets (90-day HIPAA requirement).
 
@@ -444,7 +517,7 @@ aws secretsmanager describe-secret \
 
 ---
 
-### 4.3 Database Password Rotation
+### Database Password Rotation
 
 Enable automatic rotation for database credentials (90-day HIPAA requirement).
 
@@ -477,78 +550,13 @@ aws secretsmanager describe-secret \
 
 ---
 
-## Section 5: CloudWatch Monitoring & Alerts
-
-### 5.1 CloudWatch Alarms for Rotation Failures
-
-Monitor secret rotation failures to ensure HIPAA compliance.
-
-```bash
-# Create CloudWatch alarm for rotation failures
-aws cloudwatch put-metric-alarm \
-  --alarm-name pazpaz-secrets-rotation-failure \
-  --alarm-description "Alert when secret rotation fails (HIPAA compliance risk)" \
-  --metric-name RotationFailed \
-  --namespace AWS/SecretsManager \
-  --statistic Sum \
-  --period 3600 \
-  --evaluation-periods 1 \
-  --threshold 1 \
-  --comparison-operator GreaterThanOrEqualToThreshold \
-  --alarm-actions arn:aws:sns:us-east-1:ACCOUNT_ID:pazpaz-critical-alerts
-```
-
----
-
-### 5.2 CloudTrail Monitoring for Unauthorized Access
-
-Enable CloudTrail logging for Secrets Manager API calls.
-
-```bash
-# Create CloudTrail trail (if not exists)
-aws cloudtrail create-trail \
-  --name pazpaz-secrets-audit \
-  --s3-bucket-name pazpaz-cloudtrail-logs-ACCOUNT_ID \
-  --is-multi-region-trail \
-  --enable-log-file-validation
-
-# Start logging
-aws cloudtrail start-logging --name pazpaz-secrets-audit
-
-# Create CloudWatch log group for CloudTrail events
-aws logs create-log-group --log-group-name /aws/cloudtrail/pazpaz-secrets
-
-# Create metric filter for unauthorized GetSecretValue attempts
-aws logs put-metric-filter \
-  --log-group-name /aws/cloudtrail/pazpaz-secrets \
-  --filter-name UnauthorizedSecretsAccess \
-  --filter-pattern '{ ($.errorCode = "AccessDenied") && ($.eventName = "GetSecretValue") }' \
-  --metric-transformations \
-    metricName=UnauthorizedSecretsAccess,metricNamespace=PazPaz/Security,metricValue=1
-
-# Create alarm for unauthorized access attempts
-aws cloudwatch put-metric-alarm \
-  --alarm-name pazpaz-unauthorized-secrets-access \
-  --alarm-description "Alert on unauthorized Secrets Manager access attempts" \
-  --metric-name UnauthorizedSecretsAccess \
-  --namespace PazPaz/Security \
-  --statistic Sum \
-  --period 300 \
-  --evaluation-periods 1 \
-  --threshold 3 \
-  --comparison-operator GreaterThanOrEqualToThreshold \
-  --alarm-actions arn:aws:sns:us-east-1:ACCOUNT_ID:pazpaz-security-alerts
-```
-
----
-
-## Section 6: Application Integration
+## Application Integration
 
 The PazPaz backend already has AWS Secrets Manager integration implemented in `backend/src/pazpaz/utils/secrets_manager.py`.
 
 **No Code Changes Required** — The application automatically fetches secrets from AWS Secrets Manager in production.
 
-### 6.1 Environment Configuration
+### Environment Configuration
 
 Set these environment variables in ECS task definition:
 
@@ -558,7 +566,7 @@ AWS_REGION=us-east-1          # Primary region
 USE_AWS_SECRETS=true          # Optional: Explicitly enable Secrets Manager (already default in production)
 ```
 
-### 6.2 Secret Naming Configuration
+### Secret Naming Configuration
 
 If you want to customize secret names (e.g., for staging vs. production):
 
@@ -568,7 +576,7 @@ SECRETS_MANAGER_KEY_NAME=pazpaz/encryption-key-v2         # Encryption key secre
 DB_SECRETS_MANAGER_KEY_NAME=pazpaz/database-credentials   # Database credentials secret name
 ```
 
-### 6.3 Application Startup Verification
+### Application Startup Verification
 
 The application verifies Secrets Manager integration at startup:
 
@@ -614,127 +622,72 @@ async def verify_secrets_manager():
 
 ---
 
-## Section 7: Local Development Fallback
+## Monitoring & Alerts
 
-**Local development does NOT require AWS Secrets Manager.** The application falls back to `.env` file for convenience.
+### CloudWatch Alarms for Rotation Failures
 
-### 7.1 Development Environment Configuration
-
-**File:** `backend/.env`
+Monitor secret rotation failures to ensure HIPAA compliance.
 
 ```bash
-# Local development uses environment variables (AWS Secrets Manager not required)
-ENVIRONMENT=local
-USE_AWS_SECRETS=false  # Optional: Explicitly disable AWS (already default in local)
-
-# Encryption key (local development only - NEVER commit real keys!)
-ENCRYPTION_MASTER_KEY=GENERATE_WITH_python_-c_"from_cryptography.fernet_import_Fernet;_print(Fernet.generate_key().decode())"
-
-# Database URL (local PostgreSQL)
-DATABASE_URL=postgresql+asyncpg://pazpaz:localpassword@localhost:5432/pazpaz
-
-# Redis URL (local Redis)
-REDIS_URL=redis://:localpassword@localhost:6379/0
-
-# JWT secret (local development - weak key acceptable)
-SECRET_KEY=local-development-secret-key-not-for-production
-```
-
-### 7.2 Testing AWS Secrets Manager Locally
-
-To test AWS Secrets Manager integration locally (optional):
-
-```bash
-# Set AWS credentials (if not already configured)
-export AWS_ACCESS_KEY_ID=AKIAEXAMPLE
-export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-export AWS_REGION=us-east-1
-
-# Enable AWS Secrets Manager in local development
-export ENVIRONMENT=local
-export USE_AWS_SECRETS=true
-
-# Run application (will fetch from AWS)
-cd /Users/yussieik/Desktop/projects/pazpaz/backend
-uv run uvicorn pazpaz.main:app --host 0.0.0.0 --port 8000
-```
-
-**Expected Behavior:**
-- Application attempts AWS Secrets Manager first
-- Falls back to `.env` if AWS unavailable
-- Logs show: `aws_unavailable_using_env_fallback`
-
----
-
-## Section 8: Security Best Practices
-
-### 8.1 Secret Access Audit
-
-Regularly review who accessed secrets:
-
-```bash
-# Query CloudTrail for GetSecretValue events (last 7 days)
-aws cloudtrail lookup-events \
-  --lookup-attributes AttributeKey=EventName,AttributeValue=GetSecretValue \
-  --start-time $(date -u -v-7d +%Y-%m-%dT%H:%M:%S) \
-  --region us-east-1 \
-  --query 'Events[*].[EventTime,Username,SourceIPAddress]' \
-  --output table
-```
-
-### 8.2 Least Privilege Review
-
-Audit IAM policies quarterly:
-
-```bash
-# List all IAM roles with Secrets Manager access
-aws iam list-policies \
-  --scope Local \
-  --query 'Policies[?contains(PolicyName, `secrets`)]' \
-  --output table
-
-# Review role permissions
-aws iam get-role-policy \
-  --role-name pazpaz-backend-task-role \
-  --policy-name pazpaz-backend-secrets-access
-```
-
-**Questions to Ask:**
-- Does the role need access to ALL secrets?
-- Can we narrow the resource ARN wildcard?
-- Are there unused secrets that should be deleted?
-
-### 8.3 Secret Expiration Monitoring
-
-Set up alerts for secrets nearing expiration (90-day HIPAA rotation requirement):
-
-```bash
-# List secrets with last rotation date
-aws secretsmanager list-secrets \
-  --filters Key=name,Values=pazpaz/ \
-  --query 'SecretList[*].[Name,LastRotatedDate,LastChangedDate]' \
-  --output table
-
-# Alert if secret not rotated in 85 days (5-day warning before HIPAA violation)
-```
-
-### 8.4 Backup Secret ARNs
-
-Document secret ARNs in disaster recovery runbook:
-
-```bash
-# Export secret ARNs for disaster recovery
-aws secretsmanager list-secrets \
-  --filters Key=name,Values=pazpaz/ \
-  --query 'SecretList[*].[Name,ARN]' \
-  --output table > /tmp/pazpaz-secrets-arns.txt
-
-# Store in secure location (e.g., 1Password, LastPass, encrypted S3 bucket)
+# Create CloudWatch alarm for rotation failures
+aws cloudwatch put-metric-alarm \
+  --alarm-name pazpaz-secrets-rotation-failure \
+  --alarm-description "Alert when secret rotation fails (HIPAA compliance risk)" \
+  --metric-name RotationFailed \
+  --namespace AWS/SecretsManager \
+  --statistic Sum \
+  --period 3600 \
+  --evaluation-periods 1 \
+  --threshold 1 \
+  --comparison-operator GreaterThanOrEqualToThreshold \
+  --alarm-actions arn:aws:sns:us-east-1:ACCOUNT_ID:pazpaz-critical-alerts
 ```
 
 ---
 
-## Section 9: Troubleshooting
+### CloudTrail Monitoring for Unauthorized Access
+
+Enable CloudTrail logging for Secrets Manager API calls.
+
+```bash
+# Create CloudTrail trail (if not exists)
+aws cloudtrail create-trail \
+  --name pazpaz-secrets-audit \
+  --s3-bucket-name pazpaz-cloudtrail-logs-ACCOUNT_ID \
+  --is-multi-region-trail \
+  --enable-log-file-validation
+
+# Start logging
+aws cloudtrail start-logging --name pazpaz-secrets-audit
+
+# Create CloudWatch log group for CloudTrail events
+aws logs create-log-group --log-group-name /aws/cloudtrail/pazpaz-secrets
+
+# Create metric filter for unauthorized GetSecretValue attempts
+aws logs put-metric-filter \
+  --log-group-name /aws/cloudtrail/pazpaz-secrets \
+  --filter-name UnauthorizedSecretsAccess \
+  --filter-pattern '{ ($.errorCode = "AccessDenied") && ($.eventName = "GetSecretValue") }' \
+  --metric-transformations \
+    metricName=UnauthorizedSecretsAccess,metricNamespace=PazPaz/Security,metricValue=1
+
+# Create alarm for unauthorized access attempts
+aws cloudwatch put-metric-alarm \
+  --alarm-name pazpaz-unauthorized-secrets-access \
+  --alarm-description "Alert on unauthorized Secrets Manager access attempts" \
+  --metric-name UnauthorizedSecretsAccess \
+  --namespace PazPaz/Security \
+  --statistic Sum \
+  --period 300 \
+  --evaluation-periods 1 \
+  --threshold 3 \
+  --comparison-operator GreaterThanOrEqualToThreshold \
+  --alarm-actions arn:aws:sns:us-east-1:ACCOUNT_ID:pazpaz-security-alerts
+```
+
+---
+
+## Troubleshooting
 
 ### Error: "ResourceNotFoundException: Secrets Manager can't find the specified secret"
 
@@ -816,47 +769,7 @@ aws secretsmanager list-secrets \
 
 ---
 
-## Section 10: Migration Checklist
-
-Use this checklist when migrating from `.env` files to AWS Secrets Manager:
-
-### Pre-Migration
-
-- [ ] Backup current `.env` file to secure location (encrypted)
-- [ ] Document current encryption key version (v1 or v2?)
-- [ ] Test AWS Secrets Manager access with IAM role locally
-- [ ] Create all secrets in AWS Secrets Manager (Section 1)
-- [ ] Configure IAM permissions (Section 2)
-- [ ] Enable multi-region replication (Section 3)
-- [ ] Set up CloudWatch alarms (Section 5)
-
-### Deployment
-
-- [ ] Update ECS task definition with `ENVIRONMENT=production`
-- [ ] Verify `taskRoleArn` points to `pazpaz-backend-task-role`
-- [ ] Deploy updated task definition to ECS
-- [ ] Monitor startup logs for `encryption_key_source=aws_secrets_manager`
-- [ ] Verify no errors in CloudWatch logs
-
-### Post-Migration Verification
-
-- [ ] Application starts successfully (health check passes)
-- [ ] Encryption/decryption works (test session note creation)
-- [ ] CloudTrail shows `GetSecretValue` events with correct IAM role
-- [ ] No `aws_unavailable_using_env_fallback` logs in production
-- [ ] Delete `.env` file from production servers (if applicable)
-- [ ] Remove encryption keys from git history (use BFG Repo-Cleaner if committed)
-
-### 90-Day Follow-Up
-
-- [ ] Verify automatic rotation enabled for JWT secret
-- [ ] Verify automatic rotation enabled for database password
-- [ ] Review CloudTrail audit logs for unauthorized access attempts
-- [ ] Test disaster recovery failover to `us-west-2` replica
-
----
-
-## Section 11: HIPAA Compliance Mapping
+## HIPAA Compliance
 
 | HIPAA Requirement | How AWS Secrets Manager Helps |
 |-------------------|-------------------------------|
@@ -879,23 +792,18 @@ Use this checklist when migrating from `.env` files to AWS Secrets Manager:
 
 ## References
 
+### AWS Documentation
 - [AWS Secrets Manager Documentation](https://docs.aws.amazon.com/secretsmanager/)
 - [AWS Secrets Manager Rotation](https://docs.aws.amazon.com/secretsmanager/latest/userguide/rotating-secrets.html)
 - [IAM Policies for Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/auth-and-access.html)
-- [PazPaz IAM Roles Guide](./AWS_IAM_ROLES.md)
-- [PazPaz Production Deployment Checklist](./PRODUCTION_DEPLOYMENT_CHECKLIST.md)
+
+### PazPaz Documentation
+- [AWS IAM Roles Guide](./AWS_IAM_ROLES.md)
+- [Production Deployment Checklist](./PRODUCTION_DEPLOYMENT_CHECKLIST.md)
+- [Infrastructure Security Checklist](./INFRASTRUCTURE_SECURITY_CHECKLIST.md)
 
 ---
 
-**Next Steps:**
-
-1. ✅ Complete Section 1 (create all secrets)
-2. ✅ Complete Section 2 (configure IAM permissions)
-3. ✅ Complete Section 3 (enable multi-region replication)
-4. ✅ Complete Section 4 (configure rotation)
-5. ✅ Complete Section 5 (set up monitoring)
-6. ✅ Test integration in staging environment
-7. ✅ Deploy to production with monitoring
-8. ✅ Remove encryption keys from `.env` files
-9. ✅ Document secret ARNs in disaster recovery runbook
-10. ✅ Schedule quarterly IAM permissions review
+**Last Updated:** 2025-10-20
+**Status:** Production-Ready
+**HIPAA Compliance:** ✅ Required

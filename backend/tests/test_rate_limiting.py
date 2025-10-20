@@ -181,8 +181,9 @@ async def test_rate_limit_redis_exceeded(redis_client: redis.Redis):
 
 
 def test_get_client_ip_from_forwarded_for():
-    """Test extracting client IP from X-Forwarded-For header."""
+    """Test extracting client IP from X-Forwarded-For header from trusted proxy."""
     mock_request = MagicMock()
+    mock_request.client.host = "127.0.0.1"  # Trusted proxy (localhost)
     mock_request.headers.get.side_effect = lambda key: (
         "203.0.113.1, 198.51.100.1, 192.0.2.1" if key == "X-Forwarded-For" else None
     )
@@ -191,16 +192,16 @@ def test_get_client_ip_from_forwarded_for():
     assert ip == "203.0.113.1"  # Leftmost IP (original client)
 
 
-def test_get_client_ip_from_real_ip():
-    """Test extracting client IP from X-Real-IP header."""
+def test_get_client_ip_ignores_untrusted_forwarded_for():
+    """Test that X-Forwarded-For from untrusted source is ignored."""
     mock_request = MagicMock()
+    mock_request.client.host = "8.8.8.8"  # Untrusted public IP
     mock_request.headers.get.side_effect = lambda key: (
-        "203.0.113.5" if key == "X-Real-IP" else None
+        "203.0.113.5" if key == "X-Forwarded-For" else None  # Ignored
     )
-    mock_request.client = None
 
     ip = get_client_ip(mock_request)
-    assert ip == "203.0.113.5"
+    assert ip == "8.8.8.8"  # Uses direct IP, not forwarded
 
 
 def test_get_client_ip_from_direct_connection():

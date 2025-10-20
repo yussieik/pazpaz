@@ -37,7 +37,7 @@ Use this checklist before deploying PazPaz backend to production to ensure all s
 
 ### 2. AWS Secrets Manager
 
-**Reference:** [AWS_SECRETS_MANAGER_SETUP.md](./AWS_SECRETS_MANAGER_SETUP.md)
+**Reference:** [AWS_SECRETS_MANAGER.md](./AWS_SECRETS_MANAGER.md)
 
 - [ ] **Encryption Master Key Stored (v2)**
   - Secret name: `pazpaz/encryption-key-v2`

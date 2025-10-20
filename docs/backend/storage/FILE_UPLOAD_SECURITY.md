@@ -773,9 +773,11 @@ curl -X POST ... -F "file=@large.jpg"
 
 ### Related Documentation
 
-- `backend/docs/encryption/ENCRYPTION_USAGE_GUIDE.md` - PHI encryption
-- `docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md` - Week 3 Day 11
-- `backend/docs/api/API_DESIGN_PATTERNS.md` - Endpoint design
+- [Encryption Usage Guide](/docs/security/encryption/ENCRYPTION_USAGE_GUIDE.md) - PHI encryption
+- [AWS Secrets Manager](/docs/deployment/AWS_SECRETS_MANAGER.md) - Credential management
+- [S3 Credential Management](S3_CREDENTIAL_MANAGEMENT.md) - Storage security
+- [Security Implementation Plan](/docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md) - Week 3 Day 11
+- [API Design Patterns](/docs/backend/api/API_DESIGN_PATTERNS.md) - Endpoint design
 
 ---
 
