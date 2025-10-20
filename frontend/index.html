@@ -4,6 +4,28 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      Content Security Policy Meta Tag (Defense-in-Depth)
+      ====================================================
+      This meta tag provides CSP as a fallback if HTTP headers are stripped by proxies.
+      The backend already sets CSP via HTTP headers (primary enforcement).
+
+      HIPAA §164.312 - XSS Protection via Content Security Policy
+
+      Environment-Specific Configuration:
+      - Development: Allows 'unsafe-eval' for Vite HMR (Hot Module Replacement)
+      - Production: Strict CSP without 'unsafe-eval' or 'unsafe-inline'
+
+      Placeholders replaced by Vite at build time:
+      - %VITE_CSP_SCRIPT_SRC% → 'unsafe-eval' (dev) or '' (prod)
+      - %VITE_API_URL% → API endpoint for connect-src directive
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' %VITE_CSP_SCRIPT_SRC%; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' %VITE_API_URL% ws://localhost:* http://localhost:*; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"
+    />
+
     <!--
       CSP Nonce Meta Tag (Production Only)
       =====================================

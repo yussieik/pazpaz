@@ -13,7 +13,9 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:security": "vitest run tests/integration/security-headers.spec.ts",
+    "verify:security-headers": "tsx scripts/verify-security-headers.ts"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.19",
@@ -42,6 +44,7 @@
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.8.1",
     "autoprefixer": "^10.4.21",
+    "axios-mock-adapter": "^2.1.0",
     "eslint": "^9.36.0",
     "happy-dom": "^20.0.7",
     "jsdom": "^27.0.0",
@@ -50,6 +53,7 @@
     "postcss": "^8.5.6",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",
+    "tsx": "^4.20.6",
     "typescript": "~5.8.3",
     "vite": "^7.1.11",
     "vitest": "^3.2.4",

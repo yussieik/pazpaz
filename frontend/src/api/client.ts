@@ -94,9 +94,9 @@ apiClient.interceptors.response.use(
 
     return response
   },
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
     // Extract request_id from error responses
-    const errorData = error.response?.data as { request_id?: string } | undefined
+    const errorData = error.response?.data as { request_id?: string; detail?: string } | undefined
     const requestId =
       errorData?.request_id || error.response?.headers?.['x-request-id'] || null
 
@@ -119,6 +119,36 @@ apiClient.interceptors.response.use(
     // Handle common HTTP errors
     if (error.response) {
       switch (error.response.status) {
+        case 429: {
+          // Rate limit exceeded - show user-friendly feedback
+          const retryAfterHeader = error.response.headers['retry-after']
+          const parsedRetryAfter = parseInt(retryAfterHeader || '60', 10)
+          const retryAfter = isNaN(parsedRetryAfter) ? 60 : parsedRetryAfter
+          const endpoint = error.config?.url || 'unknown'
+          const detail = errorData?.detail || 'Too many requests. Please try again later.'
+
+          console.warn(
+            `[API] 429 Rate Limit - ${endpoint} - Retry after ${retryAfter}s`,
+            { requestId }
+          )
+
+          // Dynamically import stores to avoid circular dependencies
+          const [{ useRateLimitStore }, { useToast }] = await Promise.all([
+            import('@/stores/rateLimit'),
+            import('@/composables/useToast'),
+          ])
+
+          const rateLimitStore = useRateLimitStore()
+          const { showRateLimitError } = useToast()
+
+          // Store rate limit info for global state tracking
+          rateLimitStore.setRateLimit(endpoint, retryAfter)
+
+          // Show user-friendly toast notification
+          showRateLimitError(detail, endpoint, retryAfter, requestId)
+
+          break
+        }
         case 401: {
           // Session expired or invalid - trigger automatic logout
           const currentPath = window.location.pathname

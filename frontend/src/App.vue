@@ -4,6 +4,7 @@ import { RouterView } from 'vue-router'
 import AppNavigation from '@/components/navigation/AppNavigation.vue'
 import KeyboardShortcutsHelp from '@/components/calendar/KeyboardShortcutsHelp.vue'
 import SessionTimeoutModal from '@/components/SessionTimeoutModal.vue'
+import RateLimitBanner from '@/components/RateLimitBanner.vue'
 import { useGlobalKeyboardShortcuts } from '@/composables/useGlobalKeyboardShortcuts'
 import { useSessionTimeout } from '@/composables/useSessionTimeout'
 
@@ -13,6 +14,7 @@ import { useSessionTimeout } from '@/composables/useSessionTimeout'
  * Provides the main application layout with persistent navigation and router outlet.
  * Handles global keyboard shortcuts and help modal.
  * Implements session timeout warning for HIPAA compliance.
+ * Displays rate limit banner when API requests are throttled.
  */
 
 // Enable global shortcuts at app level
@@ -50,6 +52,9 @@ onUnmounted(() => {
 
 <template>
   <div id="app" class="min-h-screen bg-gray-50">
+    <!-- Rate Limit Banner (appears at top when rate limited) -->
+    <RateLimitBanner />
+
     <AppNavigation />
     <RouterView />
 

@@ -225,6 +225,91 @@ export function useToast() {
   }
 
   /**
+   * Show rate limit error toast with countdown timer
+   * Special handling for 429 Too Many Requests responses
+   *
+   * @param message - Rate limit message (e.g., "Too many requests")
+   * @param endpoint - API endpoint that was rate limited
+   * @param retryAfter - Seconds until rate limit expires
+   * @param requestId - Optional request ID for debugging
+   */
+  function showRateLimitError(
+    message: string,
+    endpoint: string,
+    retryAfter: number,
+    requestId?: string
+  ) {
+    // Format endpoint for display (remove /api/v1/ prefix and show last segment)
+    const endpointDisplay = endpoint.split('/').filter(Boolean).pop() || endpoint
+
+    // Create custom rate limit content with countdown and endpoint info
+    const content = h('div', { class: 'flex flex-col gap-2 w-full' }, [
+      h('div', { class: 'flex items-center gap-2' }, [
+        h(
+          'svg',
+          {
+            class: 'w-5 h-5 flex-shrink-0',
+            fill: 'none',
+            stroke: 'currentColor',
+            viewBox: '0 0 24 24',
+          },
+          h('path', {
+            'stroke-linecap': 'round',
+            'stroke-linejoin': 'round',
+            'stroke-width': '2',
+            d: 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+          })
+        ),
+        h('span', { class: 'font-medium' }, message),
+      ]),
+      h('div', { class: 'flex items-center gap-2 text-sm opacity-90' }, [
+        h('span', {}, `Endpoint: ${endpointDisplay}`),
+        h('span', { class: 'text-xs' }, '•'),
+        h('span', {}, `Wait ${retryAfter}s`),
+      ]),
+      requestId
+        ? h('div', { class: 'flex items-center gap-2 text-xs mt-1' }, [
+            h('span', { class: 'opacity-75' }, 'Request ID:'),
+            h(
+              'code',
+              {
+                class:
+                  'bg-yellow-900 bg-opacity-30 px-2 py-0.5 rounded font-mono opacity-90',
+              },
+              requestId
+            ),
+            h(
+              'button',
+              {
+                onClick: async () => {
+                  try {
+                    await navigator.clipboard.writeText(requestId)
+                    toast.success('Request ID copied', {
+                      timeout: 2000,
+                      icon: false,
+                    })
+                  } catch (err) {
+                    console.error('Failed to copy request ID:', err)
+                  }
+                },
+                class:
+                  'opacity-75 hover:opacity-100 underline focus:outline-none focus:ring-2 focus:ring-yellow-200 focus:ring-offset-2 focus:ring-offset-yellow-600 rounded px-1',
+                type: 'button',
+              },
+              'Copy'
+            ),
+          ])
+        : null,
+    ])
+
+    toast.warning(content, {
+      timeout: retryAfter * 1000, // Auto-dismiss after cooldown
+      icon: false, // Custom icon in content
+      closeButton: true,
+    })
+  }
+
+  /**
    * Show success toast with undo action
    * Used for reversible operations (reschedule, cancel, etc.)
    *
@@ -260,5 +345,6 @@ export function useToast() {
     showError,
     showInfo,
     showWarning,
+    showRateLimitError,
   }
 }

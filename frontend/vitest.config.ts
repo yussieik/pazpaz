@@ -1,9 +1,19 @@
 import { fileURLToPath } from 'node:url'
 import { mergeConfig, defineConfig, configDefaults } from 'vitest/config'
-import viteConfig from './vite.config'
+import { getViteConfig } from './vite.config'
+import crypto from 'crypto'
+
+// Polyfill for crypto.hash (Node.js 20.11 compatibility)
+if (!crypto.hash) {
+  // @ts-expect-error - Adding polyfill for missing crypto.hash in Node.js 20.11
+  crypto.hash = (algorithm: string, data: string | Buffer, outputEncoding?: string) => {
+    const hash = crypto.createHash(algorithm).update(data)
+    return outputEncoding ? hash.digest(outputEncoding as BufferEncoding) : hash.digest()
+  }
+}
 
 export default mergeConfig(
-  viteConfig,
+  getViteConfig('test'),
   defineConfig({
     test: {
       environment: 'happy-dom',
