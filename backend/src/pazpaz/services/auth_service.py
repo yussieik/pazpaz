@@ -159,7 +159,7 @@ async def request_magic_link(
     request_ip: str,
 ) -> None:
     """
-    Generate and send magic link to user email.
+    Generate and send magic link to user email with audit logging.
 
     Security features:
     - Rate limiting: 3 requests per hour per IP
@@ -167,6 +167,7 @@ async def request_magic_link(
     - 384-bit entropy tokens (quantum-resistant margin)
     - Token data encrypted in Redis (defense-in-depth)
     - 10-minute expiry
+    - Audit logging for all attempts (success, failure, inactive user)
 
     Args:
         email: User email address
@@ -205,6 +206,33 @@ async def request_magic_link(
     user = result.scalar_one_or_none()
 
     if not user:
+        # Log failed attempt (potential reconnaissance)
+        from pazpaz.models.audit_event import AuditAction, ResourceType
+        from pazpaz.services.audit_service import create_audit_event
+
+        try:
+            await create_audit_event(
+                db=db,
+                user_id=None,  # No user (failed attempt)
+                workspace_id=None,  # No workspace context
+                action=AuditAction.READ,  # Attempted to read user data
+                resource_type=ResourceType.USER,
+                resource_id=None,
+                ip_address=request_ip,
+                metadata={
+                    "action": "magic_link_request_nonexistent_email",
+                    "email_provided": email,
+                    "result": "user_not_found",
+                },
+            )
+        except Exception as e:
+            # Log error but don't fail authentication flow
+            logger.error(
+                "failed_to_create_audit_event_for_nonexistent_email",
+                error=str(e),
+                exc_info=True,
+            )
+
         logger.info(
             "magic_link_requested_nonexistent_email",
             email=email,
@@ -213,6 +241,32 @@ async def request_magic_link(
         return
 
     if not user.is_active:
+        # Log failed attempt (inactive user)
+        from pazpaz.models.audit_event import AuditAction, ResourceType
+        from pazpaz.services.audit_service import create_audit_event
+
+        try:
+            await create_audit_event(
+                db=db,
+                user_id=user.id,
+                workspace_id=user.workspace_id,
+                action=AuditAction.READ,
+                resource_type=ResourceType.USER,
+                resource_id=user.id,
+                ip_address=request_ip,
+                metadata={
+                    "action": "magic_link_request_inactive_user",
+                    "result": "user_inactive",
+                },
+            )
+        except Exception as e:
+            # Log error but don't fail authentication flow
+            logger.error(
+                "failed_to_create_audit_event_for_inactive_user",
+                error=str(e),
+                exc_info=True,
+            )
+
         logger.warning(
             "magic_link_requested_inactive_user",
             email=email,
@@ -239,6 +293,32 @@ async def request_magic_link(
     # Send magic link email
     await send_magic_link_email(user.email, token)
 
+    # Log successful magic link generation
+    from pazpaz.models.audit_event import AuditAction, ResourceType
+    from pazpaz.services.audit_service import create_audit_event
+
+    try:
+        await create_audit_event(
+            db=db,
+            user_id=user.id,
+            workspace_id=user.workspace_id,
+            action=AuditAction.READ,  # Reading user data to generate link
+            resource_type=ResourceType.USER,
+            resource_id=user.id,
+            ip_address=request_ip,
+            metadata={
+                "action": "magic_link_generated",
+                "token_expiry_seconds": MAGIC_LINK_EXPIRY_SECONDS,
+            },
+        )
+    except Exception as e:
+        # Log error but don't fail authentication flow
+        logger.error(
+            "failed_to_create_audit_event_for_magic_link_generation",
+            error=str(e),
+            exc_info=True,
+        )
+
     logger.info(
         "magic_link_generated",
         email=email,
@@ -250,14 +330,16 @@ async def verify_magic_link_token(
     token: str,
     db: AsyncSession,
     redis_client: redis.Redis,
+    request_ip: str | None = None,
 ) -> tuple[User, str] | None:
     """
-    Verify magic link token and generate JWT with brute force detection.
+    Verify magic link token and generate JWT with brute force detection and audit logging.
 
     Args:
         token: Magic link token
         db: Database session
         redis_client: Redis client
+        request_ip: Request IP address for audit logging (optional)
 
     Returns:
         Tuple of (User, JWT token) if valid, None if invalid/expired
@@ -268,6 +350,7 @@ async def verify_magic_link_token(
         - JWT contains workspace_id for workspace scoping
         - Brute force detection (100 failed attempts = 5-min lockout)
         - Token data decrypted from Redis
+        - Audit logging for all verification attempts
 
     Raises:
         HTTPException: If brute force lockout is active
@@ -301,6 +384,32 @@ async def verify_magic_link_token(
             await redis_client.incr(attempt_key)
             await redis_client.expire(attempt_key, BRUTE_FORCE_LOCKOUT_SECONDS)
 
+            # Log failed verification attempt
+            from pazpaz.models.audit_event import AuditAction, ResourceType
+            from pazpaz.services.audit_service import create_audit_event
+
+            try:
+                await create_audit_event(
+                    db=db,
+                    user_id=None,
+                    workspace_id=None,
+                    action=AuditAction.READ,
+                    resource_type=ResourceType.USER,
+                    resource_id=None,
+                    ip_address=request_ip,
+                    metadata={
+                        "action": "magic_link_verification_failed",
+                        "reason": "token_not_found_or_expired",
+                        "token_prefix": token[:16],
+                    },
+                )
+            except Exception as e:
+                logger.error(
+                    "failed_to_create_audit_event_for_token_not_found",
+                    error=str(e),
+                    exc_info=True,
+                )
+
             logger.warning(
                 "magic_link_token_not_found_or_expired",
                 token_prefix=token[:16],  # Log first 16 chars only
@@ -329,6 +438,31 @@ async def verify_magic_link_token(
             await redis_client.incr(attempt_key)
             await redis_client.expire(attempt_key, BRUTE_FORCE_LOCKOUT_SECONDS)
 
+            # Log failed verification (user not found or inactive)
+            from pazpaz.models.audit_event import AuditAction, ResourceType
+            from pazpaz.services.audit_service import create_audit_event
+
+            try:
+                await create_audit_event(
+                    db=db,
+                    user_id=user_id if user else None,
+                    workspace_id=user.workspace_id if user else None,
+                    action=AuditAction.READ,
+                    resource_type=ResourceType.USER,
+                    resource_id=user_id if user else None,
+                    ip_address=request_ip,
+                    metadata={
+                        "action": "magic_link_verification_failed",
+                        "reason": "user_not_found_or_inactive",
+                    },
+                )
+            except Exception as e:
+                logger.error(
+                    "failed_to_create_audit_event_for_user_not_found_or_inactive",
+                    error=str(e),
+                    exc_info=True,
+                )
+
             logger.warning(
                 "magic_link_verification_failed",
                 reason="user_not_found_or_inactive",
@@ -352,6 +486,33 @@ async def verify_magic_link_token(
         # Delete token from Redis (single-use)
         token_key = f"magic_link:{token}"
         await redis_client.delete(token_key)
+
+        # Log successful authentication
+        from pazpaz.models.audit_event import AuditAction, ResourceType
+        from pazpaz.services.audit_service import create_audit_event
+
+        try:
+            await create_audit_event(
+                db=db,
+                user_id=user.id,
+                workspace_id=user.workspace_id,
+                action=AuditAction.READ,  # Authenticated access
+                resource_type=ResourceType.USER,
+                resource_id=user.id,
+                ip_address=request_ip,
+                metadata={
+                    "action": "user_authenticated",
+                    "authentication_method": "magic_link",
+                    "jwt_issued": True,
+                },
+            )
+        except Exception as e:
+            # Log error but don't fail authentication
+            logger.error(
+                "failed_to_create_audit_event_for_successful_authentication",
+                error=str(e),
+                exc_info=True,
+            )
 
         logger.info(
             "magic_link_verified",

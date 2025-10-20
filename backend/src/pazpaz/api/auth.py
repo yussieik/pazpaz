@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 import redis.asyncio as redis
@@ -115,6 +116,7 @@ async def request_magic_link_endpoint(
     - JWT stored in HttpOnly cookie for XSS protection
     - 7-day JWT expiry
     - Uses POST method to prevent CSRF attacks (state-changing operation)
+    - Audit logging for all verification attempts
 
     The token parameter is received from the email link and sent in request body.
     On success, a JWT is set as an HttpOnly cookie and returned in response.
@@ -122,15 +124,17 @@ async def request_magic_link_endpoint(
 )
 async def verify_magic_link_endpoint(
     data: TokenVerifyRequest,
+    request: Request,
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     redis_client: Annotated[redis.Redis, Depends(get_redis)],
 ) -> TokenVerifyResponse:
     """
-    Verify magic link token and issue JWT.
+    Verify magic link token and issue JWT with audit logging.
 
     Args:
         data: Token verification request containing magic link token
+        request: Request object (for IP extraction)
         response: FastAPI response object (for setting cookie)
         db: Database session
         redis_client: Redis client
@@ -141,11 +145,15 @@ async def verify_magic_link_endpoint(
     Raises:
         HTTPException: 401 if token is invalid or expired
     """
-    # Verify token and get JWT
+    # Extract client IP for audit logging
+    client_ip = request.client.host if request.client else None
+
+    # Verify token and get JWT (pass IP for audit logging)
     result = await verify_magic_link_token(
         token=data.token,
         db=db,
         redis_client=redis_client,
+        request_ip=client_ip,
     )
 
     if not result:
@@ -213,21 +221,26 @@ async def verify_magic_link_endpoint(
     - Blacklists JWT token in Redis (prevents reuse)
     - Clears CSRF token cookie
     - Requires CSRF token for protection against logout CSRF attacks
+    - Audit logging for logout events
 
     The blacklisted token cannot be used even if stolen, providing
     enhanced security compared to client-side-only logout.
     """,
 )
 async def logout_endpoint(
+    request: Request,
     response: Response,
+    db: Annotated[AsyncSession, Depends(get_db)],
     redis_client: Annotated[redis.Redis, Depends(get_redis)],
     access_token: str | None = Cookie(None),
 ) -> LogoutResponse:
     """
-    Logout user by clearing authentication cookie and blacklisting JWT.
+    Logout user by clearing authentication cookie and blacklisting JWT with audit logging.
 
     Args:
+        request: Request object (for IP extraction)
         response: FastAPI response object (for clearing cookie)
+        db: Database session (for audit logging)
         redis_client: Redis client for token blacklisting
         access_token: Current JWT from cookie (optional)
 
@@ -236,11 +249,58 @@ async def logout_endpoint(
     """
     from pazpaz.services.auth_service import blacklist_token
 
+    # Extract client IP for audit logging
+    client_ip = request.client.host if request.client else None
+
     # Blacklist the JWT token (if present)
     if access_token:
         try:
-            await blacklist_token(redis_client, access_token)
-            logger.info("jwt_token_blacklisted_on_logout")
+            from pazpaz.core.security import decode_access_token
+            from pazpaz.models.audit_event import AuditAction, ResourceType
+            from pazpaz.services.audit_service import create_audit_event
+
+            # Decode token to get user info for audit logging
+            try:
+                payload = decode_access_token(access_token)
+                user_id = uuid.UUID(payload.get("user_id"))
+                workspace_id = uuid.UUID(payload.get("workspace_id"))
+
+                # Blacklist token
+                await blacklist_token(redis_client, access_token)
+
+                # Log logout event
+                try:
+                    await create_audit_event(
+                        db=db,
+                        user_id=user_id,
+                        workspace_id=workspace_id,
+                        action=AuditAction.UPDATE,  # Session state changed
+                        resource_type=ResourceType.USER,
+                        resource_id=user_id,
+                        ip_address=client_ip,
+                        metadata={
+                            "action": "user_logged_out",
+                            "jwt_blacklisted": True,
+                        },
+                    )
+                except Exception as e:
+                    logger.error(
+                        "failed_to_create_audit_event_for_logout",
+                        error=str(e),
+                        exc_info=True,
+                    )
+
+                logger.info("jwt_token_blacklisted_on_logout", user_id=str(user_id))
+
+            except Exception as e:
+                logger.error(
+                    "failed_to_decode_token_for_logout_audit",
+                    error=str(e),
+                    exc_info=True,
+                )
+                # Still blacklist token even if decoding failed
+                await blacklist_token(redis_client, access_token)
+
         except Exception as e:
             # Log error but don't fail logout
             # User experience is that logout succeeds even if blacklisting fails
