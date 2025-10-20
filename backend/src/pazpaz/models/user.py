@@ -11,6 +11,7 @@ from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, UniqueConstr
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pazpaz.db.base import Base
+from pazpaz.db.types import EncryptedString
 
 if TYPE_CHECKING:
     from pazpaz.models.audit_event import AuditEvent
@@ -60,6 +61,29 @@ class User(Base):
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
         nullable=False,
+    )
+
+    # 2FA/TOTP fields
+    totp_secret: Mapped[str | None] = mapped_column(
+        EncryptedString(255),
+        nullable=True,
+        comment="TOTP secret key (encrypted, base32-encoded)",
+    )
+    totp_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="Whether 2FA is enabled for this user",
+    )
+    totp_backup_codes: Mapped[str | None] = mapped_column(
+        EncryptedString(1000),
+        nullable=True,
+        comment="JSON array of hashed backup codes (encrypted)",
+    )
+    totp_enrolled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp when 2FA was enabled",
     )
 
     # Relationships

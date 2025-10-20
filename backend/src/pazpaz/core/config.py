@@ -106,6 +106,12 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
 
+    # Session idle timeout configuration (HIPAA §164.312(a)(2)(iii))
+    session_idle_timeout_minutes: int = Field(
+        default=30,
+        description="Session idle timeout in minutes (HIPAA §164.312(a)(2)(iii))",
+    )
+
     # CSRF Protection
     csrf_token_expire_minutes: int = 60 * 24 * 7  # 7 days (match JWT expiry)
 
@@ -121,6 +127,34 @@ class Settings(BaseSettings):
             "(e.g., load balancer IP)."
         ),
     )
+
+    @field_validator("session_idle_timeout_minutes")
+    @classmethod
+    def validate_idle_timeout(cls, v: int) -> int:
+        """
+        Validate session idle timeout is within reasonable bounds.
+
+        HIPAA §164.312(a)(2)(iii) recommends automatic logoff after
+        a period of inactivity (typically 15-30 minutes for PHI systems).
+
+        Requirements:
+        - Minimum: 5 minutes (prevent overly aggressive timeout)
+        - Maximum: 480 minutes (8 hours, prevent indefinite sessions)
+
+        Args:
+            v: Session idle timeout in minutes
+
+        Returns:
+            Validated timeout value
+
+        Raises:
+            ValueError: If timeout is outside allowed range
+        """
+        if v < 5:
+            raise ValueError("Session idle timeout must be at least 5 minutes")
+        if v > 480:  # 8 hours
+            raise ValueError("Session idle timeout cannot exceed 8 hours (480 minutes)")
+        return v
 
     @field_validator("secret_key")
     @classmethod

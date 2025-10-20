@@ -26,6 +26,7 @@ from pazpaz.middleware.content_type import ContentTypeValidationMiddleware
 from pazpaz.middleware.csrf import CSRFProtectionMiddleware
 from pazpaz.middleware.rate_limit import IPRateLimitMiddleware
 from pazpaz.middleware.request_size import RequestSizeLimitMiddleware
+from pazpaz.middleware.session_activity import SessionActivityMiddleware
 
 
 @asynccontextmanager
@@ -383,13 +384,15 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 # 3. IPRateLimitMiddleware - Global IP-based rate limiting (100/min, 1000/hr)
 # 4. RequestSizeLimitMiddleware - Check Content-Length BEFORE parsing body (DoS protection)
 # 5. ContentTypeValidationMiddleware - Validate Content-Type header (prevent parser confusion)
-# 6. CSRFProtectionMiddleware - Validate CSRF tokens on state-changing operations (CRITICAL: BEFORE Audit)
-# 7. AuditMiddleware - Log data access/modifications (ONLY logs requests that pass CSRF validation)
+# 6. SessionActivityMiddleware - Track activity and enforce idle timeout (HIPAA §164.312(a)(2)(iii))
+# 7. CSRFProtectionMiddleware - Validate CSRF tokens on state-changing operations (CRITICAL: BEFORE Audit)
+# 8. AuditMiddleware - Log data access/modifications (ONLY logs requests that pass CSRF validation)
 #
 # Why this order?
 # - Rate limiting EARLY: Block excessive requests before processing (DoS prevention)
 # - Size limit AFTER rate limiting: Reject huge payloads before any parsing
 # - Content-Type validation AFTER size check: Validate header before body parsing
+# - Session Activity AFTER Content-Type: Check session before CSRF (invalid sessions don't need CSRF check)
 # - CSRF BEFORE Audit (CRITICAL): Only audit legitimate requests, prevents audit log pollution
 # - Logging wraps everything to track all requests (including rate-limited)
 
@@ -407,9 +410,14 @@ app.add_middleware(IPRateLimitMiddleware)
 # Add request size limit middleware (AFTER rate limiting to prevent DoS)
 app.add_middleware(RequestSizeLimitMiddleware)
 
-# Add Content-Type validation middleware (AFTER size limit, BEFORE CSRF)
+# Add Content-Type validation middleware (AFTER size limit, BEFORE session activity)
 # Validates Content-Type header to prevent parser confusion attacks
 app.add_middleware(ContentTypeValidationMiddleware)
+
+# Add session activity tracking middleware (HIPAA §164.312(a)(2)(iii))
+# Enforces automatic logoff after idle timeout (default 30 minutes)
+# AFTER Content-Type validation, BEFORE CSRF (invalid sessions don't need CSRF check)
+app.add_middleware(SessionActivityMiddleware)
 
 # CRITICAL SECURITY FIX: CSRF must execute BEFORE Audit
 # This prevents audit log pollution from invalid CSRF requests

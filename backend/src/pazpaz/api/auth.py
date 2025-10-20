@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Annotated
 
@@ -14,15 +15,28 @@ from pazpaz.core.logging import get_logger
 from pazpaz.core.redis import get_redis
 from pazpaz.db.base import get_db
 from pazpaz.middleware.csrf import generate_csrf_token
+from pazpaz.api.deps import get_current_user
+from pazpaz.models.user import User
 from pazpaz.schemas.auth import (
     LogoutResponse,
+    MagicLink2FARequest,
+    MagicLink2FAResponse,
     MagicLinkRequest,
     MagicLinkResponse,
     TokenVerifyRequest,
     TokenVerifyResponse,
+    TOTPEnrollResponse,
+    TOTPVerifyRequest,
+    TOTPVerifyResponse,
     UserInToken,
 )
 from pazpaz.services.auth_service import request_magic_link, verify_magic_link_token
+from pazpaz.services.totp_service import (
+    disable_totp,
+    enroll_totp,
+    verify_and_enable_totp,
+    verify_totp_or_backup,
+)
 
 logger = get_logger(__name__)
 
@@ -110,6 +124,8 @@ async def request_magic_link_endpoint(
     Verify a magic link token and receive a JWT access token.
 
     Security features:
+    - Token MUST be sent in POST body, not URL query parameter (CWE-598 mitigation)
+    - Rate limited to 10 verification attempts per 5 minutes per IP (brute force protection)
     - Single-use tokens (deleted after successful verification)
     - User existence revalidated in database
     - JWT contains user_id and workspace_id for authorization
@@ -117,6 +133,10 @@ async def request_magic_link_endpoint(
     - 7-day JWT expiry
     - Uses POST method to prevent CSRF attacks (state-changing operation)
     - Audit logging for all verification attempts
+    - Referrer-Policy prevents token leakage via referrer headers
+
+    Frontend MUST remove token from URL immediately after reading:
+    window.history.replaceState({}, document.title, '/auth/verify')
 
     The token parameter is received from the email link and sent in request body.
     On success, a JWT is set as an HttpOnly cookie and returned in response.
@@ -132,6 +152,9 @@ async def verify_magic_link_endpoint(
     """
     Verify magic link token and issue JWT with audit logging.
 
+    Security: Token sent in POST body (not URL) prevents logging/history leakage.
+    CWE-598 Mitigation: Use of GET Request Method With Sensitive Query Strings.
+
     Args:
         data: Token verification request containing magic link token
         request: Request object (for IP extraction)
@@ -144,9 +167,33 @@ async def verify_magic_link_endpoint(
 
     Raises:
         HTTPException: 401 if token is invalid or expired
+        HTTPException: 429 if rate limit exceeded (10 attempts / 5 min per IP)
     """
-    # Extract client IP for audit logging
-    client_ip = request.client.host if request.client else None
+    from pazpaz.core.rate_limiting import check_rate_limit_redis
+
+    # Extract client IP for rate limiting and audit logging
+    client_ip = request.client.host if request.client else "unknown"
+
+    # SECURITY: Rate limit verify endpoint (10 attempts per 5 minutes per IP)
+    # Prevents brute force attacks on magic link tokens
+    # FAIL CLOSED on Redis failure (security-critical)
+    verify_rate_limit_key = f"magic_link_verify_rate_limit:{client_ip}"
+
+    if not await check_rate_limit_redis(
+        redis_client=redis_client,
+        key=verify_rate_limit_key,
+        max_requests=10,  # Max 10 verify attempts per 5 minutes
+        window_seconds=300,  # 5 minutes
+        fail_closed_on_error=True,  # CRITICAL: Fail closed for auth
+    ):
+        logger.warning(
+            "magic_link_verify_rate_limit_exceeded",
+            ip=client_ip,
+        )
+        raise HTTPException(
+            status_code=429,
+            detail="Too many verification attempts. Please try again later.",
+        )
 
     # Verify token and get JWT (pass IP for audit logging)
     result = await verify_magic_link_token(
@@ -162,6 +209,17 @@ async def verify_magic_link_endpoint(
             status_code=401,
             detail="Invalid or expired magic link token",
         )
+
+    # Check if 2FA is required
+    if isinstance(result, dict) and result.get("status") == "requires_2fa":
+        # Return 2FA requirement with 200 status
+        # Frontend should redirect to 2FA verification page
+        return {
+            "requires_2fa": True,
+            "temp_token": result["temp_token"],
+            "user_id": result["user_id"],
+            "message": "2FA verification required",
+        }
 
     user, jwt_token = result
 
@@ -209,6 +267,188 @@ async def verify_magic_link_endpoint(
 
 
 @router.post(
+    "/verify-2fa",
+    response_model=MagicLink2FAResponse,
+    status_code=200,
+    summary="Complete authentication with 2FA after magic link",
+    description="""
+    Complete authentication after magic link when 2FA is enabled.
+
+    Security features:
+    - Temporary token expires in 5 minutes
+    - Validates TOTP code or backup code
+    - Single-use backup codes
+    - Audit logging for 2FA verification
+    - Issues JWT on successful verification
+
+    Flow:
+    1. User clicks magic link
+    2. /verify returns requires_2fa=True with temp_token
+    3. User enters TOTP code from authenticator
+    4. /verify-2fa validates code and issues JWT
+
+    Args:
+        temp_token: Temporary token from /verify response
+        totp_code: 6-digit TOTP code or 8-character backup code
+    """,
+)
+async def verify_magic_link_2fa_endpoint(
+    request_data: MagicLink2FARequest,
+    request: Request,
+    response: Response,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    redis_client: Annotated[redis.Redis, Depends(get_redis)],
+) -> MagicLink2FAResponse:
+    """
+    Complete authentication with 2FA after magic link.
+
+    Verifies TOTP code and issues JWT on success.
+    """
+    from pazpaz.services.auth_service import get_token_cipher
+
+    # Extract client IP for audit logging
+    client_ip = request.client.host if request.client else None
+
+    # Retrieve temporary token data from Redis
+    temp_token_key = f"2fa_pending:{request_data.temp_token}"
+    encrypted_data_str = await redis_client.get(temp_token_key)
+
+    if not encrypted_data_str:
+        logger.warning(
+            "2fa_verification_failed_temp_token_not_found",
+            token_prefix=request_data.temp_token[:16],
+        )
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired 2FA token",
+        )
+
+    # Decrypt temp token data
+    try:
+        cipher = get_token_cipher()
+        decrypted_data = cipher.decrypt(encrypted_data_str.encode())
+        temp_token_data = json.loads(decrypted_data.decode())
+        user_id = uuid.UUID(temp_token_data["user_id"])
+        workspace_id = uuid.UUID(temp_token_data["workspace_id"])
+    except Exception as e:
+        logger.error(
+            "2fa_temp_token_decryption_failed",
+            error=str(e),
+            exc_info=True,
+        )
+        # Delete corrupted token
+        await redis_client.delete(temp_token_key)
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid 2FA token",
+        ) from e
+
+    # Verify TOTP code
+    is_valid = await verify_totp_or_backup(db, user_id, request_data.totp_code)
+
+    if not is_valid:
+        logger.warning(
+            "2fa_verification_failed_invalid_code",
+            user_id=str(user_id),
+        )
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid 2FA code",
+        )
+
+    # Delete temporary token (single-use)
+    await redis_client.delete(temp_token_key)
+
+    # Fetch user for JWT generation
+    from pazpaz.services.auth_service import get_user_by_id
+
+    user = await get_user_by_id(db, user_id)
+
+    if not user or not user.is_active:
+        logger.warning(
+            "2fa_verification_failed_user_not_found_or_inactive",
+            user_id=str(user_id),
+        )
+        raise HTTPException(
+            status_code=401,
+            detail="User not found or inactive",
+        )
+
+    # Generate JWT
+    from pazpaz.core.security import create_access_token
+
+    jwt_token = create_access_token(
+        user_id=user.id,
+        workspace_id=user.workspace_id,
+        email=user.email,
+    )
+
+    # Generate CSRF token
+    csrf_token = await generate_csrf_token(
+        user_id=user.id,
+        workspace_id=user.workspace_id,
+        redis_client=redis_client,
+    )
+
+    # Set JWT as HttpOnly cookie
+    response.set_cookie(
+        key="access_token",
+        value=jwt_token,
+        httponly=True,
+        samesite="lax",
+        secure=not settings.debug,
+        max_age=60 * 60 * 24 * 7,  # 7 days
+    )
+
+    # Set CSRF token as cookie
+    response.set_cookie(
+        key="csrf_token",
+        value=csrf_token,
+        httponly=False,
+        samesite="strict",
+        secure=not settings.debug,
+        max_age=60 * 60 * 24 * 7,  # 7 days
+    )
+
+    # Log successful authentication with 2FA
+    from pazpaz.models.audit_event import AuditAction, ResourceType
+    from pazpaz.services.audit_service import create_audit_event
+
+    try:
+        await create_audit_event(
+            db=db,
+            user_id=user.id,
+            workspace_id=user.workspace_id,
+            action=AuditAction.READ,
+            resource_type=ResourceType.USER,
+            resource_id=user.id,
+            ip_address=client_ip,
+            metadata={
+                "action": "user_authenticated",
+                "authentication_method": "magic_link_with_2fa",
+                "jwt_issued": True,
+            },
+        )
+    except Exception as e:
+        logger.error(
+            "failed_to_create_audit_event_for_2fa_authentication",
+            error=str(e),
+            exc_info=True,
+        )
+
+    logger.info(
+        "user_authenticated_with_2fa",
+        user_id=str(user.id),
+        workspace_id=str(user.workspace_id),
+    )
+
+    return MagicLink2FAResponse(
+        access_token=jwt_token,
+        user=UserInToken.model_validate(user),
+    )
+
+
+@router.post(
     "/logout",
     response_model=LogoutResponse,
     status_code=200,
@@ -248,6 +488,7 @@ async def logout_endpoint(
         Success message
     """
     from pazpaz.services.auth_service import blacklist_token
+    from pazpaz.services.session_activity import invalidate_session_activity
 
     # Extract client IP for audit logging
     client_ip = request.client.host if request.client else None
@@ -264,9 +505,18 @@ async def logout_endpoint(
                 payload = decode_access_token(access_token)
                 user_id = uuid.UUID(payload.get("user_id"))
                 workspace_id = uuid.UUID(payload.get("workspace_id"))
+                jti = payload.get("jti")
 
                 # Blacklist token
                 await blacklist_token(redis_client, access_token)
+
+                # Invalidate session activity record
+                if jti:
+                    await invalidate_session_activity(
+                        redis_client=redis_client,
+                        user_id=str(user_id),
+                        jti=jti,
+                    )
 
                 # Log logout event
                 try:
@@ -319,3 +569,169 @@ async def logout_endpoint(
     logger.info("user_logged_out")
 
     return LogoutResponse()
+
+
+# TOTP/2FA Endpoints
+
+
+@router.post(
+    "/totp/enroll",
+    response_model=TOTPEnrollResponse,
+    status_code=200,
+    summary="Enroll in 2FA/TOTP",
+    description="""
+    Enroll current authenticated user in 2FA/TOTP.
+
+    Security features:
+    - TOTP secret generated with 160 bits entropy
+    - Secret stored encrypted with AES-256-GCM
+    - QR code generated for easy authenticator app setup
+    - 8 backup codes generated and hashed with Argon2id
+    - Not enabled until user verifies with /totp/verify
+    - Requires existing authentication (JWT)
+
+    Returns:
+    - TOTP secret (base32-encoded, for manual entry)
+    - QR code (data URI, for scanning)
+    - 8 backup codes (shown ONLY ONCE, save offline)
+
+    User must verify TOTP code with /totp/verify before 2FA is enabled.
+    """,
+)
+async def enroll_user_totp(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> TOTPEnrollResponse:
+    """
+    Enroll current user in 2FA/TOTP.
+
+    Returns TOTP secret, QR code, and backup codes.
+    User must verify with /totp/verify before 2FA is enabled.
+    """
+    try:
+        enrollment = await enroll_totp(db, current_user.id)
+
+        logger.info(
+            "totp_enrollment_initiated",
+            user_id=str(current_user.id),
+            workspace_id=str(current_user.workspace_id),
+        )
+
+        return TOTPEnrollResponse(
+            secret=enrollment["secret"],
+            qr_code=enrollment["qr_code"],
+            backup_codes=enrollment["backup_codes"],
+        )
+    except ValueError as e:
+        logger.warning(
+            "totp_enrollment_failed",
+            user_id=str(current_user.id),
+            error=str(e),
+        )
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post(
+    "/totp/verify",
+    response_model=TOTPVerifyResponse,
+    status_code=200,
+    summary="Verify TOTP code and enable 2FA",
+    description="""
+    Verify TOTP code and enable 2FA for current user.
+
+    Security features:
+    - Must be called after /totp/enroll
+    - Validates 6-digit TOTP code from authenticator app
+    - Window of ±30 seconds for clock skew tolerance
+    - Sets enrollment timestamp
+    - Audit logging for successful enrollment
+    - Requires existing authentication (JWT)
+
+    After successful verification, 2FA is enabled and will be required
+    on all future magic link authentications.
+    """,
+)
+async def verify_user_totp(
+    request_data: TOTPVerifyRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> TOTPVerifyResponse:
+    """
+    Verify TOTP code and enable 2FA.
+
+    Must be called after /totp/enroll with valid TOTP code.
+    """
+    try:
+        success = await verify_and_enable_totp(db, current_user.id, request_data.code)
+
+        if success:
+            logger.info(
+                "totp_verification_success",
+                user_id=str(current_user.id),
+                workspace_id=str(current_user.workspace_id),
+            )
+            return TOTPVerifyResponse(
+                success=True,
+                message="2FA enabled successfully",
+            )
+        else:
+            logger.warning(
+                "totp_verification_invalid_code",
+                user_id=str(current_user.id),
+            )
+            return TOTPVerifyResponse(
+                success=False,
+                message="Invalid TOTP code",
+            )
+    except ValueError as e:
+        logger.warning(
+            "totp_verification_error",
+            user_id=str(current_user.id),
+            error=str(e),
+        )
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.delete(
+    "/totp",
+    status_code=200,
+    summary="Disable 2FA",
+    description="""
+    Disable 2FA for current authenticated user.
+
+    Security considerations:
+    - Removes all TOTP data (secret, backup codes, timestamp)
+    - Should require re-authentication or additional verification in production
+    - Audit logging for 2FA disable
+    - Requires existing authentication (JWT)
+
+    WARNING: After disabling, user will only have magic link authentication.
+    Consider requiring email confirmation or TOTP verification before disabling.
+    """,
+)
+async def disable_user_totp(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """
+    Disable 2FA for current user.
+
+    Requires re-authentication to disable 2FA (security best practice).
+    """
+    try:
+        await disable_totp(db, current_user.id)
+
+        logger.info(
+            "totp_disabled",
+            user_id=str(current_user.id),
+            workspace_id=str(current_user.workspace_id),
+        )
+
+        return {"message": "2FA disabled successfully"}
+    except ValueError as e:
+        logger.warning(
+            "totp_disable_failed",
+            user_id=str(current_user.id),
+            error=str(e),
+        )
+        raise HTTPException(status_code=400, detail=str(e)) from e

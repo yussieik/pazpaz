@@ -331,9 +331,12 @@ async def verify_magic_link_token(
     db: AsyncSession,
     redis_client: redis.Redis,
     request_ip: str | None = None,
-) -> tuple[User, str] | None:
+) -> tuple[User, str] | dict | None:
     """
     Verify magic link token and generate JWT with brute force detection and audit logging.
+
+    If user has 2FA enabled, returns a dict with status='requires_2fa' and temporary token
+    for the 2FA verification step. Otherwise returns tuple of (User, JWT token).
 
     Args:
         token: Magic link token
@@ -342,7 +345,9 @@ async def verify_magic_link_token(
         request_ip: Request IP address for audit logging (optional)
 
     Returns:
-        Tuple of (User, JWT token) if valid, None if invalid/expired
+        - Tuple of (User, JWT token) if valid and 2FA not enabled
+        - Dict with {'status': 'requires_2fa', 'user_id': str, 'temp_token': str} if 2FA enabled
+        - None if invalid/expired
 
     Security:
         - Token is single-use (deleted after verification)
@@ -351,6 +356,7 @@ async def verify_magic_link_token(
         - Brute force detection (100 failed attempts = 5-min lockout)
         - Token data decrypted from Redis
         - Audit logging for all verification attempts
+        - 2FA check before issuing JWT
 
     Raises:
         HTTPException: If brute force lockout is active
@@ -476,7 +482,43 @@ async def verify_magic_link_token(
         # Success - reset attempt counter
         await redis_client.delete(attempt_key)
 
-        # Generate JWT
+        # Check if 2FA is enabled
+        if user.totp_enabled:
+            # Store temporary token in Redis for 2FA verification (5 minutes)
+            temp_token = secrets.token_urlsafe(48)  # 384-bit token
+            temp_token_key = f"2fa_pending:{temp_token}"
+            temp_token_data = {
+                "user_id": str(user.id),
+                "workspace_id": str(user.workspace_id),
+                "email": user.email,
+            }
+
+            # Encrypt temp token data
+            cipher = get_token_cipher()
+            encrypted_data = cipher.encrypt(json.dumps(temp_token_data).encode())
+
+            # Store with 5-minute expiry
+            await redis_client.setex(temp_token_key, 300, encrypted_data.decode())
+
+            # Delete magic link token (single-use)
+            token_key = f"magic_link:{token}"
+            await redis_client.delete(token_key)
+
+            logger.info(
+                "magic_link_verified_2fa_required",
+                user_id=str(user.id),
+                workspace_id=str(user.workspace_id),
+            )
+
+            # Return 2FA requirement
+            return {
+                "status": "requires_2fa",
+                "user_id": str(user.id),
+                "email": user.email,
+                "temp_token": temp_token,
+            }
+
+        # No 2FA required - generate JWT
         jwt_token = create_access_token(
             user_id=user.id,
             workspace_id=user.workspace_id,

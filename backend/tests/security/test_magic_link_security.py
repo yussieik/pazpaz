@@ -6,17 +6,22 @@ This module consolidates all magic link security tests:
 - Brute force detection (100 attempts = 5-min lockout)
 - /verify endpoint POST-only (CSRF bypass prevention)
 - Token validation and expiration
+- CWE-598 mitigation (token in POST body, not URL)
+- Rate limiting on verify endpoint (10 attempts / 5 min per IP)
+- Referrer-Policy header prevents token leakage
 
 Security Requirements:
 - OWASP A02:2021 - Cryptographic Failures
 - OWASP A07:2021 - Identification and Authentication Failures
 - CWE-352 - Cross-Site Request Forgery (CSRF)
+- CWE-598 - Use of GET Request Method With Sensitive Query Strings
 
 References:
 - Week 2, Task 2.1 - Increase token entropy to 384 bits
 - Week 2, Task 2.2 - Encrypt magic link tokens in Redis
 - Week 2, Task 2.3 - Brute force detection
 - Week 1, Task 1.4 - Fix /verify CSRF bypass
+- Magic Link Token Security Enhancement (CWE-598 mitigation)
 """
 
 from __future__ import annotations
@@ -186,7 +191,12 @@ class TestBruteForceDetection:
         db: AsyncSession,
         redis_client,
     ):
-        """Verify successful login resets failed attempt counter."""
+        """Verify successful login resets failed attempt counter.
+
+        Note: This test now accounts for the new rate limiting (10 attempts / 5 min).
+        After 10 failed attempts, further attempts are rate limited (429).
+        We test that failed_attempts counter increments up to rate limit.
+        """
         user = User(
             id=uuid.uuid4(),
             workspace_id=workspace_1.id,
@@ -198,14 +208,14 @@ class TestBruteForceDetection:
         db.add(user)
         await db.commit()
 
-        # Make some failed attempts
-        for _ in range(50):
+        # Make 5 failed attempts (under rate limit of 10)
+        for _ in range(5):
             fake_token = secrets.token_urlsafe(48)
             await client.post("/api/v1/auth/verify", json={"token": fake_token})
 
         attempts = await redis_client.get("magic_link_failed_attempts")
         assert attempts is not None
-        assert int(attempts) == 50
+        assert int(attempts) == 5
 
         # Generate valid token
         valid_token = secrets.token_urlsafe(48)
@@ -330,3 +340,161 @@ class TestVerifySchemaValidation:
             json={"token": long_token},
         )
         assert response.status_code == 422
+
+
+class TestVerifyEndpointRateLimiting:
+    """Test rate limiting on verify endpoint (CWE-598 defense-in-depth)."""
+
+    async def test_verify_endpoint_rate_limit_per_ip(
+        self,
+        client: AsyncClient,
+        redis_client,
+    ):
+        """Verify endpoint should rate limit after 10 attempts per IP."""
+        # Make 10 requests (should not be rate limited)
+        for i in range(10):
+            response = await client.post(
+                "/api/v1/auth/verify",
+                json={"token": f"invalid-token-{i:02d}" + "x" * 50},  # 64 char tokens
+            )
+            # May be 401 (invalid token) or 422 (validation error), but not 429
+            assert response.status_code in (
+                200,
+                401,
+                422,
+            ), f"Attempt {i+1}: Expected 200/401/422, got {response.status_code}"
+
+        # 11th request should be rate limited
+        response = await client.post(
+            "/api/v1/auth/verify",
+            json={"token": "invalid-token-11" + "x" * 50},
+        )
+        assert response.status_code == 429
+        assert "Too many verification attempts" in response.json()["detail"]
+
+    async def test_verify_rate_limit_prevents_brute_force(
+        self,
+        client: AsyncClient,
+        redis_client,
+    ):
+        """Rate limiting prevents brute force attacks on magic link tokens."""
+        # Simulate brute force: try 15 different tokens rapidly
+        successful_requests = 0
+        rate_limited_requests = 0
+
+        for i in range(15):
+            token = secrets.token_urlsafe(48)
+            response = await client.post(
+                "/api/v1/auth/verify",
+                json={"token": token},
+            )
+
+            if response.status_code in (200, 401, 422):
+                successful_requests += 1
+            elif response.status_code == 429:
+                rate_limited_requests += 1
+
+        # First 10 should succeed (or fail validation), rest should be rate limited
+        assert successful_requests == 10, f"Expected 10 successful, got {successful_requests}"
+        assert rate_limited_requests == 5, f"Expected 5 rate limited, got {rate_limited_requests}"
+
+
+class TestReferrerPolicyHeader:
+    """Test referrer policy header (prevents token leakage via referrer)."""
+
+    async def test_referrer_policy_header_present_on_all_responses(
+        self,
+        client: AsyncClient,
+    ):
+        """All responses should include Referrer-Policy header."""
+        # Test various endpoints
+        endpoints = [
+            ("/api/v1/health", "GET", {}),
+            ("/api/v1/auth/magic-link", "POST", {"email": "test@example.com"}),
+            ("/api/v1/auth/verify", "POST", {"token": "x" * 64}),
+        ]
+
+        for path, method, data in endpoints:
+            if method == "GET":
+                response = await client.get(path)
+            elif method == "POST":
+                response = await client.post(path, json=data)
+
+            assert "Referrer-Policy" in response.headers, f"Missing header on {method} {path}"
+
+            policy = response.headers["Referrer-Policy"]
+
+            # Should be one of these secure values
+            assert policy in (
+                "strict-origin-when-cross-origin",
+                "no-referrer",
+                "strict-origin",
+            ), f"Insecure policy '{policy}' on {method} {path}"
+
+    async def test_verify_endpoint_has_strict_referrer_policy(
+        self,
+        client: AsyncClient,
+    ):
+        """Verify endpoint should have strict referrer policy."""
+        response = await client.post(
+            "/api/v1/auth/verify",
+            json={"token": "x" * 64},
+        )
+
+        assert "Referrer-Policy" in response.headers
+
+        policy = response.headers["Referrer-Policy"]
+
+        # strict-origin-when-cross-origin: sends full URL for same-origin,
+        # origin only for cross-origin, nothing for HTTP downgrade
+        assert policy == "strict-origin-when-cross-origin"
+
+
+class TestSecurityHeadersComprehensive:
+    """Test comprehensive security headers (defense-in-depth)."""
+
+    async def test_all_security_headers_present(
+        self,
+        client: AsyncClient,
+    ):
+        """Verify endpoint should include all security headers."""
+        response = await client.post(
+            "/api/v1/auth/verify",
+            json={"token": "x" * 64},
+        )
+
+        # Required security headers
+        required_headers = [
+            "Content-Security-Policy",
+            "Referrer-Policy",
+            "X-Content-Type-Options",
+            "X-Frame-Options",
+            "Permissions-Policy",
+        ]
+
+        for header in required_headers:
+            assert header in response.headers, f"Missing security header: {header}"
+
+    async def test_x_content_type_options_nosniff(
+        self,
+        client: AsyncClient,
+    ):
+        """X-Content-Type-Options should be set to nosniff."""
+        response = await client.post(
+            "/api/v1/auth/verify",
+            json={"token": "x" * 64},
+        )
+
+        assert response.headers.get("X-Content-Type-Options") == "nosniff"
+
+    async def test_x_frame_options_deny(
+        self,
+        client: AsyncClient,
+    ):
+        """X-Frame-Options should be set to DENY (clickjacking prevention)."""
+        response = await client.post(
+            "/api/v1/auth/verify",
+            json={"token": "x" * 64},
+        )
+
+        assert response.headers.get("X-Frame-Options") == "DENY"
