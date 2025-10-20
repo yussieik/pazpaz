@@ -27,16 +27,19 @@ class TokenVerifyRequest(BaseModel):
     """Request schema for magic link token verification.
 
     Security: Token length validation prevents malformed or suspicious tokens.
-    - Min 32 chars: Ensures sufficient entropy (256 bits for URL-safe base64)
+    - Min 32 chars: Ensures sufficient entropy (minimum 256 bits for URL-safe base64)
     - Max 128 chars: Prevents buffer overflow or DOS attacks via oversized tokens
+    - 384-bit tokens: 48 bytes base64url encoded = 64 characters
     """
 
     token: str = Field(
         ...,
-        description="Magic link token from email",
-        min_length=32,
-        max_length=128,
-        examples=["abc123def456ghi789jkl012mno345pqr678stu901vwx234yz"],
+        description="Magic link token from email (384-bit entropy)",
+        min_length=32,  # Minimum 256-bit tokens
+        max_length=128,  # Maximum to accommodate 384-bit tokens (64 chars) + margin
+        examples=[
+            "abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567890ABCD"
+        ],  # 64 char example for 384-bit token
     )
 
 

@@ -5,12 +5,16 @@ from __future__ import annotations
 import json
 import secrets
 import uuid
+from base64 import urlsafe_b64encode
+from hashlib import sha256
 
 import redis.asyncio as redis
+from cryptography.fernet import Fernet
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pazpaz.core.config import settings
 from pazpaz.core.logging import get_logger
 from pazpaz.core.rate_limiting import check_rate_limit_redis
 from pazpaz.core.security import create_access_token
@@ -26,6 +30,127 @@ MAGIC_LINK_EXPIRY_SECONDS = 60 * 10
 RATE_LIMIT_MAX_REQUESTS = 3
 RATE_LIMIT_WINDOW_SECONDS = 60 * 60
 
+# Brute force detection (100 failed attempts = 5-min lockout)
+BRUTE_FORCE_THRESHOLD = 100
+BRUTE_FORCE_LOCKOUT_SECONDS = 300  # 5 minutes
+
+
+def get_token_cipher() -> Fernet:
+    """
+    Get Fernet cipher for encrypting tokens in Redis.
+
+    Derives encryption key from SECRET_KEY to avoid additional key management.
+    This provides defense-in-depth protection against Redis memory dumps.
+
+    Returns:
+        Fernet cipher instance
+
+    Security:
+        - Derives 32-byte key from SECRET_KEY using SHA256
+        - Uses Fernet (symmetric encryption with HMAC authentication)
+        - Protects token data at rest in Redis
+    """
+    # Derive 32-byte key from SECRET_KEY
+    key_material = sha256(settings.secret_key.encode()).digest()
+    key = urlsafe_b64encode(key_material)
+    return Fernet(key)
+
+
+async def store_magic_link_token(
+    redis_client: redis.Redis,
+    token: str,
+    user_id: uuid.UUID,
+    workspace_id: uuid.UUID,
+    email: str,
+    expiry_seconds: int,
+) -> None:
+    """
+    Store magic link token data in Redis with encryption.
+
+    Encrypts token data before storing to protect against Redis memory dumps
+    or unauthorized Redis access (defense-in-depth).
+
+    Args:
+        redis_client: Redis client
+        token: Magic link token (384-bit)
+        user_id: User ID
+        workspace_id: Workspace ID
+        email: User email
+        expiry_seconds: Token expiration time in seconds
+
+    Security:
+        - Encrypts all token data with Fernet (AES-128 + HMAC)
+        - Token data never stored in plaintext in Redis
+        - Encryption key derived from SECRET_KEY
+    """
+    # Prepare token data
+    token_data = {
+        "user_id": str(user_id),
+        "workspace_id": str(workspace_id),
+        "email": email,
+    }
+
+    # Encrypt token data before storing in Redis (defense-in-depth)
+    cipher = get_token_cipher()
+    encrypted_data = cipher.encrypt(json.dumps(token_data).encode())
+
+    # Store encrypted data in Redis
+    token_key = f"magic_link:{token}"
+    await redis_client.setex(
+        token_key,
+        expiry_seconds,
+        encrypted_data.decode(),
+    )
+
+    logger.debug(
+        "magic_link_token_stored_encrypted",
+        user_id=str(user_id),
+        expiry_seconds=expiry_seconds,
+    )
+
+
+async def retrieve_magic_link_token(
+    redis_client: redis.Redis,
+    token: str,
+) -> dict[str, str] | None:
+    """
+    Retrieve and decrypt magic link token data from Redis.
+
+    Args:
+        redis_client: Redis client
+        token: Magic link token
+
+    Returns:
+        Token data dictionary or None if not found/invalid
+
+    Security:
+        - Decrypts token data from Redis
+        - Returns None if token not found or decryption fails
+        - Deletes corrupted tokens automatically
+    """
+    token_key = f"magic_link:{token}"
+    encrypted_data_str = await redis_client.get(token_key)
+
+    if not encrypted_data_str:
+        return None
+
+    try:
+        # Decrypt token data
+        cipher = get_token_cipher()
+        decrypted_data = cipher.decrypt(encrypted_data_str.encode())
+        token_data = json.loads(decrypted_data.decode())
+        return token_data
+
+    except Exception as e:
+        logger.error(
+            "magic_link_token_decryption_failed",
+            error=str(e),
+            exc_info=True,
+        )
+        # Delete corrupted token
+        await redis_client.delete(token_key)
+        return None
+
 
 async def request_magic_link(
     email: str,
@@ -39,7 +164,8 @@ async def request_magic_link(
     Security features:
     - Rate limiting: 3 requests per hour per IP
     - Generic response to prevent email enumeration
-    - 256-bit entropy tokens
+    - 384-bit entropy tokens (quantum-resistant margin)
+    - Token data encrypted in Redis (defense-in-depth)
     - 10-minute expiry
 
     Args:
@@ -95,21 +221,19 @@ async def request_magic_link(
         # Return success to prevent user status enumeration
         return
 
-    # Generate secure token (256-bit entropy)
-    token = secrets.token_urlsafe(32)
+    # Generate secure token (384-bit entropy for defense-in-depth)
+    # secrets.token_urlsafe(48) generates 48 bytes * 8 bits = 384 bits
+    # This provides additional security margin against theoretical quantum attacks
+    token = secrets.token_urlsafe(48)  # 48 bytes = 384 bits
 
-    # Store token in Redis with user data
-    token_data = {
-        "user_id": str(user.id),
-        "workspace_id": str(user.workspace_id),
-        "email": user.email,
-    }
-
-    token_key = f"magic_link:{token}"
-    await redis_client.setex(
-        token_key,
-        MAGIC_LINK_EXPIRY_SECONDS,
-        json.dumps(token_data),
+    # Store token with encryption (defense-in-depth)
+    await store_magic_link_token(
+        redis_client=redis_client,
+        token=token,
+        user_id=user.id,
+        workspace_id=user.workspace_id,
+        email=user.email,
+        expiry_seconds=MAGIC_LINK_EXPIRY_SECONDS,
     )
 
     # Send magic link email
@@ -128,7 +252,7 @@ async def verify_magic_link_token(
     redis_client: redis.Redis,
 ) -> tuple[User, str] | None:
     """
-    Verify magic link token and generate JWT.
+    Verify magic link token and generate JWT with brute force detection.
 
     Args:
         token: Magic link token
@@ -142,54 +266,109 @@ async def verify_magic_link_token(
         - Token is single-use (deleted after verification)
         - User existence is revalidated in database
         - JWT contains workspace_id for workspace scoping
+        - Brute force detection (100 failed attempts = 5-min lockout)
+        - Token data decrypted from Redis
+
+    Raises:
+        HTTPException: If brute force lockout is active
     """
-    # Retrieve token data from Redis
-    token_key = f"magic_link:{token}"
-    token_data_str = await redis_client.get(token_key)
+    # Track failed verification attempts (detect brute force)
+    attempt_key = "magic_link_failed_attempts"
 
-    if not token_data_str:
-        logger.warning("magic_link_token_not_found_or_expired", token=token[:16])
-        return None
-
-    # Parse token data
     try:
-        token_data = json.loads(token_data_str)
-        user_id = uuid.UUID(token_data["user_id"])
-    except (json.JSONDecodeError, KeyError, ValueError) as e:
-        logger.error("magic_link_token_parse_error", error=str(e))
-        return None
+        # Check if too many failed attempts globally (brute force detection)
+        failed_attempts_str = await redis_client.get(attempt_key)
 
-    # Validate user still exists and is active
-    query = select(User).where(User.id == user_id)
-    result = await db.execute(query)
-    user = result.scalar_one_or_none()
+        if failed_attempts_str:
+            failed_attempts = int(failed_attempts_str)
+            if failed_attempts >= BRUTE_FORCE_THRESHOLD:
+                lockout_remaining = await redis_client.ttl(attempt_key)
+                logger.critical(
+                    "magic_link_brute_force_detected",
+                    failed_attempts=failed_attempts,
+                    lockout_remaining=lockout_remaining,
+                )
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Too many failed login attempts. Try again in {lockout_remaining} seconds.",
+                )
 
-    if not user or not user.is_active:
-        logger.warning(
-            "magic_link_user_not_found_or_inactive",
-            user_id=str(user_id),
+        # Retrieve and decrypt token data
+        token_data = await retrieve_magic_link_token(redis_client, token)
+
+        if not token_data:
+            # Failed attempt - increment counter
+            await redis_client.incr(attempt_key)
+            await redis_client.expire(attempt_key, BRUTE_FORCE_LOCKOUT_SECONDS)
+
+            logger.warning(
+                "magic_link_token_not_found_or_expired",
+                token_prefix=token[:16],  # Log first 16 chars only
+            )
+            return None
+
+        # Parse token data
+        try:
+            user_id = uuid.UUID(token_data["user_id"])
+            workspace_id = uuid.UUID(token_data["workspace_id"])
+        except (KeyError, ValueError) as e:
+            # Failed attempt - increment counter
+            await redis_client.incr(attempt_key)
+            await redis_client.expire(attempt_key, BRUTE_FORCE_LOCKOUT_SECONDS)
+
+            logger.error("magic_link_token_parse_error", error=str(e))
+            return None
+
+        # Validate user still exists and is active
+        query = select(User).where(User.id == user_id)
+        result = await db.execute(query)
+        user = result.scalar_one_or_none()
+
+        if not user or not user.is_active:
+            # Failed verification - increment counter
+            await redis_client.incr(attempt_key)
+            await redis_client.expire(attempt_key, BRUTE_FORCE_LOCKOUT_SECONDS)
+
+            logger.warning(
+                "magic_link_verification_failed",
+                reason="user_not_found_or_inactive",
+                user_id=str(user_id),
+            )
+            # Delete invalid token
+            token_key = f"magic_link:{token}"
+            await redis_client.delete(token_key)
+            return None
+
+        # Success - reset attempt counter
+        await redis_client.delete(attempt_key)
+
+        # Generate JWT
+        jwt_token = create_access_token(
+            user_id=user.id,
+            workspace_id=user.workspace_id,
+            email=user.email,
         )
-        # Delete invalid token
+
+        # Delete token from Redis (single-use)
+        token_key = f"magic_link:{token}"
         await redis_client.delete(token_key)
+
+        logger.info(
+            "magic_link_verified",
+            user_id=str(user.id),
+            workspace_id=str(user.workspace_id),
+        )
+
+        return user, jwt_token
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Any error during verification counts as failed attempt
+        await redis_client.incr(attempt_key)
+        await redis_client.expire(attempt_key, BRUTE_FORCE_LOCKOUT_SECONDS)
+        logger.error("magic_link_verification_error", error=str(e), exc_info=True)
         return None
-
-    # Generate JWT
-    jwt_token = create_access_token(
-        user_id=user.id,
-        workspace_id=user.workspace_id,
-        email=user.email,
-    )
-
-    # Delete token from Redis (single-use)
-    await redis_client.delete(token_key)
-
-    logger.info(
-        "magic_link_verified",
-        user_id=str(user.id),
-        workspace_id=str(user.workspace_id),
-    )
-
-    return user, jwt_token
 
 
 async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
