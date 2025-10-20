@@ -77,8 +77,12 @@ class TestAuthenticationSecurity:
         # Simulate logout by blacklisting token
         # Extract JTI from token for blacklisting
         from jose import jwt as jose_jwt
+        from pazpaz.core.config import settings
+
         payload = jose_jwt.decode(
             jwt_token,
+            settings.secret_key,
+            algorithms=["HS256"],
             options={"verify_signature": False}  # Just reading payload for test
         )
         jti = payload.get("jti")
