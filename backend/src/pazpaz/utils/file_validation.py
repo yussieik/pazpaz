@@ -287,11 +287,116 @@ def validate_mime_extension_match(detected_mime: FileType, extension: str) -> No
     )
 
 
+def detect_polyglot_patterns(file_content: bytes) -> None:
+    """
+    Detect polyglot file patterns (valid image + embedded scripts).
+
+    A polyglot file is a valid file in multiple formats simultaneously.
+    For example, a JPEG that also contains valid PHP or HTML code.
+
+    This is a CRITICAL security check when ClamAV is unavailable, as polyglot
+    files can bypass basic MIME type and extension validation.
+
+    Attack Scenario:
+    1. Attacker creates valid JPEG image
+    2. Appends PHP/HTML script after JPEG end marker (FFD9)
+    3. File passes MIME validation (valid JPEG header)
+    4. File passes content validation (PIL can parse it)
+    5. If served by misconfigured server, script executes
+
+    Detection Strategy:
+    - Check for executable code markers after image data
+    - Look for PHP tags: <?php, <?, <?=
+    - Look for HTML script tags: <script>, <html>
+    - Look for shell commands: #!/bin/sh, #!/usr/bin/env
+    - Check for trailing executable content after image end markers
+
+    Args:
+        file_content: Raw file bytes to scan
+
+    Raises:
+        FileContentError: If polyglot patterns detected
+
+    Security Note:
+    This is a basic polyglot detector for defense-in-depth when ClamAV
+    is unavailable (development mode). It catches common patterns but is
+    NOT a replacement for proper malware scanning. In production, ClamAV
+    MUST be available (enforced by fail-closed policy).
+    """
+    # Patterns to detect in file content (case-insensitive)
+    # These indicate embedded executable code
+    dangerous_patterns = [
+        b"<?php",  # PHP opening tag
+        b"<? ",  # PHP short tag with space
+        b"<?=",  # PHP echo short tag
+        b"<script",  # HTML/JS script tag
+        b"<html",  # HTML document
+        b"#!/bin/sh",  # Shell script shebang
+        b"#!/bin/bash",  # Bash script shebang
+        b"#!/usr/bin/env",  # Generic script shebang
+        b"eval(",  # JavaScript/Python eval (common in exploits)
+        b"exec(",  # PHP/Python exec (command execution)
+        b"system(",  # PHP system() call
+        b"passthru(",  # PHP passthru() call
+        b"shell_exec(",  # PHP shell_exec() call
+    ]
+
+    # Convert content to lowercase for case-insensitive matching
+    content_lower = file_content.lower()
+
+    # Check for dangerous patterns
+    for pattern in dangerous_patterns:
+        if pattern in content_lower:
+            # Found suspicious pattern - reject file
+            logger.warning(
+                "polyglot_pattern_detected",
+                pattern=pattern.decode("utf-8", errors="replace"),
+                file_size=len(file_content),
+                reason="Embedded executable code detected in image file",
+            )
+            raise FileContentError(
+                f"File contains suspicious pattern that may indicate a polyglot attack. "
+                f"Upload rejected for security."
+            )
+
+    # Additional check: Look for trailing data after JPEG end marker
+    # JPEG files end with FFD9 marker - anything after is suspicious
+    if file_content.startswith(b"\xff\xd8"):  # JPEG magic bytes
+        # Find last occurrence of JPEG end marker
+        jpeg_end_marker = b"\xff\xd9"
+        last_marker_pos = file_content.rfind(jpeg_end_marker)
+
+        if last_marker_pos != -1:
+            # Check if there's significant data after the end marker
+            trailing_data = file_content[last_marker_pos + 2 :]
+            # Allow up to 100 bytes of trailing data (metadata, thumbnails)
+            # But reject files with large trailing sections (likely polyglot)
+            if len(trailing_data) > 100:
+                logger.warning(
+                    "suspicious_trailing_data_in_jpeg",
+                    trailing_bytes=len(trailing_data),
+                    file_size=len(file_content),
+                    reason="JPEG has large trailing data after end marker (possible polyglot)",
+                )
+                raise FileContentError(
+                    f"Image file has {len(trailing_data)} bytes of trailing data after "
+                    f"end marker. This may indicate a polyglot attack. Upload rejected for security."
+                )
+
+    logger.debug("polyglot_detection_passed", file_size=len(file_content))
+
+
 def validate_image_content(file_content: bytes, mime_type: FileType) -> None:
     """
     Validate image file can be parsed safely by PIL.
 
     Ensures file is actually a valid image and not malicious content.
+
+    Security Enhancements:
+    - Basic polyglot detection (when ClamAV unavailable)
+    - Format validation against declared MIME type
+    - Dimension sanity checks
+    - Decompression bomb prevention
 
     Args:
         file_content: Raw file bytes
@@ -301,6 +406,10 @@ def validate_image_content(file_content: bytes, mime_type: FileType) -> None:
         FileContentError: If image cannot be parsed or is corrupted
     """
     try:
+        # SECURITY: Check for polyglot patterns before PIL validation
+        # This catches images with embedded scripts (PHP, HTML, shell)
+        detect_polyglot_patterns(file_content)
+
         # Open image with PIL
         img = Image.open(io.BytesIO(file_content))
 

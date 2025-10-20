@@ -24,6 +24,7 @@ from pazpaz.utils.pagination import (
     calculate_pagination_offset,
     calculate_total_pages,
     get_query_total_count,
+    validate_pagination_params,
 )
 
 router = APIRouter(prefix="/clients", tags=["clients"])
@@ -211,6 +212,10 @@ async def list_clients(
         include_inactive=include_inactive,
         include_appointments=include_appointments,
     )
+
+    # SECURITY: Validate pagination parameters to prevent integer overflow
+    # This prevents database crashes from values like page=2**128
+    validate_pagination_params(page, page_size)
 
     # Calculate offset using utility
     offset = calculate_pagination_offset(page, page_size)

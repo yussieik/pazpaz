@@ -27,6 +27,7 @@ from pazpaz.core.redis import close_redis
 from pazpaz.middleware.audit import AuditMiddleware
 from pazpaz.middleware.content_type import ContentTypeValidationMiddleware
 from pazpaz.middleware.csrf import CSRFProtectionMiddleware
+from pazpaz.middleware.json_depth import JSONDepthValidationMiddleware
 from pazpaz.middleware.rate_limit import IPRateLimitMiddleware
 from pazpaz.middleware.request_size import RequestSizeLimitMiddleware
 from pazpaz.middleware.session_activity import SessionActivityMiddleware
@@ -658,15 +659,17 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # 2. RequestLoggingMiddleware - Log requests/responses (skip /health)
 # 3. IPRateLimitMiddleware - Global IP-based rate limiting (100/min, 1000/hr)
 # 4. RequestSizeLimitMiddleware - Check Content-Length BEFORE parsing body (DoS protection)
-# 5. ContentTypeValidationMiddleware - Validate Content-Type header (prevent parser confusion)
-# 6. SessionActivityMiddleware - Track activity and enforce idle timeout (HIPAA §164.312(a)(2)(iii))
-# 7. CSRFProtectionMiddleware - Validate CSRF tokens on state-changing operations (CRITICAL: BEFORE Audit)
-# 8. AuditMiddleware - Log data access/modifications (ONLY logs requests that pass CSRF validation)
+# 5. JSONDepthValidationMiddleware - Validate JSON nesting depth (DoS protection, NEW)
+# 6. ContentTypeValidationMiddleware - Validate Content-Type header (prevent parser confusion)
+# 7. SessionActivityMiddleware - Track activity and enforce idle timeout (HIPAA §164.312(a)(2)(iii))
+# 8. CSRFProtectionMiddleware - Validate CSRF tokens on state-changing operations (CRITICAL: BEFORE Audit)
+# 9. AuditMiddleware - Log data access/modifications (ONLY logs requests that pass CSRF validation)
 #
 # Why this order?
 # - Rate limiting EARLY: Block excessive requests before processing (DoS prevention)
 # - Size limit AFTER rate limiting: Reject huge payloads before any parsing
-# - Content-Type validation AFTER size check: Validate header before body parsing
+# - JSON depth AFTER size limit: Validate depth before Pydantic parsing (stack overflow prevention)
+# - Content-Type validation AFTER JSON depth: Validate header before further processing
 # - Session Activity AFTER Content-Type: Check session before CSRF (invalid sessions don't need CSRF check)
 # - CSRF BEFORE Audit (CRITICAL): Only audit legitimate requests, prevents audit log pollution
 # - Logging wraps everything to track all requests (including rate-limited)
@@ -685,7 +688,11 @@ app.add_middleware(IPRateLimitMiddleware)
 # Add request size limit middleware (AFTER rate limiting to prevent DoS)
 app.add_middleware(RequestSizeLimitMiddleware)
 
-# Add Content-Type validation middleware (AFTER size limit, BEFORE session activity)
+# Add JSON depth validation middleware (AFTER size limit, BEFORE Content-Type)
+# Prevents deeply nested JSON DoS attacks (stack overflow)
+app.add_middleware(JSONDepthValidationMiddleware)
+
+# Add Content-Type validation middleware (AFTER JSON depth, BEFORE session activity)
 # Validates Content-Type header to prevent parser confusion attacks
 app.add_middleware(ContentTypeValidationMiddleware)
 
