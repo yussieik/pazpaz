@@ -55,8 +55,20 @@ def event_loop():
     throughout the test session.
     """
     loop = asyncio.get_event_loop_policy().new_event_loop()
+    asyncio.set_event_loop(loop)
     yield loop
-    loop.close()
+
+    # Ensure all pending tasks are completed before closing
+    try:
+        pending = asyncio.all_tasks(loop)
+        for task in pending:
+            task.cancel()
+        if pending:
+            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+    except Exception:
+        pass  # Ignore cleanup errors
+    finally:
+        loop.close()
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
@@ -316,6 +328,9 @@ async def redis_client() -> AsyncGenerator[redis.Redis]:
 
     Uses a separate Redis database (database 1) to avoid conflicts with dev data.
     Flushes the test database before and after each test.
+
+    IMPORTANT: Creates a fresh connection pool for each test to avoid event loop
+    binding issues when tests run sequentially in the same session.
     """
     from pazpaz.core.config import settings
 
@@ -323,22 +338,37 @@ async def redis_client() -> AsyncGenerator[redis.Redis]:
     # Replace database 0 with database 1 for testing
     redis_url = f"redis://:{settings.redis_password}@localhost:6379/1"
 
+    # Create a NEW connection pool for each test
+    # This ensures the connection is bound to the current event loop
     client = redis.from_url(
         redis_url,
         encoding="utf-8",
         decode_responses=True,
+        # Disable connection pooling to avoid event loop binding issues
+        single_connection_client=True,
     )
 
     # Clear test database before test
-    await client.flushdb()
+    try:
+        await client.flushdb()
+    except Exception as e:
+        # If flushdb fails on setup, close client and re-raise
+        await client.aclose()
+        raise
 
     yield client
 
-    # Clear test database after test
-    await client.flushdb()
-    await (
-        client.aclose()
-    )  # Use aclose() instead of close() to avoid deprecation warning
+    # Clear test database after test - wrap in try-except to handle event loop closure
+    try:
+        await client.flushdb()
+    except Exception:
+        pass  # Ignore flush errors during teardown
+    finally:
+        # Always close the client
+        try:
+            await client.aclose()
+        except Exception:
+            pass  # Ignore close errors during teardown
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -368,6 +398,11 @@ async def client(
 
     async def override_get_redis():
         return redis_client
+
+    # Set global Redis client to our test client to ensure middleware uses it
+    import pazpaz.core.redis
+
+    pazpaz.core.redis._redis_client = redis_client
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_redis] = override_get_redis
@@ -416,6 +451,11 @@ async def client_with_csrf(
 
     async def override_get_redis():
         return redis_client
+
+    # Set global Redis client to our test client to ensure middleware uses it
+    import pazpaz.core.redis
+
+    pazpaz.core.redis._redis_client = redis_client
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_redis] = override_get_redis
@@ -841,6 +881,11 @@ async def authenticated_client(
 
     async def override_get_redis():
         return redis_client
+
+    # Set global Redis client to our test client to ensure middleware uses it
+    import pazpaz.core.redis
+
+    pazpaz.core.redis._redis_client = redis_client
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_redis] = override_get_redis
