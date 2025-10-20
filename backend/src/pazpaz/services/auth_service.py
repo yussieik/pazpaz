@@ -235,19 +235,21 @@ async def blacklist_token(redis_client: redis.Redis, token: str) -> None:
     Raises:
         ValueError: If token is invalid or missing JTI claim
     """
-    from datetime import datetime
+    from datetime import UTC, datetime
 
     from jose import jwt
+    from jose.exceptions import ExpiredSignatureError
 
     from pazpaz.core.config import settings
 
     try:
         # Decode token to extract JTI and expiration
+        # Use verify_exp=True to validate token before blacklisting
         payload = jwt.decode(
             token,
             settings.secret_key,
             algorithms=["HS256"],
-            options={"verify_exp": False},  # Don't verify expiry for blacklisting
+            options={"verify_exp": True},  # Validate it's not already expired
         )
 
         jti = payload.get("jti")
@@ -257,7 +259,7 @@ async def blacklist_token(redis_client: redis.Redis, token: str) -> None:
             raise ValueError("Token missing JTI or exp claim")
 
         # Calculate TTL (time until token expires)
-        now = datetime.now().timestamp()
+        now = datetime.now(UTC).timestamp()
         ttl = int(exp - now)
 
         if ttl <= 0:
@@ -271,6 +273,10 @@ async def blacklist_token(redis_client: redis.Redis, token: str) -> None:
 
         logger.info("jwt_token_blacklisted", jti=jti, ttl=ttl)
 
+    except ExpiredSignatureError:
+        logger.debug("attempted_to_blacklist_expired_token")
+        # Don't raise error, just skip blacklisting expired tokens
+        return
     except Exception as e:
         logger.error(
             "failed_to_blacklist_token",

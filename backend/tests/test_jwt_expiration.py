@@ -54,8 +54,8 @@ class TestJWTExpirationValidation:
     async def test_expired_token_is_rejected(
         self, workspace_1: Workspace, test_user_ws1: User
     ):
-        """Expired token should be rejected with JWTError."""
-        from jose import JWTError
+        """Expired token should be rejected with HTTPException."""
+        from fastapi import HTTPException
 
         # Create token that expired 1 hour ago
         token = create_access_token(
@@ -65,9 +65,12 @@ class TestJWTExpirationValidation:
             expires_delta=timedelta(hours=-1),  # Negative delta = already expired
         )
 
-        # Should raise JWTError when decoding
-        with pytest.raises(JWTError, match="Invalid or expired token"):
+        # Should raise HTTPException when decoding
+        with pytest.raises(HTTPException) as exc_info:
             decode_access_token(token)
+
+        assert exc_info.value.status_code == 401
+        assert "expired" in exc_info.value.detail.lower()
 
     async def test_token_expiring_in_future_is_valid(
         self, workspace_1: Workspace, test_user_ws1: User
@@ -94,7 +97,8 @@ class TestJWTExpirationValidation:
         self, workspace_1: Workspace, test_user_ws1: User
     ):
         """Token without 'exp' claim should be rejected."""
-        from jose import JWTError, jwt
+        from fastapi import HTTPException
+        from jose import jwt
 
         from pazpaz.core.config import settings
 
@@ -115,9 +119,11 @@ class TestJWTExpirationValidation:
             algorithm="HS256",
         )
 
-        # Should raise JWTError due to missing exp claim
-        with pytest.raises(JWTError, match="Invalid or expired token"):
+        # Should raise HTTPException due to missing exp claim
+        with pytest.raises(HTTPException) as exc_info:
             decode_access_token(malformed_token)
+
+        assert exc_info.value.status_code == 401
 
     async def test_blacklist_check_rejects_expired_token(
         self, workspace_1: Workspace, test_user_ws1: User, redis_client: redis.Redis
@@ -302,7 +308,7 @@ class TestJWTExpirationValidation:
         Defense-in-depth: Even if jose library validation passes,
         our manual check should catch expired tokens.
         """
-        from jose import JWTError
+        from fastapi import HTTPException
 
         # Create token that just expired
         expired_token = create_access_token(
@@ -313,8 +319,11 @@ class TestJWTExpirationValidation:
         )
 
         # Both jose validation and manual check should reject it
-        with pytest.raises(JWTError):
+        with pytest.raises(HTTPException) as exc_info:
             decode_access_token(expired_token)
+
+        assert exc_info.value.status_code == 401
+        assert "expired" in exc_info.value.detail.lower()
 
 
 class TestTokenBlacklistWithExpiration:
@@ -406,7 +415,7 @@ class TestExpirationEdgeCases:
         self, workspace_1: Workspace, test_user_ws1: User
     ):
         """Token expiring at current timestamp should be rejected."""
-        from jose import JWTError
+        from fastapi import HTTPException
 
         # Create token expiring right now (delta = 0)
         token = create_access_token(
@@ -417,8 +426,10 @@ class TestExpirationEdgeCases:
         )
 
         # Should be rejected (exp <= now)
-        with pytest.raises(JWTError):
+        with pytest.raises(HTTPException) as exc_info:
             decode_access_token(token)
+
+        assert exc_info.value.status_code == 401
 
     async def test_token_with_very_short_expiration(
         self, workspace_1: Workspace, test_user_ws1: User
@@ -443,7 +454,7 @@ class TestExpirationEdgeCases:
         self, workspace_1: Workspace, test_user_ws1: User
     ):
         """Multiple expired tokens should all be rejected."""
-        from jose import JWTError
+        from fastapi import HTTPException
 
         # Create 3 expired tokens with different expirations
         expired_tokens = [
@@ -469,5 +480,7 @@ class TestExpirationEdgeCases:
 
         # All should be rejected
         for expired_token in expired_tokens:
-            with pytest.raises(JWTError, match="Invalid or expired token"):
+            with pytest.raises(HTTPException) as exc_info:
                 decode_access_token(expired_token)
+
+            assert exc_info.value.status_code == 401

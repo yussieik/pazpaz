@@ -39,8 +39,10 @@ if not os.getenv("ENCRYPTION_MASTER_KEY"):
     load_dotenv(dotenv_path=env_path)
 
 # Test database URL - use separate test database
-TEST_DATABASE_URL = "postgresql+asyncpg://pazpaz:pazpaz@localhost:5432/pazpaz_test"
-# Use database 1 for tests - password will be added from environment
+# Get password from environment (should match running Docker container)
+TEST_DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "7ZkNSVfvKEbFi2D0uNFoPJzv8sXAYiGaSnXGbRWEoY")
+TEST_DATABASE_URL = f"postgresql+asyncpg://pazpaz:{TEST_DB_PASSWORD}@localhost:5432/pazpaz_test"
+# Use database 1 for tests
 TEST_REDIS_URL = "redis://localhost:6379/1"
 
 
