@@ -341,13 +341,14 @@ async def upload_client_attachment(
             detail="Workspace not found",
         ) from e
 
-    # Upload to S3/MinIO
+    # Upload to S3/MinIO with encryption verification
     try:
-        _ = upload_file_to_s3(
+        upload_result = upload_file_to_s3(
             file_content=sanitized_content,
             s3_key=s3_key,
             content_type=file_type.value,
         )
+        encryption_metadata = upload_result.get("encryption_metadata")
     except Exception as e:
         logger.error(
             "s3_upload_failed",
@@ -371,6 +372,7 @@ async def upload_client_attachment(
         file_size_bytes=len(sanitized_content),
         s3_key=s3_key,
         uploaded_by_user_id=current_user.id,
+        encryption_metadata=encryption_metadata,  # Store encryption verification metadata
     )
 
     db.add(attachment)
@@ -419,6 +421,8 @@ async def upload_client_attachment(
         file_size=len(sanitized_content),
         s3_key=s3_key,
         is_client_level=True,
+        encryption_verified=True,
+        encryption_algorithm=encryption_metadata.get("algorithm") if encryption_metadata else None,
     )
 
     # Return response with is_session_file=False

@@ -42,8 +42,11 @@ class TestS3EncryptionVerification:
         self, mock_s3_client, mock_ensure_bucket, mock_is_minio
     ):
         """Successful upload verifies encryption and returns metadata."""
-        # Mock successful upload
-        mock_s3_client.put_object.return_value = {"ETag": '"abc123"'}
+        # Mock successful upload with encryption headers
+        mock_s3_client.put_object.return_value = {
+            "ETag": '"abc123"',
+            "ServerSideEncryption": "AES256",
+        }
 
         # Mock successful encryption verification
         # Patch where the function is used, not where it's defined
@@ -61,6 +64,14 @@ class TestS3EncryptionVerification:
         assert result["encryption_verified"] is True
         assert result["key"] == "test.txt"
         assert result["size_bytes"] == 12
+
+        # NEW: Verify encryption metadata is returned
+        assert "encryption_metadata" in result
+        metadata = result["encryption_metadata"]
+        assert metadata["algorithm"] == "AES256"
+        assert metadata["s3_sse"] == "AES256"
+        assert metadata["etag"] == "abc123"
+        assert "verified_at" in metadata
 
     def test_upload_fails_if_encryption_verification_fails(
         self, mock_s3_client, mock_ensure_bucket, mock_is_minio

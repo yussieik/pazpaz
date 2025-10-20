@@ -137,3 +137,19 @@ class MagicLink2FAResponse(BaseModel):
     access_token: str = Field(..., description="JWT access token")
     token_type: str = Field(default="bearer", description="Token type")
     user: UserInToken = Field(..., description="Authenticated user information")
+
+
+class TOTPDisableRequest(BaseModel):
+    """Request to disable TOTP (requires verification)."""
+
+    totp_code: str = Field(
+        ...,
+        min_length=6,
+        max_length=8,
+        description="Current 6-digit TOTP code or 8-character backup code",
+        examples=["123456", "A1B2C3D4"],
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"totp_code": "123456"}}
+    )

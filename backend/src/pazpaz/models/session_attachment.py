@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import ForeignKey, Index, Integer, Text
-from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID
+from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pazpaz.db.base import Base
@@ -81,6 +81,11 @@ class SessionAttachment(Base):
     )
     deleted_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
+    )
+    encryption_metadata: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="S3 server-side encryption metadata for HIPAA compliance verification",
     )
 
     # Relationships

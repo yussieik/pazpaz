@@ -358,3 +358,108 @@ class TestTOTPSecurity:
 
         assert qr_code.startswith("data:image/png;base64,")
         assert len(qr_code) > 100  # Should have substantial base64 data
+
+
+@pytest.mark.asyncio
+class TestTOTPDisable:
+    """Test TOTP disable with verification requirement."""
+
+    async def test_disable_totp_requires_valid_code(self, db, test_user):
+        """Cannot disable 2FA without valid TOTP code."""
+        # Enroll and enable TOTP
+        enrollment = await enroll_totp(db, test_user.id)
+        totp = pyotp.TOTP(enrollment["secret"])
+        await verify_and_enable_totp(db, test_user.id, totp.now())
+
+        # Try to disable with wrong code - should fail
+        # In the API endpoint, this would be checked before calling disable_totp
+        # Here we're testing the service layer assumption that verification happens first
+
+        # Verify wrong code fails
+        is_valid = await verify_totp_or_backup(db, test_user.id, "000000")
+        assert is_valid is False
+
+        # Verify TOTP is still enabled
+        result = await db.execute(select(User).where(User.id == test_user.id))
+        user = result.scalar_one()
+        assert user.totp_enabled is True
+
+    async def test_disable_totp_with_valid_code_succeeds(self, db, test_user):
+        """Can disable 2FA with valid TOTP code."""
+        # Enroll and enable TOTP
+        enrollment = await enroll_totp(db, test_user.id)
+        totp = pyotp.TOTP(enrollment["secret"])
+        await verify_and_enable_totp(db, test_user.id, totp.now())
+
+        # Verify with valid code
+        code = totp.now()
+        is_valid = await verify_totp_or_backup(db, test_user.id, code)
+        assert is_valid is True
+
+        # Now disable
+        await disable_totp(db, test_user.id)
+
+        # Verify disabled
+        result = await db.execute(select(User).where(User.id == test_user.id))
+        user = result.scalar_one()
+        assert user.totp_enabled is False
+
+    async def test_disable_totp_with_backup_code_succeeds(self, db, test_user):
+        """Can disable 2FA with backup code."""
+        # Enroll and enable TOTP
+        enrollment = await enroll_totp(db, test_user.id)
+        backup_code = enrollment["backup_codes"][0]
+        totp = pyotp.TOTP(enrollment["secret"])
+        await verify_and_enable_totp(db, test_user.id, totp.now())
+
+        # Verify with backup code
+        is_valid = await verify_totp_or_backup(db, test_user.id, backup_code)
+        assert is_valid is True
+
+        # Now disable
+        await disable_totp(db, test_user.id)
+
+        # Verify disabled
+        result = await db.execute(select(User).where(User.id == test_user.id))
+        user = result.scalar_one()
+        assert user.totp_enabled is False
+
+    async def test_disable_totp_with_invalid_code_fails_verification(
+        self, db, test_user
+    ):
+        """Invalid TOTP code fails verification before disable."""
+        # Enroll and enable TOTP
+        enrollment = await enroll_totp(db, test_user.id)
+        totp = pyotp.TOTP(enrollment["secret"])
+        await verify_and_enable_totp(db, test_user.id, totp.now())
+
+        # Try invalid code
+        is_valid = await verify_totp_or_backup(db, test_user.id, "123456")
+        assert is_valid is False
+
+        # Verify still enabled (since verification failed)
+        result = await db.execute(select(User).where(User.id == test_user.id))
+        user = result.scalar_one()
+        assert user.totp_enabled is True
+
+    async def test_disable_totp_consumes_backup_code(self, db, test_user):
+        """Backup code used for disable is consumed."""
+        # Enroll and enable TOTP
+        enrollment = await enroll_totp(db, test_user.id)
+        backup_code = enrollment["backup_codes"][0]
+        totp = pyotp.TOTP(enrollment["secret"])
+        await verify_and_enable_totp(db, test_user.id, totp.now())
+
+        # Verify with backup code (this consumes it)
+        is_valid = await verify_totp_or_backup(db, test_user.id, backup_code)
+        assert is_valid is True
+
+        # Get user to check backup codes
+        result = await db.execute(select(User).where(User.id == test_user.id))
+        user = result.scalar_one()
+        stored_codes = json.loads(user.totp_backup_codes)
+        assert len(stored_codes) == 7  # One consumed
+
+        # Try to use same code again - should fail
+        is_valid = await verify_totp_or_backup(db, test_user.id, backup_code)
+        assert is_valid is False

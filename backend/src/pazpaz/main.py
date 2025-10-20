@@ -5,10 +5,13 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from pazpaz.api import api_router
@@ -61,6 +64,18 @@ async def lifespan(app: FastAPI):
         app_name=settings.app_name,
         version="0.1.0",
         debug=settings.debug,
+    )
+
+    # Log registered exception handlers
+    logger.info(
+        "exception_handlers_registered",
+        handlers=[
+            "Exception (generic)",
+            "IntegrityError (database)",
+            "DBAPIError (database)",
+            "HTTPException (HTTP errors)",
+            "RequestValidationError (validation)",
+        ],
     )
 
     # Verify database SSL/TLS connection (HIPAA requirement)
@@ -321,6 +336,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # Generate unique request ID
         request_id = str(uuid.uuid4())
 
+        # Store request_id in request.state for exception handler access
+        request.state.request_id = request_id
+
         # Bind request context for all logs in this request
         bind_context(
             request_id=request_id,
@@ -373,6 +391,263 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             clear_context()
 
 
+# ============================================================================
+# EXCEPTION HANDLERS
+# ============================================================================
+# Centralized exception handling to prevent information disclosure and
+# sanitize error responses. All handlers include request_id for traceability
+# and remove sensitive information (PHI, stack traces, internal details).
+
+
+# PHI/PII fields that should be redacted from validation errors
+PHI_FIELDS = {
+    "subjective",
+    "objective",
+    "assessment",
+    "plan",
+    "medical_history",
+    "notes",
+    "treatment_notes",
+    "first_name",
+    "last_name",
+    "email",
+    "phone",
+    "address",
+    "date_of_birth",
+    "ssn",
+    "insurance_id",
+}
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    """
+    Handle all uncaught exceptions with sanitized error response.
+
+    Security Measures:
+    - Log full error server-side with stack trace for debugging
+    - Return sanitized error to client (no stack trace, no internal details)
+    - Include request_id for correlation with logs
+    - Development: Include error type for debugging
+    - Production: Generic message only
+
+    Args:
+        request: FastAPI request object
+        exc: Unhandled exception
+
+    Returns:
+        JSONResponse with sanitized error message and request_id
+    """
+    logger = get_logger(__name__)
+
+    # Get request ID from state (set by RequestLoggingMiddleware)
+    request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
+
+    # Log full error server-side with stack trace
+    logger.error(
+        "unhandled_exception",
+        request_id=request_id,
+        error=str(exc),
+        error_type=type(exc).__name__,
+        path=request.url.path,
+        method=request.method,
+        exc_info=True,  # Include full stack trace in logs
+    )
+
+    # Return sanitized error to client
+    if settings.debug and settings.environment == "local":
+        # Development: Include error type for debugging (but no stack trace)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "detail": "Internal server error",
+                "error_type": type(exc).__name__,
+                "request_id": request_id,
+            },
+            headers={"X-Request-ID": request_id},
+        )
+    else:
+        # Production: Generic message only
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "detail": "An unexpected error occurred. Please contact support with this request ID.",
+                "request_id": request_id,
+            },
+            headers={"X-Request-ID": request_id},
+        )
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError):
+    """
+    Handle database integrity errors (unique constraints, foreign keys).
+
+    Security Measures:
+    - Don't expose database constraint names or internal schema
+    - Log full error server-side for debugging
+    - Return generic conflict message to client
+
+    Args:
+        request: FastAPI request object
+        exc: SQLAlchemy IntegrityError
+
+    Returns:
+        JSONResponse with 409 Conflict status and sanitized message
+    """
+    logger = get_logger(__name__)
+
+    request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
+
+    logger.error(
+        "database_integrity_error",
+        request_id=request_id,
+        error=str(exc),
+        path=request.url.path,
+        method=request.method,
+        exc_info=True,
+    )
+
+    # Don't expose database constraint names or internal schema
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={
+            "detail": "A conflict occurred. The requested operation violates data constraints.",
+            "request_id": request_id,
+        },
+        headers={"X-Request-ID": request_id},
+    )
+
+
+@app.exception_handler(DBAPIError)
+async def database_error_handler(request: Request, exc: DBAPIError):
+    """
+    Handle database connection/query errors.
+
+    Security Measures:
+    - Don't expose database connection strings or query details
+    - Log full error server-side for debugging
+    - Return generic service unavailable message to client
+
+    Args:
+        request: FastAPI request object
+        exc: SQLAlchemy DBAPIError
+
+    Returns:
+        JSONResponse with 503 Service Unavailable status and sanitized message
+    """
+    logger = get_logger(__name__)
+
+    request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
+
+    logger.error(
+        "database_error",
+        request_id=request_id,
+        error=str(exc),
+        path=request.url.path,
+        method=request.method,
+        exc_info=True,
+    )
+
+    # Don't expose database connection details
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "detail": "Database service temporarily unavailable. Please try again later.",
+            "request_id": request_id,
+        },
+        headers={"X-Request-ID": request_id},
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """
+    Handle FastAPI HTTPExceptions with request_id propagation.
+
+    This handler intercepts HTTPExceptions raised by endpoints (e.g., 409 conflicts,
+    404 not found, 403 forbidden) and adds request_id for traceability.
+
+    Args:
+        request: FastAPI request object
+        exc: FastAPI HTTPException
+
+    Returns:
+        JSONResponse with original status code, detail message, and request_id
+    """
+    request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
+
+    # Return response with request_id added
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "request_id": request_id,
+        },
+        headers={"X-Request-ID": request_id},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Handle Pydantic validation errors with PHI sanitization.
+
+    Security Measures:
+    - Redact input values for PHI fields (subjective, objective, etc.)
+    - Remove input field from error details for PHI fields
+    - Log sanitized errors (never log PHI values)
+    - Include request_id for traceability
+
+    Args:
+        request: FastAPI request object
+        exc: Pydantic RequestValidationError
+
+    Returns:
+        JSONResponse with 422 Unprocessable Entity status and sanitized errors
+    """
+    logger = get_logger(__name__)
+
+    request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
+
+    # Sanitize error details - remove PHI field values
+    sanitized_errors = []
+    for error in exc.errors():
+        # Get the field name from the location tuple
+        # loc is like ('body', 'subjective') or ('query', 'email')
+        field = error.get("loc", [])[-1] if error.get("loc") else None
+
+        # Create a copy of the error dict to avoid modifying original
+        sanitized_error = dict(error)
+
+        if field in PHI_FIELDS:
+            # Redact input value for PHI fields
+            sanitized_error["msg"] = "Invalid value (details redacted for PHI protection)"
+            # Remove input value from error details
+            sanitized_error.pop("input", None)
+
+        sanitized_errors.append(sanitized_error)
+
+    logger.warning(
+        "validation_error",
+        request_id=request_id,
+        path=request.url.path,
+        method=request.method,
+        error_count=len(sanitized_errors),
+        # Don't log the actual error details (may contain PHI)
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "detail": sanitized_errors,
+            "request_id": request_id,
+        },
+        headers={"X-Request-ID": request_id},
+    )
+
+
+# ============================================================================
 # MIDDLEWARE ORDERING (executed OUTER to INNER, i.e., bottom to top):
 # In FastAPI, middleware is executed in REVERSE order of how they are added:
 # - Last added middleware executes FIRST (outer layer)

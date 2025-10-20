@@ -25,6 +25,7 @@ from pazpaz.schemas.auth import (
     MagicLinkResponse,
     TokenVerifyRequest,
     TokenVerifyResponse,
+    TOTPDisableRequest,
     TOTPEnrollResponse,
     TOTPVerifyRequest,
     TOTPVerifyResponse,
@@ -699,30 +700,49 @@ async def verify_user_totp(
     description="""
     Disable 2FA for current authenticated user.
 
+    SECURITY: Requires TOTP verification before disabling.
+    This prevents attackers with stolen sessions from disabling 2FA.
+
     Security considerations:
     - Removes all TOTP data (secret, backup codes, timestamp)
-    - Should require re-authentication or additional verification in production
-    - Audit logging for 2FA disable
+    - Requires valid TOTP code verification before disabling
+    - Audit logging for 2FA disable (both success and failure)
     - Requires existing authentication (JWT)
 
     WARNING: After disabling, user will only have magic link authentication.
-    Consider requiring email confirmation or TOTP verification before disabling.
     """,
 )
 async def disable_user_totp(
+    request_data: TOTPDisableRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
     """
     Disable 2FA for current user.
 
-    Requires re-authentication to disable 2FA (security best practice).
+    Requires TOTP verification to prevent session hijacking attacks.
     """
+    # Verify current TOTP code before disabling
+    is_valid = await verify_totp_or_backup(
+        db, current_user.id, request_data.totp_code
+    )
+
+    if not is_valid:
+        logger.warning(
+            "totp_disable_invalid_code",
+            user_id=str(current_user.id),
+        )
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid TOTP code. Verification required to disable 2FA.",
+        )
+
+    # Proceed with disable
     try:
         await disable_totp(db, current_user.id)
 
         logger.info(
-            "totp_disabled",
+            "totp_disabled_with_verification",
             user_id=str(current_user.id),
             workspace_id=str(current_user.workspace_id),
         )

@@ -122,7 +122,17 @@ def upload_file_to_s3(
         bucket_name: Bucket name (ignored, uses settings.s3_bucket_name)
 
     Returns:
-        Dict with upload metadata (bucket, key, etag, size, encryption_verified)
+        Dict with upload metadata:
+            - bucket: S3 bucket name
+            - key: S3 object key
+            - etag: S3 ETag for integrity verification
+            - size_bytes: File size in bytes
+            - encryption_verified: True if encryption was verified
+            - encryption_metadata: Dict with encryption details for database storage:
+                - algorithm: "AES256"
+                - verified_at: ISO timestamp
+                - s3_sse: ServerSideEncryption value from S3
+                - etag: S3 ETag
 
     Raises:
         S3UploadError: If upload fails
@@ -207,15 +217,26 @@ def upload_file_to_s3(
                 f"File has been deleted for security. Please retry upload."
             ) from verify_error
 
-        # Extract ETag from response
+        # Extract ETag and encryption metadata from response
         etag = response.get("ETag", "").strip('"')
+        server_side_encryption = response.get("ServerSideEncryption", "AES256")
+
+        # Build encryption metadata for database storage (HIPAA compliance)
+        from datetime import UTC, datetime
+        encryption_metadata = {
+            "algorithm": "AES256",
+            "verified_at": datetime.now(UTC).isoformat(),
+            "s3_sse": server_side_encryption,
+            "etag": etag,
+        }
 
         return {
             "bucket": bucket,
             "key": s3_key,
             "etag": etag,
             "size_bytes": len(file_content),
-            "encryption_verified": True,  # NEW: Indicate verification passed
+            "encryption_verified": True,
+            "encryption_metadata": encryption_metadata,  # NEW: Metadata for DB storage
         }
 
     except EncryptionVerificationError:
