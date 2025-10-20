@@ -52,6 +52,7 @@ async def request_magic_link(
         HTTPException: If rate limit exceeded
     """
     # Check rate limit by IP (3 requests per hour using sliding window)
+    # FAIL CLOSED on Redis failure (security-critical)
     rate_limit_key = f"magic_link_rate_limit:{request_ip}"
 
     if not await check_rate_limit_redis(
@@ -59,15 +60,17 @@ async def request_magic_link(
         key=rate_limit_key,
         max_requests=RATE_LIMIT_MAX_REQUESTS,
         window_seconds=RATE_LIMIT_WINDOW_SECONDS,
+        fail_closed_on_error=True,  # CRITICAL: Fail closed for auth endpoints
     ):
+        # Rate limit exceeded OR Redis unavailable (both cases block)
         logger.warning(
-            "magic_link_rate_limit_exceeded",
+            "magic_link_rate_limit_exceeded_or_redis_unavailable",
             ip=request_ip,
             email=email,
         )
         raise HTTPException(
             status_code=429,
-            detail="Rate limit exceeded. Please try again in an hour.",
+            detail="Rate limit exceeded. Please try again later.",
         )
 
     # Look up user by email

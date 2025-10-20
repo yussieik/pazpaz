@@ -2,16 +2,87 @@
 
 from __future__ import annotations
 
+import threading
 import uuid
-from datetime import UTC, datetime
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 
 import redis.asyncio as redis
-from fastapi import HTTPException
 
-from pazpaz.core.config import settings
 from pazpaz.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class RateLimitEntry:
+    """In-memory rate limit entry for fallback."""
+
+    count: int
+    window_start: datetime
+
+
+# In-memory fallback rate limiter (per-process, less accurate but safe)
+_fallback_rate_limits: dict[str, RateLimitEntry] = defaultdict(
+    lambda: RateLimitEntry(count=0, window_start=datetime.now(UTC))
+)
+_fallback_lock = threading.Lock()
+
+
+def _check_rate_limit_fallback(
+    key: str,
+    max_requests: int,
+    window_seconds: int,
+) -> bool:
+    """
+    In-memory fallback rate limiter (per-process, less accurate but safe).
+
+    This is less accurate than Redis sliding window because:
+    - Per-process (not distributed across API instances)
+    - Fixed window instead of sliding window
+    - Data not persisted across restarts
+
+    But it prevents total rate limit bypass when Redis is down.
+
+    Args:
+        key: Rate limit key
+        max_requests: Maximum requests allowed in window
+        window_seconds: Time window in seconds
+
+    Returns:
+        True if request is within rate limit (allowed), False if exceeded (reject)
+    """
+    with _fallback_lock:
+        entry = _fallback_rate_limits[key]
+        now = datetime.now(UTC)
+
+        # Reset window if expired
+        if now - entry.window_start > timedelta(seconds=window_seconds):
+            entry.count = 0
+            entry.window_start = now
+
+        # Check limit
+        if entry.count >= max_requests:
+            logger.debug(
+                "rate_limit_exceeded_fallback",
+                key=key,
+                count=entry.count,
+                max_requests=max_requests,
+            )
+            return False
+
+        # Increment counter
+        entry.count += 1
+
+        logger.debug(
+            "rate_limit_allowed_fallback",
+            key=key,
+            count=entry.count,
+            max_requests=max_requests,
+        )
+
+        return True
 
 
 async def check_rate_limit_redis(
@@ -19,9 +90,10 @@ async def check_rate_limit_redis(
     key: str,
     max_requests: int,
     window_seconds: int,
+    fail_closed_on_error: bool = False,
 ) -> bool:
     """
-    Redis-backed sliding window rate limiter.
+    Redis-backed sliding window rate limiter with configurable error handling.
 
     Uses Redis sorted sets to implement a sliding window rate limiter that works
     correctly across multiple API server instances (distributed deployment).
@@ -37,23 +109,39 @@ async def check_rate_limit_redis(
     - Accurate: True sliding window (not fixed buckets)
     - Efficient: O(log N) operations using sorted sets
     - Memory-safe: TTL prevents unbounded growth
+    - Configurable: Fail closed for auth, fail open with fallback for autosave
 
     Args:
         redis_client: Redis async client instance
-        key: Rate limit key (e.g., "draft_autosave:{user_id}:{session_id}")
+        key: Rate limit key (e.g., "magic_link_rate_limit:{ip}")
         max_requests: Maximum requests allowed in window
         window_seconds: Time window in seconds
+        fail_closed_on_error: If True, reject requests on Redis failure
+            (for auth endpoints). If False, use in-memory fallback
+            (for autosave)
 
     Returns:
         True if request is within rate limit (allowed), False if exceeded (reject)
 
     Example:
-        # Allow 60 requests per minute per user per session
+        # Auth endpoint (fail closed for security)
+        allowed = await check_rate_limit_redis(
+            redis_client=redis,
+            key=f"magic_link_rate_limit:{ip}",
+            max_requests=3,
+            window_seconds=3600,
+            fail_closed_on_error=True,  # CRITICAL: Fail closed for auth
+        )
+        if not allowed:
+            raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+        # Autosave endpoint (fail open for availability)
         allowed = await check_rate_limit_redis(
             redis_client=redis,
             key=f"draft_autosave:{user_id}:{session_id}",
             max_requests=60,
             window_seconds=60,
+            fail_closed_on_error=False,  # Autosave can fail open
         )
         if not allowed:
             raise HTTPException(status_code=429, detail="Rate limit exceeded")
@@ -82,7 +170,6 @@ async def check_rate_limit_redis(
                 key=key,
                 count=count_before,
                 max_requests=max_requests,
-                window_seconds=window_seconds,
             )
             return False
 
@@ -97,7 +184,6 @@ async def check_rate_limit_redis(
             key=key,
             count=count_before + 1,
             max_requests=max_requests,
-            window_seconds=window_seconds,
         )
 
         return True
@@ -109,32 +195,22 @@ async def check_rate_limit_redis(
             key=key,
             error=str(e),
             error_type=type(e).__name__,
+            fail_closed=fail_closed_on_error,
             exc_info=True,
         )
 
-        # FAIL CLOSED in production/staging (security priority)
-        # Prevents rate limit bypass when Redis is unavailable
-        if settings.environment in ("production", "staging"):
+        # Decision point: fail closed or use fallback?
+        if fail_closed_on_error:
+            # Fail closed for security-critical endpoints (auth)
             logger.warning(
-                "rate_limit_failing_closed",
-                environment=settings.environment,
-                reason="redis_unavailable",
+                "rate_limit_failing_closed_redis_unavailable",
+                key=key,
             )
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "Rate limiting service temporarily unavailable. "
-                    "Please try again later."
-                ),
-            ) from e
-
-        # FAIL OPEN in development/local (availability priority)
-        # Allows development to continue even if Redis is down
-        # Trade-off: Temporary rate limit bypass vs. developer experience
-        logger.warning(
-            "rate_limit_failing_open",
-            environment=settings.environment,
-            reason="redis_unavailable",
-            message="Allowing request to proceed (development mode)",
-        )
-        return True
+            return False  # Reject request (safe default for auth)
+        else:
+            # Use in-memory fallback for availability-critical endpoints (autosave)
+            logger.warning(
+                "rate_limit_using_fallback_redis_unavailable",
+                key=key,
+            )
+            return _check_rate_limit_fallback(key, max_requests, window_seconds)

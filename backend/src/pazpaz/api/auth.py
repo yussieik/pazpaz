@@ -68,6 +68,7 @@ async def request_magic_link_endpoint(
     # ADDITIONAL PROTECTION: Per-email rate limiting (5 requests per hour)
     # Prevents email bombing even if attacker uses multiple IPs/proxies
     # This check happens BEFORE IP rate limiting to provide earliest protection
+    # FAIL CLOSED on Redis failure (security-critical)
     email_rate_limit_key = f"magic_link_rate_limit_email:{data.email}"
 
     if not await check_rate_limit_redis(
@@ -75,14 +76,15 @@ async def request_magic_link_endpoint(
         key=email_rate_limit_key,
         max_requests=5,  # Max 5 requests per email per hour
         window_seconds=3600,  # 1 hour
+        fail_closed_on_error=True,  # CRITICAL: Fail closed for auth
     ):
         logger.warning(
-            "magic_link_rate_limit_exceeded_for_email",
+            "magic_link_rate_limit_exceeded_for_email_or_redis_unavailable",
             email=data.email,
             ip=client_ip,
         )
         # Return generic success to prevent email enumeration
-        # Even though rate limit is exceeded, we don't reveal this to the attacker
+        # Even though rate limit is exceeded OR Redis is down, we don't reveal this
         # But we log the event for security monitoring
         return MagicLinkResponse()
 
