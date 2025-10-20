@@ -40,8 +40,38 @@ class Settings(BaseSettings):
 
     # Environment detection
     environment: str = Field(
-        default="local", description="Deployment environment (local/staging/production)"
+        default="local",
+        description="Deployment environment (local, development, staging, production)",
     )
+
+    @field_validator("environment")
+    @classmethod
+    def validate_environment(cls, v: str) -> str:
+        """
+        Validate environment is one of allowed values.
+
+        Allowed environments:
+        - local: Local development (no security restrictions)
+        - development: Development server (relaxed security)
+        - staging: Pre-production environment (production-like security)
+        - production: Production environment (maximum security)
+
+        Args:
+            v: Environment value
+
+        Returns:
+            Validated environment string
+
+        Raises:
+            ValueError: If environment is not one of allowed values
+        """
+        allowed = {"local", "development", "staging", "production"}
+        if v not in allowed:
+            raise ValueError(
+                f"Invalid environment: {v}. Must be one of {allowed}. "
+                f"Set ENVIRONMENT environment variable correctly."
+            )
+        return v
 
     # Database
     # NOTE: In production/staging, database_url is fetched from AWS Secrets Manager
@@ -184,7 +214,9 @@ class Settings(BaseSettings):
         environment = info.data.get("environment", "local")
 
         # Default trusted proxy configuration (must match Field default)
-        default_config = "127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7,fe80::/10"
+        default_config = (
+            "127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7,fe80::/10"
+        )
 
         # Production/Staging SHOULD explicitly configure trusted proxies
         # Using default configuration trusts ALL private networks, which is overly
@@ -441,9 +473,9 @@ class Settings(BaseSettings):
         return v
 
     # S3/MinIO Storage Configuration
-    s3_endpoint_url: str = Field(
+    s3_endpoint_url: str | None = Field(
         default="http://localhost:9000",
-        description="S3/MinIO endpoint URL (use https:// in production)",
+        description="S3/MinIO endpoint URL (use https:// in production for HIPAA compliance)",
     )
     s3_access_key: str = Field(
         default="minioadmin",
@@ -461,6 +493,61 @@ class Settings(BaseSettings):
         default="us-east-1",
         description="S3 region (MinIO uses us-east-1 by default)",
     )
+
+    @field_validator("s3_endpoint_url")
+    @classmethod
+    def validate_s3_endpoint_url(cls, v: str | None, info) -> str | None:
+        """
+        Validate S3 endpoint URL uses HTTPS in production environments.
+
+        HIPAA Requirement: §164.312(e)(1) - Transmission Security
+
+        Requirements:
+        - Production/Staging: Endpoint MUST use https:// (fail-closed)
+        - Development/Local: Can use http:// for local MinIO (fail-open)
+
+        Args:
+            v: S3_ENDPOINT_URL value
+            info: Validation context
+
+        Returns:
+            Validated endpoint URL
+
+        Raises:
+            ValueError: If production endpoint uses HTTP (insecure)
+        """
+        if v is None:
+            return v
+
+        environment = info.data.get("environment", "local")
+
+        # Production/Staging: Enforce HTTPS
+        if environment in ("production", "staging"):
+            if not v.startswith("https://"):
+                raise ValueError(
+                    f"S3_ENDPOINT_URL must use HTTPS in {environment} environment. "
+                    f"Got: {v}. HTTP transmission exposes PHI in cleartext, "
+                    f"violating HIPAA §164.312(e)(1). "
+                    f"Configure S3_ENDPOINT_URL with https:// protocol."
+                )
+
+            logger.info(
+                "s3_endpoint_validated_https",
+                endpoint_url=v,
+                environment=environment,
+            )
+
+        # Development: Warn if using HTTP
+        elif environment in ("local", "development"):
+            if v.startswith("http://") and not v.startswith("https://"):
+                logger.warning(
+                    "s3_endpoint_http_in_development",
+                    endpoint_url=v,
+                    environment=environment,
+                    message="S3 endpoint uses HTTP. MUST use HTTPS in production for HIPAA compliance.",
+                )
+
+        return v
 
     # Email
     smtp_host: str = "localhost"

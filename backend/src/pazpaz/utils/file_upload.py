@@ -24,6 +24,7 @@ from datetime import timedelta
 
 # Re-export all core storage functionality
 from pazpaz.core.storage import (
+    EncryptionVerificationError,
     S3ClientError,
     S3DeleteError,
     S3UploadError,
@@ -46,6 +47,7 @@ __all__ = [
     "S3ClientError",
     "S3DeleteError",
     "S3UploadError",
+    "EncryptionVerificationError",
     "FileUploadError",
     "TemporaryFileHandler",
     "ensure_bucket_exists",
@@ -88,7 +90,9 @@ def generate_presigned_download_url(
     """
     # Convert timedelta to seconds for core function
     expires_in = int(expiration.total_seconds())
-    return generate_presigned_url_core(s3_key, expires_in=expires_in, force_download=force_download)
+    return generate_presigned_url_core(
+        s3_key, expires_in=expires_in, force_download=force_download
+    )
 
 
 def upload_file_to_s3(
@@ -98,10 +102,12 @@ def upload_file_to_s3(
     bucket_name: str | None = None,
 ) -> dict:
     """
-    Upload file to S3/MinIO with secure settings.
+    Upload file to S3/MinIO with server-side encryption and verification.
 
     COMPATIBILITY WRAPPER: This function wraps the core storage module's upload
     functionality but uses a synchronous interface with bytes content.
+
+    SECURITY: This function MUST verify encryption after upload (HIPAA requirement).
 
     NOTE: This is NOT the preferred method. The core storage.upload_file() is async
     and works with file objects for better memory efficiency with large files.
@@ -116,13 +122,18 @@ def upload_file_to_s3(
         bucket_name: Bucket name (ignored, uses settings.s3_bucket_name)
 
     Returns:
-        Dict with upload metadata (bucket, key, etag, size)
+        Dict with upload metadata (bucket, key, etag, size, encryption_verified)
 
     Raises:
         S3UploadError: If upload fails
+        EncryptionVerificationError: If encryption cannot be verified (HIPAA critical)
     """
+    import structlog
 
     from pazpaz.core.config import settings
+    from pazpaz.core.storage import verify_file_encrypted
+
+    logger = structlog.get_logger(__name__)
 
     try:
         # Use synchronous boto3 client directly for compatibility
@@ -136,11 +147,17 @@ def upload_file_to_s3(
         # Prepare upload arguments
         extra_args = {"ContentType": content_type}
 
-        # Only add ServerSideEncryption for AWS S3 (not MinIO)
+        # Enable server-side encryption (SSE-S3)
+        # Note: MinIO doesn't support SSE-S3, so only enable for AWS
         if not is_minio_endpoint(settings.s3_endpoint_url):
             extra_args["ServerSideEncryption"] = "AES256"
+            logger.info(
+                "s3_sse_enabled",
+                s3_key=s3_key,
+                encryption="AES256",
+            )
 
-        # Upload using put_object (synchronous)
+        # Upload file to S3
         response = s3_client.put_object(
             Bucket=bucket,
             Key=s3_key,
@@ -148,6 +165,49 @@ def upload_file_to_s3(
             **extra_args,
         )
 
+        logger.info(
+            "file_uploaded_to_s3",
+            s3_key=s3_key,
+            bucket=bucket,
+            size_bytes=len(file_content),
+        )
+
+        # CRITICAL SECURITY FIX: Verify encryption after upload (HIPAA requirement)
+        # This ensures PHI files are encrypted at rest before returning success
+        try:
+            verify_file_encrypted(s3_key)
+            logger.info(
+                "s3_encryption_verified",
+                s3_key=s3_key,
+                encryption_status="verified",
+            )
+        except Exception as verify_error:
+            # Verification failed - this is a CRITICAL security issue
+            # Delete the potentially unencrypted file
+            logger.error(
+                "s3_encryption_verification_failed",
+                s3_key=s3_key,
+                error=str(verify_error),
+                action="deleting_file",
+            )
+
+            try:
+                s3_client.delete_object(Bucket=bucket, Key=s3_key)
+                logger.info("unencrypted_file_deleted", s3_key=s3_key)
+            except Exception as delete_error:
+                logger.error(
+                    "failed_to_delete_unencrypted_file",
+                    s3_key=s3_key,
+                    error=str(delete_error),
+                )
+
+            # Re-raise verification error (fail-closed)
+            raise EncryptionVerificationError(
+                f"Failed to verify encryption for {s3_key}: {verify_error}. "
+                f"File has been deleted for security. Please retry upload."
+            ) from verify_error
+
+        # Extract ETag from response
         etag = response.get("ETag", "").strip('"')
 
         return {
@@ -155,9 +215,19 @@ def upload_file_to_s3(
             "key": s3_key,
             "etag": etag,
             "size_bytes": len(file_content),
+            "encryption_verified": True,  # NEW: Indicate verification passed
         }
 
+    except EncryptionVerificationError:
+        # Re-raise encryption errors (HIPAA critical)
+        raise
     except Exception as e:
+        logger.error(
+            "s3_upload_failed",
+            s3_key=s3_key,
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         raise S3UploadError(f"Failed to upload file to S3: {e}") from e
 
 

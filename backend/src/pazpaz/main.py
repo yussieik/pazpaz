@@ -98,10 +98,47 @@ async def lifespan(app: FastAPI):
             )
 
     # Initialize S3/MinIO storage (create bucket if not exists)
+    # In production/staging, validate endpoint uses HTTPS (HIPAA requirement)
     try:
-        from pazpaz.core.storage import verify_bucket_exists
+        from pazpaz.core.storage import get_s3_client, verify_bucket_exists
 
         logger.info("Initializing S3/MinIO storage...")
+
+        # Validate S3 endpoint configuration in production/staging
+        if settings.environment in ("production", "staging"):
+            try:
+                # This will raise ValueError if endpoint is not HTTPS
+                s3_client = get_s3_client()
+
+                # Verify S3 connectivity with a simple list_buckets call
+                s3_client.list_buckets()
+
+                logger.info(
+                    "s3_endpoint_validation_passed",
+                    endpoint_url=settings.s3_endpoint_url,
+                    environment=settings.environment,
+                    tls_enforced=True,
+                )
+            except ValueError as e:
+                # Endpoint validation failed - critical error
+                logger.error(
+                    "s3_endpoint_validation_failed",
+                    environment=settings.environment,
+                    error=str(e),
+                )
+                # Fail startup if S3 endpoint is insecure in production
+                raise
+            except Exception as e:
+                # S3 connectivity failed - warning (may be temporary)
+                logger.warning(
+                    "s3_connectivity_check_failed",
+                    environment=settings.environment,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                # Don't fail startup for connectivity issues (may be temporary)
+
+        # Verify bucket exists
         verify_bucket_exists()
         logger.info(
             "S3/MinIO storage ready",
@@ -110,6 +147,9 @@ async def lifespan(app: FastAPI):
                 "bucket": settings.s3_bucket_name,
             },
         )
+    except ValueError:
+        # Re-raise endpoint validation errors (fail-closed in production)
+        raise
     except Exception as e:
         logger.error(
             "Failed to initialize S3/MinIO storage. "

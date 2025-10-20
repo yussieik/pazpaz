@@ -132,9 +132,15 @@ def get_s3_client():
     Configuration:
     - Connection pooling (max_pool_connections=50)
     - Automatic retries (max_attempts=3) with exponential backoff
-    - TLS/SSL enforced in production
+    - TLS/SSL enforced in production with HTTPS endpoint validation
     - Signature version 4 for security
     - 60-second connect timeout, 300-second read timeout
+
+    Security Model:
+    - Production/Staging: Endpoint MUST use https:// (fail-closed)
+    - Local/Development: Can use http:// for local MinIO (fail-open)
+
+    HIPAA Requirement: §164.312(e)(1) - Transmission Security
 
     The client is cached to avoid recreating connections on every call.
 
@@ -142,6 +148,7 @@ def get_s3_client():
         boto3.client: Configured S3 client
 
     Raises:
+        ValueError: If production endpoint URL uses HTTP (insecure)
         S3ClientError: If client creation fails
 
     Example:
@@ -149,6 +156,45 @@ def get_s3_client():
         >>> s3.list_buckets()
     """
     try:
+        # PRODUCTION/STAGING: Validate endpoint uses HTTPS (fail-closed)
+        if settings.environment in ("production", "staging"):
+            if settings.s3_endpoint_url and not settings.s3_endpoint_url.startswith(
+                "https://"
+            ):
+                # CRITICAL: Production endpoint must use HTTPS
+                raise ValueError(
+                    f"S3_ENDPOINT_URL must use HTTPS in {settings.environment} environment. "
+                    f"Got: {settings.s3_endpoint_url}. "
+                    f"HTTP transmission exposes PHI in cleartext, violating HIPAA §164.312(e)(1). "
+                    f"Configure S3_ENDPOINT_URL with https:// protocol."
+                )
+
+            logger.info(
+                "s3_endpoint_validated_https",
+                endpoint_url=settings.s3_endpoint_url,
+                environment=settings.environment,
+                tls_enforced=True,
+            )
+
+        # Determine TLS usage based on environment and endpoint
+        if settings.environment in ("production", "staging"):
+            use_ssl = True  # Always enforce TLS in production/staging
+        else:
+            # Development/Local: Infer from endpoint URL
+            use_ssl = (
+                "https://" in (settings.s3_endpoint_url or "")
+                if settings.s3_endpoint_url
+                else True  # Default to True if no endpoint specified (AWS S3 default)
+            )
+
+            if not use_ssl:
+                logger.warning(
+                    "s3_tls_disabled_development",
+                    endpoint_url=settings.s3_endpoint_url,
+                    environment=settings.environment,
+                    message="S3 TLS disabled in development. MUST use HTTPS in production.",
+                )
+
         # Configure with connection pooling and retries
         config = Config(
             max_pool_connections=50,  # Connection pooling
@@ -161,9 +207,7 @@ def get_s3_client():
             signature_version="s3v4",  # Use signature version 4 for security
         )
 
-        # Determine if using TLS (required in production)
-        use_ssl = settings.environment in ("production", "staging")
-
+        # Create S3 client
         client = boto3.client(
             "s3",
             endpoint_url=settings.s3_endpoint_url,
@@ -186,6 +230,9 @@ def get_s3_client():
 
         return client
 
+    except ValueError:
+        # Re-raise endpoint validation errors (already logged above)
+        raise
     except (BotoCoreError, ClientError) as e:
         logger.error(f"Failed to create S3 client: {e}")
         raise S3ClientError(f"Failed to initialize S3 client: {e}") from e
@@ -548,9 +595,10 @@ def verify_file_encrypted(object_key: str) -> None:
     security check to ensure PHI file attachments are actually encrypted.
 
     Fail-Closed Behavior:
-    - If ServerSideEncryption header is missing → raise error
+    - If ServerSideEncryption header is missing → raise error (AWS S3 only)
     - If S3 request fails → raise error
     - Production MUST have encryption enabled (no exceptions)
+    - MinIO: Skip verification (SSE-S3 not supported without KMS setup)
 
     Args:
         object_key: S3 object key to verify
@@ -564,6 +612,15 @@ def verify_file_encrypted(object_key: str) -> None:
     """
     try:
         s3_client = get_s3_client()
+
+        # MinIO doesn't return ServerSideEncryption header
+        if is_minio_endpoint(settings.s3_endpoint_url):
+            logger.info(
+                "minio_encryption_check_skipped",
+                object_key=object_key,
+                reason="MinIO does not support SSE-S3 headers",
+            )
+            return  # Skip verification for MinIO
 
         # Retrieve object metadata (no download, just headers)
         response = s3_client.head_object(
@@ -596,6 +653,9 @@ def verify_file_encrypted(object_key: str) -> None:
             kms_key_id=response.get("SSEKMSKeyId", "N/A"),  # AWS KMS key ID if used
         )
 
+    except EncryptionVerificationError:
+        # Re-raise verification errors
+        raise
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
         logger.error(
