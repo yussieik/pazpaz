@@ -793,11 +793,11 @@ PGPASSWORD=pazpaz psql -U pazpaz -h localhost -d pazpaz -c \
 
 ---
 
-#### Step 3.3: Update auth router for invitation acceptance
+#### Step 3.3: Update auth router for invitation acceptance ✅ COMPLETED
 **Agent**: `fullstack-backend-specialist`
-**File**: `backend/src/pazpaz/api/v1/auth.py`
+**File**: `backend/src/pazpaz/api/auth.py`
 
-- [ ] Add invitation acceptance endpoint:
+- [x] Add invitation acceptance endpoint:
   ```python
   from pazpaz.services.platform_onboarding_service import PlatformOnboardingService
 
@@ -836,6 +836,43 @@ PGPASSWORD=pazpaz psql -U pazpaz -h localhost -d pazpaz -c \
 
       return response
   ```
+
+**Implementation Notes**:
+- ✅ Endpoint added: `GET /api/v1/auth/accept-invite`
+- ✅ Test file created: `tests/unit/api/routers/test_auth_invitation.py` (13 tests)
+- ✅ All 13 tests passing in 6.38 seconds (100% coverage)
+- ✅ Success flow:
+  - Verifies invitation token via `PlatformOnboardingService.accept_invitation()`
+  - Activates user account (sets `is_active=True`)
+  - Creates JWT session token with user_id and workspace_id claims
+  - Sets HttpOnly cookies (access_token + CSRF token)
+  - Creates audit event for security monitoring
+  - Redirects to `/` (303 See Other)
+- ✅ Error handling:
+  - `InvalidInvitationTokenError` → `/login?error=invalid_token`
+  - `ExpiredInvitationTokenError` → `/login?error=expired_token`
+  - `InvitationAlreadyAcceptedError` → `/login?error=already_accepted`
+  - Generic exceptions → `/login?error=unknown`
+  - Missing token → 422 Unprocessable Entity
+- ✅ Security features:
+  - Single-use tokens (invitation_token_hash cleared after acceptance)
+  - HttpOnly cookies (XSS protection)
+  - SameSite=lax (CSRF protection)
+  - Secure flag in production (HTTPS only)
+  - No token leakage in error messages
+  - Audit logging with IP address
+  - 7-day token expiration enforced
+- ✅ Integration with existing auth:
+  - Uses same `create_access_token()` function
+  - Uses same cookie configuration as `/auth/verify`
+  - Uses `generate_csrf_token()` for CSRF protection
+  - Creates audit events via `create_audit_event()`
+- ✅ Code formatted and linted with ruff
+
+**Email Link Format**:
+```
+https://app.pazpaz.com/auth/accept-invite?token=<256-bit-url-safe-token>
+```
 
 ---
 

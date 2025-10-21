@@ -7,15 +7,16 @@ import uuid
 from typing import Annotated
 
 import redis.asyncio as redis
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, Response
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pazpaz.api.deps import get_current_user
 from pazpaz.core.config import settings
 from pazpaz.core.logging import get_logger
 from pazpaz.core.redis import get_redis
 from pazpaz.db.base import get_db
 from pazpaz.middleware.csrf import generate_csrf_token
-from pazpaz.api.deps import get_current_user
 from pazpaz.models.user import User
 from pazpaz.schemas.auth import (
     LogoutResponse,
@@ -32,6 +33,12 @@ from pazpaz.schemas.auth import (
     UserInToken,
 )
 from pazpaz.services.auth_service import request_magic_link, verify_magic_link_token
+from pazpaz.services.platform_onboarding_service import (
+    ExpiredInvitationTokenError,
+    InvalidInvitationTokenError,
+    InvitationAlreadyAcceptedError,
+    PlatformOnboardingService,
+)
 from pazpaz.services.totp_service import (
     disable_totp,
     enroll_totp,
@@ -450,6 +457,174 @@ async def verify_magic_link_2fa_endpoint(
 
 
 @router.get(
+    "/accept-invite",
+    status_code=303,
+    summary="Accept therapist invitation",
+    description="""
+    Accept therapist invitation and activate account via magic link.
+
+    Security features:
+    - Single-use invitation tokens (7-day expiration)
+    - Token verification uses timing-safe comparison (SHA256)
+    - Activates user account and creates session
+    - HttpOnly cookies for XSS protection
+    - Audit logging for invitation acceptance
+    - Generic error messages (no token leakage)
+
+    Flow:
+    1. Therapist clicks invitation link in email
+    2. Token verified and user activated
+    3. JWT session created and cookies set
+    4. Redirect to app (logged in)
+
+    Error handling:
+    - Invalid/expired tokens redirect to /login with error parameter
+    - Already accepted redirects to /login with info message
+    - All errors are logged server-side for security monitoring
+    """,
+)
+async def accept_invitation(
+    token: str = Query(..., description="Invitation token from email"),
+    request: Request = None,
+    response: Response = None,
+    db: AsyncSession = Depends(get_db),
+    redis_client: redis.Redis = Depends(get_redis),
+) -> RedirectResponse:
+    """
+    Accept therapist invitation and activate account.
+
+    Verifies invitation token, activates user, creates session,
+    and redirects to app. Errors redirect to login with error codes.
+
+    Args:
+        token: Invitation token from email link
+        request: FastAPI request (for IP extraction)
+        response: FastAPI response (for setting cookies)
+        db: Database session
+        redis_client: Redis client
+
+    Returns:
+        RedirectResponse to "/" (success) or "/login?error=..." (failure)
+
+    Security:
+        - Token verification in service layer (timing-safe)
+        - Single-use tokens (cleared after acceptance)
+        - Generic error codes (no token value leakage)
+        - Audit logging for all attempts
+    """
+    from pazpaz.core.security import create_access_token
+
+    # Extract client IP for audit logging
+    client_ip = request.client.host if request and request.client else None
+
+    try:
+        # Verify invitation and activate user
+        service = PlatformOnboardingService()
+        user = await service.accept_invitation(db, token)
+
+        # Generate JWT for the activated user
+        jwt_token = create_access_token(
+            user_id=user.id,
+            workspace_id=user.workspace_id,
+            email=user.email,
+        )
+
+        # Generate CSRF token
+        csrf_token = await generate_csrf_token(
+            user_id=user.id,
+            workspace_id=user.workspace_id,
+            redis_client=redis_client,
+        )
+
+        # Create redirect response
+        redirect_response = RedirectResponse(url="/", status_code=303)
+
+        # Set JWT as HttpOnly cookie (XSS protection)
+        redirect_response.set_cookie(
+            key="access_token",
+            value=jwt_token,
+            httponly=True,
+            samesite="lax",
+            secure=not settings.debug,  # Auto-enable in production
+            max_age=60 * 60 * 24 * 7,  # 7 days
+        )
+
+        # Set CSRF token as cookie
+        redirect_response.set_cookie(
+            key="csrf_token",
+            value=csrf_token,
+            httponly=False,  # Allow JS to read for X-CSRF-Token header
+            samesite="strict",
+            secure=not settings.debug,
+            max_age=60 * 60 * 24 * 7,  # 7 days
+        )
+
+        # Log successful invitation acceptance with audit event
+        from pazpaz.models.audit_event import AuditAction, ResourceType
+        from pazpaz.services.audit_service import create_audit_event
+
+        try:
+            await create_audit_event(
+                db=db,
+                user_id=user.id,
+                workspace_id=user.workspace_id,
+                action=AuditAction.UPDATE,
+                resource_type=ResourceType.USER,
+                resource_id=user.id,
+                ip_address=client_ip,
+                metadata={
+                    "action": "invitation_accepted",
+                    "user_activated": True,
+                    "jwt_issued": True,
+                },
+            )
+        except Exception as e:
+            logger.error(
+                "failed_to_create_audit_event_for_invitation_acceptance",
+                error=str(e),
+                exc_info=True,
+            )
+
+        logger.info(
+            "invitation_accepted_and_user_activated",
+            user_id=str(user.id),
+            workspace_id=str(user.workspace_id),
+            email=user.email,
+        )
+
+        return redirect_response
+
+    except InvalidInvitationTokenError:
+        logger.warning(
+            "invitation_acceptance_failed_invalid_token",
+            token_prefix=token[:16] if len(token) >= 16 else "short_token",
+        )
+        return RedirectResponse(url="/login?error=invalid_token", status_code=303)
+
+    except ExpiredInvitationTokenError:
+        logger.warning(
+            "invitation_acceptance_failed_expired_token",
+            token_prefix=token[:16] if len(token) >= 16 else "short_token",
+        )
+        return RedirectResponse(url="/login?error=expired_token", status_code=303)
+
+    except InvitationAlreadyAcceptedError:
+        logger.warning(
+            "invitation_acceptance_failed_already_accepted",
+            token_prefix=token[:16] if len(token) >= 16 else "short_token",
+        )
+        return RedirectResponse(url="/login?error=already_accepted", status_code=303)
+
+    except Exception as e:
+        logger.error(
+            "invitation_acceptance_failed_unexpected_error",
+            error=str(e),
+            exc_info=True,
+        )
+        return RedirectResponse(url="/login?error=unknown", status_code=303)
+
+
+@router.get(
     "/me",
     response_model=UserInToken,
     status_code=200,
@@ -823,9 +998,7 @@ async def disable_user_totp(
     Requires TOTP verification to prevent session hijacking attacks.
     """
     # Verify current TOTP code before disabling
-    is_valid = await verify_totp_or_backup(
-        db, current_user.id, request_data.totp_code
-    )
+    is_valid = await verify_totp_or_backup(db, current_user.id, request_data.totp_code)
 
     if not is_valid:
         logger.warning(
