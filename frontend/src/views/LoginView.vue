@@ -217,19 +217,6 @@ function handleSubmit() {
             <span v-else> Send Magic Link </span>
           </button>
         </form>
-
-        <!-- Help Text -->
-        <div class="mt-6 text-center">
-          <p class="text-sm text-slate-500">
-            Don't have an account?
-            <a
-              href="/signup"
-              class="font-medium text-emerald-600 hover:text-emerald-700"
-            >
-              Sign up
-            </a>
-          </p>
-        </div>
       </div>
 
       <!-- Security Note -->
