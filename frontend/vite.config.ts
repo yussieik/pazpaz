@@ -2,6 +2,17 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig, loadEnv, type UserConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import type { Plugin } from 'vite'
+import crypto from 'crypto'
+
+// Polyfill for crypto.hash (Node.js 20.11 compatibility)
+// The crypto.hash method was added in Node.js v21.7.0, but we're on v20.11
+if (!crypto.hash) {
+  // @ts-expect-error - Adding polyfill for missing crypto.hash in Node.js 20.11
+  crypto.hash = (algorithm: string, data: string | Buffer, outputEncoding?: string) => {
+    const hash = crypto.createHash(algorithm).update(data)
+    return outputEncoding ? hash.digest(outputEncoding as BufferEncoding) : hash.digest()
+  }
+}
 
 /**
  * HTML Transform Plugin for CSP Meta Tag
