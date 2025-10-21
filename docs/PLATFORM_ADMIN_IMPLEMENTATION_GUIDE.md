@@ -919,11 +919,11 @@ https://app.pazpaz.com/auth/accept-invite?token=<256-bit-url-safe-token>
 
 ---
 
-#### Step 4.2: Create platform admin composable
+#### Step 4.2: Create platform admin composable ✅ COMPLETED
 **Agent**: `fullstack-frontend-specialist`
 **File**: `frontend/src/composables/usePlatformAdmin.ts` (NEW)
 
-- [ ] Create composable:
+- [x] Create composable:
   ```typescript
   import { ref } from 'vue'
   import { platformAdminApi } from '@/api/client'
@@ -987,6 +987,29 @@ https://app.pazpaz.com/auth/accept-invite?token=<256-bit-url-safe-token>
     }
   }
   ```
+
+**Implementation Notes**:
+- ✅ Composable created: `frontend/src/composables/usePlatformAdmin.ts`
+- ✅ Reactive state:
+  - `pendingInvitations` - Array of PendingInvitation objects
+  - `loading` - Boolean for operation states
+  - `error` - String for error messages (null when no error)
+- ✅ Methods implemented:
+  - `fetchPendingInvitations()` - GET pending invitations list
+  - `inviteTherapist(request)` - POST new invitation, auto-refreshes list
+  - `resendInvitation(userId)` - POST resend invitation, auto-refreshes list
+  - `clearError()` - Utility to clear error state
+- ✅ Uses generated TypeScript types from Step 4.1:
+  - `InviteTherapistRequest`, `InviteTherapistResponse`
+  - `PendingInvitation`, `PendingInvitationsResponse`
+  - `ResendInvitationResponse`, `ApiError`
+- ✅ User-friendly error messages with API detail fallbacks
+- ✅ Proper TypeScript typing throughout
+- ✅ No TypeScript compilation errors (vue-tsc passes)
+- ✅ No ESLint errors
+- ✅ Code formatted with Prettier
+- ✅ Comprehensive JSDoc comments
+- ✅ Follows existing PazPaz composable patterns
 
 ---
 
