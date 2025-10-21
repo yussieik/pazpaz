@@ -447,11 +447,11 @@ class TestJWTExpirationValidation:
 class TestJWTErrorHandling:
     """Test JWT error handling and logging."""
 
-    def test_logs_algorithm_mismatch(self, capsys):
+    def test_logs_algorithm_mismatch(self, caplog):
         """Test that algorithm rejection is logged for security monitoring.
 
-        Note: This test captures stdout to verify security logging.
-        structlog outputs to stdout by default in the test environment.
+        Note: This test captures logs via caplog to verify security logging.
+        structlog is configured to route through Python's logging system in tests.
         """
         # Create token with wrong algorithm
         payload = {
@@ -481,14 +481,11 @@ class TestJWTErrorHandling:
         # Verify 401 status code
         assert exc.value.status_code == 401
 
-        # Capture stdout/stderr to verify logging occurred
-        captured = capsys.readouterr()
-
-        # Verify security event was logged to stdout (structlog default)
-        assert (
-            "jwt_algorithm_mismatch" in captured.out
-            or "jwt_algorithm_mismatch" in captured.err
-        ), f"Algorithm mismatch should be logged. Captured stdout: {captured.out}, stderr: {captured.err}"
+        # Verify security event was logged
+        assert any(
+            "jwt_algorithm_mismatch" in record.message
+            for record in caplog.records
+        ), f"Algorithm mismatch should be logged. Captured logs: {[r.message for r in caplog.records]}"
 
     def test_malformed_token_returns_401(self):
         """Test that malformed tokens return 401."""

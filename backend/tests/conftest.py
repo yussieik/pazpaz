@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import subprocess
 import time
@@ -13,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 import pytest_asyncio
 import redis.asyncio as redis
+import structlog
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -214,6 +216,59 @@ def ensure_docker_services():
 
     # Note: We don't stop services here to allow reuse across test runs
     # Services will be stopped when user runs `docker-compose down`
+
+
+@pytest.fixture(scope="function", autouse=True)
+def configure_structlog_for_tests(caplog):
+    """
+    Configure structlog to work with pytest's caplog fixture.
+
+    By default, structlog bypasses Python's logging system and writes directly
+    to stdout, which prevents caplog from capturing log records. This fixture
+    reconfigures structlog for each test to use ProcessorFormatter, which
+    integrates properly with Python's logging system and allows caplog to
+    capture structured log events.
+
+    The event name (first positional argument to logger.info/warning/etc)
+    will be available in record.msg for assertions in tests.
+    """
+    # Configure structlog to use ProcessorFormatter for test compatibility
+    # This makes logs go through Python's logging system so caplog can capture them
+    structlog.configure(
+        processors=[
+            structlog.stdlib.filter_by_level,
+            structlog.stdlib.add_logger_name,
+            structlog.stdlib.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+        ],
+        wrapper_class=structlog.stdlib.BoundLogger,
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        cache_logger_on_first_use=True,
+    )
+
+    # Configure Python's logging to use ProcessorFormatter
+    # This formats the structlog events before caplog captures them
+    formatter = structlog.stdlib.ProcessorFormatter(
+        foreign_pre_chain=structlog.get_config()["processors"],
+        processor=structlog.dev.ConsoleRenderer(colors=False),
+    )
+
+    # Get the root logger and configure it
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
+    root_logger.setLevel(logging.DEBUG)
+
+    # Set caplog to capture DEBUG level and above
+    caplog.set_level(logging.DEBUG)
+
+    yield
+
+    # Cleanup: remove the handler we added
+    root_logger.removeHandler(handler)
 
 
 @pytest.fixture(scope="session")
@@ -577,6 +632,16 @@ async def client(
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_redis] = override_get_redis
 
+    # Clear middleware stack before adding new middleware
+    # This allows us to modify middleware even after app startup
+    app.middleware_stack = None
+    app.user_middleware = [
+        m
+        for m in app.user_middleware
+        if not isinstance(m.cls, type)
+        or m.cls.__name__ != "DBSessionInjectorMiddleware"
+    ]
+
     # Add test middleware to inject db_session
     app.add_middleware(DBSessionInjectorMiddleware, db_session=db_session)
 
@@ -633,7 +698,10 @@ async def client_with_csrf(
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         # Add CSRF token to client
-        await add_csrf_to_client(ac, workspace_1.id, test_user_ws1.id, redis_client)
+        csrf_token = await add_csrf_to_client(ac, workspace_1.id, test_user_ws1.id, redis_client)
+        # Set CSRF cookie and default header on client
+        ac.cookies.set("csrf_token", csrf_token)
+        ac.headers["X-CSRF-Token"] = csrf_token
         yield ac
 
     app.dependency_overrides.clear()
@@ -650,6 +718,8 @@ async def workspace_1(db_session: AsyncSession) -> Workspace:
     workspace = Workspace(
         id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
         name="Test Workspace 1",
+        storage_quota_bytes=10 * 1024 * 1024 * 1024,  # 10 GB (explicit default)
+        storage_used_bytes=0,  # Explicitly set to 0
     )
     workspace = await db_session.merge(workspace)
     await db_session.commit()
@@ -1059,6 +1129,16 @@ async def authenticated_client(
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_redis] = override_get_redis
+
+    # Clear middleware stack before adding new middleware
+    # This allows us to modify middleware even after app startup
+    app.middleware_stack = None
+    app.user_middleware = [
+        m
+        for m in app.user_middleware
+        if not isinstance(m.cls, type)
+        or m.cls.__name__ != "DBSessionInjectorMiddleware"
+    ]
 
     # Add test middleware to inject db_session
     app.add_middleware(DBSessionInjectorMiddleware, db_session=db_session)

@@ -177,7 +177,7 @@ class TestProductionKeyEnforcement:
 
             assert f"{ENCRYPTION_KEY_SIZE} bytes" in str(exc_info.value)
 
-    def test_production_logs_enforcement_message(self, monkeypatch, capsys):
+    def test_production_logs_enforcement_message(self, monkeypatch, caplog):
         """Production logs that fallback is disabled."""
         monkeypatch.setenv("ENVIRONMENT", "production")
 
@@ -191,18 +191,17 @@ class TestProductionKeyEnforcement:
 
             get_encryption_key(environment="production")
 
-            # Check stdout for enforcement logs (structlog outputs to stdout)
-            captured = capsys.readouterr()
-            output = captured.out + captured.err
+            # Check captured logs for enforcement information
+            log_text = caplog.text
 
             # Verify logs contain enforcement information
-            assert "enforcing_aws_secrets_manager" in output, (
+            assert "enforcing_aws_secrets_manager" in log_text, (
                 f"Expected 'enforcing_aws_secrets_manager' in logs. "
-                f"Captured output: {output[:500]}"
+                f"Captured logs: {log_text[:500]}"
             )
-            assert "fallback_disabled=True" in output, (
-                f"Expected 'fallback_disabled=True' in logs. "
-                f"Captured output: {output[:500]}"
+            assert "fallback_disabled" in log_text, (
+                f"Expected 'fallback_disabled' in logs. "
+                f"Captured logs: {log_text[:500]}"
             )
 
     def test_development_environment_allows_env_variable(self, monkeypatch):

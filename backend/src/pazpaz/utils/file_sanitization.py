@@ -326,15 +326,33 @@ def sanitize_filename(original_filename: str, max_length: int = 255) -> str:
         ```
     """
     import re
-    from pathlib import Path
 
-    # Extract extension first (preserve it)
-    path = Path(original_filename)
-    extension = path.suffix.lower()
-    basename = path.stem
+    # First, normalize path separators to forward slash for consistent handling
+    # This handles both Unix (/) and Windows (\) path separators
+    normalized = original_filename.replace("\\", "/")
 
-    # Remove path traversal components (take only filename part)
-    basename = Path(basename).name
+    # Take only the last component (filename) - strips all directory parts
+    # This handles both relative paths (../../file.jpg) and absolute paths (/etc/passwd.jpg)
+    filename_only = normalized.split("/")[-1]
+
+    # Split filename into basename and extension
+    # Handle edge case: ".pdf" should become "attachment.pdf"
+    if "." in filename_only:
+        parts = filename_only.rsplit(".", 1)
+        basename = parts[0]
+        extension = "." + parts[1].lower()
+
+        # Strip leading dots from basename (e.g., "...hidden" -> "hidden")
+        basename = basename.lstrip(".")
+
+        # If basename becomes empty after stripping dots, use fallback
+        # This handles cases like ".pdf", "...pdf", "..pdf"
+        if not basename:
+            basename = ""  # Will be set to "attachment" later
+    else:
+        # No extension at all
+        basename = filename_only.lstrip(".")
+        extension = ""
 
     # Replace problematic characters with underscore
     # Allowed: alphanumeric, hyphen, underscore, space

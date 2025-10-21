@@ -329,6 +329,7 @@ class TestCSRFAuthenticationFlow:
         # Manually create a magic link token in Redis
         import json
         import secrets
+        from pazpaz.services.auth_service import get_token_cipher
 
         magic_token = secrets.token_urlsafe(32)
         token_data = {
@@ -336,10 +337,13 @@ class TestCSRFAuthenticationFlow:
             "workspace_id": str(user.workspace_id),
             "email": user.email,
         }
+        # Encrypt token data before storing (application expects encrypted data)
+        cipher = get_token_cipher()
+        encrypted_data = cipher.encrypt(json.dumps(token_data).encode())
         await redis_client.setex(
             f"magic_link:{magic_token}",
             600,  # 10 minutes
-            json.dumps(token_data),
+            encrypted_data.decode(),
         )
 
         # Verify magic link (should set CSRF token)

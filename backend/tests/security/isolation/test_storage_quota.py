@@ -27,6 +27,23 @@ from pazpaz.utils.storage_quota import (
 )
 
 
+async def set_workspace_storage(
+    db: AsyncSession,
+    workspace_id: uuid.UUID,
+    quota_bytes: int,
+    used_bytes: int,
+) -> None:
+    """Helper to reliably set workspace storage values in tests."""
+    from sqlalchemy import update as sql_update
+    stmt = (
+        sql_update(Workspace)
+        .where(Workspace.id == workspace_id)
+        .values(storage_quota_bytes=quota_bytes, storage_used_bytes=used_bytes)
+    )
+    await db.execute(stmt)
+    await db.commit()
+
+
 class TestQuotaValidation:
     """Test storage quota validation before uploads."""
 
@@ -358,26 +375,20 @@ class TestEdgeCases:
         self, db: AsyncSession, workspace: Workspace
     ):
         """Test large file upload that exactly fills quota."""
-        workspace.storage_used_bytes = 0
-        workspace.storage_quota_bytes = 10 * 1024 * 1024 * 1024
-        await db.commit()
+        await set_workspace_storage(db, workspace.id, 10 * 1024 * 1024 * 1024, 0)
 
         # Upload 10 GB file (exactly fills quota)
+        # validate_workspace_storage_quota reserves quota atomically
         await validate_workspace_storage_quota(
             workspace_id=workspace.id,
             new_file_size=10 * 1024 * 1024 * 1024,
             db=db,
         )
-
-        await update_workspace_storage(
-            workspace_id=workspace.id,
-            bytes_delta=10 * 1024 * 1024 * 1024,
-            db=db,
-        )
         await db.commit()
         await db.refresh(workspace)
 
-        assert workspace.storage_used_bytes == workspace.storage_quota_bytes
+        # Workspace now has 10GB used and 10GB quota (at limit)
+        assert workspace.storage_used_bytes == 10 * 1024 * 1024 * 1024
         assert workspace.is_quota_exceeded is True
 
 

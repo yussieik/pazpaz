@@ -157,9 +157,16 @@ class TestFileUploadContentType:
         client: AsyncClient,
     ):
         """Verify file upload endpoints reject application/json."""
+        # Set CSRF token to bypass CSRF validation (we're testing Content-Type validation)
+        csrf_token = "test-csrf-token-bypass"
+        client.cookies.set("csrf_token", csrf_token)
+
         response = await client.post(
             "/api/v1/sessions/test-uuid/attachments",
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "X-CSRF-Token": csrf_token,
+            },
             json={"file": "base64-encoded-data"},
         )
 
@@ -172,9 +179,16 @@ class TestFileUploadContentType:
         client: AsyncClient,
     ):
         """Verify file upload endpoints reject application/octet-stream."""
+        # Set CSRF token to bypass CSRF validation (we're testing Content-Type validation)
+        csrf_token = "test-csrf-token-bypass"
+        client.cookies.set("csrf_token", csrf_token)
+
         response = await client.post(
             "/api/v1/sessions/test-uuid/attachments",
-            headers={"Content-Type": "application/octet-stream"},
+            headers={
+                "Content-Type": "application/octet-stream",
+                "X-CSRF-Token": csrf_token,
+            },
             content=b"\x89PNG\r\n\x1a\n",  # PNG magic bytes
         )
 
@@ -423,9 +437,16 @@ class TestPUTPATCHDELETE:
         client: AsyncClient,
     ):
         """Verify PUT requests require application/json."""
+        # Set CSRF token to bypass CSRF validation (we're testing Content-Type validation)
+        csrf_token = "test-csrf-token-bypass"
+        client.cookies.set("csrf_token", csrf_token)
+
         response = await client.put(
             "/api/v1/sessions/test-uuid",
-            headers={"Content-Type": "text/plain"},
+            headers={
+                "Content-Type": "text/plain",
+                "X-CSRF-Token": csrf_token,
+            },
             data="test",
         )
 
@@ -437,9 +458,16 @@ class TestPUTPATCHDELETE:
         client: AsyncClient,
     ):
         """Verify PATCH requests require application/json."""
+        # Set CSRF token to bypass CSRF validation (we're testing Content-Type validation)
+        csrf_token = "test-csrf-token-bypass"
+        client.cookies.set("csrf_token", csrf_token)
+
         response = await client.patch(
             "/api/v1/sessions/test-uuid",
-            headers={"Content-Type": "text/plain"},
+            headers={
+                "Content-Type": "text/plain",
+                "X-CSRF-Token": csrf_token,
+            },
             data="test",
         )
 
@@ -468,10 +496,17 @@ class TestDefenseInDepth:
         client: AsyncClient,
     ):
         """Verify attackers can't bypass file validation by sending JSON."""
+        # Set CSRF token to bypass CSRF validation (we're testing Content-Type validation)
+        csrf_token = "test-csrf-token-bypass"
+        client.cookies.set("csrf_token", csrf_token)
+
         # Attempt to send JSON to file upload endpoint
         response = await client.post(
             "/api/v1/sessions/test-uuid/attachments",
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "X-CSRF-Token": csrf_token,
+            },
             json={"filename": "evil.exe", "content": "base64-encoded-malware"},
         )
 
