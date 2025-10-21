@@ -17,7 +17,7 @@ describe('SessionTimeoutModal', () => {
   })
 
   describe('rendering', () => {
-    it('should not render when showWarning is false', () => {
+    it('should not render when showWarning is false', async () => {
       const wrapper = mount(SessionTimeoutModal, {
         attachTo: document.body,
         props: {
@@ -28,12 +28,14 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
+      await nextTick()
+
       const dialog = document.querySelector('[role="dialog"]')
       expect(dialog).toBeFalsy()
       wrapper.unmount()
     })
 
-    it('should render when showWarning is true', () => {
+    it('should render when showWarning is true', async () => {
       const wrapper = mount(SessionTimeoutModal, {
         attachTo: document.body,
         props: {
@@ -44,13 +46,16 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
+      await nextTick()
+
       const dialog = document.querySelector('[role="dialog"]')
       expect(dialog).toBeTruthy()
       wrapper.unmount()
     })
 
-    it('should render with correct title', () => {
+    it('should render with correct title', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -59,12 +64,16 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const title = wrapper.find('#session-timeout-title')
-      expect(title.text()).toBe('Session Expiring Soon')
+      await nextTick()
+
+      const title = document.querySelector('#session-timeout-title')
+      expect(title?.textContent?.trim()).toBe('Session Expiring Soon')
+      wrapper.unmount()
     })
 
-    it('should render both action buttons', () => {
+    it('should render both action buttons', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -73,14 +82,18 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const buttons = wrapper.findAll('button')
+      await nextTick()
+
+      const buttons = document.querySelectorAll('button')
       expect(buttons).toHaveLength(2)
-      expect(buttons[0].text()).toContain('Stay Logged In')
-      expect(buttons[1].text()).toBe('Log Out Now')
+      expect(buttons[0].textContent).toContain('Stay Logged In')
+      expect(buttons[1].textContent?.trim()).toBe('Log Out Now')
+      wrapper.unmount()
     })
 
-    it('should render HIPAA compliance notice', () => {
+    it('should render HIPAA compliance notice', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -89,14 +102,18 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const notice = wrapper.find('.text-xs.text-gray-500')
-      expect(notice.text()).toContain('HIPAA compliance')
+      await nextTick()
+
+      const notice = document.querySelector('.text-xs.text-gray-500')
+      expect(notice?.textContent).toContain('HIPAA compliance')
+      wrapper.unmount()
     })
   })
 
   describe('countdown formatting', () => {
-    it('should format 300 seconds as 5:00', () => {
+    it('should format 300 seconds as 5:00', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -105,12 +122,16 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const description = wrapper.find('#session-timeout-description')
-      expect(description.text()).toContain('5:00')
+      await nextTick()
+
+      const description = document.querySelector('#session-timeout-description')
+      expect(description?.textContent).toContain('5:00')
+      wrapper.unmount()
     })
 
-    it('should format 290 seconds as 4:50', () => {
+    it('should format 290 seconds as 4:50', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 290,
@@ -119,12 +140,16 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const description = wrapper.find('#session-timeout-description')
-      expect(description.text()).toContain('4:50')
+      await nextTick()
+
+      const description = document.querySelector('#session-timeout-description')
+      expect(description?.textContent).toContain('4:50')
+      wrapper.unmount()
     })
 
-    it('should format 60 seconds as 1:00', () => {
+    it('should format 60 seconds as 1:00', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 60,
@@ -133,12 +158,16 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const description = wrapper.find('#session-timeout-description')
-      expect(description.text()).toContain('1:00')
+      await nextTick()
+
+      const description = document.querySelector('#session-timeout-description')
+      expect(description?.textContent).toContain('1:00')
+      wrapper.unmount()
     })
 
-    it('should format 59 seconds as 0:59', () => {
+    it('should format 59 seconds as 0:59', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 59,
@@ -147,12 +176,16 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const description = wrapper.find('#session-timeout-description')
-      expect(description.text()).toContain('0:59')
+      await nextTick()
+
+      const description = document.querySelector('#session-timeout-description')
+      expect(description?.textContent).toContain('0:59')
+      wrapper.unmount()
     })
 
-    it('should format 5 seconds as 0:05', () => {
+    it('should format 5 seconds as 0:05', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 5,
@@ -161,12 +194,16 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const description = wrapper.find('#session-timeout-description')
-      expect(description.text()).toContain('0:05')
+      await nextTick()
+
+      const description = document.querySelector('#session-timeout-description')
+      expect(description?.textContent).toContain('0:05')
+      wrapper.unmount()
     })
 
-    it('should format 0 seconds as 0:00', () => {
+    it('should format 0 seconds as 0:00', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 0,
@@ -175,12 +212,16 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const description = wrapper.find('#session-timeout-description')
-      expect(description.text()).toContain('0:00')
+      await nextTick()
+
+      const description = document.querySelector('#session-timeout-description')
+      expect(description?.textContent).toContain('0:00')
+      wrapper.unmount()
     })
 
     it('should update countdown display when prop changes', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -189,11 +230,17 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      expect(wrapper.find('#session-timeout-description').text()).toContain('5:00')
+      await nextTick()
+
+      let description = document.querySelector('#session-timeout-description')
+      expect(description?.textContent).toContain('5:00')
 
       await wrapper.setProps({ remainingSeconds: 120 })
+      await nextTick()
 
-      expect(wrapper.find('#session-timeout-description').text()).toContain('2:00')
+      description = document.querySelector('#session-timeout-description')
+      expect(description?.textContent).toContain('2:00')
+      wrapper.unmount()
     })
   })
 
@@ -202,6 +249,7 @@ describe('SessionTimeoutModal', () => {
       mockRefreshSession.mockResolvedValue(undefined)
 
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -210,10 +258,14 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const stayLoggedInButton = wrapper.findAll('button')[0]
-      await stayLoggedInButton.trigger('click')
+      await nextTick()
+
+      const buttons = document.querySelectorAll('button')
+      const stayLoggedInButton = buttons[0] as HTMLButtonElement
+      stayLoggedInButton.click()
 
       expect(mockRefreshSession).toHaveBeenCalledTimes(1)
+      wrapper.unmount()
     })
 
     it('should show loading state while refreshing', async () => {
@@ -224,6 +276,7 @@ describe('SessionTimeoutModal', () => {
       mockRefreshSession.mockReturnValue(refreshPromise)
 
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -232,30 +285,41 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const stayLoggedInButton = wrapper.findAll('button')[0]
-      await stayLoggedInButton.trigger('click')
+      await nextTick()
+
+      let buttons = document.querySelectorAll('button')
+      const stayLoggedInButton = buttons[0] as HTMLButtonElement
+      stayLoggedInButton.click()
       await nextTick()
 
       // Button should show loading text
-      expect(stayLoggedInButton.text()).toBe('Refreshing...')
+      expect(stayLoggedInButton.textContent).toBe('Refreshing...')
 
       // Both buttons should be disabled during refresh
-      expect(stayLoggedInButton.attributes('disabled')).toBeDefined()
-      expect(wrapper.findAll('button')[1].attributes('disabled')).toBeDefined()
+      expect(stayLoggedInButton.disabled).toBe(true)
+      expect((buttons[1] as HTMLButtonElement).disabled).toBe(true)
 
       // Resolve refresh
       resolveRefresh!()
       await nextTick()
+      await nextTick() // Extra tick for state update
+
+      // Re-query buttons after state update
+      buttons = document.querySelectorAll('button')
+      const updatedButton = buttons[0] as HTMLButtonElement
 
       // Button should return to normal state
-      expect(stayLoggedInButton.text()).toContain('Stay Logged In')
-      expect(stayLoggedInButton.attributes('disabled')).toBeUndefined()
+      expect(updatedButton.textContent).toContain('Stay Logged In')
+      expect(updatedButton.disabled).toBe(false)
+      wrapper.unmount()
     })
 
     it('should reset loading state even if refresh fails', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
       mockRefreshSession.mockRejectedValue(new Error('Network error'))
 
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -264,16 +328,29 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const stayLoggedInButton = wrapper.findAll('button')[0]
-      await stayLoggedInButton.trigger('click')
       await nextTick()
 
-      // Wait for promise rejection
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      const buttons = document.querySelectorAll('button')
+      const stayLoggedInButton = buttons[0] as HTMLButtonElement
+      stayLoggedInButton.click()
       await nextTick()
+
+      // Wait for promise rejection and catch it
+      try {
+        await mockRefreshSession()
+      } catch {
+        // Expected rejection
+      }
+      await nextTick()
+
+      // Re-query button after state update
+      const updatedButtons = document.querySelectorAll('button')
+      const updatedButton = updatedButtons[0] as HTMLButtonElement
 
       // Loading state should be reset
-      expect(stayLoggedInButton.text()).toContain('Stay Logged In')
+      expect(updatedButton.textContent).toContain('Stay Logged In')
+      wrapper.unmount()
+      consoleError.mockRestore()
     })
   })
 
@@ -282,6 +359,7 @@ describe('SessionTimeoutModal', () => {
       mockHandleTimeout.mockResolvedValue(undefined)
 
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -290,16 +368,21 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const logOutButton = wrapper.findAll('button')[1]
-      await logOutButton.trigger('click')
+      await nextTick()
+
+      const buttons = document.querySelectorAll('button')
+      const logOutButton = buttons[1] as HTMLButtonElement
+      logOutButton.click()
 
       expect(mockHandleTimeout).toHaveBeenCalledTimes(1)
+      wrapper.unmount()
     })
 
     it('should not call handleTimeout when clicking refresh button', async () => {
       mockRefreshSession.mockResolvedValue(undefined)
 
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -308,16 +391,21 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const stayLoggedInButton = wrapper.findAll('button')[0]
-      await stayLoggedInButton.trigger('click')
+      await nextTick()
+
+      const buttons = document.querySelectorAll('button')
+      const stayLoggedInButton = buttons[0] as HTMLButtonElement
+      stayLoggedInButton.click()
 
       expect(mockHandleTimeout).not.toHaveBeenCalled()
+      wrapper.unmount()
     })
   })
 
   describe('accessibility', () => {
-    it('should have proper ARIA attributes', () => {
+    it('should have proper ARIA attributes', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -326,14 +414,18 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const dialog = wrapper.find('[role="dialog"]')
-      expect(dialog.attributes('aria-modal')).toBe('true')
-      expect(dialog.attributes('aria-labelledby')).toBe('session-timeout-title')
-      expect(dialog.attributes('aria-describedby')).toBe('session-timeout-description')
+      await nextTick()
+
+      const dialog = document.querySelector('[role="dialog"]')
+      expect(dialog?.getAttribute('aria-modal')).toBe('true')
+      expect(dialog?.getAttribute('aria-labelledby')).toBe('session-timeout-title')
+      expect(dialog?.getAttribute('aria-describedby')).toBe('session-timeout-description')
+      wrapper.unmount()
     })
 
-    it('should have alertdialog role on inner container', () => {
+    it('should have alertdialog role on inner container', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -342,12 +434,16 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const alertDialog = wrapper.find('[role="alertdialog"]')
-      expect(alertDialog.exists()).toBe(true)
+      await nextTick()
+
+      const alertDialog = document.querySelector('[role="alertdialog"]')
+      expect(alertDialog).toBeTruthy()
+      wrapper.unmount()
     })
 
-    it('should have aria-hidden on warning icon', () => {
+    it('should have aria-hidden on warning icon', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -356,12 +452,16 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const icon = wrapper.find('svg')
-      expect(icon.attributes('aria-hidden')).toBe('true')
+      await nextTick()
+
+      const icon = document.querySelector('svg')
+      expect(icon?.getAttribute('aria-hidden')).toBe('true')
+      wrapper.unmount()
     })
 
-    it('should have proper button types', () => {
+    it('should have proper button types', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -370,14 +470,18 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const buttons = wrapper.findAll('button')
+      await nextTick()
+
+      const buttons = document.querySelectorAll('button')
       buttons.forEach((button) => {
-        expect(button.attributes('type')).toBe('button')
+        expect(button.getAttribute('type')).toBe('button')
       })
+      wrapper.unmount()
     })
 
-    it('should have visible focus indicators', () => {
+    it('should have visible focus indicators', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -386,17 +490,21 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const buttons = wrapper.findAll('button')
+      await nextTick()
+
+      const buttons = document.querySelectorAll('button')
       buttons.forEach((button) => {
-        const classes = button.classes().join(' ')
+        const classes = button.className
         expect(classes).toContain('focus:ring')
       })
+      wrapper.unmount()
     })
   })
 
   describe('visual design', () => {
-    it('should use yellow warning color for icon', () => {
+    it('should use yellow warning color for icon', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -405,12 +513,16 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const icon = wrapper.find('svg')
-      expect(icon.classes()).toContain('text-yellow-500')
+      await nextTick()
+
+      const icon = document.querySelector('svg')
+      expect(icon?.className).toContain('text-yellow-500')
+      wrapper.unmount()
     })
 
-    it('should use blue for primary action button', () => {
+    it('should use blue for primary action button', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -419,12 +531,16 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const stayLoggedInButton = wrapper.findAll('button')[0]
-      expect(stayLoggedInButton.classes()).toContain('bg-blue-600')
+      await nextTick()
+
+      const buttons = document.querySelectorAll('button')
+      expect(buttons[0].className).toContain('bg-blue-600')
+      wrapper.unmount()
     })
 
-    it('should use gray for secondary action button', () => {
+    it('should use gray for secondary action button', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -433,12 +549,16 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const logOutButton = wrapper.findAll('button')[1]
-      expect(logOutButton.classes()).toContain('bg-gray-200')
+      await nextTick()
+
+      const buttons = document.querySelectorAll('button')
+      expect(buttons[1].className).toContain('bg-gray-200')
+      wrapper.unmount()
     })
 
-    it('should have backdrop overlay', () => {
+    it('should have backdrop overlay', async () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -447,8 +567,11 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      const backdrop = wrapper.find('.fixed.inset-0')
-      expect(backdrop.classes()).toContain('bg-black/50')
+      await nextTick()
+
+      const backdrop = document.querySelector('.fixed.inset-0')
+      expect(backdrop?.className).toContain('bg-black/50')
+      wrapper.unmount()
     })
   })
 })

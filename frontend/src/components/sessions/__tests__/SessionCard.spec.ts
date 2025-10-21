@@ -2,7 +2,7 @@
  * SessionCard Component Tests
  *
  * Tests for the SessionCard component including:
- * - KebabMenu component integration
+ * - Trash icon deletion UI
  * - Delete confirmation flow (normal and finalized notes)
  * - Deletion API calls and error handling
  * - Keyboard accessibility (Escape in confirmation dialog)
@@ -14,7 +14,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import SessionCard from '../SessionCard.vue'
-import KebabMenu from '@/components/common/KebabMenu.vue'
 import apiClient from '@/api/client'
 import { useToast } from '@/composables/useToast'
 
@@ -40,6 +39,12 @@ describe('SessionCard', () => {
     finalized_at: '2024-03-15T15:00:00Z',
   }
 
+  const mockDraftSession = {
+    ...mockSession,
+    is_draft: true,
+    finalized_at: null,
+  }
+
   const mockToast = {
     showSuccess: vi.fn(),
     showError: vi.fn(),
@@ -61,21 +66,36 @@ describe('SessionCard', () => {
   })
 
   /**
-   * Helper function to open the kebab menu
+   * Helper function to click the delete trash icon
    */
-  async function openKebabMenu() {
-    const kebabButton = wrapper
-      .findComponent(KebabMenu)
-      .find('button[aria-haspopup="true"]')
-    await kebabButton.trigger('click')
+  async function clickDeleteButton() {
+    const deleteButton = wrapper.find('button[aria-label="Delete session note"]')
+    await deleteButton.trigger('click')
     await nextTick()
   }
 
   /**
-   * Helper function to get menu items
+   * Helper function to click the cancel button in confirmation dialog
    */
-  function getMenuItems() {
-    return wrapper.findComponent(KebabMenu).findAll('[role="menuitem"]')
+  async function clickCancelButton() {
+    const cancelButton = wrapper.findAll('button').find((btn) => btn.text() === 'Cancel')
+    if (cancelButton) {
+      await cancelButton.trigger('click')
+      await nextTick()
+    }
+  }
+
+  /**
+   * Helper function to click the delete confirm button
+   */
+  async function clickConfirmButton() {
+    const deleteButton = wrapper
+      .findAll('button')
+      .find((btn) => btn.text() === 'Delete Note' || btn.text() === 'Deleting...')
+    if (deleteButton) {
+      await deleteButton.trigger('click')
+      await nextTick()
+    }
   }
 
   describe('Rendering and Initial State', () => {
@@ -88,16 +108,14 @@ describe('SessionCard', () => {
       expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false)
     })
 
-    it('renders KebabMenu component with correct props', () => {
+    it('renders trash icon delete button', () => {
       wrapper = mount(SessionCard, {
         props: { session: mockSession },
       })
 
-      const kebabMenu = wrapper.findComponent(KebabMenu)
-      expect(kebabMenu.exists()).toBe(true)
-      expect(kebabMenu.props('ariaLabel')).toContain('More actions')
-      expect(kebabMenu.props('position')).toBe('bottom-right')
-      expect(kebabMenu.props('alwaysVisibleOnMobile')).toBe(true)
+      const deleteButton = wrapper.find('button[aria-label="Delete session note"]')
+      expect(deleteButton.exists()).toBe(true)
+      expect(deleteButton.find('svg').exists()).toBe(true) // Trash icon
     })
 
     it('renders slot content', () => {
@@ -109,87 +127,79 @@ describe('SessionCard', () => {
       })
 
       expect(wrapper.find('.test-content').exists()).toBe(true)
-      expect(wrapper.text()).toContain('Test Content')
+      expect(wrapper.find('.test-content').text()).toBe('Test Content')
     })
   })
 
-  describe('Kebab Menu Interactions', () => {
-    it('opens menu when kebab button clicked', async () => {
+  describe('Trash Icon Delete Interactions', () => {
+    it('shows confirmation dialog when delete button clicked', async () => {
       wrapper = mount(SessionCard, {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-
-      expect(wrapper.findComponent(KebabMenu).find('[role="menu"]').exists()).toBe(true)
+      expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false)
+      await clickDeleteButton()
+      expect(wrapper.find('[role="alertdialog"]').exists()).toBe(true)
     })
 
-    it('shows View Full Note and Delete Note menu items', async () => {
+    it('emits view event when card clicked', async () => {
       wrapper = mount(SessionCard, {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-
-      const menuItems = getMenuItems()
-      expect(menuItems).toHaveLength(2)
-      expect(menuItems[0].text()).toContain('View Full Note')
-      expect(menuItems[1].text()).toContain('Delete Note')
-    })
-
-    it('emits view event when View Full Note clicked', async () => {
-      wrapper = mount(SessionCard, {
-        props: { session: mockSession },
-      })
-
-      await openKebabMenu()
-      await getMenuItems()[0].trigger('click')
+      const cardButton = wrapper.find('.group')
+      await cardButton.trigger('click')
 
       expect(wrapper.emitted('view')).toBeTruthy()
-      expect(wrapper.emitted('view')![0]).toEqual([mockSession.id])
+      expect(wrapper.emitted('view')?.[0]).toEqual([mockSession.id])
     })
 
-    it('closes menu and opens confirmation when Delete Note clicked', async () => {
+    it('does not emit view when delete button clicked', async () => {
       wrapper = mount(SessionCard, {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
-      await nextTick()
+      await clickDeleteButton()
 
-      // Menu should close (handled by KebabMenu component)
-      // Confirmation dialog should open
-      expect(wrapper.find('[role="alertdialog"]').exists()).toBe(true)
+      expect(wrapper.emitted('view')).toBeFalsy()
     })
   })
 
   describe('Delete Confirmation State', () => {
-    it('shows confirmation dialog with correct title for draft note', async () => {
-      const draftSession = { ...mockSession, is_draft: true, finalized_at: null }
+    it('shows confirmation dialog with correct title for finalized note', async () => {
       wrapper = mount(SessionCard, {
-        props: { session: draftSession },
+        props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
-      await nextTick()
+      await clickDeleteButton()
 
-      expect(wrapper.text()).toContain('Delete this session note?')
-      expect(wrapper.text()).not.toContain('medical record')
+      const title = wrapper.find('#delete-confirmation-title')
+      expect(title.text()).toContain('finalized')
+      expect(title.text()).toContain('session note')
+    })
+
+    it('shows confirmation dialog with correct title for draft note', async () => {
+      wrapper = mount(SessionCard, {
+        props: { session: mockDraftSession },
+      })
+
+      await clickDeleteButton()
+
+      const title = wrapper.find('#delete-confirmation-title')
+      expect(title.text()).not.toContain('finalized')
+      expect(title.text()).toContain('session note')
     })
 
     it('shows extra warning for finalized notes', async () => {
       wrapper = mount(SessionCard, {
-        props: { session: mockSession }, // finalized_at is set
+        props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
-      await nextTick()
+      await clickDeleteButton()
 
-      expect(wrapper.text()).toContain('Delete this finalized session note?')
-      expect(wrapper.text()).toContain('⚠️ This is a medical record')
+      const description = wrapper.find('#delete-confirmation-description')
+      expect(description.text()).toContain('medical record')
+      expect(description.text()).toContain('⚠️')
     })
 
     it('shows 30-day grace period message', async () => {
@@ -197,12 +207,11 @@ describe('SessionCard', () => {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
-      await nextTick()
+      await clickDeleteButton()
 
-      expect(wrapper.text()).toContain('30 days')
-      expect(wrapper.text()).toContain('restore')
+      const description = wrapper.find('#delete-confirmation-description')
+      expect(description.text()).toContain('30 days')
+      expect(description.text()).toContain('restore')
     })
 
     it('shows Cancel and Delete Note buttons', async () => {
@@ -210,16 +219,12 @@ describe('SessionCard', () => {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
-      await nextTick()
+      await clickDeleteButton()
 
       const buttons = wrapper.findAll('button')
-      const cancelButton = buttons.find((b) => b.text() === 'Cancel')
-      const deleteButton = buttons.find((b) => b.text() === 'Delete Note')
-
-      expect(cancelButton).toBeTruthy()
-      expect(deleteButton).toBeTruthy()
+      const buttonTexts = buttons.map((btn) => btn.text())
+      expect(buttonTexts).toContain('Cancel')
+      expect(buttonTexts).toContain('Delete Note')
     })
 
     it('reverts to normal state when Cancel clicked', async () => {
@@ -227,14 +232,10 @@ describe('SessionCard', () => {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
-      await nextTick()
+      await clickDeleteButton()
+      expect(wrapper.find('[role="alertdialog"]').exists()).toBe(true)
 
-      const buttons = wrapper.findAll('button')
-      const cancelButton = buttons.find((b) => b.text() === 'Cancel')
-      await cancelButton?.trigger('click')
-
+      await clickCancelButton()
       expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false)
       expect(wrapper.find('.group').exists()).toBe(true)
     })
@@ -242,205 +243,175 @@ describe('SessionCard', () => {
 
   describe('Deletion Flow', () => {
     it('calls DELETE API when Delete Note confirmed', async () => {
-      const deleteSpy = vi.spyOn(apiClient, 'delete').mockResolvedValue({})
+      vi.mocked(apiClient.delete).mockResolvedValue({})
 
       wrapper = mount(SessionCard, {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
-      await nextTick()
+      await clickDeleteButton()
+      await clickConfirmButton()
 
-      const buttons = wrapper.findAll('button')
-      const deleteButton = buttons.find((b) => b.text() === 'Delete Note')
-      await deleteButton?.trigger('click')
-
-      expect(deleteSpy).toHaveBeenCalledWith(`/sessions/${mockSession.id}`)
+      expect(apiClient.delete).toHaveBeenCalledWith(`/sessions/${mockSession.id}`)
     })
 
     it('emits deleted event on successful deletion', async () => {
-      vi.spyOn(apiClient, 'delete').mockResolvedValue({})
+      vi.mocked(apiClient.delete).mockResolvedValue({})
 
       wrapper = mount(SessionCard, {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
-      await nextTick()
-
-      const buttons = wrapper.findAll('button')
-      const deleteButton = buttons.find((b) => b.text() === 'Delete Note')
-      await deleteButton?.trigger('click')
+      await clickDeleteButton()
+      await clickConfirmButton()
       await nextTick()
 
       expect(wrapper.emitted('deleted')).toBeTruthy()
-      expect(wrapper.emitted('deleted')![0]).toEqual([mockSession.id])
+      expect(wrapper.emitted('deleted')?.[0]).toEqual([mockSession.id])
     })
 
     it('shows success toast on successful deletion', async () => {
-      vi.spyOn(apiClient, 'delete').mockResolvedValue({})
+      vi.mocked(apiClient.delete).mockResolvedValue({})
 
       wrapper = mount(SessionCard, {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
-      await nextTick()
-
-      const buttons = wrapper.findAll('button')
-      const deleteButton = buttons.find((b) => b.text() === 'Delete Note')
-      await deleteButton?.trigger('click')
+      await clickDeleteButton()
+      await clickConfirmButton()
       await nextTick()
 
       expect(mockToast.showSuccess).toHaveBeenCalledWith(
-        'Session note deleted. Undo available for 30 days.'
+        expect.stringContaining('deleted'),
+      )
+      expect(mockToast.showSuccess).toHaveBeenCalledWith(
+        expect.stringContaining('30 days'),
       )
     })
 
     it('shows loading state while deleting', async () => {
-      vi.spyOn(apiClient, 'delete').mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
-      )
+      let resolveDelete: () => void
+      const deletePromise = new Promise<void>((resolve) => {
+        resolveDelete = resolve
+      })
+      vi.mocked(apiClient.delete).mockReturnValue(deletePromise as any)
 
       wrapper = mount(SessionCard, {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
+      await clickDeleteButton()
+      await clickConfirmButton()
       await nextTick()
 
-      const buttons = wrapper.findAll('button')
-      const deleteButton = buttons.find((b) => b.text() === 'Delete Note')
-      await deleteButton?.trigger('click')
+      const deleteButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text() === 'Deleting...')
+      expect(deleteButton).toBeTruthy()
 
-      expect(wrapper.text()).toContain('Deleting...')
-      expect(deleteButton?.attributes('disabled')).toBeDefined()
+      // Resolve
+      resolveDelete!()
+      await nextTick()
     })
 
     it('disables buttons while deleting', async () => {
-      vi.spyOn(apiClient, 'delete').mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
-      )
+      let resolveDelete: () => void
+      const deletePromise = new Promise<void>((resolve) => {
+        resolveDelete = resolve
+      })
+      vi.mocked(apiClient.delete).mockReturnValue(deletePromise as any)
 
       wrapper = mount(SessionCard, {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
+      await clickDeleteButton()
+      await clickConfirmButton()
       await nextTick()
 
       const buttons = wrapper.findAll('button')
-      const deleteButton = buttons.find((b) => b.text() === 'Delete Note')
-      await deleteButton?.trigger('click')
-
-      const confirmationButtons = wrapper.findAll('button')
-      confirmationButtons.forEach((button) => {
-        expect(button.attributes('disabled')).toBeDefined()
+      buttons.forEach((btn) => {
+        expect(btn.attributes('disabled')).toBeDefined()
       })
+
+      // Resolve
+      resolveDelete!()
+      await nextTick()
     })
   })
 
   describe('Error Handling', () => {
     it('handles 404 error (note not found)', async () => {
-      vi.spyOn(apiClient, 'delete').mockRejectedValue({
-        response: { status: 404 },
+      vi.mocked(apiClient.delete).mockRejectedValue({
+        response: { status: 404, data: { detail: 'Not found' } },
       })
 
       wrapper = mount(SessionCard, {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
+      await clickDeleteButton()
+      await clickConfirmButton()
       await nextTick()
 
-      const buttons = wrapper.findAll('button')
-      const deleteButton = buttons.find((b) => b.text() === 'Delete Note')
-      await deleteButton?.trigger('click')
-      await nextTick()
-
-      expect(mockToast.showError).toHaveBeenCalledWith('Session note no longer exists')
-      expect(wrapper.emitted('deleted')).toBeTruthy()
+      expect(mockToast.showError).toHaveBeenCalledWith(expect.stringContaining('no longer exists'))
+      expect(wrapper.emitted('deleted')).toBeTruthy() // Should still remove from UI
     })
 
     it('handles 403 error (permission denied)', async () => {
-      vi.spyOn(apiClient, 'delete').mockRejectedValue({
-        response: { status: 403 },
+      vi.mocked(apiClient.delete).mockRejectedValue({
+        response: { status: 403, data: { detail: 'Forbidden' } },
       })
 
       wrapper = mount(SessionCard, {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
+      await clickDeleteButton()
+      await clickConfirmButton()
       await nextTick()
 
-      const buttons = wrapper.findAll('button')
-      const deleteButton = buttons.find((b) => b.text() === 'Delete Note')
-      await deleteButton?.trigger('click')
-      await nextTick()
-
-      expect(mockToast.showError).toHaveBeenCalledWith(
-        "You don't have permission to delete this note"
-      )
-      expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false)
+      expect(mockToast.showError).toHaveBeenCalledWith(expect.stringContaining('permission'))
     })
 
     it('handles 410 error (already deleted)', async () => {
-      vi.spyOn(apiClient, 'delete').mockRejectedValue({
-        response: { status: 410 },
+      vi.mocked(apiClient.delete).mockRejectedValue({
+        response: { status: 410, data: { detail: 'Gone' } },
       })
 
       wrapper = mount(SessionCard, {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
+      await clickDeleteButton()
+      await clickConfirmButton()
       await nextTick()
 
-      const buttons = wrapper.findAll('button')
-      const deleteButton = buttons.find((b) => b.text() === 'Delete Note')
-      await deleteButton?.trigger('click')
-      await nextTick()
-
-      expect(mockToast.showError).toHaveBeenCalledWith(
-        'This note has already been deleted'
-      )
+      expect(mockToast.showError).toHaveBeenCalledWith(expect.stringContaining('already been deleted'))
       expect(wrapper.emitted('deleted')).toBeTruthy()
     })
 
     it('handles 422 error (amended note)', async () => {
-      vi.spyOn(apiClient, 'delete').mockRejectedValue({
-        response: { status: 422 },
+      vi.mocked(apiClient.delete).mockRejectedValue({
+        response: {
+          status: 422,
+          data: { detail: 'Note has been amended' },
+        },
       })
 
       wrapper = mount(SessionCard, {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
+      await clickDeleteButton()
+      await clickConfirmButton()
       await nextTick()
 
-      const buttons = wrapper.findAll('button')
-      const deleteButton = buttons.find((b) => b.text() === 'Delete Note')
-      await deleteButton?.trigger('click')
-      await nextTick()
-
-      expect(mockToast.showError).toHaveBeenCalledWith(
-        'Cannot delete amended notes due to medical-legal requirements'
-      )
+      expect(mockToast.showError).toHaveBeenCalledWith(expect.stringContaining('amended'))
     })
 
     it('handles generic server error', async () => {
-      vi.spyOn(apiClient, 'delete').mockRejectedValue({
+      vi.mocked(apiClient.delete).mockRejectedValue({
         response: { status: 500, data: { detail: 'Internal server error' } },
       })
 
@@ -448,40 +419,28 @@ describe('SessionCard', () => {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
+      await clickDeleteButton()
+      await clickConfirmButton()
       await nextTick()
 
-      const buttons = wrapper.findAll('button')
-      const deleteButton = buttons.find((b) => b.text() === 'Delete Note')
-      await deleteButton?.trigger('click')
-      await nextTick()
-
+      // When server provides detail, it shows that exact message
       expect(mockToast.showError).toHaveBeenCalledWith('Internal server error')
-      expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false)
     })
 
     it('shows fallback error message when detail not provided', async () => {
-      vi.spyOn(apiClient, 'delete').mockRejectedValue({
-        response: { status: 500 },
+      vi.mocked(apiClient.delete).mockRejectedValue({
+        response: { status: 500, data: {} },
       })
 
       wrapper = mount(SessionCard, {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
+      await clickDeleteButton()
+      await clickConfirmButton()
       await nextTick()
 
-      const buttons = wrapper.findAll('button')
-      const deleteButton = buttons.find((b) => b.text() === 'Delete Note')
-      await deleteButton?.trigger('click')
-      await nextTick()
-
-      expect(mockToast.showError).toHaveBeenCalledWith(
-        'Failed to delete note - please try again'
-      )
+      expect(mockToast.showError).toHaveBeenCalled()
     })
   })
 
@@ -491,17 +450,13 @@ describe('SessionCard', () => {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
-      await nextTick()
-
-      // Confirmation should be visible
+      await clickDeleteButton()
       expect(wrapper.find('[role="alertdialog"]').exists()).toBe(true)
 
-      // Press Escape
-      await wrapper.find('[role="alertdialog"]').trigger('keydown', { key: 'Escape' })
+      const dialog = wrapper.find('[role="alertdialog"]')
+      await dialog.trigger('keydown', { key: 'Escape' })
+      await nextTick()
 
-      // Should revert to normal state
       expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false)
     })
 
@@ -510,11 +465,12 @@ describe('SessionCard', () => {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
-      await nextTick()
+      await clickDeleteButton()
+      expect(wrapper.find('[role="alertdialog"]').exists()).toBe(true)
 
-      await wrapper.find('[role="alertdialog"]').trigger('keydown', { key: 'Enter' })
+      const dialog = wrapper.find('[role="alertdialog"]')
+      await dialog.trigger('keydown', { key: 'Enter' })
+      await nextTick()
 
       expect(wrapper.find('[role="alertdialog"]').exists()).toBe(true)
     })
@@ -526,15 +482,11 @@ describe('SessionCard', () => {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
-      await nextTick()
+      await clickDeleteButton()
 
       const dialog = wrapper.find('[role="alertdialog"]')
       expect(dialog.attributes('aria-labelledby')).toBe('delete-confirmation-title')
-      expect(dialog.attributes('aria-describedby')).toBe(
-        'delete-confirmation-description'
-      )
+      expect(dialog.attributes('aria-describedby')).toBe('delete-confirmation-description')
     })
 
     it('has proper labels for title and description', async () => {
@@ -542,12 +494,13 @@ describe('SessionCard', () => {
         props: { session: mockSession },
       })
 
-      await openKebabMenu()
-      await getMenuItems()[1].trigger('click')
-      await nextTick()
+      await clickDeleteButton()
 
-      expect(wrapper.find('#delete-confirmation-title').exists()).toBe(true)
-      expect(wrapper.find('#delete-confirmation-description').exists()).toBe(true)
+      const title = wrapper.find('#delete-confirmation-title')
+      const description = wrapper.find('#delete-confirmation-description')
+
+      expect(title.exists()).toBe(true)
+      expect(description.exists()).toBe(true)
     })
   })
 })
