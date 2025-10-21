@@ -7,7 +7,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pazpaz.db.base import Base
@@ -63,6 +63,14 @@ class User(Base):
         nullable=False,
     )
 
+    # Platform Admin Access
+    is_platform_admin: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="True if user can access platform admin panel",
+    )
+
     # 2FA/TOTP fields
     totp_secret: Mapped[str | None] = mapped_column(
         EncryptedString(255),
@@ -104,6 +112,8 @@ class User(Base):
             "email",
             name="uq_users_workspace_email",
         ),
+        # Index for platform admin queries (fast lookup of platform admins)
+        Index("idx_users_platform_admin", "is_platform_admin"),
         # Index for workspace scoping and email lookups
         {"comment": "Users within workspaces with role-based access"},
     )
