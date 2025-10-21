@@ -51,7 +51,7 @@ def create_test_pdf() -> bytes:
 @pytest.fixture
 def mock_s3_client_with_files():
     """Mock S3 client that returns file content for downloads."""
-    with patch("pazpaz.core.storage.get_s3_client") as mock_get_client:
+    with patch("pazpaz.api.client_attachments.get_s3_client") as mock_get_client:
         client = MagicMock()
 
         # Mock file content for each attachment

@@ -2122,6 +2122,10 @@ class TestDraftAutosaveRateLimiting:
         )
         assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
 
+        # Flush Redis to reset IP rate limit for next part of test
+        # (IP rate limit is 100/min, we've already made 61 requests)
+        await redis_client.flushdb()
+
         # Session 2 should still have full quota (separate rate limit key)
         response = await authenticated_client.patch(
             f"/api/v1/sessions/{session2.id}/draft",

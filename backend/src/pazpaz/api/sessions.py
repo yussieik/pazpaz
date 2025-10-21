@@ -197,7 +197,7 @@ async def get_session(
     """
     workspace_id = current_user.workspace_id
 
-    # Fetch session with attachment count
+    # Fetch session with attachment count (exclude soft-deleted sessions)
     query = (
         select(
             Session,
@@ -208,7 +208,11 @@ async def get_session(
             (SessionAttachment.session_id == Session.id)
             & (SessionAttachment.deleted_at.is_(None)),
         )
-        .where(Session.id == session_id, Session.workspace_id == workspace_id)
+        .where(
+            Session.id == session_id,
+            Session.workspace_id == workspace_id,
+            Session.deleted_at.is_(None),  # Exclude soft-deleted sessions
+        )
         .group_by(Session.id)
     )
 

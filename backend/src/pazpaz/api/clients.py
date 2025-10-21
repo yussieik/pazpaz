@@ -230,24 +230,30 @@ async def list_clients(
     # Get total count using utility
     total = await get_query_total_count(db, base_query)
 
-    # Get paginated results ordered by name
-    query = (
-        base_query.order_by(Client.last_name, Client.first_name)
-        .offset(offset)
-        .limit(page_size)
+    # IMPORTANT: Cannot sort encrypted fields in database
+    # Must fetch all records and sort in Python after decryption
+    result = await db.execute(base_query)
+    all_clients = result.scalars().all()
+
+    # Sort clients by decrypted last_name, first_name
+    # SQLAlchemy decrypts automatically when accessing attributes
+    sorted_clients = sorted(
+        all_clients,
+        key=lambda c: (c.last_name.lower(), c.first_name.lower())
     )
-    result = await db.execute(query)
-    clients = result.scalars().all()
+
+    # Apply pagination to sorted list
+    paginated_clients = sorted_clients[offset : offset + page_size]
 
     # Calculate total pages using utility
     total_pages = calculate_total_pages(total, page_size)
 
     # Conditionally enrich with appointment data
     if include_appointments:
-        items = [await enrich_client_response(db, client) for client in clients]
+        items = [await enrich_client_response(db, client) for client in paginated_clients]
     else:
         # Just return basic client data (fast)
-        items = [ClientResponse.model_validate(client) for client in clients]
+        items = [ClientResponse.model_validate(client) for client in paginated_clients]
 
     logger.debug(
         "client_list_completed",

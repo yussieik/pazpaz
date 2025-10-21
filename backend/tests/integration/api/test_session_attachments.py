@@ -388,6 +388,7 @@ class TestUploadAttachment:
         for i in range(5):
             attachment = SessionAttachment(
                 session_id=test_session.id,
+                client_id=test_session.client_id,
                 workspace_id=test_session.workspace_id,
                 file_name=f"existing_{i}.jpg",
                 file_type="image/jpeg",
@@ -691,6 +692,9 @@ class TestUploadAttachment:
         valid_jpeg: bytes,
     ):
         """Test S3 upload failure doesn't create orphaned database record."""
+        # Store session_id before it might get detached
+        session_id = test_session.id
+
         # Mock S3 client to fail
         with patch("pazpaz.utils.file_upload.get_s3_client") as mock_get_client:
             mock_client = MagicMock()
@@ -700,7 +704,7 @@ class TestUploadAttachment:
             files = {"file": ("test.jpg", io.BytesIO(valid_jpeg), "image/jpeg")}
 
             response = await authenticated_client.post(
-                f"/api/v1/sessions/{test_session.id}/attachments",
+                f"/api/v1/sessions/{session_id}/attachments",
                 files=files,
             )
 
@@ -709,7 +713,7 @@ class TestUploadAttachment:
             # Verify no database record was created (transaction rolled back)
             result = await db_session.execute(
                 select(SessionAttachment).where(
-                    SessionAttachment.session_id == test_session.id
+                    SessionAttachment.session_id == session_id
                 )
             )
             attachments = result.scalars().all()
@@ -743,6 +747,7 @@ class TestListAttachments:
         for i in range(3):
             attachment = SessionAttachment(
                 session_id=test_session.id,
+                client_id=test_session.client_id,
                 workspace_id=test_session.workspace_id,
                 file_name=f"photo_{i}.jpg",
                 file_type="image/jpeg",
@@ -802,6 +807,7 @@ class TestListAttachments:
         # Create 2 active attachments and 1 soft-deleted
         active1 = SessionAttachment(
             session_id=test_session.id,
+            client_id=test_session.client_id,
             workspace_id=test_session.workspace_id,
             file_name="active1.jpg",
             file_type="image/jpeg",
@@ -811,6 +817,7 @@ class TestListAttachments:
         )
         active2 = SessionAttachment(
             session_id=test_session.id,
+            client_id=test_session.client_id,
             workspace_id=test_session.workspace_id,
             file_name="active2.jpg",
             file_type="image/jpeg",
@@ -820,6 +827,7 @@ class TestListAttachments:
         )
         deleted = SessionAttachment(
             session_id=test_session.id,
+            client_id=test_session.client_id,
             workspace_id=test_session.workspace_id,
             file_name="deleted.jpg",
             file_type="image/jpeg",
@@ -886,6 +894,7 @@ class TestDownloadAttachment:
         # Create test attachment
         attachment = SessionAttachment(
             session_id=test_session.id,
+            client_id=test_session.client_id,
             workspace_id=test_session.workspace_id,
             file_name="test.jpg",
             file_type="image/jpeg",
@@ -920,6 +929,7 @@ class TestDownloadAttachment:
         # Create test attachment
         attachment = SessionAttachment(
             session_id=test_session.id,
+            client_id=test_session.client_id,
             workspace_id=test_session.workspace_id,
             file_name="test.jpg",
             file_type="image/jpeg",
@@ -951,6 +961,7 @@ class TestDownloadAttachment:
         # Create test attachment
         attachment = SessionAttachment(
             session_id=test_session.id,
+            client_id=test_session.client_id,
             workspace_id=test_session.workspace_id,
             file_name="test.jpg",
             file_type="image/jpeg",
@@ -980,6 +991,7 @@ class TestDownloadAttachment:
         # Create test attachment
         attachment = SessionAttachment(
             session_id=test_session.id,
+            client_id=test_session.client_id,
             workspace_id=test_session.workspace_id,
             file_name="test.jpg",
             file_type="image/jpeg",
@@ -1012,6 +1024,7 @@ class TestDownloadAttachment:
         # Create test attachment
         attachment = SessionAttachment(
             session_id=test_session.id,
+            client_id=test_session.client_id,
             workspace_id=test_session.workspace_id,
             file_name="test.jpg",
             file_type="image/jpeg",
@@ -1064,6 +1077,7 @@ class TestDownloadAttachment:
         # Create attachment in workspace 2
         attachment = SessionAttachment(
             session_id=test_session2.id,
+            client_id=test_session2.client_id,
             workspace_id=test_session2.workspace_id,
             file_name="test.jpg",
             file_type="image/jpeg",
@@ -1092,6 +1106,7 @@ class TestDownloadAttachment:
         # Create soft-deleted attachment
         attachment = SessionAttachment(
             session_id=test_session.id,
+            client_id=test_session.client_id,
             workspace_id=test_session.workspace_id,
             file_name="deleted.jpg",
             file_type="image/jpeg",
@@ -1124,6 +1139,7 @@ class TestDeleteAttachment:
         # Create test attachment
         attachment = SessionAttachment(
             session_id=test_session.id,
+            client_id=test_session.client_id,
             workspace_id=test_session.workspace_id,
             file_name="test.jpg",
             file_type="image/jpeg",
@@ -1158,6 +1174,7 @@ class TestDeleteAttachment:
         # Create test attachment
         attachment = SessionAttachment(
             session_id=test_session.id,
+            client_id=test_session.client_id,
             workspace_id=test_session.workspace_id,
             file_name="test.jpg",
             file_type="image/jpeg",
@@ -1201,6 +1218,7 @@ class TestDeleteAttachment:
         # Create test attachment
         attachment = SessionAttachment(
             session_id=test_session.id,
+            client_id=test_session.client_id,
             workspace_id=test_session.workspace_id,
             file_name="test.jpg",
             file_type="image/jpeg",
@@ -1239,6 +1257,7 @@ class TestDeleteAttachment:
         # Create soft-deleted attachment
         attachment = SessionAttachment(
             session_id=test_session.id,
+            client_id=test_session.client_id,
             workspace_id=test_session.workspace_id,
             file_name="already_deleted.jpg",
             file_type="image/jpeg",
@@ -1299,6 +1318,7 @@ class TestDeleteAttachment:
         # Create attachment in workspace 2
         attachment = SessionAttachment(
             session_id=test_session2.id,
+            client_id=test_session2.client_id,
             workspace_id=test_session2.workspace_id,
             file_name="test.jpg",
             file_type="image/jpeg",
@@ -1467,6 +1487,7 @@ class TestIntegrationWorkflow:
         for i in range(5):
             attachment = SessionAttachment(
                 session_id=test_session.id,
+                client_id=test_session.client_id,
                 workspace_id=test_session.workspace_id,
                 file_name=f"mock_{i}.jpg",
                 file_type="image/jpeg",
@@ -1896,6 +1917,7 @@ class TestWorkspaceIsolation:
         # Create attachment in workspace 2
         attachment_ws2 = SessionAttachment(
             session_id=test_session2.id,
+            client_id=test_session2.client_id,
             workspace_id=test_session2.workspace_id,
             file_name="secret.jpg",
             file_type="image/jpeg",

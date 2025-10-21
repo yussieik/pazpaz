@@ -91,8 +91,8 @@ class ContentTypeValidationMiddleware(BaseHTTPMiddleware):
         # Example: "application/json; charset=utf-8" → "application/json"
         content_type = content_type_header.split(";")[0].strip().lower()
 
-        # Determine expected Content-Type based on endpoint
-        if self._is_file_upload_endpoint(path):
+        # Determine expected Content-Type based on endpoint and method
+        if self._is_file_upload_endpoint(path, request.method):
             # File upload endpoints require multipart/form-data
             if not content_type.startswith("multipart/form-data"):
                 return self._reject_wrong_content_type(
@@ -112,8 +112,22 @@ class ContentTypeValidationMiddleware(BaseHTTPMiddleware):
         # Content-Type is valid, continue processing
         return await call_next(request)
 
-    def _is_file_upload_endpoint(self, path: str) -> bool:
-        """Check if endpoint is a file upload endpoint."""
+    def _is_file_upload_endpoint(self, path: str, method: str) -> bool:
+        """
+        Check if endpoint is a file upload endpoint requiring multipart/form-data.
+
+        Only POST requests to /attachments endpoints require multipart.
+        PATCH/PUT to /attachments are JSON operations (like rename).
+        POST to /download-multiple is JSON (not file upload).
+        """
+        # Only POST requests to attachment endpoints require multipart
+        if method != "POST":
+            return False
+
+        # POST to download-multiple is JSON, not multipart
+        if "/download-multiple" in path:
+            return False
+
         return any(pattern in path for pattern in self.FILE_UPLOAD_PATTERNS)
 
     async def _reject_missing_content_type(self, request: Request, call_next) -> JSONResponse:
