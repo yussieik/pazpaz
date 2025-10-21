@@ -179,7 +179,8 @@ class TestBulkDownload:
         assert response.status_code == status.HTTP_200_OK
 
         # Verify ZIP contains renamed files
-        zip_buffer = io.BytesIO(response.content)
+        zip_content = response.content
+        zip_buffer = io.BytesIO(zip_content)
         with zipfile.ZipFile(zip_buffer, "r") as zip_file:
             filenames = zip_file.namelist()
             assert len(filenames) == 3
@@ -282,7 +283,6 @@ class TestBulkDownload:
             workspace_id=test_workspace.id,
             first_name="Jane",
             last_name="Smith",
-            created_by_user_id=test_user.id,
         )
         db_session.add(client2)
         await db_session.commit()
@@ -330,7 +330,6 @@ class TestBulkDownload:
             workspace_id=workspace_2.id,
             first_name="Bob",
             last_name="Williams",
-            created_by_user_id=test_user_ws2.id,
         )
         db_session.add(client_ws2)
         await db_session.commit()
@@ -507,7 +506,7 @@ class TestBulkDownload:
         client: AsyncClient,
         sample_client_ws1: Client,
     ):
-        """Test unauthenticated request returns 401."""
+        """Test unauthenticated request returns 403 (CSRF validation failure)."""
         attachment_ids = [str(uuid.uuid4())]
 
         response = await client.post(
@@ -515,7 +514,8 @@ class TestBulkDownload:
             json={"attachment_ids": attachment_ids},
         )
 
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        # CSRF middleware returns 403 Forbidden before auth middleware runs
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
     async def test_bulk_download_reject_nonexistent_client(
         self,

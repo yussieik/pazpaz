@@ -32,7 +32,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1087,18 +1087,18 @@ def _create_zip_from_attachments(
 
 @router.post(
     "/{client_id}/attachments/download-multiple",
-    response_class=StreamingResponse,
+    response_class=Response,
 )
 async def download_multiple_attachments(
     client_id: uuid.UUID,
     request_body: BulkDownloadRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> StreamingResponse:
+) -> Response:
     """
     Download multiple attachments as a ZIP file.
 
-    Creates a ZIP archive containing all requested attachments and streams it
+    Creates a ZIP archive containing all requested attachments and returns it
     to the client. All attachments must belong to the specified client and
     the user's workspace.
 
@@ -1110,9 +1110,9 @@ async def download_multiple_attachments(
     - File count limit: 50 files maximum (enforced by schema)
 
     Performance:
-    - Streaming response prevents memory issues with large ZIPs
     - In-memory ZIP creation (suitable for 100 MB limit)
     - Single S3 request per file (no batching needed at this scale)
+    - Content-Length header for proper download progress
 
     Args:
         client_id: UUID of the client
@@ -1121,7 +1121,7 @@ async def download_multiple_attachments(
         db: Database session
 
     Returns:
-        StreamingResponse with ZIP file
+        Response with ZIP file content
 
     Raises:
         HTTPException:
@@ -1249,12 +1249,13 @@ async def download_multiple_attachments(
         zip_filename=filename,
     )
 
-    # Return streaming response with ZIP file
-    return StreamingResponse(
-        zip_buffer,
+    # Return response with ZIP file
+    zip_bytes = zip_buffer.getvalue()
+    return Response(
+        content=zip_bytes,
         media_type="application/zip",
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
-            "Content-Length": str(zip_buffer.getbuffer().nbytes),
+            "Content-Length": str(len(zip_bytes)),
         },
     )
