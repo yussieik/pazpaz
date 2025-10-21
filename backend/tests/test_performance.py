@@ -699,12 +699,16 @@ class TestPerformanceSummary:
         small_dataset: dict[str, Any],
         medium_dataset: dict[str, Any],
         large_dataset: dict[str, Any],
+        redis_client,
     ):
         """
         Generate comprehensive performance summary across all datasets.
 
         This test provides a quick overview of system performance.
         """
+        # Flush Redis to reset rate limits before running many requests
+        await redis_client.flushdb()
+
         results = []
 
         for dataset, name in [
@@ -712,6 +716,10 @@ class TestPerformanceSummary:
             (medium_dataset, "Medium (50 clients, 500 appts)"),
             (large_dataset, "Large (100 clients, 1000 appts)"),
         ]:
+            # Flush Redis before each dataset to reset rate limits
+            # (each dataset makes 50 requests, total would be 150 > 100 limit)
+            await redis_client.flushdb()
+
             workspace = dataset["workspace"]
             headers = get_auth_headers(workspace.id)
 
