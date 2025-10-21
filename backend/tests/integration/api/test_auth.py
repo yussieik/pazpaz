@@ -58,9 +58,15 @@ class TestMagicLinkRequest:
         keys = await redis_client.keys("magic_link:*")
         assert len(keys) == 1
 
-        # Verify token data
-        token_data = await redis_client.get(keys[0])
-        token_data_dict = json.loads(token_data)
+        # Verify token data (decrypt it first as it's encrypted in Redis)
+        from pazpaz.services.auth_service import retrieve_magic_link_token
+
+        token_key = keys[0].decode() if isinstance(keys[0], bytes) else keys[0]
+        # Extract token from key (format: "magic_link:<token>")
+        token = token_key.replace("magic_link:", "")
+
+        token_data_dict = await retrieve_magic_link_token(redis_client, token)
+        assert token_data_dict is not None
         assert token_data_dict["user_id"] == str(user.id)
         assert token_data_dict["workspace_id"] == str(user.workspace_id)
         assert token_data_dict["email"] == user.email
@@ -302,16 +308,17 @@ class TestMagicLinkVerify:
         await db.commit()
 
         # Create magic link token in Redis (minimum 32 chars for validation)
+        # Use the actual service function to store it properly (encrypted)
+        from pazpaz.services.auth_service import store_magic_link_token
+
         token = "test-token-12345-with-enough-length-for-validation-abcd"
-        token_data = {
-            "user_id": str(user.id),
-            "workspace_id": str(user.workspace_id),
-            "email": user.email,
-        }
-        await redis_client.setex(
-            f"magic_link:{token}",
-            600,  # 10 minutes
-            json.dumps(token_data),
+        await store_magic_link_token(
+            redis_client=redis_client,
+            token=token,
+            user_id=user.id,
+            workspace_id=user.workspace_id,
+            email=user.email,
+            expiry_seconds=600,  # 10 minutes
         )
 
         # Verify token
@@ -605,20 +612,19 @@ class TestJWTBlacklist:
         db.add(user)
         await db.commit()
 
-        # Create magic link token in Redis
-        import json
+        # Create magic link token in Redis using the proper service function
         import secrets
 
+        from pazpaz.services.auth_service import store_magic_link_token
+
         magic_token = secrets.token_urlsafe(32)
-        token_data = {
-            "user_id": str(user.id),
-            "workspace_id": str(user.workspace_id),
-            "email": user.email,
-        }
-        await redis_client.setex(
-            f"magic_link:{magic_token}",
-            600,  # 10 minutes
-            json.dumps(token_data),
+        await store_magic_link_token(
+            redis_client=redis_client,
+            token=magic_token,
+            user_id=user.id,
+            workspace_id=user.workspace_id,
+            email=user.email,
+            expiry_seconds=600,  # 10 minutes
         )
 
         # Verify magic link to get JWT

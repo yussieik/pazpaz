@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic_core import PydanticCustomError
 
 from pazpaz.core.constants import DELETION_REASON_MAX_LENGTH, SOAP_FIELD_MAX_LENGTH
 
@@ -51,7 +52,10 @@ class SessionBase(BaseModel):
         from datetime import UTC
 
         if v > datetime.now(UTC):
-            raise ValueError("Session date cannot be in the future")
+            raise PydanticCustomError(
+                "value_error",
+                "Session date cannot be in the future",
+            )
         return v
 
 
@@ -90,7 +94,10 @@ class SessionUpdate(BaseModel):
             from datetime import UTC
 
             if v > datetime.now(UTC):
-                raise ValueError("Session date cannot be in the future")
+                raise PydanticCustomError(
+                "value_error",
+                "Session date cannot be in the future",
+            )
         return v
 
 

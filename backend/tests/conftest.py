@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import os
+import subprocess
+import time
 import uuid
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
@@ -44,6 +46,174 @@ TEST_DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "7ZkNSVfvKEbFi2D0uNFoPJzv8sXAY
 TEST_DATABASE_URL = f"postgresql+asyncpg://pazpaz:{TEST_DB_PASSWORD}@localhost:5432/pazpaz_test"
 # Use database 1 for tests
 TEST_REDIS_URL = "redis://localhost:6379/1"
+
+
+# ============================================================================
+# Docker Service Management (Auto-start MinIO and ClamAV for integration tests)
+# ============================================================================
+
+
+def is_service_running(service_name: str) -> bool:
+    """
+    Check if a docker-compose service is running.
+
+    Args:
+        service_name: Name of the service in docker-compose.yml
+
+    Returns:
+        True if service is running, False otherwise
+    """
+    try:
+        result = subprocess.run(
+            ["docker", "compose", "ps", "-q", service_name],
+            cwd=os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return bool(result.stdout.strip())
+    except Exception:
+        return False
+
+
+def wait_for_service_health(
+    service_name: str, max_wait: int = 120, check_interval: int = 2
+) -> bool:
+    """
+    Wait for a Docker service to become healthy.
+
+    Args:
+        service_name: Name of the service in docker-compose.yml
+        max_wait: Maximum time to wait in seconds
+        check_interval: Interval between health checks in seconds
+
+    Returns:
+        True if service is healthy, False if timeout
+    """
+    start_time = time.time()
+    compose_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+
+    while time.time() - start_time < max_wait:
+        try:
+            result = subprocess.run(
+                ["docker", "compose", "ps", "--format", "json", service_name],
+                cwd=compose_dir,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            if result.returncode == 0 and result.stdout.strip():
+                import json
+
+                service_info = json.loads(result.stdout.strip())
+                if isinstance(service_info, list) and service_info:
+                    service_info = service_info[0]
+
+                health = service_info.get("Health", "")
+                state = service_info.get("State", "")
+
+                # Service is healthy if either:
+                # 1. Health status is "healthy"
+                # 2. State is "running" and no health check defined
+                if health == "healthy" or (state == "running" and not health):
+                    return True
+
+        except Exception:
+            pass
+
+        time.sleep(check_interval)
+
+    return False
+
+
+def start_docker_service(service_name: str) -> bool:
+    """
+    Start a docker-compose service and wait for it to be healthy.
+
+    Args:
+        service_name: Name of the service in docker-compose.yml
+
+    Returns:
+        True if service started successfully, False otherwise
+    """
+    compose_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+
+    try:
+        # Start the service
+        result = subprocess.run(
+            ["docker", "compose", "up", "-d", service_name],
+            cwd=compose_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        if result.returncode != 0:
+            print(f"Failed to start {service_name}: {result.stderr}")
+            return False
+
+        # Wait for service to be healthy
+        return wait_for_service_health(service_name)
+
+    except Exception as e:
+        print(f"Error starting {service_name}: {e}")
+        return False
+
+
+@pytest.fixture(scope="session", autouse=True)
+def ensure_docker_services():
+    """
+    Ensure MinIO and ClamAV services are running before integration tests.
+
+    This fixture automatically:
+    1. Checks if services are running
+    2. Starts them if not running (using docker-compose up)
+    3. Waits for health checks to pass
+    4. Provides clear error messages if services can't start
+
+    Note: ClamAV is optional - if it fails to start (e.g., on ARM64 Macs),
+    a warning is printed but tests continue. Tests requiring ClamAV will be
+    skipped or fail gracefully.
+
+    This runs once per test session and doesn't stop services after tests
+    (allows reuse across test runs for faster iteration).
+    """
+    required_services = {
+        "minio": ("MinIO (S3 storage)", True),  # (description, required)
+        "clamav": ("ClamAV (virus scanning)", False),  # Optional on ARM64
+    }
+
+    services_started = []
+
+    for service_name, (service_desc, is_required) in required_services.items():
+        if is_service_running(service_name):
+            print(f"✓ {service_desc} is already running")
+            continue
+
+        print(f"⚠ {service_desc} not running, starting it now...")
+
+        if start_docker_service(service_name):
+            print(f"✓ {service_desc} started successfully")
+            services_started.append(service_name)
+        else:
+            if is_required:
+                pytest.exit(
+                    f"Failed to start {service_desc}. "
+                    f"Please ensure Docker is running and try:\n"
+                    f"  docker-compose up -d {service_name}",
+                    returncode=1,
+                )
+            else:
+                print(
+                    f"⚠ Warning: {service_desc} failed to start (this is expected "
+                    f"on ARM64 Macs). Tests requiring this service may be skipped."
+                )
+
+    yield
+
+    # Note: We don't stop services here to allow reuse across test runs
+    # Services will be stopped when user runs `docker-compose down`
 
 
 @pytest.fixture(scope="session")
@@ -475,12 +645,13 @@ async def workspace_1(db_session: AsyncSession) -> Workspace:
     Create a test workspace (workspace 1).
 
     This represents a therapist's workspace for testing.
+    Uses merge() to handle case where workspace already exists from previous test.
     """
     workspace = Workspace(
         id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
         name="Test Workspace 1",
     )
-    db_session.add(workspace)
+    workspace = await db_session.merge(workspace)
     await db_session.commit()
     await db_session.refresh(workspace)
     return workspace
@@ -514,12 +685,13 @@ async def workspace_2(db_session: AsyncSession) -> Workspace:
     Create a second test workspace (workspace 2).
 
     Used to test workspace isolation - data should not leak between workspaces.
+    Uses merge() to handle case where workspace already exists from previous test.
     """
     workspace = Workspace(
         id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
         name="Test Workspace 2",
     )
-    db_session.add(workspace)
+    workspace = await db_session.merge(workspace)
     await db_session.commit()
     await db_session.refresh(workspace)
     return workspace

@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic_core import PydanticCustomError
 
 from pazpaz.core.constants import DELETION_REASON_MAX_LENGTH
 from pazpaz.models.appointment import AppointmentStatus, LocationType
@@ -37,7 +38,10 @@ class AppointmentBase(BaseModel):
         if "scheduled_start" in info.data:
             start = info.data["scheduled_start"]
             if end <= start:
-                raise ValueError("scheduled_end must be after scheduled_start")
+                raise PydanticCustomError(
+                    "value_error",
+                    "scheduled_end must be after scheduled_start",
+                )
         return end
 
 
@@ -89,7 +93,10 @@ class AppointmentUpdate(BaseModel):
         if end is not None and "scheduled_start" in info.data:
             start = info.data.get("scheduled_start")
             if start is not None and end <= start:
-                raise ValueError("scheduled_end must be after scheduled_start")
+                raise PydanticCustomError(
+                    "value_error",
+                    "scheduled_end must be after scheduled_start",
+                )
         return end
 
 
@@ -188,7 +195,10 @@ class ConflictCheckRequest(BaseModel):
         if "scheduled_start" in info.data:
             start = info.data["scheduled_start"]
             if end <= start:
-                raise ValueError("scheduled_end must be after scheduled_start")
+                raise PydanticCustomError(
+                    "value_error",
+                    "scheduled_end must be after scheduled_start",
+                )
         return end
 
 
