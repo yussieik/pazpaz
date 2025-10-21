@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { usePlatformAdmin } from '@/composables/usePlatformAdmin'
+import CreateWorkspaceModal from '@/components/platform-admin/CreateWorkspaceModal.vue'
+import type { InviteTherapistRequest } from '@/api/generated'
 
 const {
   pendingInvitations,
   loading,
   error,
   fetchPendingInvitations,
+  inviteTherapist,
   resendInvitation,
   clearError,
 } = usePlatformAdmin()
@@ -16,6 +19,23 @@ const showInviteModal = ref(false)
 onMounted(async () => {
   await fetchPendingInvitations()
 })
+
+async function handleInviteTherapist(data: InviteTherapistRequest) {
+  try {
+    await inviteTherapist(data)
+    // Show success message and close modal
+    showInviteModal.value = false
+    alert('Invitation sent successfully!')
+  } catch (err) {
+    // Error already set in composable - modal will display it
+    console.error('Failed to invite therapist:', err)
+  }
+}
+
+function openInviteModal() {
+  clearError() // Clear any previous errors before opening modal
+  showInviteModal.value = true
+}
 
 async function handleResendInvitation(userId: string) {
   try {
@@ -80,7 +100,7 @@ function isExpired(invitedAt: string): boolean {
       <div class="mb-6 flex items-center justify-between">
         <h2 class="text-xl font-semibold text-slate-900">Pending Invitations</h2>
         <button
-          @click="showInviteModal = true"
+          @click="openInviteModal"
           class="rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white transition hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none"
         >
           + Invite Therapist
@@ -164,7 +184,7 @@ function isExpired(invitedAt: string): boolean {
           Get started by inviting your first therapist to PazPaz.
         </p>
         <button
-          @click="showInviteModal = true"
+          @click="openInviteModal"
           class="mt-6 rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none"
         >
           Invite Therapist
@@ -240,30 +260,14 @@ function isExpired(invitedAt: string): boolean {
       </div>
     </main>
 
-    <!-- Invite Modal Placeholder (will be component in Step 4.5) -->
-    <div
+    <!-- Invite Modal -->
+    <CreateWorkspaceModal
       v-if="showInviteModal"
-      class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black"
-      @click.self="showInviteModal = false"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="invite-modal-title"
-    >
-      <div class="w-full max-w-md rounded-lg bg-white p-6">
-        <h2 id="invite-modal-title" class="mb-4 text-xl font-semibold text-slate-900">
-          Invite Therapist
-        </h2>
-        <p class="mb-4 text-sm text-slate-600">
-          Modal component will be created in Step 4.5
-        </p>
-        <button
-          @click="showInviteModal = false"
-          class="w-full rounded-lg bg-slate-200 px-4 py-2 text-slate-900 hover:bg-slate-300 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:outline-none"
-        >
-          Close
-        </button>
-      </div>
-    </div>
+      :error="error"
+      :isLoading="loading"
+      @close="showInviteModal = false"
+      @submit="handleInviteTherapist"
+    />
   </div>
 </template>
 

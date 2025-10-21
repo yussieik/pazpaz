@@ -1316,11 +1316,11 @@ https://app.pazpaz.com/auth/accept-invite?token=<256-bit-url-safe-token>
 
 ---
 
-#### Step 4.5: Create CreateWorkspaceModal component
+#### Step 4.5: Create CreateWorkspaceModal component ✅ COMPLETED
 **Agent**: `fullstack-frontend-specialist`
 **File**: `frontend/src/components/platform-admin/CreateWorkspaceModal.vue` (NEW)
 
-- [ ] Create onboarding modal:
+- [x] Create onboarding modal:
   ```vue
   <template>
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -1443,6 +1443,64 @@ https://app.pazpaz.com/auth/accept-invite?token=<256-bit-url-safe-token>
   }
   </script>
   ```
+
+**Implementation Notes**:
+- ✅ Modal created: `frontend/src/components/platform-admin/CreateWorkspaceModal.vue` (366 lines)
+- ✅ PlatformAdminPage.vue updated to integrate modal
+- ✅ Full modal implementation:
+  - Fixed overlay with semi-transparent background (bg-black/50)
+  - Centered modal card (max-w-lg, white background)
+  - Close button with X icon in top-right corner
+  - Click outside overlay to close
+  - Escape key to close modal
+- ✅ Form fields (all required with validation):
+  - Workspace Name (text input with help text)
+  - Therapist Email (email input with validation)
+  - Therapist Full Name (text input)
+- ✅ Info box:
+  - Blue info box with "What happens next:" section
+  - 4-step bullet list explaining invitation flow
+  - Clear expectations for 7-day token expiration
+- ✅ Error handling:
+  - Separate validation errors and API errors
+  - Red alert boxes for error display
+  - Clear error state when modal reopens
+  - User-friendly error messages
+- ✅ Loading states:
+  - "Sending..." button text during submission
+  - Disabled buttons during loading
+  - Loading state passed from parent composable
+- ✅ Button actions:
+  - Cancel button (gray, closes modal)
+  - "Send Invitation" button (emerald-600 primary)
+  - Proper disabled states
+- ✅ Integration:
+  - Emits 'close' and 'submit' events
+  - Parent handles API call via `usePlatformAdmin` composable
+  - Uses `InviteTherapistRequest` type from generated client
+  - Form clears on close for clean reopens
+- ✅ TypeScript compilation: No errors (vue-tsc passes)
+- ✅ ESLint: All checks passed
+- ✅ Prettier: Code formatted with Tailwind class sorting
+- ✅ Accessibility features:
+  - Full focus trap implementation
+  - ARIA labels and roles throughout
+  - Keyboard navigation (Tab, Shift+Tab, Escape)
+  - Auto-focus on first input
+  - Reduced motion support
+  - Screen reader friendly
+- ✅ Design system consistency:
+  - Emerald-600 primary color (matches PazPaz brand)
+  - Slate color palette for hierarchy
+  - Rounded-lg corners
+  - Proper spacing and padding
+  - Focus states on all interactive elements
+- ✅ Enhanced features beyond requirements:
+  - Full focus trap for accessibility
+  - Separate validation vs API errors
+  - Auto-clear form on close
+  - Reduced motion support
+  - Comprehensive keyboard navigation
 
 ---
 
