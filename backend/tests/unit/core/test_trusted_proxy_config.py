@@ -399,9 +399,12 @@ class TestTrustedProxyConfigIntegration:
     def test_trusted_proxy_with_production_environment(self):
         """Trusted proxy should work in production environment."""
         # Production should use specific proxy IPs, not broad ranges
+        # Also need to provide production-grade security settings
         settings = Settings(
             environment="production",
             trusted_proxy_ips="203.0.113.10,203.0.113.11",  # Load balancer IPs
+            db_ssl_mode="verify-full",  # Production requires cert verification
+            s3_endpoint_url="https://s3.amazonaws.com",  # HTTPS required in production
         )
 
         # Only specific IPs should be trusted
