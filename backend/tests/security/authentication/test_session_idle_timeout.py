@@ -269,12 +269,17 @@ class TestSessionIdleTimeoutMiddleware:
 
     @pytest.mark.asyncio
     async def test_middleware_updates_activity_on_success(
-        self, client, redis_client, test_user_ws1, auth_headers, auth_token
+        self, client, redis_client, test_user_ws1, auth_headers
     ):
         """Middleware should update activity timestamp on successful requests."""
         from pazpaz.core.security import decode_access_token
 
-        payload = decode_access_token(auth_token)
+        # Extract token from Cookie header in auth_headers
+        cookie_header = auth_headers.get("Cookie", "")
+        assert "access_token=" in cookie_header
+        token = cookie_header.split("access_token=")[1].split(";")[0]
+
+        payload = decode_access_token(token)
         jti = payload["jti"]
         key = f"session:activity:{test_user_ws1.id}:{jti}"
 
@@ -344,12 +349,17 @@ class TestSessionIdleTimeoutMiddleware:
 
     @pytest.mark.asyncio
     async def test_logout_invalidates_activity_record(
-        self, client, redis_client, test_user_ws1, auth_headers, auth_token
+        self, client, redis_client, test_user_ws1, auth_headers
     ):
         """Logout should remove activity record from Redis."""
         from pazpaz.core.security import decode_access_token
 
-        payload = decode_access_token(auth_token)
+        # Extract token from Cookie header in auth_headers
+        cookie_header = auth_headers.get("Cookie", "")
+        assert "access_token=" in cookie_header
+        token = cookie_header.split("access_token=")[1].split(";")[0]
+
+        payload = decode_access_token(token)
         jti = payload["jti"]
         key = f"session:activity:{test_user_ws1.id}:{jti}"
 
@@ -362,8 +372,14 @@ class TestSessionIdleTimeoutMiddleware:
         exists_before = await redis_client.exists(key)
         assert exists_before == 1
 
-        # Logout
-        response = await client.post("/api/v1/auth/logout", headers=auth_headers)
+        # Logout with CSRF token
+        csrf_token = "test-csrf-token"
+        # Add CSRF cookie to the Cookie header
+        cookie_with_csrf = f"{cookie_header}; csrf_token={csrf_token}"
+        response = await client.post(
+            "/api/v1/auth/logout",
+            headers={"Cookie": cookie_with_csrf, "X-CSRF-Token": csrf_token},
+        )
         assert response.status_code == 200
 
         # Verify activity record removed
@@ -408,12 +424,17 @@ class TestSlidingWindowBehavior:
 
     @pytest.mark.asyncio
     async def test_sliding_window_extends_session(
-        self, client, redis_client, test_user_ws1, auth_headers, auth_token
+        self, client, redis_client, test_user_ws1, auth_headers
     ):
         """Activity should extend session lifetime (sliding window)."""
         from pazpaz.core.security import decode_access_token
 
-        payload = decode_access_token(auth_token)
+        # Extract token from Cookie header in auth_headers
+        cookie_header = auth_headers.get("Cookie", "")
+        assert "access_token=" in cookie_header
+        token = cookie_header.split("access_token=")[1].split(";")[0]
+
+        payload = decode_access_token(token)
         jti = payload["jti"]
         key = f"session:activity:{test_user_ws1.id}:{jti}"
 

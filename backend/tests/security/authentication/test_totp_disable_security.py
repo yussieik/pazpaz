@@ -100,6 +100,7 @@ class TestTOTPDisableAPI:
         client: AsyncClient,
         workspace_1: Workspace,
         db: AsyncSession,
+        redis_client,
     ):
         """DELETE /auth/totp with invalid code returns 401."""
         # Create user with 2FA enabled
@@ -122,11 +123,19 @@ class TestTOTPDisableAPI:
         # Create JWT for user
         access_token = create_test_jwt(user.id, user.workspace_id, user.email)
 
+        # Generate CSRF token
+        csrf_token = await generate_csrf_token(
+            user_id=user.id,
+            workspace_id=user.workspace_id,
+            redis_client=redis_client,
+        )
+
         # Try to disable with wrong code - should fail with 401
         response = await client.request(
             "DELETE",
             "/api/v1/auth/totp",
-            cookies={"access_token": access_token},
+            cookies={"access_token": access_token, "csrf_token": csrf_token},
+            headers={"X-CSRF-Token": csrf_token},
             json={"totp_code": "000000"},
         )
         assert response.status_code == 401
@@ -137,6 +146,7 @@ class TestTOTPDisableAPI:
         client: AsyncClient,
         workspace_1: Workspace,
         db: AsyncSession,
+        redis_client,
     ):
         """DELETE /auth/totp with valid code succeeds."""
         # Create user with 2FA enabled
@@ -159,12 +169,20 @@ class TestTOTPDisableAPI:
         # Create JWT for user
         access_token = create_test_jwt(user.id, user.workspace_id, user.email)
 
+        # Generate CSRF token
+        csrf_token = await generate_csrf_token(
+            user_id=user.id,
+            workspace_id=user.workspace_id,
+            redis_client=redis_client,
+        )
+
         # Disable with valid code - should succeed
         code = totp.now()
         response = await client.request(
             "DELETE",
             "/api/v1/auth/totp",
-            cookies={"access_token": access_token},
+            cookies={"access_token": access_token, "csrf_token": csrf_token},
+            headers={"X-CSRF-Token": csrf_token},
             json={"totp_code": code},
         )
         assert response.status_code == 200
@@ -175,6 +193,7 @@ class TestTOTPDisableAPI:
         client: AsyncClient,
         workspace_1: Workspace,
         db: AsyncSession,
+        redis_client,
     ):
         """DELETE /auth/totp with backup code succeeds."""
         # Create user with 2FA enabled
@@ -195,22 +214,22 @@ class TestTOTPDisableAPI:
         totp = pyotp.TOTP(enrollment["secret"])
         await verify_and_enable_totp(db, user.id, totp.now())
 
-        # Create JWT for user
-        access_token = jwt.encode(
-            {
-                "sub": str(user.id),
-                "workspace_id": str(user.workspace_id),
-                "email": user.email,
-            },
-            settings.secret_key,
-            algorithm="HS256",
+        # Create JWT for user with all required claims
+        access_token = create_test_jwt(user.id, user.workspace_id, user.email)
+
+        # Generate CSRF token
+        csrf_token = await generate_csrf_token(
+            user_id=user.id,
+            workspace_id=user.workspace_id,
+            redis_client=redis_client,
         )
 
         # Disable with backup code - should succeed
         response = await client.request(
             "DELETE",
             "/api/v1/auth/totp",
-            cookies={"access_token": access_token},
+            cookies={"access_token": access_token, "csrf_token": csrf_token},
+            headers={"X-CSRF-Token": csrf_token},
             json={"totp_code": backup_code},
         )
         assert response.status_code == 200
@@ -225,6 +244,7 @@ class TestTOTPDisableAttackScenarios:
         client: AsyncClient,
         workspace_1: Workspace,
         db: AsyncSession,
+        redis_client,
     ):
         """
         Simulate session hijacking attack.
@@ -252,10 +272,19 @@ class TestTOTPDisableAttackScenarios:
         # Attacker steals JWT (but not TOTP device)
         stolen_token = create_test_jwt(user.id, user.workspace_id, user.email)
 
+        # Generate CSRF token (attacker could potentially steal this too with XSS)
+        csrf_token = await generate_csrf_token(
+            user_id=user.id,
+            workspace_id=user.workspace_id,
+            redis_client=redis_client,
+        )
+
         # Attacker tries to disable 2FA with guessed code
-        response = await client.delete(
+        response = await client.request(
+            "DELETE",
             "/api/v1/auth/totp",
-            cookies={"access_token": stolen_token},
+            cookies={"access_token": stolen_token, "csrf_token": csrf_token},
+            headers={"X-CSRF-Token": csrf_token},
             json={"totp_code": "123456"},
         )
 
@@ -272,6 +301,7 @@ class TestTOTPDisableAttackScenarios:
         client: AsyncClient,
         workspace_1: Workspace,
         db: AsyncSession,
+        redis_client,
     ):
         """
         TOTP disable should require fresh verification.
@@ -298,11 +328,19 @@ class TestTOTPDisableAttackScenarios:
         # Create JWT for user
         access_token = create_test_jwt(user.id, user.workspace_id, user.email)
 
+        # Generate CSRF token
+        csrf_token = await generate_csrf_token(
+            user_id=user.id,
+            workspace_id=user.workspace_id,
+            redis_client=redis_client,
+        )
+
         # Try to disable with invalid code (no cached bypass)
         response = await client.request(
             "DELETE",
             "/api/v1/auth/totp",
-            cookies={"access_token": access_token},
+            cookies={"access_token": access_token, "csrf_token": csrf_token},
+            headers={"X-CSRF-Token": csrf_token},
             json={"totp_code": "000000"},
         )
 
@@ -317,6 +355,7 @@ class TestTOTPDisableAttackScenarios:
         client: AsyncClient,
         workspace_1: Workspace,
         db: AsyncSession,
+        redis_client,
     ):
         """Backup code used for disable is single-use."""
         # Create user with 2FA enabled
@@ -337,22 +376,22 @@ class TestTOTPDisableAttackScenarios:
         totp = pyotp.TOTP(enrollment["secret"])
         await verify_and_enable_totp(db, user.id, totp.now())
 
-        # Create JWT for user
-        access_token = jwt.encode(
-            {
-                "sub": str(user.id),
-                "workspace_id": str(user.workspace_id),
-                "email": user.email,
-            },
-            settings.secret_key,
-            algorithm="HS256",
+        # Create JWT for user with all required claims
+        access_token = create_test_jwt(user.id, user.workspace_id, user.email)
+
+        # Generate CSRF token
+        csrf_token = await generate_csrf_token(
+            user_id=user.id,
+            workspace_id=user.workspace_id,
+            redis_client=redis_client,
         )
 
         # Disable with backup code - should succeed and consume it
         response = await client.request(
             "DELETE",
             "/api/v1/auth/totp",
-            cookies={"access_token": access_token},
+            cookies={"access_token": access_token, "csrf_token": csrf_token},
+            headers={"X-CSRF-Token": csrf_token},
             json={"totp_code": backup_code},
         )
         assert response.status_code == 200

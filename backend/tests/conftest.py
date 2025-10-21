@@ -673,9 +673,8 @@ async def test_user_ws1(db_session: AsyncSession, workspace_1: Workspace) -> Use
         role=UserRole.OWNER,
         is_active=True,
     )
-    db_session.add(user)
+    user = await db_session.merge(user)
     await db_session.commit()
-    await db_session.refresh(user)
     return user
 
 
@@ -713,9 +712,8 @@ async def test_user_ws2(db_session: AsyncSession, workspace_2: Workspace) -> Use
         role=UserRole.OWNER,
         is_active=True,
     )
-    db_session.add(user)
+    user = await db_session.merge(user)
     await db_session.commit()
-    await db_session.refresh(user)
     return user
 
 
