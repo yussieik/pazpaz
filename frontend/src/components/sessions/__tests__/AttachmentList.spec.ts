@@ -107,15 +107,24 @@ describe('AttachmentList', () => {
 
   describe('Empty State', () => {
     it('shows empty state when no attachments', async () => {
-      mockFileUpload.listAttachments.mockResolvedValue({ items: [] })
+      // Ensure mock is fresh and returns the right value
+      mockFileUpload.listAttachments = vi.fn().mockResolvedValue({ items: [] })
+      vi.mocked(useFileUpload).mockReturnValue(mockFileUpload)
 
       wrapper = mount(AttachmentList, {
         props: { sessionId: 'session-123' },
+        global: {
+          stubs: {
+            EmptyState: false,
+            SkeletonLoader: false,
+          },
+        },
       })
 
       await nextTick()
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
+      expect(mockFileUpload.listAttachments).toHaveBeenCalledWith('session-123')
       expect(wrapper.findComponent(EmptyState).exists()).toBe(true)
       expect(wrapper.text()).toContain('No attachments yet')
     })
@@ -270,8 +279,11 @@ describe('AttachmentList', () => {
 
       // Find cancel button in teleported dialog
       const buttons = document.querySelectorAll('[role="dialog"] button')
-      const cancelButton = Array.from(buttons).find((b) => b.textContent === 'Cancel') as HTMLElement
-      cancelButton?.click()
+      const cancelButton = Array.from(buttons).find((b) => b.textContent?.trim() === 'Cancel') as HTMLElement
+      expect(cancelButton).toBeTruthy()
+
+      // Trigger click event
+      await cancelButton.dispatchEvent(new Event('click', { bubbles: true }))
       await nextTick()
 
       expect(document.querySelector('[role="dialog"]')).toBeFalsy()
@@ -295,8 +307,11 @@ describe('AttachmentList', () => {
 
       // Find delete button in teleported dialog
       const buttons = document.querySelectorAll('[role="dialog"] button')
-      const confirmButton = Array.from(buttons).find((b) => b.textContent === 'Delete') as HTMLElement
-      confirmButton?.click()
+      const confirmButton = Array.from(buttons).find((b) => b.textContent?.trim() === 'Delete') as HTMLElement
+      expect(confirmButton).toBeTruthy()
+
+      // Trigger click event
+      await confirmButton.dispatchEvent(new Event('click', { bubbles: true }))
       await nextTick()
 
       expect(mockFileUpload.deleteAttachment).toHaveBeenCalledWith(
@@ -323,8 +338,11 @@ describe('AttachmentList', () => {
 
       // Find delete button in teleported dialog
       const buttons = document.querySelectorAll('[role="dialog"] button')
-      const confirmButton = Array.from(buttons).find((b) => b.textContent === 'Delete') as HTMLElement
-      confirmButton?.click()
+      const confirmButton = Array.from(buttons).find((b) => b.textContent?.trim() === 'Delete') as HTMLElement
+      expect(confirmButton).toBeTruthy()
+
+      // Trigger click event
+      await confirmButton.dispatchEvent(new Event('click', { bubbles: true }))
       await nextTick()
 
       expect(mockToast.showSuccess).toHaveBeenCalledWith(
@@ -352,8 +370,11 @@ describe('AttachmentList', () => {
 
       // Find delete button in teleported dialog
       const buttons = document.querySelectorAll('[role="dialog"] button')
-      const confirmButton = Array.from(buttons).find((b) => b.textContent === 'Delete') as HTMLElement
-      confirmButton?.click()
+      const confirmButton = Array.from(buttons).find((b) => b.textContent?.trim() === 'Delete') as HTMLElement
+      expect(confirmButton).toBeTruthy()
+
+      // Trigger click event
+      await confirmButton.dispatchEvent(new Event('click', { bubbles: true }))
       await nextTick()
 
       expect(wrapper.text()).not.toContain('image1.jpg')

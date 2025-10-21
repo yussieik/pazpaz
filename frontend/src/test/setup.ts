@@ -5,8 +5,9 @@
  * mock setup, and test utilities.
  */
 
-import { beforeAll, afterEach, afterAll, vi } from 'vitest'
+import { beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest'
 import { config } from '@vue/test-utils'
+import { setActivePinia, createPinia } from 'pinia'
 import nodeCrypto from 'crypto'
 
 // Polyfill for crypto.hash (Node.js 20.11 compatibility with Vite Vue plugin)
@@ -48,7 +49,19 @@ afterAll(() => {
   console.warn = originalConsoleWarn
 })
 
-// Clean up after each test
+// Clean up after each test to ensure isolation
+// Note: We do cleanup in afterEach (not beforeEach) to allow test files'
+// beforeEach hooks to run first and set up their required state
 afterEach(() => {
+  // 1. Clear localStorage
+  localStorage.clear()
+
+  // 2. Clear sessionStorage
+  sessionStorage.clear()
+
+  // 3. Reset Pinia stores
+  setActivePinia(createPinia())
+
+  // 4. Clear mocks
   vi.clearAllMocks()
 })

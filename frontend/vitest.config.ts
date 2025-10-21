@@ -22,7 +22,7 @@ export default mergeConfig(
       pool: 'forks',
       poolOptions: {
         forks: {
-          singleFork: true,
+          isolate: true,
         },
       },
       coverage: {
