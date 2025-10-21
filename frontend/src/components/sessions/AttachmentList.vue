@@ -543,6 +543,14 @@ defineExpose({
       </div>
     </div>
 
+    <!-- Empty State -->
+    <EmptyState
+      v-else
+      icon="📎"
+      title="No attachments yet"
+      description="Upload files to attach them to this session"
+    />
+
     <!-- Delete Confirmation Dialog -->
     <Teleport to="body">
       <div

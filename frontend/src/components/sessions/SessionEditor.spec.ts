@@ -316,18 +316,22 @@ describe('SessionEditor', () => {
   describe('Finalize Functionality', () => {
     beforeEach(async () => {
       const mockResponse: Partial<AxiosResponse> = {
-        data: mockSessionData,
+        // Clone mockSessionData to prevent mutation across tests
+        data: JSON.parse(JSON.stringify(mockSessionData)),
         status: 200,
         statusText: 'OK',
         headers: {},
         config: {} as any,
       }
-      vi.mocked(apiClient.get).mockResolvedValueOnce(mockResponse as AxiosResponse)
+      // Use mockResolvedValue (not Once) as default for all GET calls in this test
+      // Individual tests can override with mockResolvedValueOnce if needed
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse as AxiosResponse)
 
       wrapper = mount(SessionEditor, {
         props: { sessionId: mockSessionId },
       })
 
+      await flushPromises()
       await nextTick()
       await nextTick()
     })
@@ -362,9 +366,9 @@ describe('SessionEditor', () => {
       vi.mocked(apiClient.patch).mockResolvedValueOnce({} as AxiosResponse)
       // Mock post for finalize
       vi.mocked(apiClient.post).mockResolvedValueOnce({} as AxiosResponse)
-      // Mock finalized response for silent reload
+      // Mock finalized response for silent reload (clone to prevent mutation)
       vi.mocked(apiClient.get).mockResolvedValueOnce({
-        data: mockFinalizedSession,
+        data: JSON.parse(JSON.stringify(mockFinalizedSession)),
       } as AxiosResponse)
 
       const buttons = wrapper.findAll('button[type="button"]')
@@ -386,7 +390,6 @@ describe('SessionEditor', () => {
     })
 
     it('emits finalized event after successful finalization', async () => {
-      // Session starts as draft (already loaded in beforeEach with mockSessionData)
       // Mock patch for forceSave
       vi.mocked(apiClient.patch).mockResolvedValueOnce({
         data: {},
@@ -405,9 +408,9 @@ describe('SessionEditor', () => {
         config: {} as any,
       } as AxiosResponse)
 
-      // Mock finalized response for silent reload after finalize
+      // Mock finalized response for silent reload after finalize (clone to prevent mutation)
       vi.mocked(apiClient.get).mockResolvedValueOnce({
-        data: mockFinalizedSession,
+        data: JSON.parse(JSON.stringify(mockFinalizedSession)),
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -415,6 +418,7 @@ describe('SessionEditor', () => {
       } as AxiosResponse)
 
       // Find the finalize button - look for "Finalize" text specifically (not "Revert")
+      await nextTick()
       const buttons = wrapper.findAll('button')
       const finalizeButton = buttons.find((btn) => {
         const text = btn.text()
@@ -422,7 +426,6 @@ describe('SessionEditor', () => {
       })
 
       expect(finalizeButton).toBeDefined()
-      expect(finalizeButton).not.toBeUndefined()
 
       await finalizeButton!.trigger('click')
 
@@ -437,6 +440,7 @@ describe('SessionEditor', () => {
       expect(apiClient.post).toHaveBeenCalledWith(`/sessions/${mockSessionId}/finalize`)
 
       // Check if event was emitted
+      expect(wrapper.emitted()).toHaveProperty('finalized')
       expect(wrapper.emitted('finalized')).toBeTruthy()
     })
 
@@ -467,10 +471,11 @@ describe('SessionEditor', () => {
         const text = btn.text()
         return text.includes('Finalize') || text.includes('Revert')
       })
+
       expect(finalizeButton).toBeDefined()
 
       // Button should be disabled when all fields are empty
-      expect(finalizeButton?.attributes('disabled')).toBeDefined()
+      expect(finalizeButton!.attributes('disabled')).toBeDefined()
     })
   })
 
