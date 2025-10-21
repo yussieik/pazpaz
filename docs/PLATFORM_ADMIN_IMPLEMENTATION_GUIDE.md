@@ -878,22 +878,44 @@ https://app.pazpaz.com/auth/accept-invite?token=<256-bit-url-safe-token>
 
 ### Day 4: Frontend - Platform Admin Portal
 
-#### Step 4.1: Generate TypeScript client
+#### Step 4.1: Generate TypeScript client ✅ COMPLETED
 **Agent**: `fullstack-frontend-specialist`
 **Commands**: Terminal
 
-- [ ] Start backend and generate OpenAPI spec:
+- [x] Start backend and generate OpenAPI spec:
   ```bash
   cd backend
   env PYTHONPATH=src uv run fastapi dev src/pazpaz/main.py
   curl http://localhost:8000/openapi.json > ../frontend/openapi.json
   ```
-- [ ] Generate TypeScript client:
+- [x] Generate TypeScript client:
   ```bash
   cd frontend
   npx openapi-typescript-codegen --input ./openapi.json --output ./src/api/generated --client axios
   ```
-- [ ] Verify platform admin endpoints generated
+- [x] Verify platform admin endpoints generated
+
+**Implementation Notes**:
+- ✅ OpenAPI spec downloaded: `frontend/openapi.json` (155 KB)
+- ✅ TypeScript client generated: 80 files using openapi-typescript-codegen v0.29.0
+- ✅ Client type: Axios
+- ✅ All platform admin endpoints verified:
+  - `PlatformAdminService.inviteTherapistApiV1PlatformAdminInviteTherapistPost()`
+  - `PlatformAdminService.resendInvitationApiV1PlatformAdminResendInvitationUserIdPost()`
+  - `PlatformAdminService.getPendingInvitationsApiV1PlatformAdminPendingInvitationsGet()`
+  - `AuthenticationService.acceptInvitationApiV1AuthAcceptInviteGet()`
+- ✅ Generated models:
+  - `InviteTherapistRequest`
+  - `InviteTherapistResponse`
+  - `PendingInvitation`
+  - `PendingInvitationsResponse`
+  - `ResendInvitationResponse`
+- ✅ Directory structure:
+  - `frontend/src/api/generated/index.ts` - Main exports
+  - `frontend/src/api/generated/models/` - 60 TypeScript interfaces
+  - `frontend/src/api/generated/services/` - 13 API service classes
+  - `frontend/src/api/generated/core/` - Client infrastructure
+- ✅ No compilation errors
 
 ---
 
