@@ -7,7 +7,15 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pazpaz.db.base import Base
@@ -69,6 +77,25 @@ class User(Base):
         default=False,
         nullable=False,
         comment="True if user can access platform admin panel",
+    )
+
+    # Invitation tracking
+    invitation_token_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        index=True,
+        comment="SHA256 hash of invitation token",
+    )
+    invited_by_platform_admin: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="True if invited by platform admin (not by another user)",
+    )
+    invited_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When invitation was sent",
     )
 
     # 2FA/TOTP fields
