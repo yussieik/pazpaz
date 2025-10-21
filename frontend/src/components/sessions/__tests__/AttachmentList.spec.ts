@@ -73,6 +73,8 @@ describe('AttachmentList', () => {
     if (wrapper) {
       wrapper.unmount()
     }
+    // Clean up teleported content
+    document.body.innerHTML = ''
   })
 
   describe('Loading State', () => {
@@ -234,6 +236,7 @@ describe('AttachmentList', () => {
       mockFileUpload.listAttachments.mockResolvedValue({ items: mockAttachments })
 
       wrapper = mount(AttachmentList, {
+        attachTo: document.body,
         props: { sessionId: 'session-123' },
       })
 
@@ -244,14 +247,17 @@ describe('AttachmentList', () => {
       await deleteButtons[0].trigger('click')
       await nextTick()
 
-      expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
-      expect(wrapper.text()).toContain('Delete Attachment')
+      // Dialog is teleported to body
+      const dialog = document.querySelector('[role="dialog"]')
+      expect(dialog).toBeTruthy()
+      expect(dialog?.textContent).toContain('Delete Attachment')
     })
 
     it('closes dialog on cancel', async () => {
       mockFileUpload.listAttachments.mockResolvedValue({ items: mockAttachments })
 
       wrapper = mount(AttachmentList, {
+        attachTo: document.body,
         props: { sessionId: 'session-123' },
       })
 
@@ -262,11 +268,13 @@ describe('AttachmentList', () => {
       await deleteButtons[0].trigger('click')
       await nextTick()
 
-      const cancelButton = wrapper.findAll('button').find((b) => b.text() === 'Cancel')
-      await cancelButton?.trigger('click')
+      // Find cancel button in teleported dialog
+      const buttons = document.querySelectorAll('[role="dialog"] button')
+      const cancelButton = Array.from(buttons).find((b) => b.textContent === 'Cancel') as HTMLElement
+      cancelButton?.click()
       await nextTick()
 
-      expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+      expect(document.querySelector('[role="dialog"]')).toBeFalsy()
     })
 
     it('calls deleteAttachment on confirm', async () => {
@@ -274,6 +282,7 @@ describe('AttachmentList', () => {
       mockFileUpload.deleteAttachment.mockResolvedValue(undefined)
 
       wrapper = mount(AttachmentList, {
+        attachTo: document.body,
         props: { sessionId: 'session-123' },
       })
 
@@ -284,8 +293,10 @@ describe('AttachmentList', () => {
       await deleteButtons[0].trigger('click')
       await nextTick()
 
-      const confirmButton = wrapper.findAll('button').find((b) => b.text() === 'Delete')
-      await confirmButton?.trigger('click')
+      // Find delete button in teleported dialog
+      const buttons = document.querySelectorAll('[role="dialog"] button')
+      const confirmButton = Array.from(buttons).find((b) => b.textContent === 'Delete') as HTMLElement
+      confirmButton?.click()
       await nextTick()
 
       expect(mockFileUpload.deleteAttachment).toHaveBeenCalledWith(
@@ -299,6 +310,7 @@ describe('AttachmentList', () => {
       mockFileUpload.deleteAttachment.mockResolvedValue(undefined)
 
       wrapper = mount(AttachmentList, {
+        attachTo: document.body,
         props: { sessionId: 'session-123' },
       })
 
@@ -309,8 +321,10 @@ describe('AttachmentList', () => {
       await deleteButtons[0].trigger('click')
       await nextTick()
 
-      const confirmButton = wrapper.findAll('button').find((b) => b.text() === 'Delete')
-      await confirmButton?.trigger('click')
+      // Find delete button in teleported dialog
+      const buttons = document.querySelectorAll('[role="dialog"] button')
+      const confirmButton = Array.from(buttons).find((b) => b.textContent === 'Delete') as HTMLElement
+      confirmButton?.click()
       await nextTick()
 
       expect(mockToast.showSuccess).toHaveBeenCalledWith(
@@ -323,6 +337,7 @@ describe('AttachmentList', () => {
       mockFileUpload.deleteAttachment.mockResolvedValue(undefined)
 
       wrapper = mount(AttachmentList, {
+        attachTo: document.body,
         props: { sessionId: 'session-123' },
       })
 
@@ -335,8 +350,10 @@ describe('AttachmentList', () => {
       await deleteButtons[0].trigger('click')
       await nextTick()
 
-      const confirmButton = wrapper.findAll('button').find((b) => b.text() === 'Delete')
-      await confirmButton?.trigger('click')
+      // Find delete button in teleported dialog
+      const buttons = document.querySelectorAll('[role="dialog"] button')
+      const confirmButton = Array.from(buttons).find((b) => b.textContent === 'Delete') as HTMLElement
+      confirmButton?.click()
       await nextTick()
 
       expect(wrapper.text()).not.toContain('image1.jpg')
@@ -404,6 +421,7 @@ describe('AttachmentList', () => {
       mockFileUpload.listAttachments.mockResolvedValue({ items: mockAttachments })
 
       wrapper = mount(AttachmentList, {
+        attachTo: document.body,
         props: { sessionId: 'session-123' },
       })
 
@@ -414,9 +432,10 @@ describe('AttachmentList', () => {
       await deleteButtons[0].trigger('click')
       await nextTick()
 
-      const dialog = wrapper.find('[role="dialog"]')
-      expect(dialog.attributes('aria-modal')).toBe('true')
-      expect(dialog.attributes('aria-labelledby')).toBeTruthy()
+      // Dialog is teleported to body
+      const dialog = document.querySelector('[role="dialog"]')
+      expect(dialog?.getAttribute('aria-modal')).toBe('true')
+      expect(dialog?.getAttribute('aria-labelledby')).toBeTruthy()
     })
   })
 

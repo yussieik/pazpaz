@@ -91,12 +91,20 @@ describe('SessionTimeline', () => {
     })
 
     // Mock API responses
-    vi.mocked(apiClient.get).mockImplementation((url: string) => {
-      if (url.includes('/sessions?')) {
-        return Promise.resolve({ data: { items: mockSessions } })
+    vi.mocked(apiClient.get).mockImplementation((url: string, config?: { params?: Record<string, unknown> }) => {
+      if (url === '/sessions' || url.includes('/sessions?')) {
+        return Promise.resolve({ data: { items: mockSessions, total: mockSessions.length } })
       }
-      if (url.includes('/appointments?')) {
+      if (url.includes('/appointments')) {
         return Promise.resolve({ data: { items: mockAppointments } })
+      }
+      if (url.includes('/appointments/')) {
+        // Individual appointment fetch
+        const appointmentId = url.split('/').pop()
+        const appointment = mockAppointments.find((a) => a.id === appointmentId)
+        return appointment
+          ? Promise.resolve({ data: appointment })
+          : Promise.reject(new Error('Appointment not found'))
       }
       return Promise.reject(new Error('Unknown endpoint'))
     })
@@ -120,9 +128,12 @@ describe('SessionTimeline', () => {
     it('fetches sessions and appointments on mount', async () => {
       wrapper = createWrapper()
       await wrapper.vm.$nextTick()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
-      expect(apiClient.get).toHaveBeenCalledWith('/sessions?client_id=client-1')
+      // Check that API was called with params object (not query string)
+      expect(apiClient.get).toHaveBeenCalledWith('/sessions', expect.objectContaining({
+        params: expect.objectContaining({ client_id: 'client-1' })
+      }))
       expect(apiClient.get).toHaveBeenCalledWith(
         '/appointments?client_id=client-1&status=completed'
       )
@@ -131,7 +142,7 @@ describe('SessionTimeline', () => {
     it('displays sessions in chronological order', async () => {
       wrapper = createWrapper()
       await wrapper.vm.$nextTick()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       const sessions = wrapper.findAllComponents(SessionCard)
       expect(sessions.length).toBe(2)
@@ -140,7 +151,7 @@ describe('SessionTimeline', () => {
     it('filters out appointments that already have sessions', async () => {
       wrapper = createWrapper()
       await wrapper.vm.$nextTick()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Verify: We have 2 sessions (session-1, session-2)
       // and 1 appointment without session (appt-2)
@@ -185,7 +196,7 @@ describe('SessionTimeline', () => {
     it('refresh method fetches both sessions and appointments', async () => {
       wrapper = createWrapper()
       await wrapper.vm.$nextTick()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Clear previous calls
       vi.clearAllMocks()
@@ -194,13 +205,15 @@ describe('SessionTimeline', () => {
       await wrapper.vm.refresh()
 
       // Verify both endpoints are called
-      expect(apiClient.get).toHaveBeenCalledWith('/sessions?client_id=client-1')
+      expect(apiClient.get).toHaveBeenCalledWith('/sessions', expect.objectContaining({
+        params: expect.objectContaining({ client_id: 'client-1' })
+      }))
       expect(apiClient.get).toHaveBeenCalledWith(
         '/appointments?client_id=client-1&status=completed'
       )
       // NOTE: fetchSessions also fetches individual appointment details for sessions with appointment_id
       // mockSessions has session-1 with appointment_id='appt-1', so we get:
-      // 1. GET /sessions?client_id=client-1
+      // 1. GET /sessions with params
       // 2. GET /appointments/appt-1 (individual appointment fetch)
       // 3. GET /appointments?client_id=client-1&status=completed
       expect(apiClient.get).toHaveBeenCalledTimes(3)
@@ -209,7 +222,7 @@ describe('SessionTimeline', () => {
     it('refresh method updates session list with new data', async () => {
       wrapper = createWrapper()
       await wrapper.vm.$nextTick()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Update mock to return new session
       const newSession = {
@@ -227,12 +240,20 @@ describe('SessionTimeline', () => {
         finalized_at: null,
       }
 
-      vi.mocked(apiClient.get).mockImplementation((url: string) => {
-        if (url.includes('/sessions?')) {
-          return Promise.resolve({ data: { items: [...mockSessions, newSession] } })
+      vi.mocked(apiClient.get).mockImplementation((url: string, config?: { params?: Record<string, unknown> }) => {
+        if (url === '/sessions' || url.includes('/sessions?')) {
+          return Promise.resolve({ data: { items: [...mockSessions, newSession], total: 3 } })
         }
-        if (url.includes('/appointments?')) {
+        if (url.includes('/appointments')) {
           return Promise.resolve({ data: { items: mockAppointments } })
+        }
+        if (url.includes('/appointments/')) {
+          // Individual appointment fetch
+          const appointmentId = url.split('/').pop()
+          const appointment = mockAppointments.find((a) => a.id === appointmentId)
+          return appointment
+            ? Promise.resolve({ data: appointment })
+            : Promise.reject(new Error('Appointment not found'))
         }
         return Promise.reject(new Error('Unknown endpoint'))
       })
@@ -240,6 +261,7 @@ describe('SessionTimeline', () => {
       // Call refresh
       await wrapper.vm.refresh()
       await wrapper.vm.$nextTick()
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Verify new session appears
       const sessions = wrapper.findAllComponents(SessionCard)
@@ -251,43 +273,49 @@ describe('SessionTimeline', () => {
     it('handleSessionDeleted removes session from timeline', async () => {
       wrapper = createWrapper()
       await wrapper.vm.$nextTick()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Find first session card
       const sessionCards = wrapper.findAllComponents(SessionCard)
       expect(sessionCards.length).toBe(2)
 
       // Emit deleted event
-      await sessionCards[0].vm.$emit('deleted', 'session-1')
-      await wrapper.vm.$nextTick()
+      if (sessionCards[0]) {
+        await sessionCards[0].vm.$emit('deleted', 'session-1')
+        await wrapper.vm.$nextTick()
 
-      // Verify session removed from timeline
-      const updatedSessions = wrapper.findAllComponents(SessionCard)
-      expect(updatedSessions.length).toBe(1)
+        // Verify session removed from timeline
+        const updatedSessions = wrapper.findAllComponents(SessionCard)
+        expect(updatedSessions.length).toBe(1)
+      }
     })
 
     it('emits session-deleted event to parent', async () => {
       wrapper = createWrapper()
       await wrapper.vm.$nextTick()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       const sessionCards = wrapper.findAllComponents(SessionCard)
-      await sessionCards[0].vm.$emit('deleted', 'session-1')
-      await wrapper.vm.$nextTick()
+      if (sessionCards[0]) {
+        await sessionCards[0].vm.$emit('deleted', 'session-1')
+        await wrapper.vm.$nextTick()
 
-      expect(wrapper.emitted('session-deleted')).toBeTruthy()
+        expect(wrapper.emitted('session-deleted')).toBeTruthy()
+      }
     })
 
     it('emits trigger-badge-pulse event to parent', async () => {
       wrapper = createWrapper()
       await wrapper.vm.$nextTick()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       const sessionCards = wrapper.findAllComponents(SessionCard)
-      await sessionCards[0].vm.$emit('deleted', 'session-1')
-      await wrapper.vm.$nextTick()
+      if (sessionCards[0]) {
+        await sessionCards[0].vm.$emit('deleted', 'session-1')
+        await wrapper.vm.$nextTick()
 
-      expect(wrapper.emitted('trigger-badge-pulse')).toBeTruthy()
+        expect(wrapper.emitted('trigger-badge-pulse')).toBeTruthy()
+      }
     })
   })
 
@@ -295,52 +323,64 @@ describe('SessionTimeline', () => {
     it('successfully handles restore -> delete cycle', async () => {
       wrapper = createWrapper()
       await wrapper.vm.$nextTick()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Initial state: 2 sessions
       let sessions = wrapper.findAllComponents(SessionCard)
       expect(sessions.length).toBe(2)
 
       // Step 1: Delete a session
-      await sessions[0].vm.$emit('deleted', 'session-1')
-      await wrapper.vm.$nextTick()
+      if (sessions[0]) {
+        await sessions[0].vm.$emit('deleted', 'session-1')
+        await wrapper.vm.$nextTick()
 
-      // Verify session removed
-      sessions = wrapper.findAllComponents(SessionCard)
-      expect(sessions.length).toBe(1)
+        // Verify session removed
+        sessions = wrapper.findAllComponents(SessionCard)
+        expect(sessions.length).toBe(1)
 
-      // Step 2: Simulate restoration (parent calls refresh)
-      // Mock API to return the restored session
-      vi.mocked(apiClient.get).mockImplementation((url: string) => {
-        if (url.includes('/sessions?')) {
-          return Promise.resolve({ data: { items: mockSessions } })
+        // Step 2: Simulate restoration (parent calls refresh)
+        // Mock API to return the restored session
+        vi.mocked(apiClient.get).mockImplementation((url: string, config?: { params?: Record<string, unknown> }) => {
+          if (url === '/sessions' || url.includes('/sessions?')) {
+            return Promise.resolve({ data: { items: mockSessions, total: mockSessions.length } })
+          }
+          if (url.includes('/appointments')) {
+            return Promise.resolve({ data: { items: mockAppointments } })
+          }
+          if (url.includes('/appointments/')) {
+            const appointmentId = url.split('/').pop()
+            const appointment = mockAppointments.find((a) => a.id === appointmentId)
+            return appointment
+              ? Promise.resolve({ data: appointment })
+              : Promise.reject(new Error('Appointment not found'))
+          }
+          return Promise.reject(new Error('Unknown endpoint'))
+        })
+
+        await wrapper.vm.refresh()
+        await wrapper.vm.$nextTick()
+        await new Promise((resolve) => setTimeout(resolve, 50))
+
+        // Verify session restored
+        sessions = wrapper.findAllComponents(SessionCard)
+        expect(sessions.length).toBe(2)
+
+        // Step 3: Delete the restored session again
+        if (sessions[0]) {
+          await sessions[0].vm.$emit('deleted', 'session-1')
+          await wrapper.vm.$nextTick()
+
+          // Verify session removed again
+          sessions = wrapper.findAllComponents(SessionCard)
+          expect(sessions.length).toBe(1)
         }
-        if (url.includes('/appointments?')) {
-          return Promise.resolve({ data: { items: mockAppointments } })
-        }
-        return Promise.reject(new Error('Unknown endpoint'))
-      })
-
-      await wrapper.vm.refresh()
-      await wrapper.vm.$nextTick()
-
-      // Verify session restored
-      sessions = wrapper.findAllComponents(SessionCard)
-      expect(sessions.length).toBe(2)
-
-      // Step 3: Delete the restored session again
-      await sessions[0].vm.$emit('deleted', 'session-1')
-      await wrapper.vm.$nextTick()
-
-      // Verify session removed again
-      sessions = wrapper.findAllComponents(SessionCard)
-      expect(sessions.length).toBe(1)
+      }
     })
 
     it('timeline stays in sync after multiple restore operations', async () => {
       wrapper = createWrapper()
       await wrapper.vm.$nextTick()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Simulate multiple restores by calling refresh multiple times
       await wrapper.vm.refresh()
@@ -349,6 +389,7 @@ describe('SessionTimeline', () => {
       await wrapper.vm.$nextTick()
       await wrapper.vm.refresh()
       await wrapper.vm.$nextTick()
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Verify timeline still shows correct data
       const sessions = wrapper.findAllComponents(SessionCard)
@@ -421,21 +462,23 @@ describe('SessionTimeline', () => {
 
       wrapper = createWrapper()
       await wrapper.vm.$nextTick()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       const sessionCards = wrapper.findAllComponents(SessionCard)
-      await sessionCards[0].vm.$emit('view', 'session-1')
+      if (sessionCards[0]) {
+        await sessionCards[0].vm.$emit('view', 'session-1')
 
-      expect(pushSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          path: '/sessions/session-1',
-          state: expect.objectContaining({
-            from: 'client-history',
-            clientId: 'client-1',
-            returnTo: 'client-detail',
-          }),
-        })
-      )
+        expect(pushSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            path: '/sessions/session-1',
+            state: expect.objectContaining({
+              from: 'client-history',
+              clientId: 'client-1',
+              returnTo: 'client-detail',
+            }),
+          })
+        )
+      }
     })
   })
 })

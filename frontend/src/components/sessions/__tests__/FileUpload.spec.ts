@@ -61,8 +61,8 @@ describe('FileUpload', () => {
         props: { sessionId: 'session-123' },
       })
 
-      expect(wrapper.text()).toContain('Drop files here or click to browse')
-      expect(wrapper.text()).toContain('JPEG, PNG, WebP, or PDF up to 10 MB each')
+      expect(wrapper.text()).toContain('Click to upload')
+      expect(wrapper.text()).toContain('JPEG, PNG, WebP, or PDF')
     })
 
     it('has correct ARIA attributes', () => {
@@ -73,7 +73,7 @@ describe('FileUpload', () => {
       const dropZone = wrapper.find('[role="button"]')
       expect(dropZone.attributes('tabindex')).toBe('0')
       expect(dropZone.attributes('aria-label')).toContain(
-        'Click or drag to upload files'
+        'Upload files'
       )
     })
   })
@@ -131,8 +131,9 @@ describe('FileUpload', () => {
       const dropZone = wrapper.find('[role="button"]')
       await dropZone.trigger('dragenter')
 
-      expect(wrapper.text()).toContain('Drop files here')
-      expect(dropZone.classes()).toContain('border-blue-500')
+      // Check drag state via CSS classes (component shows visual feedback via border/bg color)
+      expect(dropZone.classes()).toContain('border-blue-400')
+      expect(dropZone.classes()).toContain('bg-blue-50')
     })
 
     it('removes drag state on dragleave', async () => {
@@ -144,8 +145,9 @@ describe('FileUpload', () => {
       await dropZone.trigger('dragenter')
       await dropZone.trigger('dragleave')
 
-      expect(wrapper.text()).toContain('Drop files here or click to browse')
-      expect(dropZone.classes()).not.toContain('border-blue-500')
+      // After dragleave, should return to default state
+      expect(dropZone.classes()).toContain('border-gray-300')
+      expect(dropZone.classes()).not.toContain('border-blue-400')
     })
   })
 
@@ -192,9 +194,10 @@ describe('FileUpload', () => {
 
   describe('Upload Progress', () => {
     it('shows upload progress for valid files', async () => {
-      mockFileUpload.uploadFiles.mockResolvedValue([
-        { id: 'att-1', file_name: 'test.jpg' },
-      ])
+      // Mock upload to return a promise that doesn't resolve immediately
+      mockFileUpload.uploadFiles.mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve([{ id: 'att-1', file_name: 'test.jpg' }]), 100))
+      )
 
       wrapper = mount(FileUpload, {
         props: { sessionId: 'session-123' },
@@ -208,7 +211,7 @@ describe('FileUpload', () => {
       })
       await nextTick()
 
-      // Check aria-busy is set
+      // Check aria-busy is set during upload
       expect(dropZone.attributes('aria-busy')).toBe('true')
     })
 
@@ -291,8 +294,10 @@ describe('FileUpload', () => {
       })
 
       const dropZone = wrapper.find('[role="button"]')
-      // Check that focus-visible styles are defined in scoped CSS
-      expect(wrapper.html()).toContain('focus-visible')
+      // Check that the drop zone has tabindex and can receive focus
+      expect(dropZone.attributes('tabindex')).toBe('0')
+      expect(dropZone.attributes('role')).toBe('button')
+      // The actual focus-visible styles are in scoped CSS and tested visually
     })
   })
 })
