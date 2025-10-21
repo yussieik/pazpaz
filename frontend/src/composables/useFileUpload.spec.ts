@@ -172,7 +172,8 @@ describe('useFileUpload', () => {
         },
       })
 
-      await expect(uploadFile(sessionId, mockFile)).rejects.toThrow(/rate limit/i)
+      // Use maxRetries=0 to disable retries and avoid timeout
+      await expect(uploadFile(sessionId, mockFile, undefined, 0)).rejects.toThrow(/rate limit/i)
     })
   })
 
@@ -208,8 +209,14 @@ describe('useFileUpload', () => {
         new File(['test2'], 'test2.png', { type: 'image/png' }),
       ]
 
+      // First file fails with 400 (no retries), second file succeeds
       mockApiClient.post
-        .mockRejectedValueOnce(new Error('Upload failed'))
+        .mockRejectedValueOnce({
+          response: {
+            status: 400,
+            data: { detail: 'Upload failed' },
+          },
+        })
         .mockResolvedValueOnce({
           data: {
             id: 'attachment-id-2',

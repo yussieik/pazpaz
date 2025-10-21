@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import SessionTimeoutModal from './SessionTimeoutModal.vue'
 import { nextTick } from 'vue'
@@ -11,9 +11,15 @@ describe('SessionTimeoutModal', () => {
     vi.clearAllMocks()
   })
 
+  afterEach(() => {
+    // Clean up teleported elements
+    document.body.innerHTML = ''
+  })
+
   describe('rendering', () => {
     it('should not render when showWarning is false', () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: false,
           remainingSeconds: 300,
@@ -22,11 +28,14 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+      const dialog = document.querySelector('[role="dialog"]')
+      expect(dialog).toBeFalsy()
+      wrapper.unmount()
     })
 
     it('should render when showWarning is true', () => {
       const wrapper = mount(SessionTimeoutModal, {
+        attachTo: document.body,
         props: {
           showWarning: true,
           remainingSeconds: 300,
@@ -35,7 +44,9 @@ describe('SessionTimeoutModal', () => {
         },
       })
 
-      expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+      const dialog = document.querySelector('[role="dialog"]')
+      expect(dialog).toBeTruthy()
+      wrapper.unmount()
     })
 
     it('should render with correct title', () => {

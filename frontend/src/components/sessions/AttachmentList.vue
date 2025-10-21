@@ -24,6 +24,7 @@ import { getFileExtension as getExtensionFromFilename } from '@/utils/filenameVa
 import type { AttachmentResponse } from '@/types/attachments'
 import { formatFileSize, isImageType, getFileExtension } from '@/types/attachments'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 interface Props {
   sessionId: string
@@ -274,7 +275,7 @@ defineExpose({
     </div>
 
     <!-- Attachments List -->
-    <div v-else-if="attachments.length > 0" class="space-y-2">
+    <div v-else-if="attachments && attachments.length > 0" class="space-y-2">
       <div
         v-for="attachment in attachments"
         :key="attachment.id"

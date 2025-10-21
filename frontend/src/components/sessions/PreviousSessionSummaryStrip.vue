@@ -177,7 +177,7 @@ if (props.clientId) {
 
         <!-- Line 2: Content preview (readable) -->
         <p class="truncate text-sm leading-tight text-gray-900">
-          <span class="font-medium text-gray-700">{{ keyNote.label }}:</span>
+          <span v-if="keyNote" class="font-medium text-gray-700">{{ keyNote.label }}:</span>
           {{ truncatedPreview }}
         </p>
       </div>
