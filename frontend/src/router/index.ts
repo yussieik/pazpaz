@@ -85,6 +85,18 @@ const router = createRouter({
       },
     },
 
+    // Platform Admin Routes
+    {
+      path: '/platform-admin',
+      name: 'platform-admin',
+      component: () => import('@/views/PlatformAdminPage.vue'),
+      meta: {
+        title: 'Platform Admin - PazPaz',
+        requiresAuth: true,
+        requiresPlatformAdmin: true, // Will be enforced in navigation guard
+      },
+    },
+
     // 404 Catch-All (for now, redirect to calendar)
     {
       path: '/:pathMatch(.*)*',
@@ -141,7 +153,7 @@ router.beforeEach((to, from, next) => {
     })
   } else if (to.path === '/login' && authStore.isAuthenticated) {
     // Already logged in, skip login page
-    console.info('[Router] Already authenticated, redirecting to home')
+    console.debug('[Router] Already authenticated, redirecting to home')
 
     next({
       path: '/',
