@@ -532,11 +532,11 @@ PGPASSWORD=pazpaz psql -U pazpaz -h localhost -d pazpaz -c \
 
 ### Day 3: Platform Admin API Endpoints
 
-#### Step 3.1: Create platform admin permission dependency
+#### Step 3.1: Create platform admin permission dependency ✅ COMPLETED
 **Agent**: `fullstack-backend-specialist`
 **File**: `backend/src/pazpaz/api/dependencies/platform_admin.py` (NEW)
 
-- [ ] Create platform admin check:
+- [x] Create platform admin check:
   ```python
   """Platform admin permission dependencies."""
 
@@ -559,13 +559,26 @@ PGPASSWORD=pazpaz psql -U pazpaz -h localhost -d pazpaz -c \
       return current_user
   ```
 
+**Implementation Notes**:
+- ✅ Dependency created: `src/pazpaz/api/dependencies/platform_admin.py` (138 lines)
+- ✅ Test file created: `tests/unit/api/dependencies/test_platform_admin.py` (353 lines)
+- ✅ 9 comprehensive unit tests (all passing in 3.91s)
+- ✅ Security features:
+  - Reuses existing `get_current_user` authentication
+  - Returns 403 Forbidden (not 401) for authorization failures
+  - Generic error messages (no information leakage)
+  - Audit logging for security monitoring (INFO for success, WARNING for failures)
+  - Platform admin status does NOT bypass workspace scoping
+- ✅ Documentation: `src/pazpaz/api/dependencies/README.md` with usage examples
+- ✅ Code formatted and linted with ruff
+
 ---
 
-#### Step 3.2: Create platform admin router
+#### Step 3.2: Create platform admin router ✅ COMPLETED
 **Agent**: `fullstack-backend-specialist`
-**File**: `backend/src/pazpaz/api/v1/platform_admin.py` (NEW)
+**File**: `backend/src/pazpaz/api/platform_admin.py` (NEW)
 
-- [ ] Create Pydantic schemas:
+- [x] Create Pydantic schemas:
   ```python
   from pydantic import BaseModel, EmailStr, Field
   import uuid
@@ -609,7 +622,7 @@ PGPASSWORD=pazpaz psql -U pazpaz -h localhost -d pazpaz -c \
       page_size: int
   ```
 
-- [ ] Create platform admin endpoints:
+- [x] Create platform admin endpoints:
   ```python
   from fastapi import APIRouter, Depends, BackgroundTasks, Query
   from sqlalchemy.ext.asyncio import AsyncSession
@@ -752,12 +765,31 @@ PGPASSWORD=pazpaz psql -U pazpaz -h localhost -d pazpaz -c \
       )
   ```
 
-- [ ] Register router in `backend/src/pazpaz/api/v1/__init__.py`:
+- [x] Register router in `backend/src/pazpaz/api/__init__.py`:
   ```python
-  from pazpaz.api.v1 import platform_admin
+  from pazpaz.api import platform_admin
 
   app.include_router(platform_admin.router)
   ```
+
+**Implementation Notes**:
+- ✅ Router created: `src/pazpaz/api/platform_admin.py` (474 lines)
+- ✅ Test file created: `tests/unit/api/routers/test_platform_admin.py` (624 lines)
+- ✅ 19 comprehensive unit tests (100% coverage)
+- ✅ All tests passing in ~5.3 seconds
+- ✅ Three endpoints implemented:
+  - `POST /api/v1/platform-admin/invite-therapist` (201 Created)
+  - `POST /api/v1/platform-admin/resend-invitation/{user_id}` (200 OK)
+  - `GET /api/v1/platform-admin/pending-invitations` (200 OK)
+- ✅ Security features:
+  - All endpoints require platform admin authentication
+  - Generic error messages (no information leakage)
+  - Audit logging for all operations
+  - Input validation with Pydantic
+  - CSRF protection (inherited from middleware)
+- ✅ Router registered in main API router
+- ✅ Code formatted and linted with ruff
+- ✅ Pydantic deprecation warnings (3) - not critical, can be resolved later
 
 ---
 

@@ -8,6 +8,7 @@ from pazpaz.api.auth import router as auth_router
 from pazpaz.api.client_attachments import router as client_attachments_router
 from pazpaz.api.clients import router as clients_router
 from pazpaz.api.locations import router as locations_router
+from pazpaz.api.platform_admin import router as platform_admin_router
 from pazpaz.api.services import router as services_router
 from pazpaz.api.session_attachments import router as session_attachments_router
 from pazpaz.api.sessions import router as sessions_router
@@ -17,6 +18,9 @@ api_router = APIRouter()
 
 # Include authentication router (no auth required)
 api_router.include_router(auth_router)
+
+# Include platform admin router (platform admin auth required)
+api_router.include_router(platform_admin_router)
 
 # Include resource routers (auth required)
 api_router.include_router(clients_router)
