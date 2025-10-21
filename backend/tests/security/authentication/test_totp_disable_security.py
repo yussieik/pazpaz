@@ -15,6 +15,7 @@ Test Coverage:
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta, UTC
 
 import pytest
 import pyotp
@@ -29,6 +30,22 @@ from pazpaz.services.totp_service import enroll_totp, verify_and_enable_totp
 from pazpaz.middleware.csrf import generate_csrf_token
 
 pytestmark = pytest.mark.asyncio
+
+
+def create_test_jwt(user_id: uuid.UUID, workspace_id: uuid.UUID, email: str) -> str:
+    """Create a valid JWT token for testing with all required claims."""
+    return jwt.encode(
+        {
+            "sub": str(user_id),
+            "user_id": str(user_id),
+            "workspace_id": str(workspace_id),
+            "email": email,
+            "exp": datetime.now(UTC) + timedelta(hours=1),
+            "jti": str(uuid.uuid4()),
+        },
+        settings.secret_key,
+        algorithm="HS256",
+    )
 
 
 class TestTOTPDisableAPI:
@@ -60,15 +77,7 @@ class TestTOTPDisableAPI:
         await verify_and_enable_totp(db, user.id, totp.now())
 
         # Create JWT for user
-        access_token = jwt.encode(
-            {
-                "sub": str(user.id),
-                "workspace_id": str(user.workspace_id),
-                "email": user.email,
-            },
-            settings.secret_key,
-            algorithm="HS256",
-        )
+        access_token = create_test_jwt(user.id, user.workspace_id, user.email)
 
         # Generate CSRF token
         csrf_token = await generate_csrf_token(
@@ -111,15 +120,7 @@ class TestTOTPDisableAPI:
         await verify_and_enable_totp(db, user.id, totp.now())
 
         # Create JWT for user
-        access_token = jwt.encode(
-            {
-                "sub": str(user.id),
-                "workspace_id": str(user.workspace_id),
-                "email": user.email,
-            },
-            settings.secret_key,
-            algorithm="HS256",
-        )
+        access_token = create_test_jwt(user.id, user.workspace_id, user.email)
 
         # Try to disable with wrong code - should fail with 401
         response = await client.request(
@@ -156,15 +157,7 @@ class TestTOTPDisableAPI:
         await verify_and_enable_totp(db, user.id, totp.now())
 
         # Create JWT for user
-        access_token = jwt.encode(
-            {
-                "sub": str(user.id),
-                "workspace_id": str(user.workspace_id),
-                "email": user.email,
-            },
-            settings.secret_key,
-            algorithm="HS256",
-        )
+        access_token = create_test_jwt(user.id, user.workspace_id, user.email)
 
         # Disable with valid code - should succeed
         code = totp.now()
@@ -257,15 +250,7 @@ class TestTOTPDisableAttackScenarios:
         await verify_and_enable_totp(db, user.id, totp.now())
 
         # Attacker steals JWT (but not TOTP device)
-        stolen_token = jwt.encode(
-            {
-                "sub": str(user.id),
-                "workspace_id": str(user.workspace_id),
-                "email": user.email,
-            },
-            settings.secret_key,
-            algorithm="HS256",
-        )
+        stolen_token = create_test_jwt(user.id, user.workspace_id, user.email)
 
         # Attacker tries to disable 2FA with guessed code
         response = await client.delete(
@@ -311,15 +296,7 @@ class TestTOTPDisableAttackScenarios:
         await verify_and_enable_totp(db, user.id, totp.now())
 
         # Create JWT for user
-        access_token = jwt.encode(
-            {
-                "sub": str(user.id),
-                "workspace_id": str(user.workspace_id),
-                "email": user.email,
-            },
-            settings.secret_key,
-            algorithm="HS256",
-        )
+        access_token = create_test_jwt(user.id, user.workspace_id, user.email)
 
         # Try to disable with invalid code (no cached bypass)
         response = await client.request(

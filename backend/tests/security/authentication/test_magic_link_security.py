@@ -286,15 +286,14 @@ class TestVerifyCSRFExemption:
         await db.commit()
 
         token = secrets.token_urlsafe(48)
-        token_data = {
-            "user_id": str(user.id),
-            "workspace_id": str(user.workspace_id),
-            "email": user.email,
-        }
-        await redis_client.setex(
-            f"magic_link:{token}",
-            600,
-            json.dumps(token_data),
+        # Use store_magic_link_token to ensure proper encryption
+        await store_magic_link_token(
+            redis_client=redis_client,
+            token=token,
+            user_id=user.id,
+            workspace_id=user.workspace_id,
+            email=user.email,
+            expiry_seconds=600,
         )
 
         response = await client.post(

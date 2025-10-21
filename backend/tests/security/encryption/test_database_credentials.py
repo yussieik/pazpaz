@@ -324,6 +324,9 @@ class TestDatabaseCredentialsIntegration:
         from pazpaz.core.config import Settings
 
         monkeypatch.setenv("ENVIRONMENT", "production")
+        # Override SSL and S3 settings to pass production validation
+        monkeypatch.setenv("DB_SSL_MODE", "verify-full")
+        monkeypatch.setenv("S3_ENDPOINT_URL", "https://s3.amazonaws.com")
 
         mock_secret = {
             "username": "produser",

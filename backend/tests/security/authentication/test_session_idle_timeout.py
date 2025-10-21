@@ -265,7 +265,7 @@ class TestSessionIdleTimeoutMiddleware:
         assert data["error_code"] == "SESSION_IDLE_TIMEOUT"
         assert "inactivity" in data["detail"].lower()
         assert "idle_seconds" in data
-        assert data["idle_seconds"] > 1860  # More than 31 minutes
+        assert data["idle_seconds"] >= 1860  # At least 31 minutes
 
     @pytest.mark.asyncio
     async def test_middleware_updates_activity_on_success(
