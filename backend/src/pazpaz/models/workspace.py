@@ -90,6 +90,15 @@ class Workspace(Base):
         comment="Maximum storage allowed for workspace in bytes",
     )
 
+    # Timezone for notification scheduling
+    timezone: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        default="UTC",
+        server_default="UTC",
+        comment="IANA timezone name (e.g., 'Asia/Jerusalem', 'America/New_York') for notification scheduling",
+    )
+
     # Relationships
     users: Mapped[list[User]] = relationship(
         "User",

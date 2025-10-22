@@ -46,6 +46,7 @@ async def workspace(db_session: AsyncSession) -> Workspace:
     workspace = Workspace(
         name="Test Clinic",
         is_active=True,
+        timezone="UTC",  # Default timezone for tests
     )
     db_session.add(workspace)
     await db_session.commit()
@@ -106,10 +107,11 @@ class TestGetUsersNeedingSessionNotesReminder:
         db_session.add(settings)
         await db_session.commit()
 
-        # Query for users at 18:00
+        # Query for users at 18:00 UTC
         users = await get_users_needing_session_notes_reminder(
             db_session,
             time(18, 0),
+            "UTC",
         )
 
         assert len(users) == 1
@@ -134,10 +136,11 @@ class TestGetUsersNeedingSessionNotesReminder:
         db_session.add(settings)
         await db_session.commit()
 
-        # Query for users at 18:00
+        # Query for users at 18:00 UTC
         users = await get_users_needing_session_notes_reminder(
             db_session,
             time(18, 0),
+            "UTC",
         )
 
         assert len(users) == 0
@@ -160,10 +163,11 @@ class TestGetUsersNeedingSessionNotesReminder:
         db_session.add(settings)
         await db_session.commit()
 
-        # Query for users at 18:00
+        # Query for users at 18:00 UTC
         users = await get_users_needing_session_notes_reminder(
             db_session,
             time(18, 0),
+            "UTC",
         )
 
         assert len(users) == 0
@@ -186,10 +190,11 @@ class TestGetUsersNeedingSessionNotesReminder:
         db_session.add(settings)
         await db_session.commit()
 
-        # Query for users at 18:00
+        # Query for users at 18:00 UTC
         users = await get_users_needing_session_notes_reminder(
             db_session,
             time(18, 0),
+            "UTC",
         )
 
         assert len(users) == 0
@@ -217,11 +222,12 @@ class TestGetUsersNeedingDailyDigest:
         db_session.add(settings)
         await db_session.commit()
 
-        # Query for users at 08:00 on Monday (day=0)
+        # Query for users at 08:00 on Monday (day=0) UTC
         users = await get_users_needing_daily_digest(
             db_session,
             time(8, 0),
             0,  # Monday
+            "UTC",
         )
 
         assert len(users) == 1
@@ -246,20 +252,22 @@ class TestGetUsersNeedingDailyDigest:
         db_session.add(settings)
         await db_session.commit()
 
-        # Query for users at 08:00 on Saturday (day=5)
+        # Query for users at 08:00 on Saturday (day=5) UTC
         users = await get_users_needing_daily_digest(
             db_session,
             time(8, 0),
             5,  # Saturday
+            "UTC",
         )
 
         assert len(users) == 0
 
-        # Query for users at 08:00 on Sunday (day=6)
+        # Query for users at 08:00 on Sunday (day=6) UTC
         users = await get_users_needing_daily_digest(
             db_session,
             time(8, 0),
             6,  # Sunday
+            "UTC",
         )
 
         assert len(users) == 0
@@ -283,11 +291,12 @@ class TestGetUsersNeedingDailyDigest:
         db_session.add(settings)
         await db_session.commit()
 
-        # Query for users at 08:00 on Saturday (day=5)
+        # Query for users at 08:00 on Saturday (day=5) UTC
         users = await get_users_needing_daily_digest(
             db_session,
             time(8, 0),
             5,  # Saturday
+            "UTC",
         )
 
         assert len(users) == 1
@@ -311,11 +320,12 @@ class TestGetUsersNeedingDailyDigest:
         db_session.add(settings)
         await db_session.commit()
 
-        # Query for users at 08:00 on Monday
+        # Query for users at 08:00 on Monday UTC
         users = await get_users_needing_daily_digest(
             db_session,
             time(8, 0),
             0,  # Monday
+            "UTC",
         )
 
         assert len(users) == 0

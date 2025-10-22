@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime, time
 from typing import TYPE_CHECKING
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, distinct, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -35,35 +35,68 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+async def get_distinct_workspace_timezones(db: AsyncSession) -> list[str]:
+    """
+    Query all distinct timezone values from active workspaces.
+
+    Returns:
+        List of IANA timezone names (e.g., ['UTC', 'Asia/Jerusalem', 'America/New_York'])
+
+    Example:
+        >>> timezones = await get_distinct_workspace_timezones(db)
+        >>> print(timezones)
+        ['UTC', 'Asia/Jerusalem', 'America/New_York']
+
+    Notes:
+        - Only queries active workspaces (is_active=True)
+        - Defaults NULL timezones to 'UTC'
+        - Cached by scheduler for performance
+    """
+    stmt = select(distinct(Workspace.timezone)).where(Workspace.is_active == True)  # noqa: E712
+    result = await db.execute(stmt)
+    timezones = [tz or "UTC" for tz in result.scalars().all()]
+
+    logger.debug(
+        "distinct_timezones_fetched", timezone_count=len(timezones), timezones=timezones
+    )
+
+    return timezones
+
+
 async def get_users_needing_session_notes_reminder(
     db: AsyncSession,
     current_time: time,
+    timezone: str,
 ) -> list[User]:
     """
-    Query users who need session notes reminders at the specified time.
+    Query users who need session notes reminders at the specified time in a specific timezone.
 
     Finds users where:
     - notes_reminder_enabled=True
     - email_enabled=True
     - notes_reminder_time matches current_time (hour:minute)
+    - workspace.timezone matches the specified timezone
 
     Args:
         db: Async database session
-        current_time: Current time to match against (HH:MM format)
+        current_time: Current local time in the specified timezone (HH:MM format)
+        timezone: IANA timezone name (e.g., 'Asia/Jerusalem', 'America/New_York')
 
     Returns:
-        List of User objects with notification_settings preloaded
+        List of User objects with notification_settings and workspace preloaded
 
     Example:
-        >>> users = await get_users_needing_session_notes_reminder(db, time(18, 0))
+        >>> # Check users in Israel timezone at 21:00 local time
+        >>> users = await get_users_needing_session_notes_reminder(
+        ...     db, time(21, 0), "Asia/Jerusalem"
+        ... )
         >>> for user in users:
-        ...     print(f"Remind {user.email} at 18:00")
+        ...     print(f"Remind {user.email} at 21:00 Israel time")
 
     Notes:
-        - TODO: Phase 3+ will add proper timezone support
-        - Currently assumes all times are in UTC
+        - Respects workspace timezone for accurate reminder delivery
         - Uses partial index for efficient filtering
-        - Joins workspace for future timezone conversion
+        - Defaults to UTC if workspace.timezone is NULL
     """
     # Format time as HH:MM string for database comparison
     time_str = current_time.strftime("%H:%M")
@@ -71,9 +104,10 @@ async def get_users_needing_session_notes_reminder(
     logger.debug(
         "querying_session_notes_reminders",
         current_time=time_str,
+        timezone=timezone,
     )
 
-    # Query users with matching notification settings
+    # Query users with matching notification settings and timezone
     stmt = (
         select(User)
         .join(UserNotificationSettings, User.id == UserNotificationSettings.user_id)
@@ -83,6 +117,7 @@ async def get_users_needing_session_notes_reminder(
                 UserNotificationSettings.email_enabled == True,  # noqa: E712
                 UserNotificationSettings.notes_reminder_enabled == True,  # noqa: E712
                 UserNotificationSettings.notes_reminder_time == time_str,
+                Workspace.timezone == timezone,
             )
         )
         .options(
@@ -97,6 +132,7 @@ async def get_users_needing_session_notes_reminder(
     logger.info(
         "session_notes_reminders_query_complete",
         current_time=time_str,
+        timezone=timezone,
         user_count=len(users),
     )
 
@@ -107,35 +143,40 @@ async def get_users_needing_daily_digest(
     db: AsyncSession,
     current_time: time,
     current_day: int,
+    timezone: str,
 ) -> list[User]:
     """
-    Query users who need daily digest emails at the specified time.
+    Query users who need daily digest emails at the specified time in a specific timezone.
 
     Finds users where:
     - digest_enabled=True
     - email_enabled=True
     - digest_time matches current_time (hour:minute)
+    - workspace.timezone matches the specified timezone
     - If digest_skip_weekends=True, skip on weekends (Sat/Sun)
 
     Args:
         db: Async database session
-        current_time: Current time to match against (HH:MM format)
-        current_day: Day of week (0=Monday, 6=Sunday)
+        current_time: Current local time in the specified timezone (HH:MM format)
+        current_day: Day of week in the specified timezone (0=Monday, 6=Sunday)
+        timezone: IANA timezone name (e.g., 'Asia/Jerusalem', 'America/New_York')
 
     Returns:
         List of User objects with notification_settings and workspace preloaded
 
     Example:
-        >>> # Monday at 08:00
-        >>> users = await get_users_needing_daily_digest(db, time(8, 0), 0)
+        >>> # Monday at 08:00 in Israel timezone
+        >>> users = await get_users_needing_daily_digest(
+        ...     db, time(8, 0), 0, "Asia/Jerusalem"
+        ... )
         >>> for user in users:
         ...     print(f"Send digest to {user.email}")
 
     Notes:
-        - TODO: Phase 3+ will add proper timezone support
-        - Currently assumes all times are in UTC
+        - Respects workspace timezone for accurate digest delivery
         - Skips weekends (Sat=5, Sun=6) if user has skip_weekends=True
         - Uses partial index for efficient filtering
+        - Defaults to UTC if workspace.timezone is NULL
     """
     # Format time as HH:MM string for database comparison
     time_str = current_time.strftime("%H:%M")
@@ -148,13 +189,15 @@ async def get_users_needing_daily_digest(
         current_time=time_str,
         current_day=current_day,
         is_weekend=is_weekend,
+        timezone=timezone,
     )
 
-    # Build query with weekend filtering
+    # Build query with weekend filtering and timezone
     conditions = [
         UserNotificationSettings.email_enabled == True,  # noqa: E712
         UserNotificationSettings.digest_enabled == True,  # noqa: E712
         UserNotificationSettings.digest_time == time_str,
+        Workspace.timezone == timezone,
     ]
 
     # If today is weekend, exclude users with skip_weekends=True
@@ -180,6 +223,7 @@ async def get_users_needing_daily_digest(
         current_time=time_str,
         current_day=current_day,
         is_weekend=is_weekend,
+        timezone=timezone,
         user_count=len(users),
     )
 

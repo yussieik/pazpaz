@@ -333,53 +333,87 @@
 
 ---
 
-## Phase 5: Docker Integration
+## Phase 5: Docker Integration ✅ COMPLETE
+
+**Status:** ✅ Completed (Commit: f9daf27)
+**Completed:** 2025-10-22
+**Agent:** fullstack-backend-specialist
 
 ### 5.1 Add arq Worker to Docker Compose
 
-- [ ] Update `docker-compose.yml`
+- [x] Update `docker-compose.yml`
   - Add new service: `arq-worker`
-    ```yaml
-    arq-worker:
-      build: ./backend
-      command: arq pazpaz.workers.scheduler.WorkerSettings
-      environment:
-        - DATABASE_URL=postgresql+asyncpg://...
-        - REDIS_URL=redis://redis:6379/0
-        - SMTP_HOST=mailhog
-        - SMTP_PORT=1025
-      depends_on:
-        - db
-        - redis
-        - mailhog
-      volumes:
-        - ./backend/src:/app/src
-      restart: unless-stopped
-    ```
+    - Build: ./backend using new Dockerfile
+    - Command: uv run arq pazpaz.workers.scheduler.WorkerSettings
+    - Environment: DATABASE_URL, REDIS_URL, SMTP, DEBUG, ENCRYPTION_MASTER_KEY
+    - Dependencies: db, redis, mailhog
+    - Volume mount: ./backend/src for hot-reload
+    - Restart: unless-stopped
+    - Resources: 1 CPU, 512MB RAM max
 
-- [ ] Update backend Dockerfile if needed
+  **Result:** Service added with proper configuration for dev/prod
+
+- [x] Update backend Dockerfile if needed
   - Ensure arq is installed
   - Verify PYTHONPATH is set correctly
 
+  **Result:** Created new Dockerfile with:
+  - Python 3.13.5-slim base
+  - uv package manager (0.5.16)
+  - 83 packages installed via uv sync
+  - PYTHONPATH=/app/src
+
 ### 5.2 Test Worker in Docker
 
-- [ ] Rebuild containers
+- [x] Rebuild containers
   ```bash
   docker compose build arq-worker
   ```
+  **Result:** Build succeeded, image created
 
-- [ ] Start arq worker container
+- [x] Start arq worker container
   ```bash
-  docker compose up arq-worker
+  docker compose up -d arq-worker
   ```
+  **Result:** Container started successfully
 
-- [ ] Check logs for successful startup
+- [x] Check logs for successful startup
   ```bash
   docker compose logs -f arq-worker
   ```
+  **Result:** Worker startup complete, 3 cron functions registered
 
-- [ ] Verify Redis connection in logs
-- [ ] Stop container
+- [x] Verify Redis connection in logs
+  **Result:** ✅ Connected (redis_version=7.4.5, 1 client connected)
+
+- [x] Verify Database connection
+  **Result:** ✅ Connected (PostgreSQL 16, connection verified)
+
+**Phase 5 Summary:**
+- ✅ Backend Dockerfile created (37 lines)
+- ✅ arq-worker service added to docker-compose.yml
+- ✅ Worker starts successfully in Docker
+- ✅ Redis and Database connections verified
+- ✅ 3 scheduled tasks registered (notes, digest, appointments)
+- ✅ Hot-reload enabled for development
+- ✅ Production-ready with restart policy
+
+**Usage:**
+```bash
+# Start worker
+docker compose up -d arq-worker
+
+# Monitor logs
+docker compose logs -f arq-worker
+
+# Stop worker
+docker compose stop arq-worker
+
+# Test notifications
+docker compose exec arq-worker uv run alembic upgrade head
+# Set notification time in UI, watch logs
+# Check MailHog: http://localhost:8025
+```
 
 ---
 

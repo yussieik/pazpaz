@@ -35,6 +35,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo
 
 from arq.connections import RedisSettings
 
@@ -52,6 +53,7 @@ from pazpaz.services.notification_content_service import (
 )
 from pazpaz.services.notification_query_service import (
     get_appointments_needing_reminders,
+    get_distinct_workspace_timezones,
     get_users_needing_daily_digest,
     get_users_needing_session_notes_reminder,
 )
@@ -95,71 +97,118 @@ async def send_session_notes_reminders(ctx: dict) -> dict:
         dict: Summary statistics
             - sent: Number of reminders sent successfully
             - errors: Number of errors encountered
+            - timezones_checked: Number of timezones processed
 
     Note:
-        Phase 3 implementation - uses simplified UTC-only approach.
-        TODO: Add proper timezone support in future phases.
+        Implements proper timezone support - loops through all workspace timezones
+        and converts UTC to local time for accurate reminder matching.
     """
     logger.info("session_notes_reminders_task_started")
 
     sent_count = 0
     error_count = 0
+    timezones_checked = 0
 
     try:
         # Get current time in UTC
-        current_time = datetime.now(UTC).time()
+        utc_now = datetime.now(UTC)
 
         # Get database session
         async with AsyncSessionLocal() as db:
-            # Query users needing reminders at this time
-            users = await get_users_needing_session_notes_reminder(db, current_time)
+            # Get all distinct workspace timezones
+            timezones = await get_distinct_workspace_timezones(db)
 
             logger.info(
-                "session_notes_reminders_users_found",
-                user_count=len(users),
-                current_time=current_time.strftime("%H:%M"),
+                "session_notes_reminders_checking_timezones",
+                timezone_count=len(timezones),
+                timezones=timezones,
+                utc_time=utc_now.strftime("%H:%M"),
             )
 
-            # Send reminder to each user
-            for user in users:
+            # Process each timezone
+            for timezone_name in timezones:
+                timezones_checked += 1
+
                 try:
-                    # Build email content
-                    email_data = await build_session_notes_reminder_email(db, user)
+                    # Convert UTC to local time in this timezone
+                    tz = ZoneInfo(timezone_name)
+                    local_time = utc_now.astimezone(tz).time()
 
-                    # Extract draft count from subject for logging
-                    # Subject format: "You have X draft session note(s)"
-                    draft_count = 0
-                    if "have" in email_data["subject"]:
-                        parts = email_data["subject"].split()
-                        for i, part in enumerate(parts):
-                            if part == "have" and i + 1 < len(parts):
-                                try:
-                                    draft_count = int(parts[i + 1])
-                                except (ValueError, IndexError):
-                                    pass
-
-                    # Send email via email service
-                    from pazpaz.core.config import settings
-
-                    await send_session_notes_reminder(
-                        email=email_data["to"],
-                        draft_count=draft_count,
-                        frontend_url=settings.frontend_url,
+                    logger.debug(
+                        "checking_timezone",
+                        timezone=timezone_name,
+                        utc_time=utc_now.strftime("%H:%M"),
+                        local_time=local_time.strftime("%H:%M"),
                     )
 
-                    logger.info(
-                        "session_notes_reminder_sent",
-                        user_id=str(user.id),
-                        email=user.email,
-                        draft_count=draft_count,
+                    # Query users in this timezone needing reminders at this local time
+                    users = await get_users_needing_session_notes_reminder(
+                        db, local_time, timezone_name
                     )
-                    sent_count += 1
+
+                    if users:
+                        logger.info(
+                            "session_notes_reminders_users_found",
+                            timezone=timezone_name,
+                            user_count=len(users),
+                            local_time=local_time.strftime("%H:%M"),
+                        )
+
+                    # Send reminder to each user
+                    for user in users:
+                        try:
+                            # Build email content
+                            email_data = await build_session_notes_reminder_email(
+                                db, user
+                            )
+
+                            # Extract draft count from subject for logging
+                            # Subject format: "You have X draft session note(s)"
+                            draft_count = 0
+                            if "have" in email_data["subject"]:
+                                parts = email_data["subject"].split()
+                                for i, part in enumerate(parts):
+                                    if part == "have" and i + 1 < len(parts):
+                                        try:
+                                            draft_count = int(parts[i + 1])
+                                        except (ValueError, IndexError):
+                                            pass
+
+                            # Send email via email service
+                            from pazpaz.core.config import settings
+
+                            await send_session_notes_reminder(
+                                email=email_data["to"],
+                                draft_count=draft_count,
+                                frontend_url=settings.frontend_url,
+                            )
+
+                            logger.info(
+                                "session_notes_reminder_sent",
+                                user_id=str(user.id),
+                                email=user.email,
+                                draft_count=draft_count,
+                                timezone=timezone_name,
+                                local_time=local_time.strftime("%H:%M"),
+                            )
+                            sent_count += 1
+
+                        except Exception as e:
+                            logger.error(
+                                "session_notes_reminder_failed",
+                                user_id=str(user.id),
+                                email=user.email,
+                                timezone=timezone_name,
+                                error=str(e),
+                                exc_info=True,
+                            )
+                            error_count += 1
 
                 except Exception as e:
+                    # Log timezone-specific error but continue processing other timezones
                     logger.error(
-                        "session_notes_reminder_failed",
-                        user_id=str(user.id),
-                        email=user.email,
+                        "timezone_processing_failed",
+                        timezone=timezone_name,
                         error=str(e),
                         exc_info=True,
                     )
@@ -169,9 +218,14 @@ async def send_session_notes_reminders(ctx: dict) -> dict:
             "session_notes_reminders_task_completed",
             sent=sent_count,
             errors=error_count,
+            timezones_checked=timezones_checked,
         )
 
-        return {"sent": sent_count, "errors": error_count}
+        return {
+            "sent": sent_count,
+            "errors": error_count,
+            "timezones_checked": timezones_checked,
+        }
 
     except Exception as e:
         logger.error(
@@ -198,126 +252,181 @@ async def send_daily_digests(ctx: dict) -> dict:
             - sent: Number of digests sent successfully
             - errors: Number of errors encountered
             - skipped_weekend: Number of users skipped due to weekend setting
+            - timezones_checked: Number of timezones processed
 
     Note:
-        Phase 3 implementation - uses simplified UTC-only approach.
-        TODO: Add proper timezone support in future phases.
+        Implements proper timezone support - loops through all workspace timezones
+        and converts UTC to local time for accurate digest delivery.
     """
     logger.info("daily_digests_task_started")
 
     sent_count = 0
     error_count = 0
     skipped_weekend_count = 0
+    timezones_checked = 0
 
     try:
-        # Get current time and day in UTC
-        now = datetime.now(UTC)
-        current_time = now.time()
-        current_day = now.weekday()  # 0=Monday, 6=Sunday
+        # Get current time in UTC
+        utc_now = datetime.now(UTC)
 
         # Get database session
         async with AsyncSessionLocal() as db:
-            # Query users needing digest at this time
-            # Service already filters weekend-skippers on weekends
-            users = await get_users_needing_daily_digest(db, current_time, current_day)
-
-            # Check if today is weekend for logging
-            is_weekend = current_day in (5, 6)
+            # Get all distinct workspace timezones
+            timezones = await get_distinct_workspace_timezones(db)
 
             logger.info(
-                "daily_digests_users_found",
-                user_count=len(users),
-                current_time=current_time.strftime("%H:%M"),
-                current_day=current_day,
-                is_weekend=is_weekend,
+                "daily_digests_checking_timezones",
+                timezone_count=len(timezones),
+                timezones=timezones,
+                utc_time=utc_now.strftime("%H:%M"),
             )
 
-            # Send digest to each user
-            for user in users:
+            # Process each timezone
+            for timezone_name in timezones:
+                timezones_checked += 1
+
                 try:
-                    # Build email content with today's appointments
-                    today = now.date()
-                    email_data = await build_daily_digest_email(db, user, today)
+                    # Convert UTC to local time in this timezone
+                    tz = ZoneInfo(timezone_name)
+                    local_now = utc_now.astimezone(tz)
+                    local_time = local_now.time()
+                    local_day = local_now.weekday()  # 0=Monday, 6=Sunday
 
-                    # Parse appointments from email body to get count
-                    # This is a workaround - ideally we'd return this from builder
-                    appointment_count = email_data["body"].count("  •")
+                    # Check if today is weekend in this timezone
+                    is_weekend = local_day in (5, 6)
 
-                    # Format appointments for email service
-                    # For now, email service expects a simpler format
-                    # We'll pass the pre-built content from the builder
-                    date_str = today.strftime("%A, %B %d, %Y")
+                    logger.debug(
+                        "checking_timezone",
+                        timezone=timezone_name,
+                        utc_time=utc_now.strftime("%H:%M"),
+                        local_time=local_time.strftime("%H:%M"),
+                        local_day=local_day,
+                        is_weekend=is_weekend,
+                    )
 
-                    from pazpaz.core.config import settings
+                    # Query users in this timezone needing digest at this local time
+                    # Service already filters weekend-skippers on weekends
+                    users = await get_users_needing_daily_digest(
+                        db, local_time, local_day, timezone_name
+                    )
 
-                    # Note: email service expects different format than builder provides
-                    # For Phase 3, we'll use builder's output directly by calling
-                    # send_daily_digest with empty appointments (it will build from body)
-                    # TODO: Refactor in Phase 4 to align interfaces
-
-                    # Actually, let's query appointments ourselves for the service
-                    from pazpaz.models.appointment import Appointment, AppointmentStatus
-                    from sqlalchemy import and_, select
-
-                    start_of_day = datetime.combine(today, datetime.min.time())
-                    end_of_day = datetime.combine(today, datetime.max.time())
-
-                    appt_stmt = (
-                        select(Appointment)
-                        .where(
-                            and_(
-                                Appointment.workspace_id == user.workspace_id,
-                                Appointment.scheduled_start >= start_of_day,
-                                Appointment.scheduled_start <= end_of_day,
-                                Appointment.status == AppointmentStatus.SCHEDULED,
-                            )
+                    if users:
+                        logger.info(
+                            "daily_digests_users_found",
+                            timezone=timezone_name,
+                            user_count=len(users),
+                            local_time=local_time.strftime("%H:%M"),
+                            local_day=local_day,
+                            is_weekend=is_weekend,
                         )
-                        .order_by(Appointment.scheduled_start)
-                    )
 
-                    result = await db.execute(appt_stmt)
-                    appointments = list(result.scalars().all())
+                    # Send digest to each user
+                    for user in users:
+                        try:
+                            # Build email content with today's appointments (in local timezone)
+                            today = local_now.date()
+                            email_data = await build_daily_digest_email(db, user, today)
 
-                    # Refresh relationships
-                    for appt in appointments:
-                        await db.refresh(appt, ["client", "service", "location"])
+                            # Parse appointments from email body to get count
+                            # This is a workaround - ideally we'd return this from builder
+                            appointment_count = email_data["body"].count("  •")
 
-                    # Format for email service
-                    appointment_dicts = []
-                    for appt in appointments:
-                        appt_dict = {
-                            "time": appt.scheduled_start.strftime("%I:%M %p"),
-                            "client_name": appt.client.full_name if appt.client else "Unknown",
-                        }
-                        if appt.service:
-                            appt_dict["service"] = appt.service.name
-                        if appt.location:
-                            appt_dict["location"] = appt.location.name
+                            # Format appointments for email service
+                            # For now, email service expects a simpler format
+                            # We'll pass the pre-built content from the builder
+                            date_str = today.strftime("%A, %B %d, %Y")
 
-                        appointment_dicts.append(appt_dict)
+                            from pazpaz.core.config import settings
 
-                    # Send email
-                    await send_daily_digest(
-                        email=user.email,
-                        appointments=appointment_dicts,
-                        date_str=date_str,
-                        frontend_url=settings.frontend_url,
-                    )
+                            # Note: email service expects different format than builder provides
+                            # For Phase 3, we'll use builder's output directly by calling
+                            # send_daily_digest with empty appointments (it will build from body)
+                            # TODO: Refactor in Phase 4 to align interfaces
 
-                    logger.info(
-                        "daily_digest_sent",
-                        user_id=str(user.id),
-                        email=user.email,
-                        appointment_count=len(appointment_dicts),
-                        date=date_str,
-                    )
-                    sent_count += 1
+                            # Actually, let's query appointments ourselves for the service
+                            from pazpaz.models.appointment import (
+                                Appointment,
+                                AppointmentStatus,
+                            )
+                            from sqlalchemy import and_, select
+
+                            start_of_day = datetime.combine(today, datetime.min.time())
+                            end_of_day = datetime.combine(today, datetime.max.time())
+
+                            appt_stmt = (
+                                select(Appointment)
+                                .where(
+                                    and_(
+                                        Appointment.workspace_id == user.workspace_id,
+                                        Appointment.scheduled_start >= start_of_day,
+                                        Appointment.scheduled_start <= end_of_day,
+                                        Appointment.status
+                                        == AppointmentStatus.SCHEDULED,
+                                    )
+                                )
+                                .order_by(Appointment.scheduled_start)
+                            )
+
+                            result = await db.execute(appt_stmt)
+                            appointments = list(result.scalars().all())
+
+                            # Refresh relationships
+                            for appt in appointments:
+                                await db.refresh(
+                                    appt, ["client", "service", "location"]
+                                )
+
+                            # Format for email service
+                            appointment_dicts = []
+                            for appt in appointments:
+                                appt_dict = {
+                                    "time": appt.scheduled_start.strftime("%I:%M %p"),
+                                    "client_name": appt.client.full_name
+                                    if appt.client
+                                    else "Unknown",
+                                }
+                                if appt.service:
+                                    appt_dict["service"] = appt.service.name
+                                if appt.location:
+                                    appt_dict["location"] = appt.location.name
+
+                                appointment_dicts.append(appt_dict)
+
+                            # Send email
+                            await send_daily_digest(
+                                email=user.email,
+                                appointments=appointment_dicts,
+                                date_str=date_str,
+                                frontend_url=settings.frontend_url,
+                            )
+
+                            logger.info(
+                                "daily_digest_sent",
+                                user_id=str(user.id),
+                                email=user.email,
+                                appointment_count=len(appointment_dicts),
+                                date=date_str,
+                                timezone=timezone_name,
+                                local_time=local_time.strftime("%H:%M"),
+                            )
+                            sent_count += 1
+
+                        except Exception as e:
+                            logger.error(
+                                "daily_digest_failed",
+                                user_id=str(user.id),
+                                email=user.email,
+                                timezone=timezone_name,
+                                error=str(e),
+                                exc_info=True,
+                            )
+                            error_count += 1
 
                 except Exception as e:
+                    # Log timezone-specific error but continue processing other timezones
                     logger.error(
-                        "daily_digest_failed",
-                        user_id=str(user.id),
-                        email=user.email,
+                        "timezone_processing_failed",
+                        timezone=timezone_name,
                         error=str(e),
                         exc_info=True,
                     )
@@ -328,12 +437,14 @@ async def send_daily_digests(ctx: dict) -> dict:
             sent=sent_count,
             errors=error_count,
             skipped_weekend=skipped_weekend_count,
+            timezones_checked=timezones_checked,
         )
 
         return {
             "sent": sent_count,
             "errors": error_count,
             "skipped_weekend": skipped_weekend_count,
+            "timezones_checked": timezones_checked,
         }
 
     except Exception as e:
@@ -636,14 +747,136 @@ class WorkerSettings:
         # Checks if any users need reminder at current time (UTC)
         cron(
             send_session_notes_reminders,
-            minute={0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
+            minute={
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                41,
+                42,
+                43,
+                44,
+                45,
+                46,
+                47,
+                48,
+                49,
+                50,
+                51,
+                52,
+                53,
+                54,
+                55,
+                56,
+                57,
+                58,
+                59,
+            },
             run_at_startup=False,
         ),
         # Daily digests - every minute
         # Checks if any users need digest at current time (UTC)
         cron(
             send_daily_digests,
-            minute={0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
+            minute={
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                41,
+                42,
+                43,
+                44,
+                45,
+                46,
+                47,
+                48,
+                49,
+                50,
+                51,
+                52,
+                53,
+                54,
+                55,
+                56,
+                57,
+                58,
+                59,
+            },
             run_at_startup=False,
         ),
         # Appointment reminders - every 5 minutes
