@@ -159,6 +159,19 @@ router.beforeEach((to, from, next) => {
       path: '/',
       replace: true,
     })
+  } else if (to.meta.requiresPlatformAdmin && !authStore.user?.is_platform_admin) {
+    // Authenticated user trying to access platform admin route without permission
+    console.warn('[Router] Platform admin access denied:', {
+      path: to.path,
+      userId: authStore.user?.id,
+      isPlatformAdmin: authStore.user?.is_platform_admin,
+    })
+
+    // Redirect to home page with 403 equivalent
+    next({
+      path: '/',
+      replace: true,
+    })
   } else {
     // Allow navigation
     next()

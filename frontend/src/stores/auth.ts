@@ -20,6 +20,7 @@ export interface User {
   email: string
   workspace_id: string
   role: string
+  is_platform_admin: boolean
 }
 
 /**

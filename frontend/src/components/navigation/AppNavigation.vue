@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { useAuthSessionStore } from '@/stores/authSession'
+import { useAuthStore } from '@/stores/auth'
 import LogoutConfirmationModal from '@/components/auth/LogoutConfirmationModal.vue'
 
 const route = useRoute()
@@ -10,6 +11,7 @@ const mobileMenuOpen = ref(false)
 const showLogoutModal = ref(false)
 const { logout, isLoggingOut } = useAuth()
 const authSessionStore = useAuthSessionStore()
+const authStore = useAuthStore()
 
 function toggleMobileMenu() {
   mobileMenuOpen.value = !mobileMenuOpen.value
@@ -141,6 +143,18 @@ onUnmounted(() => {
             >
               Settings
             </RouterLink>
+            <RouterLink
+              v-if="authStore.user?.is_platform_admin"
+              to="/platform-admin"
+              :class="[
+                'rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
+                isActive('/platform-admin')
+                  ? 'border-b-2 border-emerald-600 text-emerald-600'
+                  : 'text-gray-600 hover:text-gray-900',
+              ]"
+            >
+              Admin
+            </RouterLink>
           </div>
         </div>
 
@@ -261,6 +275,19 @@ onUnmounted(() => {
                 @click="closeMobileMenu"
               >
                 Settings
+              </RouterLink>
+              <RouterLink
+                v-if="authStore.user?.is_platform_admin"
+                to="/platform-admin"
+                :class="[
+                  'block rounded-md px-3 py-2 text-base font-medium transition-colors',
+                  isActive('/platform-admin')
+                    ? 'bg-emerald-50 text-emerald-600'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900',
+                ]"
+                @click="closeMobileMenu"
+              >
+                Admin
               </RouterLink>
             </nav>
 
