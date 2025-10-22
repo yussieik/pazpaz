@@ -157,6 +157,61 @@ services:
           cpus: '0.5'
           memory: 512M
 
+  # ARQ Worker - Background task scheduler for notifications
+  # Runs scheduled tasks: session notes reminders, daily digests, appointment reminders
+  # Uses arq (Redis-based task queue) with cron scheduling
+  arq-worker:
+    build: ./backend
+    container_name: pazpaz-arq-worker
+    command: sh -c "uv run arq pazpaz.workers.scheduler.WorkerSettings"
+    environment:
+      # Database connection (must match API service for workspace scoping)
+      # Use POSTGRES_PASSWORD from .env file for Docker container connections
+      - DATABASE_URL=postgresql+asyncpg://pazpaz:${POSTGRES_PASSWORD}@db:5432/pazpaz
+
+      # Database SSL configuration (use container paths, not host paths)
+      # For Docker: disable SSL since db service is on same network (secure by default)
+      # Production: enable SSL with proper certificates
+      - DB_SSL_ENABLED=false
+      - DB_SSL_MODE=disable
+
+      # Redis connection (queue backend for arq scheduler)
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+
+      # SMTP configuration (use MailHog for development, production SMTP for prod)
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - SMTP_USER=
+      - SMTP_PASSWORD=
+      - EMAILS_FROM_EMAIL=noreply@pazpaz.local
+
+      # Frontend URL for email links
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+
+      # Application settings
+      - DEBUG=true
+      - ENVIRONMENT=local
+
+      # Encryption key (needed for PHI decryption when building email content)
+      - ENCRYPTION_MASTER_KEY=${ENCRYPTION_MASTER_KEY:-CHANGE_ME_GENERATE_BASE64_32_BYTES}
+    depends_on:
+      - db
+      - redis
+      - mailhog
+    volumes:
+      # Mount source for hot-reload during development
+      - ./backend/src:/app/src:ro
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
 volumes:
   postgres_data:
   redis_data:
