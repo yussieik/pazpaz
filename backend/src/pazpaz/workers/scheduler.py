@@ -33,11 +33,28 @@ Usage:
 
 from __future__ import annotations
 
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
 from arq.connections import RedisSettings
 
 from pazpaz.core.logging import get_logger
+from pazpaz.db.base import AsyncSessionLocal
+from pazpaz.services.email_service import (
+    send_appointment_reminder,
+    send_daily_digest,
+    send_session_notes_reminder,
+)
+from pazpaz.services.notification_content_service import (
+    build_appointment_reminder_email,
+    build_daily_digest_email,
+    build_session_notes_reminder_email,
+)
+from pazpaz.services.notification_query_service import (
+    get_appointments_needing_reminders,
+    get_users_needing_daily_digest,
+    get_users_needing_session_notes_reminder,
+)
 from pazpaz.workers.settings import (
     HEALTH_CHECK_INTERVAL,
     JOB_TIMEOUT,
@@ -68,20 +85,97 @@ async def send_session_notes_reminders(ctx: dict) -> dict:
     time for each user.
 
     Args:
-        ctx: arq worker context containing Redis connection and job info
+        ctx: arq worker context containing database session factory
 
     Returns:
         dict: Summary statistics
-            - sent_count: Number of reminders sent successfully
-            - error_count: Number of errors encountered
-            - users_checked: Number of users evaluated
+            - sent: Number of reminders sent successfully
+            - errors: Number of errors encountered
 
     Note:
-        Implementation pending in Phase 3. This is a placeholder.
+        Phase 3 implementation - uses simplified UTC-only approach.
+        TODO: Add proper timezone support in future phases.
     """
     logger.info("session_notes_reminders_task_started")
-    # TODO: Implement in Phase 3
-    return {"sent_count": 0, "error_count": 0, "users_checked": 0}
+
+    sent_count = 0
+    error_count = 0
+
+    try:
+        # Get current time in UTC
+        current_time = datetime.now(UTC).time()
+
+        # Get database session
+        async with AsyncSessionLocal() as db:
+            # Query users needing reminders at this time
+            users = await get_users_needing_session_notes_reminder(db, current_time)
+
+            logger.info(
+                "session_notes_reminders_users_found",
+                user_count=len(users),
+                current_time=current_time.strftime("%H:%M"),
+            )
+
+            # Send reminder to each user
+            for user in users:
+                try:
+                    # Build email content
+                    email_data = await build_session_notes_reminder_email(db, user)
+
+                    # Extract draft count from subject for logging
+                    # Subject format: "You have X draft session note(s)"
+                    draft_count = 0
+                    if "have" in email_data["subject"]:
+                        parts = email_data["subject"].split()
+                        for i, part in enumerate(parts):
+                            if part == "have" and i + 1 < len(parts):
+                                try:
+                                    draft_count = int(parts[i + 1])
+                                except (ValueError, IndexError):
+                                    pass
+
+                    # Send email via email service
+                    from pazpaz.core.config import settings
+
+                    await send_session_notes_reminder(
+                        email=email_data["to"],
+                        draft_count=draft_count,
+                        frontend_url=settings.frontend_url,
+                    )
+
+                    logger.info(
+                        "session_notes_reminder_sent",
+                        user_id=str(user.id),
+                        email=user.email,
+                        draft_count=draft_count,
+                    )
+                    sent_count += 1
+
+                except Exception as e:
+                    logger.error(
+                        "session_notes_reminder_failed",
+                        user_id=str(user.id),
+                        email=user.email,
+                        error=str(e),
+                        exc_info=True,
+                    )
+                    error_count += 1
+
+        logger.info(
+            "session_notes_reminders_task_completed",
+            sent=sent_count,
+            errors=error_count,
+        )
+
+        return {"sent": sent_count, "errors": error_count}
+
+    except Exception as e:
+        logger.error(
+            "session_notes_reminders_task_failed",
+            error=str(e),
+            exc_info=True,
+        )
+        raise
 
 
 async def send_daily_digests(ctx: dict) -> dict:
@@ -93,26 +187,158 @@ async def send_daily_digests(ctx: dict) -> dict:
     for weekend skipping and timezone-specific delivery times.
 
     Args:
-        ctx: arq worker context containing Redis connection and job info
+        ctx: arq worker context containing database session factory
 
     Returns:
         dict: Summary statistics
-            - sent_count: Number of digests sent successfully
-            - error_count: Number of errors encountered
-            - users_checked: Number of users evaluated
-            - weekends_skipped: Number of users skipped due to weekend setting
+            - sent: Number of digests sent successfully
+            - errors: Number of errors encountered
+            - skipped_weekend: Number of users skipped due to weekend setting
 
     Note:
-        Implementation pending in Phase 3. This is a placeholder.
+        Phase 3 implementation - uses simplified UTC-only approach.
+        TODO: Add proper timezone support in future phases.
     """
     logger.info("daily_digests_task_started")
-    # TODO: Implement in Phase 3
-    return {
-        "sent_count": 0,
-        "error_count": 0,
-        "users_checked": 0,
-        "weekends_skipped": 0,
-    }
+
+    sent_count = 0
+    error_count = 0
+    skipped_weekend_count = 0
+
+    try:
+        # Get current time and day in UTC
+        now = datetime.now(UTC)
+        current_time = now.time()
+        current_day = now.weekday()  # 0=Monday, 6=Sunday
+
+        # Get database session
+        async with AsyncSessionLocal() as db:
+            # Query users needing digest at this time
+            # Service already filters weekend-skippers on weekends
+            users = await get_users_needing_daily_digest(db, current_time, current_day)
+
+            # Check if today is weekend for logging
+            is_weekend = current_day in (5, 6)
+
+            logger.info(
+                "daily_digests_users_found",
+                user_count=len(users),
+                current_time=current_time.strftime("%H:%M"),
+                current_day=current_day,
+                is_weekend=is_weekend,
+            )
+
+            # Send digest to each user
+            for user in users:
+                try:
+                    # Build email content with today's appointments
+                    today = now.date()
+                    email_data = await build_daily_digest_email(db, user, today)
+
+                    # Parse appointments from email body to get count
+                    # This is a workaround - ideally we'd return this from builder
+                    appointment_count = email_data["body"].count("  •")
+
+                    # Format appointments for email service
+                    # For now, email service expects a simpler format
+                    # We'll pass the pre-built content from the builder
+                    date_str = today.strftime("%A, %B %d, %Y")
+
+                    from pazpaz.core.config import settings
+
+                    # Note: email service expects different format than builder provides
+                    # For Phase 3, we'll use builder's output directly by calling
+                    # send_daily_digest with empty appointments (it will build from body)
+                    # TODO: Refactor in Phase 4 to align interfaces
+
+                    # Actually, let's query appointments ourselves for the service
+                    from pazpaz.models.appointment import Appointment, AppointmentStatus
+                    from sqlalchemy import and_, select
+
+                    start_of_day = datetime.combine(today, datetime.min.time())
+                    end_of_day = datetime.combine(today, datetime.max.time())
+
+                    appt_stmt = (
+                        select(Appointment)
+                        .where(
+                            and_(
+                                Appointment.workspace_id == user.workspace_id,
+                                Appointment.scheduled_start >= start_of_day,
+                                Appointment.scheduled_start <= end_of_day,
+                                Appointment.status == AppointmentStatus.SCHEDULED,
+                            )
+                        )
+                        .order_by(Appointment.scheduled_start)
+                    )
+
+                    result = await db.execute(appt_stmt)
+                    appointments = list(result.scalars().all())
+
+                    # Refresh relationships
+                    for appt in appointments:
+                        await db.refresh(appt, ["client", "service", "location"])
+
+                    # Format for email service
+                    appointment_dicts = []
+                    for appt in appointments:
+                        appt_dict = {
+                            "time": appt.scheduled_start.strftime("%I:%M %p"),
+                            "client_name": appt.client.full_name if appt.client else "Unknown",
+                        }
+                        if appt.service:
+                            appt_dict["service"] = appt.service.name
+                        if appt.location:
+                            appt_dict["location"] = appt.location.name
+
+                        appointment_dicts.append(appt_dict)
+
+                    # Send email
+                    await send_daily_digest(
+                        email=user.email,
+                        appointments=appointment_dicts,
+                        date_str=date_str,
+                        frontend_url=settings.frontend_url,
+                    )
+
+                    logger.info(
+                        "daily_digest_sent",
+                        user_id=str(user.id),
+                        email=user.email,
+                        appointment_count=len(appointment_dicts),
+                        date=date_str,
+                    )
+                    sent_count += 1
+
+                except Exception as e:
+                    logger.error(
+                        "daily_digest_failed",
+                        user_id=str(user.id),
+                        email=user.email,
+                        error=str(e),
+                        exc_info=True,
+                    )
+                    error_count += 1
+
+        logger.info(
+            "daily_digests_task_completed",
+            sent=sent_count,
+            errors=error_count,
+            skipped_weekend=skipped_weekend_count,
+        )
+
+        return {
+            "sent": sent_count,
+            "errors": error_count,
+            "skipped_weekend": skipped_weekend_count,
+        }
+
+    except Exception as e:
+        logger.error(
+            "daily_digests_task_failed",
+            error=str(e),
+            exc_info=True,
+        )
+        raise
 
 
 async def send_appointment_reminders(ctx: dict) -> dict:
@@ -125,46 +351,152 @@ async def send_appointment_reminders(ctx: dict) -> dict:
     tracking system (to be implemented in Phase 4).
 
     Args:
-        ctx: arq worker context containing Redis connection and job info
+        ctx: arq worker context containing database session factory
 
     Returns:
         dict: Summary statistics
-            - sent_count: Number of reminders sent successfully
-            - error_count: Number of errors encountered
-            - appointments_checked: Number of appointments evaluated
-            - duplicates_skipped: Number of duplicate reminders prevented
+            - sent: Number of reminders sent successfully
+            - errors: Number of errors encountered
 
     Note:
-        Implementation pending in Phase 3. This is a placeholder.
+        Phase 3 implementation - uses simplified UTC-only approach.
+        TODO: Add deduplication tracking in Phase 4.
+        TODO: Add proper timezone support in future phases.
     """
     logger.info("appointment_reminders_task_started")
-    # TODO: Implement in Phase 3
-    return {
-        "sent_count": 0,
-        "error_count": 0,
-        "appointments_checked": 0,
-        "duplicates_skipped": 0,
-    }
+
+    sent_count = 0
+    error_count = 0
+
+    try:
+        # Get current time in UTC
+        current_time = datetime.now(UTC)
+
+        # Get database session
+        async with AsyncSessionLocal() as db:
+            # Query appointments needing reminders
+            reminders = await get_appointments_needing_reminders(db, current_time)
+
+            logger.info(
+                "appointment_reminders_found",
+                reminder_count=len(reminders),
+                current_time=current_time.isoformat(),
+            )
+
+            # Send reminder for each (appointment, user) pair
+            for appointment, user in reminders:
+                try:
+                    # Calculate minutes until appointment
+                    time_delta = appointment.scheduled_start - current_time
+                    minutes_until = int(time_delta.total_seconds() / 60)
+
+                    # Build email content
+                    email_data = await build_appointment_reminder_email(
+                        db, appointment, user
+                    )
+
+                    # Format appointment data for email service
+                    appointment_data = {
+                        "appointment_id": str(appointment.id),
+                        "client_name": (
+                            appointment.client.full_name
+                            if appointment.client
+                            else "Unknown"
+                        ),
+                        "time": appointment.scheduled_start.strftime(
+                            "%I:%M %p on %A, %B %d, %Y"
+                        ),
+                    }
+
+                    if appointment.service:
+                        appointment_data["service"] = appointment.service.name
+
+                    if appointment.location:
+                        appointment_data["location"] = appointment.location.name
+                    elif appointment.location_details:
+                        appointment_data["location"] = appointment.location_details
+
+                    # Send email
+                    await send_appointment_reminder(
+                        email=user.email,
+                        appointment_data=appointment_data,
+                        minutes_until=minutes_until,
+                    )
+
+                    logger.info(
+                        "appointment_reminder_sent",
+                        appointment_id=str(appointment.id),
+                        user_id=str(user.id),
+                        email=user.email,
+                        client_name=appointment_data["client_name"],
+                        minutes_until=minutes_until,
+                    )
+                    sent_count += 1
+
+                except Exception as e:
+                    logger.error(
+                        "appointment_reminder_failed",
+                        appointment_id=str(appointment.id),
+                        user_id=str(user.id),
+                        email=user.email,
+                        error=str(e),
+                        exc_info=True,
+                    )
+                    error_count += 1
+
+        logger.info(
+            "appointment_reminders_task_completed",
+            sent=sent_count,
+            errors=error_count,
+        )
+
+        return {"sent": sent_count, "errors": error_count}
+
+    except Exception as e:
+        logger.error(
+            "appointment_reminders_task_failed",
+            error=str(e),
+            exc_info=True,
+        )
+        raise
 
 
 async def startup(ctx: dict) -> None:
     """
     Worker startup hook - executed once when worker starts.
 
-    This function is called when the arq worker initializes. It can be used
-    to set up database connections, initialize services, or perform other
-    one-time setup tasks.
+    This function is called when the arq worker initializes. It sets up
+    database connections and initializes services.
 
     Args:
-        ctx: arq worker context (can be used to store shared resources)
+        ctx: arq worker context (shared across all jobs)
 
     Note:
         The ctx dict is shared across all jobs in the worker process.
-        Use it to store database sessions, service instances, etc.
+        Database sessions are created per-job using AsyncSessionLocal.
     """
     logger.info("arq_worker_starting", queue=QUEUE_NAME)
-    # TODO: Initialize database connection pool in Phase 2
-    # TODO: Initialize email service in Phase 2
+
+    # Database connection is managed per-task using AsyncSessionLocal
+    # No need to store in ctx since each task creates its own session
+
+    # Verify database connectivity at startup
+    try:
+        async with AsyncSessionLocal() as db:
+            from sqlalchemy import text
+
+            result = await db.execute(text("SELECT 1"))
+            result.scalar()
+            logger.info("arq_worker_database_connection_verified")
+    except Exception as e:
+        logger.error(
+            "arq_worker_database_connection_failed",
+            error=str(e),
+            exc_info=True,
+        )
+        raise
+
+    logger.info("arq_worker_startup_complete")
 
 
 async def shutdown(ctx: dict) -> None:
@@ -179,8 +511,21 @@ async def shutdown(ctx: dict) -> None:
         ctx: arq worker context containing any shared resources from startup
     """
     logger.info("arq_worker_shutting_down")
-    # TODO: Close database connections in Phase 2
-    # TODO: Cleanup other resources
+
+    # Close database engine (connection pool)
+    try:
+        from pazpaz.db.base import engine
+
+        await engine.dispose()
+        logger.info("arq_worker_database_connections_closed")
+    except Exception as e:
+        logger.error(
+            "arq_worker_shutdown_error",
+            error=str(e),
+            exc_info=True,
+        )
+
+    logger.info("arq_worker_shutdown_complete")
 
 
 # arq WorkerSettings Class
@@ -244,9 +589,33 @@ class WorkerSettings:
     max_tries = MAX_TRIES
 
     # Scheduled Tasks (Cron Jobs)
-    # Initially empty - jobs will be added in Phase 3
+    # Phase 3 implementation - scheduled notification tasks
     # Format: cron(function, minute={...}, hour={...}, ...)
-    cron_jobs: list[CronJob] = []
+    from arq import cron
+
+    cron_jobs: list[CronJob] = [
+        # Session notes reminders - every minute
+        # Checks if any users need reminder at current time (UTC)
+        cron(
+            send_session_notes_reminders,
+            minute={0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
+            run_at_startup=False,
+        ),
+        # Daily digests - every minute
+        # Checks if any users need digest at current time (UTC)
+        cron(
+            send_daily_digests,
+            minute={0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
+            run_at_startup=False,
+        ),
+        # Appointment reminders - every 5 minutes
+        # Checks for upcoming appointments that need reminders
+        cron(
+            send_appointment_reminders,
+            minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
+            run_at_startup=False,
+        ),
+    ]
 
     # Lifecycle Hooks
     on_startup = startup
