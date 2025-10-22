@@ -678,7 +678,7 @@ function openInviteModal() {
         </div>
 
         <!-- Desktop: Blacklist Table -->
-        <div v-else class="hidden overflow-hidden rounded-xl border border-slate-200 bg-white sm:block">
+        <div v-if="platformAdmin.blacklist.value.length > 0" class="hidden overflow-hidden rounded-xl border border-slate-200 bg-white sm:block">
           <table class="w-full">
             <thead class="bg-slate-50">
               <tr>
@@ -715,7 +715,7 @@ function openInviteModal() {
         </div>
 
         <!-- Mobile: Blacklist Cards -->
-        <div v-else class="space-y-4 sm:hidden">
+        <div v-if="platformAdmin.blacklist.value.length > 0" class="space-y-4 sm:hidden">
           <div
             v-for="entry in platformAdmin.blacklist.value"
             :key="entry.email"
