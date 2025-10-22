@@ -22,6 +22,7 @@ from pazpaz.models.workspace import Workspace, WorkspaceStatus
 from pazpaz.services.email_service import send_invitation_email
 from pazpaz.services.platform_onboarding_service import (
     DuplicateEmailError,
+    EmailBlacklistedError,
     InvitationNotFoundError,
     PlatformOnboardingService,
     UserAlreadyActiveError,
@@ -290,6 +291,18 @@ async def invite_therapist(
             user_id=user.id,
             invitation_url=invitation_url,
         )
+
+    except EmailBlacklistedError as e:
+        logger.warning(
+            "invite_therapist_blacklisted_email",
+            admin_id=str(admin.id),
+            email=request_data.therapist_email,
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This email address is blacklisted and cannot receive invitations",
+        ) from e
 
     except DuplicateEmailError as e:
         logger.warning(

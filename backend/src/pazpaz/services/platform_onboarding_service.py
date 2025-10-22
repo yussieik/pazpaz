@@ -57,6 +57,12 @@ class DuplicateEmailError(Exception):
     pass
 
 
+class EmailBlacklistedError(Exception):
+    """Raised when attempting to invite or activate a blacklisted email."""
+
+    pass
+
+
 class PlatformOnboardingService:
     """
     Service for platform admin to onboard therapists.
@@ -147,6 +153,17 @@ class PlatformOnboardingService:
             raise ValueError("therapist_full_name cannot be empty")
 
         try:
+            from pazpaz.core.blacklist import is_email_blacklisted
+
+            if await is_email_blacklisted(db, therapist_email):
+                logger.warning(
+                    "invitation_blocked_blacklisted_email",
+                    email=therapist_email,
+                )
+                raise EmailBlacklistedError(
+                    f"Email {therapist_email} is blacklisted and cannot receive invitations"
+                )
+
             # Check if email already exists
             query = select(User).where(User.email == therapist_email)
             result = await db.execute(query)
@@ -196,6 +213,9 @@ class PlatformOnboardingService:
 
             return workspace, user, token
 
+        except EmailBlacklistedError:
+            await db.rollback()
+            raise
         except DuplicateEmailError:
             await db.rollback()
             raise
@@ -295,6 +315,19 @@ class PlatformOnboardingService:
             # Verify token matches (timing-safe comparison)
             if not verify_invitation_token(token, user.invitation_token_hash):
                 raise InvalidInvitationTokenError("Invalid invitation token")
+
+            # This prevents blacklisted emails from accepting invitations
+            from pazpaz.core.blacklist import is_email_blacklisted
+
+            if await is_email_blacklisted(db, user.email):
+                logger.warning(
+                    "invitation_acceptance_blocked_blacklisted_email",
+                    user_id=str(user.id),
+                    email=user.email,
+                )
+                raise InvalidInvitationTokenError(
+                    "This email address is not eligible to accept invitations"
+                )
 
             # Check if already accepted
             if user.is_active:

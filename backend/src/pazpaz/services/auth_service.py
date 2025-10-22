@@ -202,6 +202,43 @@ async def request_magic_link(
             detail="Rate limit exceeded. Please try again later.",
         )
 
+    # This prevents blacklisted emails from receiving magic links (prevents enumeration)
+    from pazpaz.core.blacklist import is_email_blacklisted
+
+    if await is_email_blacklisted(db, email):
+        from pazpaz.models.audit_event import AuditAction, ResourceType
+        from pazpaz.services.audit_service import create_audit_event
+
+        try:
+            await create_audit_event(
+                db=db,
+                user_id=None,
+                workspace_id=None,
+                action=AuditAction.READ,
+                resource_type=ResourceType.USER,
+                resource_id=None,
+                ip_address=request_ip,
+                metadata={
+                    "action": "magic_link_request_blacklisted_email",
+                    "result": "email_blacklisted",
+                },
+            )
+        except Exception as e:
+            logger.error(
+                "failed_to_create_audit_event_for_blacklisted_email",
+                error=str(e),
+                exc_info=True,
+            )
+
+        logger.warning(
+            "magic_link_request_blocked_blacklisted_email",
+            email=email,
+            ip=request_ip,
+        )
+        # Return success to prevent email enumeration
+        # Do NOT send magic link email
+        return
+
     # Look up user by email (eagerly load workspace to check status)
     from sqlalchemy.orm import selectinload
 
