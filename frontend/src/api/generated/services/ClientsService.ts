@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
+ 
 import type { ClientCreate } from '../models/ClientCreate';
 import type { ClientListResponse } from '../models/ClientListResponse';
 import type { ClientResponse } from '../models/ClientResponse';

@@ -412,4 +412,318 @@ describe('LoginView', () => {
       expect(mainContainer.classes()).toContain('px-4')
     })
   })
+
+  describe('Enhanced Waiting Experience - Countdown Timer', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+      vi.useRealTimers()
+    })
+
+    it('shows countdown timer after successful magic link request', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({ data: {} })
+
+      const wrapper = mount(LoginView, {
+        global: { plugins: [router] },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('test@example.com')
+      await wrapper.find('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.text()).toContain('Link expires in:')
+      expect(wrapper.text()).toContain('15:00') // 15 minutes
+    })
+
+    it('decrements countdown timer every second', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({ data: {} })
+
+      const wrapper = mount(LoginView, {
+        global: { plugins: [router] },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('test@example.com')
+      await wrapper.find('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      // Initial time
+      expect(wrapper.text()).toContain('15:00')
+
+      // Advance 5 seconds
+      vi.advanceTimersByTime(5000)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.text()).toContain('14:55')
+
+      // Advance 60 seconds
+      vi.advanceTimersByTime(60000)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.text()).toContain('13:55')
+    })
+
+    it('adds pulse animation when countdown reaches 60 seconds or less', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({ data: {} })
+
+      const wrapper = mount(LoginView, {
+        global: { plugins: [router] },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('test@example.com')
+      await wrapper.find('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      // Fast-forward to 59 seconds remaining
+      vi.advanceTimersByTime(14 * 60 * 1000 + 1000) // 14 minutes 1 second
+      await wrapper.vm.$nextTick()
+
+      const countdown = wrapper.find('.font-mono')
+      expect(countdown.classes()).toContain('animate-pulse')
+      expect(countdown.classes()).toContain('text-red-600')
+    })
+
+    it('shows helpful tips in success message', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({ data: {} })
+
+      const wrapper = mount(LoginView, {
+        global: { plugins: [router] },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('test@example.com')
+      await wrapper.find('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.text()).toContain('Check your spam folder')
+      expect(wrapper.text()).toContain('The link can only be used once')
+    })
+
+    it('cleans up countdown interval on unmount', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({ data: {} })
+
+      const wrapper = mount(LoginView, {
+        global: { plugins: [router] },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('test@example.com')
+      await wrapper.find('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval')
+
+      wrapper.unmount()
+
+      expect(clearIntervalSpy).toHaveBeenCalled()
+    })
+  })
+
+  describe('Enhanced Waiting Experience - Resend Functionality', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+      vi.useRealTimers()
+    })
+
+    it('shows resend cooldown after successful request', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({ data: {} })
+
+      const wrapper = mount(LoginView, {
+        global: { plugins: [router] },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('test@example.com')
+      await wrapper.find('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.text()).toContain('Resend available in')
+      expect(wrapper.text()).toContain('60s')
+    })
+
+    it('decrements resend cooldown timer every second', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({ data: {} })
+
+      const wrapper = mount(LoginView, {
+        global: { plugins: [router] },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('test@example.com')
+      await wrapper.find('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.text()).toContain('60s')
+
+      vi.advanceTimersByTime(5000) // 5 seconds
+      await wrapper.vm.$nextTick()
+      expect(wrapper.text()).toContain('55s')
+
+      vi.advanceTimersByTime(30000) // 30 seconds
+      await wrapper.vm.$nextTick()
+      expect(wrapper.text()).toContain('25s')
+    })
+
+    it('shows resend button when cooldown completes', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({ data: {} })
+
+      const wrapper = mount(LoginView, {
+        global: { plugins: [router] },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('test@example.com')
+      await wrapper.find('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      // Cooldown active
+      expect(wrapper.text()).toContain('Resend available in')
+
+      // Fast-forward 60 seconds
+      vi.advanceTimersByTime(60000)
+      await wrapper.vm.$nextTick()
+
+      // Resend button should now be visible
+      expect(wrapper.text()).toContain('Resend magic link')
+      expect(wrapper.text()).not.toContain('Resend available in')
+    })
+
+    it('allows resending magic link after cooldown', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({ data: {} })
+
+      const wrapper = mount(LoginView, {
+        global: { plugins: [router] },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('test@example.com')
+      await wrapper.find('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      // Fast-forward past cooldown
+      vi.advanceTimersByTime(60000)
+      await wrapper.vm.$nextTick()
+
+      // Click resend button
+      const resendButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Resend magic link'))
+      await resendButton?.trigger('click')
+      await wrapper.vm.$nextTick()
+
+      // Should call API again
+      expect(apiClient.post).toHaveBeenCalledTimes(2)
+      expect(apiClient.post).toHaveBeenLastCalledWith('/auth/magic-link', {
+        email: 'test@example.com',
+      })
+
+      // Cooldown should restart
+      expect(wrapper.text()).toContain('Resend available in')
+    })
+
+    it('shows loading state during resend', async () => {
+      let resolveRequest: ((value: { data: object }) => void) | undefined
+      const requestPromise = new Promise<{ data: object }>((resolve) => {
+        resolveRequest = resolve
+      })
+
+      vi.mocked(apiClient.post)
+        .mockResolvedValueOnce({ data: {} }) // First request succeeds immediately
+        .mockReturnValueOnce(requestPromise as never) // Second request is pending
+
+      const wrapper = mount(LoginView, {
+        global: { plugins: [router] },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('test@example.com')
+      await wrapper.find('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      // Fast-forward past cooldown
+      vi.advanceTimersByTime(60000)
+      await wrapper.vm.$nextTick()
+
+      // Click resend
+      const resendButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Resend magic link'))
+      await resendButton?.trigger('click')
+      await wrapper.vm.$nextTick()
+
+      // Should show "Resending..." during request
+      expect(wrapper.text()).toContain('Resending...')
+
+      resolveRequest!({ data: {} })
+      await wrapper.vm.$nextTick()
+    })
+
+    it('handles 429 rate limit with retry-after in resend', async () => {
+      vi.mocked(apiClient.post)
+        .mockResolvedValueOnce({ data: {} }) // First request succeeds
+        .mockRejectedValueOnce({
+          response: {
+            status: 429,
+            data: { detail: 'Rate limited. Please try again in 120 seconds.' },
+          },
+        })
+
+      const wrapper = mount(LoginView, {
+        global: { plugins: [router] },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('test@example.com')
+      await wrapper.find('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      // Fast-forward past initial cooldown
+      vi.advanceTimersByTime(60000)
+      await wrapper.vm.$nextTick()
+
+      // Try to resend
+      const resendButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Resend magic link'))
+      await resendButton?.trigger('click')
+      await wrapper.vm.$nextTick()
+
+      // Should show rate limit error
+      expect(wrapper.text()).toContain('Too many requests')
+      expect(wrapper.text()).toContain('120 seconds')
+    })
+
+    it('cleans up cooldown interval on unmount', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({ data: {} })
+
+      const wrapper = mount(LoginView, {
+        global: { plugins: [router] },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('test@example.com')
+      await wrapper.find('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval')
+
+      wrapper.unmount()
+
+      expect(clearIntervalSpy).toHaveBeenCalled()
+    })
+  })
+
+  describe('Enhanced Waiting Experience - Animations', () => {
+    it('shows animated checkmark on success', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({ data: {} })
+
+      const wrapper = mount(LoginView, {
+        global: { plugins: [router] },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('test@example.com')
+      await wrapper.find('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      // Checkmark SVG should be present
+      const successAlert = wrapper.find('[role="alert"]')
+      const checkmark = successAlert.find('svg')
+      expect(checkmark.exists()).toBe(true)
+    })
+  })
 })

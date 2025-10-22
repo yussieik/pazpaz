@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
+ 
 import type { PendingInvitation } from './PendingInvitation';
 /**
  * Response schema for listing pending invitations.

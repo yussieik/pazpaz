@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import apiClient from '@/api/client'
 
@@ -11,9 +11,33 @@ const error = ref<string | null>(null)
 const success = ref(false)
 const emailInputRef = ref<HTMLInputElement | null>(null)
 
+// Enhanced waiting experience state
+const linkExpiresIn = ref(15 * 60) // 15 minutes in seconds
+const resendCooldown = ref(0) // Cooldown before allowing resend
+const isResending = ref(false)
+
+let countdownInterval: ReturnType<typeof setInterval> | null = null
+let cooldownInterval: ReturnType<typeof setInterval> | null = null
+
 // Check if user was redirected due to session expiration
 const sessionExpiredMessage = computed(() => {
   return route.query.message === 'session_expired'
+})
+
+/**
+ * Format seconds as MM:SS
+ */
+const formattedLinkExpiry = computed(() => {
+  const minutes = Math.floor(linkExpiresIn.value / 60)
+  const seconds = linkExpiresIn.value % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+})
+
+/**
+ * Check if resend is available
+ */
+const canResend = computed(() => {
+  return success.value && resendCooldown.value <= 0 && !isResending.value
 })
 
 onMounted(() => {
@@ -23,6 +47,18 @@ onMounted(() => {
   // Check if there's an error from failed auth verification
   if (route.query.error === 'invalid_link') {
     error.value = 'Invalid or expired magic link. Please request a new one.'
+  }
+})
+
+onUnmounted(() => {
+  // Cleanup intervals
+  if (countdownInterval) {
+    clearInterval(countdownInterval)
+    countdownInterval = null
+  }
+  if (cooldownInterval) {
+    clearInterval(cooldownInterval)
+    cooldownInterval = null
   }
 })
 
@@ -45,11 +81,27 @@ async function requestMagicLink() {
     })
 
     success.value = true
+
+    // Start countdown timer for link expiration
+    startCountdown()
+
+    // Start resend cooldown (60 seconds)
+    startResendCooldown(60)
   } catch (err: unknown) {
     // Handle specific error cases
-    const axiosError = err as { response?: { status: number } }
+    const axiosError = err as { response?: { status: number; data?: { detail?: string } } }
     if (axiosError.response?.status === 429) {
-      error.value = 'Too many requests. Please try again later.'
+      // Extract retry-after from error message if available
+      const detail = axiosError.response.data?.detail || ''
+      const retryMatch = detail.match(/try again in (\d+) seconds/)
+      const retryAfter = retryMatch ? parseInt(retryMatch[1]) : 60
+
+      error.value = `Too many requests. Please try again in ${retryAfter} seconds.`
+
+      // If we already sent a link, show success and cooldown
+      if (success.value) {
+        startResendCooldown(retryAfter)
+      }
     } else if (axiosError.response?.status === 422) {
       error.value = 'Please enter a valid email address'
     } else {
@@ -58,7 +110,71 @@ async function requestMagicLink() {
     console.error('Magic link request failed:', err)
   } finally {
     isLoading.value = false
+    isResending.value = false
   }
+}
+
+/**
+ * Start countdown timer for link expiration (15 minutes)
+ */
+function startCountdown() {
+  // Clear existing interval
+  if (countdownInterval) {
+    clearInterval(countdownInterval)
+  }
+
+  // Reset to 15 minutes
+  linkExpiresIn.value = 15 * 60
+
+  // Countdown every second
+  countdownInterval = setInterval(() => {
+    linkExpiresIn.value--
+
+    if (linkExpiresIn.value <= 0) {
+      // Link expired
+      if (countdownInterval) {
+        clearInterval(countdownInterval)
+        countdownInterval = null
+      }
+    }
+  }, 1000)
+}
+
+/**
+ * Start resend cooldown timer
+ */
+function startResendCooldown(seconds: number) {
+  // Clear existing interval
+  if (cooldownInterval) {
+    clearInterval(cooldownInterval)
+  }
+
+  resendCooldown.value = seconds
+
+  cooldownInterval = setInterval(() => {
+    resendCooldown.value--
+
+    if (resendCooldown.value <= 0) {
+      if (cooldownInterval) {
+        clearInterval(cooldownInterval)
+        cooldownInterval = null
+      }
+    }
+  }, 1000)
+}
+
+/**
+ * Resend magic link
+ */
+async function resendMagicLink() {
+  if (resendCooldown.value > 0 || isResending.value) {
+    return
+  }
+
+  isResending.value = true
+  error.value = null
+
+  await requestMagicLink()
 }
 
 function handleSubmit() {
@@ -109,33 +225,103 @@ function handleSubmit() {
           </div>
         </div>
 
-        <!-- Success Message -->
+        <!-- Enhanced Success Message with Countdown -->
         <div
           v-if="success"
           class="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4"
           role="alert"
         >
           <div class="flex items-start">
-            <svg
-              class="mt-0.5 mr-3 h-5 w-5 text-emerald-600"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                clip-rule="evenodd"
-              />
-            </svg>
+            <!-- Animated Checkmark -->
+            <div class="mr-3 flex-shrink-0">
+              <Transition name="checkmark-scale">
+                <svg
+                  v-if="success"
+                  class="h-5 w-5 text-emerald-600"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </Transition>
+            </div>
+
             <div class="flex-1">
               <h3 class="font-semibold text-emerald-900">Check your email</h3>
               <p class="mt-1 text-sm text-emerald-700">
-                We've sent a login link to <strong>{{ email }}</strong
+                We've sent a magic link to <strong>{{ email }}</strong
                 >. Click the link in the email to sign in.
               </p>
-              <p class="mt-2 text-xs text-emerald-600">
-                The link will expire in 10 minutes.
-              </p>
+
+              <!-- Countdown Timer -->
+              <div class="mt-3 rounded-md bg-emerald-100 px-3 py-2">
+                <p class="text-xs text-emerald-800">
+                  <span class="font-medium">Link expires in:</span>
+                  <span
+                    class="ml-2 font-mono text-sm font-bold tabular-nums"
+                    :class="{ 'text-red-600 animate-pulse': linkExpiresIn <= 60 }"
+                  >
+                    {{ formattedLinkExpiry }}
+                  </span>
+                </p>
+              </div>
+
+              <!-- Helpful Tips -->
+              <div class="mt-3 space-y-1">
+                <p class="text-xs text-emerald-700 flex items-start">
+                  <svg
+                    class="mt-0.5 mr-1.5 h-3 w-3 flex-shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  <span>Check your spam folder if you don't see it</span>
+                </p>
+                <p class="text-xs text-emerald-700 flex items-start">
+                  <svg
+                    class="mt-0.5 mr-1.5 h-3 w-3 flex-shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  <span>The link can only be used once</span>
+                </p>
+              </div>
+
+              <!-- Resend Link -->
+              <div class="mt-4 border-t border-emerald-200 pt-3">
+                <p class="text-xs text-emerald-800">
+                  Didn't receive it?
+                  <button
+                    v-if="canResend"
+                    @click="resendMagicLink"
+                    class="font-medium underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded"
+                    :disabled="isResending"
+                  >
+                    {{ isResending ? 'Resending...' : 'Resend magic link' }}
+                  </button>
+                  <span v-else class="text-emerald-600">
+                    Resend available in {{ resendCooldown }}s
+                  </span>
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -235,3 +421,44 @@ function handleSubmit() {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Checkmark scale-in animation */
+.checkmark-scale-enter-active {
+  transition: transform 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.checkmark-scale-enter-from {
+  transform: scale(0);
+}
+
+.checkmark-scale-enter-to {
+  transform: scale(1);
+}
+
+/* Pulse animation for expiring countdown */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .checkmark-scale-enter-active {
+    transition-duration: 1ms;
+  }
+
+  .animate-pulse {
+    animation: none;
+  }
+}
+</style>

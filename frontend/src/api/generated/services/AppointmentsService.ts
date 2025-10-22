@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
+ 
 import type { AppointmentCreate } from '../models/AppointmentCreate';
 import type { AppointmentDeleteRequest } from '../models/AppointmentDeleteRequest';
 import type { AppointmentListResponse } from '../models/AppointmentListResponse';

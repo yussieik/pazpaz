@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
+ 
 import type { AuditEventResponse } from './AuditEventResponse';
 /**
  * Paginated response for audit event list.

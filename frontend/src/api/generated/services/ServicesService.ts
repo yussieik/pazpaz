@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
+ 
 import type { ServiceCreate } from '../models/ServiceCreate';
 import type { ServiceListResponse } from '../models/ServiceListResponse';
 import type { ServiceResponse } from '../models/ServiceResponse';

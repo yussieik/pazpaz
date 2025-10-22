@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
+ 
 import type { InviteTherapistRequest } from '../models/InviteTherapistRequest';
 import type { InviteTherapistResponse } from '../models/InviteTherapistResponse';
 import type { PendingInvitationsResponse } from '../models/PendingInvitationsResponse';

@@ -2,10 +2,14 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
+import { useAuthSessionStore } from '@/stores/authSession'
+import LogoutConfirmationModal from '@/components/auth/LogoutConfirmationModal.vue'
 
 const route = useRoute()
 const mobileMenuOpen = ref(false)
+const showLogoutModal = ref(false)
 const { logout, isLoggingOut } = useAuth()
+const authSessionStore = useAuthSessionStore()
 
 function toggleMobileMenu() {
   mobileMenuOpen.value = !mobileMenuOpen.value
@@ -22,6 +26,28 @@ function isActive(path: string): boolean {
   }
   // Prefix match for other paths
   return route.path === path || route.path.startsWith(path + '/')
+}
+
+/**
+ * Initiate logout with confirmation modal
+ */
+function initiateLogout() {
+  showLogoutModal.value = true
+}
+
+/**
+ * Cancel logout - close modal
+ */
+function cancelLogout() {
+  showLogoutModal.value = false
+}
+
+/**
+ * Confirm logout - proceed with logout
+ */
+async function confirmLogout() {
+  showLogoutModal.value = false
+  await logout()
 }
 
 // Close mobile menu on Escape key
@@ -123,7 +149,7 @@ onUnmounted(() => {
           <!-- Desktop logout button -->
           <button
             class="hidden rounded-md px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:block"
-            @click="logout"
+            @click="initiateLogout"
             :disabled="isLoggingOut"
           >
             {{ isLoggingOut ? 'Signing out...' : 'Sign Out' }}
@@ -242,7 +268,7 @@ onUnmounted(() => {
             <div class="border-t border-gray-200 p-4">
               <button
                 class="w-full rounded-md bg-gray-100 px-3 py-2 text-base font-medium text-gray-700 transition-colors hover:bg-gray-200 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                @click="logout"
+                @click="initiateLogout"
                 :disabled="isLoggingOut"
               >
                 {{ isLoggingOut ? 'Signing out...' : 'Sign Out' }}
@@ -252,6 +278,16 @@ onUnmounted(() => {
         </div>
       </Transition>
     </div>
+
+    <!-- Logout Confirmation Modal -->
+    <LogoutConfirmationModal
+      :visible="showLogoutModal"
+      :has-unsaved-changes="authSessionStore.hasUnsavedChanges"
+      :unsaved-item-descriptions="authSessionStore.unsavedItemDescriptions"
+      :is-logging-out="isLoggingOut"
+      @cancel="cancelLogout"
+      @logout="confirmLogout"
+    />
   </nav>
 </template>
 

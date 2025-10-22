@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import apiClient from '@/api/client'
+import { clearAllDrafts } from '@/utils/draftStorage'
 
 /**
  * Authentication Composable
@@ -66,7 +67,8 @@ export function useAuth() {
    * Clears:
    * - localStorage (encrypted session backups, settings, etc.)
    * - sessionStorage (temporary data)
-   * - IndexedDB (draft notes, offline data)
+   * - IndexedDB SOAP note drafts (HIPAA-critical: prevents draft note leakage)
+   * - IndexedDB (all databases: draft notes, offline data)
    * - All Pinia stores (appointments, clients, auth state)
    */
   async function clearAllClientSideStorage() {
@@ -89,7 +91,17 @@ export function useAuth() {
         console.error('[Auth] Failed to clear sessionStorage:', error)
       }
 
-      // 3. Clear IndexedDB (all databases)
+      // 3. Clear SOAP note drafts from IndexedDB (HIPAA-critical)
+      try {
+        const draftsCleared = await clearAllDrafts()
+        if (draftsCleared) {
+          console.info('[Auth] Cleared SOAP note drafts from IndexedDB')
+        }
+      } catch (error) {
+        console.error('[Auth] Failed to clear SOAP note drafts:', error)
+      }
+
+      // 4. Clear IndexedDB (all databases)
       try {
         if ('indexedDB' in window) {
           const databases = await window.indexedDB.databases()
@@ -121,7 +133,7 @@ export function useAuth() {
         console.error('[Auth] Failed to clear IndexedDB:', error)
       }
 
-      // 4. Reset all Pinia stores
+      // 5. Reset all Pinia stores
       try {
         // Import stores dynamically to avoid circular dependencies
         const { useAuthStore } = await import('@/stores/auth')

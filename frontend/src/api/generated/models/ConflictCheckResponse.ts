@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
+ 
 import type { ConflictingAppointmentDetail } from './ConflictingAppointmentDetail';
 /**
  * Schema for conflict check response.

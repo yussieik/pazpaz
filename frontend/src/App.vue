@@ -5,8 +5,12 @@ import AppNavigation from '@/components/navigation/AppNavigation.vue'
 import KeyboardShortcutsHelp from '@/components/calendar/KeyboardShortcutsHelp.vue'
 import SessionTimeoutModal from '@/components/SessionTimeoutModal.vue'
 import RateLimitBanner from '@/components/RateLimitBanner.vue'
+import SessionExpirationBanner from '@/components/auth/SessionExpirationBanner.vue'
+import SessionExpirationModal from '@/components/auth/SessionExpirationModal.vue'
 import { useGlobalKeyboardShortcuts } from '@/composables/useGlobalKeyboardShortcuts'
 import { useSessionTimeout } from '@/composables/useSessionTimeout'
+import { useSessionExpiration } from '@/composables/useSessionExpiration'
+import { useAuthSessionStore } from '@/stores/authSession'
 
 /**
  * Root App Component
@@ -22,6 +26,10 @@ useGlobalKeyboardShortcuts()
 
 // Session timeout tracking (HIPAA compliance)
 const sessionTimeout = useSessionTimeout()
+
+// Session expiration warnings (5-minute and 1-minute warnings)
+const sessionExpiration = useSessionExpiration()
+const authSessionStore = useAuthSessionStore()
 
 // Global keyboard shortcuts help modal
 const showKeyboardHelp = ref(false)
@@ -52,6 +60,15 @@ onUnmounted(() => {
 
 <template>
   <div id="app" class="min-h-screen bg-gray-50">
+    <!-- Session Expiration Banner (5-minute warning) -->
+    <SessionExpirationBanner
+      :visible="sessionExpiration.showBanner.value"
+      :time-remaining="sessionExpiration.timeRemaining.value"
+      :is-extending="sessionExpiration.isExtending.value"
+      @extend="sessionExpiration.extendSession"
+      @dismiss="sessionExpiration.dismissBanner"
+    />
+
     <!-- Rate Limit Banner (appears at top when rate limited) -->
     <RateLimitBanner />
 
@@ -70,6 +87,16 @@ onUnmounted(() => {
       :remaining-seconds="sessionTimeout.remainingSeconds.value"
       :refresh-session="sessionTimeout.refreshSession"
       :handle-timeout="sessionTimeout.handleTimeout"
+    />
+
+    <!-- Session Expiration Modal (1-minute warning) -->
+    <SessionExpirationModal
+      :visible="sessionExpiration.showModal.value"
+      :time-remaining="sessionExpiration.timeRemaining.value"
+      :has-unsaved-changes="authSessionStore.hasUnsavedChanges"
+      :is-extending="sessionExpiration.isExtending.value"
+      @extend="sessionExpiration.extendSession"
+      @logout="sessionExpiration.logoutNow"
     />
   </div>
 </template>
