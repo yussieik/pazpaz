@@ -2,14 +2,27 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import apiClient from '@/api/client'
 import { clearAllDrafts } from '@/utils/draftStorage'
+import { createAuthChannel } from '@/utils/crossTabSync'
 
 /**
  * Authentication Composable
  *
  * Provides logout functionality with proper error handling and navigation.
+ * Supports cross-tab logout coordination via BroadcastChannel.
  */
 
 const isLoggingOut = ref(false)
+
+// Create auth channel for cross-tab synchronization
+// This is created once and shared across all useAuth instances
+let authChannel: ReturnType<typeof createAuthChannel> | null = null
+
+function getAuthChannel() {
+  if (!authChannel) {
+    authChannel = createAuthChannel()
+  }
+  return authChannel
+}
 
 export function useAuth() {
   const router = useRouter()
@@ -41,6 +54,13 @@ export function useAuth() {
     isLoggingOut.value = true
 
     try {
+      // Broadcast logout event to other tabs BEFORE API call
+      // This ensures immediate cross-tab logout even if API fails
+      const channel = getAuthChannel()
+      if (channel.isSupported) {
+        channel.postLogout()
+      }
+
       // Call backend logout endpoint
       // Cookies are automatically sent via credentials: 'include' in apiClient
       await apiClient.post('/auth/logout')

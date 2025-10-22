@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { RouterView } from 'vue-router'
+import { RouterView, useRouter } from 'vue-router'
 import AppNavigation from '@/components/navigation/AppNavigation.vue'
 import KeyboardShortcutsHelp from '@/components/calendar/KeyboardShortcutsHelp.vue'
 import SessionTimeoutModal from '@/components/SessionTimeoutModal.vue'
@@ -11,6 +11,9 @@ import { useGlobalKeyboardShortcuts } from '@/composables/useGlobalKeyboardShort
 import { useSessionTimeout } from '@/composables/useSessionTimeout'
 import { useSessionExpiration } from '@/composables/useSessionExpiration'
 import { useAuthSessionStore } from '@/stores/authSession'
+import { useAuth } from '@/composables/useAuth'
+import { createAuthChannel } from '@/utils/crossTabSync'
+import { useToast } from '@/composables/useToast'
 
 /**
  * Root App Component
@@ -19,6 +22,7 @@ import { useAuthSessionStore } from '@/stores/authSession'
  * Handles global keyboard shortcuts and help modal.
  * Implements session timeout warning for HIPAA compliance.
  * Displays rate limit banner when API requests are throttled.
+ * Coordinates logout across multiple tabs via BroadcastChannel.
  */
 
 // Enable global shortcuts at app level
@@ -31,8 +35,15 @@ const sessionTimeout = useSessionTimeout()
 const sessionExpiration = useSessionExpiration()
 const authSessionStore = useAuthSessionStore()
 
+// Router and auth for cross-tab logout
+const router = useRouter()
+const toast = useToast()
+
 // Global keyboard shortcuts help modal
 const showKeyboardHelp = ref(false)
+
+// Cross-tab authentication synchronization
+let authChannel: ReturnType<typeof createAuthChannel> | null = null
 
 /**
  * Handle global '?' key to show keyboard shortcuts help
@@ -51,11 +62,85 @@ function handleHelpKey(e: KeyboardEvent) {
 
 onMounted(() => {
   window.addEventListener('keydown', handleHelpKey)
+
+  // Set up cross-tab authentication synchronization
+  authChannel = createAuthChannel()
+
+  // Listen for logout events from other tabs
+  authChannel.onLogout(async (message) => {
+    console.info('[App] Received logout from another tab', message)
+
+    // Show toast notification
+    toast.showInfo('Logged out (session ended in another tab)')
+
+    // Perform logout in this tab (without broadcasting again to avoid loop)
+    // We redirect directly instead of calling logout() to avoid double broadcast
+    await clearAllClientSideStorage()
+    router.push('/login')
+  })
+
+  // Optional: Listen for session extension events to keep all tabs in sync
+  authChannel.onSessionExtended((message) => {
+    console.info('[App] Session extended in another tab', message)
+    // Could update session expiration timers here if needed
+  })
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleHelpKey)
+
+  // Cleanup auth channel
+  if (authChannel) {
+    authChannel.close()
+    authChannel = null
+  }
 })
+
+/**
+ * Clear all client-side storage (duplicated from useAuth for cross-tab logout)
+ * This is needed because we can't call logout() directly from the broadcast handler
+ * as it would cause a broadcast loop.
+ */
+async function clearAllClientSideStorage() {
+  try {
+    // Clear localStorage
+    try {
+      localStorage.clear()
+    } catch (error) {
+      console.error('[App] Failed to clear localStorage:', error)
+    }
+
+    // Clear sessionStorage
+    try {
+      sessionStorage.clear()
+    } catch (error) {
+      console.error('[App] Failed to clear sessionStorage:', error)
+    }
+
+    // Clear IndexedDB (including SOAP drafts)
+    try {
+      if ('indexedDB' in window) {
+        const databases = await window.indexedDB.databases()
+        await Promise.allSettled(
+          databases
+            .filter((db) => db.name)
+            .map((db) => {
+              return new Promise<void>((resolve) => {
+                const deleteRequest = window.indexedDB.deleteDatabase(db.name!)
+                deleteRequest.onsuccess = () => resolve()
+                deleteRequest.onerror = () => resolve()
+                deleteRequest.onblocked = () => resolve()
+              })
+            }),
+        )
+      }
+    } catch (error) {
+      console.error('[App] Failed to clear IndexedDB:', error)
+    }
+  } catch (error) {
+    console.error('[App] Client-side storage cleanup failed:', error)
+  }
+}
 </script>
 
 <template>

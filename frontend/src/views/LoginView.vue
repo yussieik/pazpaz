@@ -15,6 +15,15 @@ const emailInputRef = ref<HTMLInputElement | null>(null)
 const linkExpiresIn = ref(15 * 60) // 15 minutes in seconds
 const resendCooldown = ref(0) // Cooldown before allowing resend
 const isResending = ref(false)
+const isEditing = ref(false) // Track if user is editing email after submission
+const showHelpAccordion = ref(false) // Track help accordion expanded state
+
+// Development mode MailHog indicator
+const isDevelopment = import.meta.env.MODE === 'development'
+const mailhogUrl = import.meta.env.VITE_MAILHOG_URL || 'http://localhost:8025'
+const showMailHogBanner = ref(
+  isDevelopment && !sessionStorage.getItem('mailhog_banner_dismissed'),
+)
 
 let countdownInterval: ReturnType<typeof setInterval> | null = null
 let cooldownInterval: ReturnType<typeof setInterval> | null = null
@@ -94,7 +103,7 @@ async function requestMagicLink() {
       // Extract retry-after from error message if available
       const detail = axiosError.response.data?.detail || ''
       const retryMatch = detail.match(/try again in (\d+) seconds/)
-      const retryAfter = retryMatch ? parseInt(retryMatch[1]) : 60
+      const retryAfter = retryMatch && retryMatch[1] ? parseInt(retryMatch[1]) : 60
 
       error.value = `Too many requests. Please try again in ${retryAfter} seconds.`
 
@@ -177,7 +186,53 @@ async function resendMagicLink() {
   await requestMagicLink()
 }
 
+/**
+ * Allow user to edit email after submission
+ */
+function editEmail() {
+  // Clear success state
+  success.value = false
+  isEditing.value = true
+  error.value = null
+
+  // Clear timers
+  if (countdownInterval) {
+    clearInterval(countdownInterval)
+    countdownInterval = null
+  }
+  if (cooldownInterval) {
+    clearInterval(cooldownInterval)
+    cooldownInterval = null
+  }
+
+  // Reset countdown values
+  linkExpiresIn.value = 15 * 60
+  resendCooldown.value = 0
+
+  // Focus email input after transition
+  setTimeout(() => {
+    emailInputRef.value?.focus()
+    emailInputRef.value?.select()
+  }, 100)
+}
+
+/**
+ * Toggle help accordion
+ */
+function toggleHelpAccordion() {
+  showHelpAccordion.value = !showHelpAccordion.value
+}
+
+/**
+ * Dismiss MailHog banner (dev mode only)
+ */
+function dismissMailHogBanner() {
+  showMailHogBanner.value = false
+  sessionStorage.setItem('mailhog_banner_dismissed', 'true')
+}
+
 function handleSubmit() {
+  isEditing.value = false
   requestMagicLink()
 }
 </script>
@@ -192,6 +247,61 @@ function handleSubmit() {
         <h1 class="text-4xl font-bold text-emerald-600">PazPaz</h1>
         <p class="mt-2 text-slate-600">Practice Management for Therapists</p>
       </div>
+
+      <!-- MailHog Development Mode Banner -->
+      <Transition name="banner-fade">
+        <div
+          v-if="showMailHogBanner"
+          class="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 shadow-sm"
+          role="status"
+        >
+          <div class="flex items-start justify-between">
+            <div class="flex items-start">
+              <svg
+                class="mt-0.5 mr-3 h-5 w-5 flex-shrink-0 text-amber-600"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                aria-hidden="true"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <div class="flex-1">
+                <h3 class="text-sm font-semibold text-amber-900">Development Mode</h3>
+                <p class="mt-1 text-xs text-amber-700">
+                  Check
+                  <a
+                    :href="mailhogUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="font-medium underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 rounded"
+                  >
+                    MailHog
+                  </a>
+                  for magic link emails during testing
+                </p>
+              </div>
+            </div>
+            <button
+              @click="dismissMailHogBanner"
+              type="button"
+              class="ml-3 flex-shrink-0 rounded-md p-1 text-amber-600 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
+              aria-label="Dismiss development mode banner"
+            >
+              <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                <path
+                  fill-rule="evenodd"
+                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </Transition>
 
       <!-- Login Card -->
       <div class="rounded-2xl bg-white p-8 shadow-xl">
@@ -254,8 +364,22 @@ function handleSubmit() {
             <div class="flex-1">
               <h3 class="font-semibold text-emerald-900">Check your email</h3>
               <p class="mt-1 text-sm text-emerald-700">
-                We've sent a magic link to <strong>{{ email }}</strong
-                >. Click the link in the email to sign in.
+                <template v-if="isEditing">
+                  Email changed. We'll send a new link to
+                </template>
+                <template v-else> We've sent a magic link to </template>
+                <strong>{{ email }}</strong>
+                <button
+                  @click="editEmail"
+                  type="button"
+                  class="ml-2 text-xs font-medium text-emerald-600 underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 rounded"
+                  :aria-label="`Edit email address ${email}`"
+                >
+                  Edit
+                </button>
+                <template v-if="!isEditing">
+                  . Click the link in the email to sign in.
+                </template>
               </p>
 
               <!-- Countdown Timer -->
@@ -322,6 +446,165 @@ function handleSubmit() {
                   </span>
                 </p>
               </div>
+
+              <!-- Help Accordion -->
+              <div class="mt-4 border-t border-emerald-200 pt-3">
+                <button
+                  @click="toggleHelpAccordion"
+                  type="button"
+                  class="flex w-full items-center justify-between text-left text-xs font-medium text-emerald-800 hover:text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 rounded"
+                  :aria-expanded="showHelpAccordion"
+                  aria-controls="help-content"
+                >
+                  <span>Didn't receive the email?</span>
+                  <svg
+                    class="h-4 w-4 transition-transform"
+                    :class="{ 'rotate-180': showHelpAccordion }"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                </button>
+
+                <Transition name="accordion">
+                  <div
+                    v-show="showHelpAccordion"
+                    id="help-content"
+                    role="region"
+                    class="mt-2 space-y-2"
+                  >
+                    <div class="flex items-start text-xs text-emerald-700">
+                      <svg
+                        class="mt-0.5 mr-2 h-3.5 w-3.5 flex-shrink-0 text-emerald-600"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clip-rule="evenodd"
+                        />
+                      </svg>
+                      <span
+                        ><strong>Check spam folder:</strong> Magic links sometimes end up in
+                        spam or junk folders</span
+                      >
+                    </div>
+
+                    <div class="flex items-start text-xs text-emerald-700">
+                      <svg
+                        class="mt-0.5 mr-2 h-3.5 w-3.5 flex-shrink-0 text-emerald-600"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clip-rule="evenodd"
+                        />
+                      </svg>
+                      <span
+                        ><strong>Check email address:</strong> Make sure
+                        <strong>{{ email }}</strong> is correct
+                        <button
+                          @click="editEmail"
+                          type="button"
+                          class="ml-1 text-emerald-600 underline hover:no-underline focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded"
+                        >
+                          (edit)
+                        </button></span
+                      >
+                    </div>
+
+                    <div class="flex items-start text-xs text-emerald-700">
+                      <svg
+                        class="mt-0.5 mr-2 h-3.5 w-3.5 flex-shrink-0 text-amber-600"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+                          clip-rule="evenodd"
+                        />
+                      </svg>
+                      <span
+                        ><strong>Wait a few minutes:</strong> Email delivery can take up to 5
+                        minutes</span
+                      >
+                    </div>
+
+                    <div class="flex items-start text-xs text-emerald-700">
+                      <svg
+                        class="mt-0.5 mr-2 h-3.5 w-3.5 flex-shrink-0 text-amber-600"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fill-rule="evenodd"
+                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                          clip-rule="evenodd"
+                        />
+                      </svg>
+                      <span
+                        ><strong>Check email provider:</strong> Some email providers block
+                        automated emails. Try a different email address.</span
+                      >
+                    </div>
+
+                    <div class="flex items-start text-xs text-emerald-700">
+                      <svg
+                        class="mt-0.5 mr-2 h-3.5 w-3.5 flex-shrink-0 text-amber-600"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fill-rule="evenodd"
+                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                          clip-rule="evenodd"
+                        />
+                      </svg>
+                      <span
+                        ><strong>Firewall/filters:</strong> Corporate email systems may block
+                        external emails</span
+                      >
+                    </div>
+
+                    <div class="mt-3 flex items-start rounded-md bg-emerald-100 p-2 text-xs text-emerald-800">
+                      <svg
+                        class="mt-0.5 mr-2 h-3.5 w-3.5 flex-shrink-0"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"
+                        />
+                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                      </svg>
+                      <span
+                        ><strong>Still having trouble?</strong> Contact
+                        <a
+                          href="mailto:support@pazpaz.com"
+                          class="font-medium underline hover:no-underline focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded"
+                          >support@pazpaz.com</a
+                        ></span
+                      >
+                    </div>
+                  </div>
+                </Transition>
+              </div>
             </div>
           </div>
         </div>
@@ -361,7 +644,7 @@ function handleSubmit() {
               type="email"
               autocomplete="email"
               required
-              :disabled="isLoading || success"
+              :disabled="isLoading"
               class="block w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
               placeholder="you@example.com"
               aria-required="true"
@@ -374,7 +657,7 @@ function handleSubmit() {
 
           <button
             type="submit"
-            :disabled="isLoading || success || !email"
+            :disabled="isLoading || !email"
             class="w-full rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white transition hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             <span v-if="isLoading" class="flex items-center justify-center">
@@ -399,6 +682,7 @@ function handleSubmit() {
               </svg>
               Sending...
             </span>
+            <span v-else-if="success && isEditing"> Send New Link </span>
             <span v-else-if="success"> Link Sent! </span>
             <span v-else> Send Magic Link </span>
           </button>
@@ -451,6 +735,47 @@ function handleSubmit() {
   animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Accordion expand/collapse animation */
+.accordion-enter-active,
+.accordion-leave-active {
+  transition:
+    opacity 200ms ease,
+    max-height 300ms ease;
+  overflow: hidden;
+}
+
+.accordion-enter-from,
+.accordion-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+
+.accordion-enter-to,
+.accordion-leave-from {
+  opacity: 1;
+  max-height: 500px;
+}
+
+/* Banner fade animation */
+.banner-fade-enter-active,
+.banner-fade-leave-active {
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
+}
+
+.banner-fade-enter-from,
+.banner-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.banner-fade-enter-to,
+.banner-fade-leave-from {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .checkmark-scale-enter-active {
@@ -459,6 +784,16 @@ function handleSubmit() {
 
   .animate-pulse {
     animation: none;
+  }
+
+  .accordion-enter-active,
+  .accordion-leave-active {
+    transition-duration: 1ms;
+  }
+
+  .banner-fade-enter-active,
+  .banner-fade-leave-active {
+    transition-duration: 1ms;
   }
 }
 </style>
