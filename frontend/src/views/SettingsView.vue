@@ -33,14 +33,6 @@ const showSettingsContainer = computed(() => settings.value?.email_enabled ?? fa
 
 <template>
   <div class="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
-    <!-- Page Header -->
-    <div class="mb-8">
-      <h1 class="text-2xl font-semibold text-slate-900">Settings</h1>
-      <p class="mt-1 text-sm text-slate-600">
-        Manage your account preferences and notification settings
-      </p>
-    </div>
-
     <!-- Loading State -->
     <div v-if="isLoading" class="flex items-center justify-center py-12">
       <LoadingSpinner />
@@ -120,72 +112,6 @@ const showSettingsContainer = computed(() => settings.value?.email_enabled ?? fa
         v-if="showSettingsContainer"
         class="space-y-8 transition-opacity duration-200"
       >
-        <!-- Event Notifications Group -->
-        <div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 class="mb-4 text-sm font-semibold text-slate-900">Event Notifications</h3>
-          <div class="space-y-3">
-            <!-- New appointment booked -->
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="text-sm font-medium text-slate-900">New appointment booked</label>
-                <p class="text-xs text-slate-600">
-                  When a client books a new appointment
-                </p>
-              </div>
-              <ToggleSwitch
-                v-model="settings.notify_appointment_booked"
-                
-                label="Notify when appointment booked"
-              />
-            </div>
-
-            <!-- Appointment cancelled -->
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="text-sm font-medium text-slate-900">Appointment cancelled</label>
-                <p class="text-xs text-slate-600">
-                  When an appointment is cancelled
-                </p>
-              </div>
-              <ToggleSwitch
-                v-model="settings.notify_appointment_cancelled"
-                
-                label="Notify when appointment cancelled"
-              />
-            </div>
-
-            <!-- Appointment rescheduled -->
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="text-sm font-medium text-slate-900">Appointment rescheduled</label>
-                <p class="text-xs text-slate-600">
-                  When an appointment is moved to a new time
-                </p>
-              </div>
-              <ToggleSwitch
-                v-model="settings.notify_appointment_rescheduled"
-                
-                label="Notify when appointment rescheduled"
-              />
-            </div>
-
-            <!-- Client confirmed -->
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="text-sm font-medium text-slate-900">Client confirmed</label>
-                <p class="text-xs text-slate-600">
-                  When a client confirms their appointment
-                </p>
-              </div>
-              <ToggleSwitch
-                v-model="settings.notify_appointment_confirmed"
-                
-                label="Notify when client confirms appointment"
-              />
-            </div>
-          </div>
-        </div>
-
         <!-- Daily Digest Group -->
         <div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
           <div class="mb-4 flex items-center justify-between">
