@@ -151,8 +151,7 @@ def get_client_ip(request: Request) -> str:
                 direct_ip=direct_ip,
                 forwarded_for=forwarded_for,
                 message=(
-                    "Potential IP spoofing - "
-                    "untrusted client sent X-Forwarded-For"
+                    "Potential IP spoofing - untrusted client sent X-Forwarded-For"
                 ),
             )
             # Continue to use direct_ip (ignore the fake header)

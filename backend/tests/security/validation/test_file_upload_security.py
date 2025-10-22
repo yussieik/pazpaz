@@ -14,7 +14,6 @@ All tests should PASS by rejecting malicious uploads.
 
 from __future__ import annotations
 
-import base64
 import io
 import struct
 
@@ -61,7 +60,9 @@ class TestFileUploadSecurity:
 
         # SECURITY VALIDATION: Should reject polyglot file
         # Either malware scanner detects it OR content validation fails
-        with pytest.raises((FileValidationError, MalwareDetectedError, ScannerUnavailableError)):
+        with pytest.raises(
+            (FileValidationError, MalwareDetectedError, ScannerUnavailableError)
+        ):
             validate_file("malicious.jpg", polyglot_data)
 
     @pytest.mark.asyncio
@@ -85,6 +86,7 @@ class TestFileUploadSecurity:
 
         # Compress using Python's zlib (simulates ZIP compression)
         import zlib
+
         compressed = zlib.compress(zeros, level=9)
 
         # ZIP file format header (minimal valid ZIP)
@@ -159,12 +161,12 @@ class TestFileUploadSecurity:
             # Combining characters
             "test\u0041\u0301.png",  # A + combining acute accent
             # Zero-width characters
-            "test\u200B.png",  # Zero-width space
-            "test\uFEFF.png",  # Zero-width no-break space
+            "test\u200b.png",  # Zero-width space
+            "test\ufeff.png",  # Zero-width no-break space
             # Look-alike characters (homoglyphs)
             "te\u0455t.png",  # Cyrillic 's' looks like Latin 's'
             # Right-to-left override
-            "test\u202E.png",  # Right-to-left override
+            "test\u202e.png",  # Right-to-left override
         ]
 
         for malicious_filename in test_cases:
@@ -298,7 +300,15 @@ class TestFileUploadDefenseInDepth:
 
         # SECURITY VALIDATION: Should detect mismatch between content and extension
         # The file is correctly detected as application/x-dosexec and rejected
-        with pytest.raises((UnsupportedFileTypeError, FileContentError, FileValidationError, MalwareDetectedError, ScannerUnavailableError)):
+        with pytest.raises(
+            (
+                UnsupportedFileTypeError,
+                FileContentError,
+                FileValidationError,
+                MalwareDetectedError,
+                ScannerUnavailableError,
+            )
+        ):
             validate_file("fake_image.jpg", fake_jpeg)
 
     @pytest.mark.asyncio
@@ -346,7 +356,12 @@ class TestFileUploadDefenseInDepth:
         # IHDR chunk (image header)
         ihdr_data = struct.pack(">IIBBBBB", 10, 10, 8, 2, 0, 0, 0)  # 10x10, 8-bit RGB
         ihdr_crc = 0  # Invalid CRC (will fail validation)
-        ihdr_chunk = struct.pack(">I", len(ihdr_data)) + b"IHDR" + ihdr_data + struct.pack(">I", ihdr_crc)
+        ihdr_chunk = (
+            struct.pack(">I", len(ihdr_data))
+            + b"IHDR"
+            + ihdr_data
+            + struct.pack(">I", ihdr_crc)
+        )
 
         fake_png = png_header + ihdr_chunk + b"MALICIOUS_CODE_HERE"
 

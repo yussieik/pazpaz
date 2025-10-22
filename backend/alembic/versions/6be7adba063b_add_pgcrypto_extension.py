@@ -30,13 +30,14 @@ HIPAA Compliance:
 - Enables database-level verification of encryption
 - Provides backup option for key rotation scenarios
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '6be7adba063b'
-down_revision: str | Sequence[str] | None = 'de72ee2cfb00'
+revision: str = "6be7adba063b"
+down_revision: str | Sequence[str] | None = "de72ee2cfb00"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -223,4 +224,3 @@ def downgrade() -> None:
 
     # Drop extension (only if no other functions depend on it)
     op.execute("DROP EXTENSION IF EXISTS pgcrypto;")
-

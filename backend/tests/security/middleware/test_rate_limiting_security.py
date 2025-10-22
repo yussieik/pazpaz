@@ -19,7 +19,6 @@ import pytest
 import redis.asyncio as redis
 
 from pazpaz.core.rate_limiting import (
-    _check_rate_limit_fallback,
     _fallback_rate_limits,
     check_rate_limit_redis,
 )

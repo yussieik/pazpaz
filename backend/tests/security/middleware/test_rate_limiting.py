@@ -20,7 +20,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import redis.asyncio as redis
-from fastapi import HTTPException
 
 from pazpaz.core.config import settings
 from pazpaz.core.rate_limiting import check_rate_limit_redis
@@ -50,7 +49,9 @@ async def test_rate_limit_redis_fail_closed_production(redis_client: redis.Redis
         from unittest.mock import Mock
 
         mock_redis = AsyncMock()
-        mock_redis.pipeline = Mock(side_effect=redis.ConnectionError("Redis unavailable"))
+        mock_redis.pipeline = Mock(
+            side_effect=redis.ConnectionError("Redis unavailable")
+        )
 
         # Should return False (reject request) in production with fail_closed=True
         # The function returns bool, it doesn't raise HTTPException
@@ -86,7 +87,9 @@ async def test_rate_limit_redis_fail_closed_staging(redis_client: redis.Redis):
         from unittest.mock import Mock
 
         mock_redis = AsyncMock()
-        mock_redis.pipeline = Mock(side_effect=redis.ConnectionError("Redis unavailable"))
+        mock_redis.pipeline = Mock(
+            side_effect=redis.ConnectionError("Redis unavailable")
+        )
 
         # Should return False (reject request) in staging with fail_closed=True
         # The function returns bool, it doesn't raise HTTPException

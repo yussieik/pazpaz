@@ -12,14 +12,12 @@ All tests should PASS by preventing authentication bypass.
 
 from __future__ import annotations
 
-import time
 import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
 import redis.asyncio as redis
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.core.security import create_access_token
 from pazpaz.models.user import User
@@ -48,7 +46,7 @@ class TestAuthenticationSecurity:
         ATTACK SCENARIO: Attacker steals valid JWT, user logs out,
         attacker continues using stolen token.
         """
-        from tests.conftest import add_csrf_to_client, get_auth_headers
+        from tests.conftest import add_csrf_to_client
 
         # Generate valid JWT token
         jwt_token = create_access_token(
@@ -77,13 +75,14 @@ class TestAuthenticationSecurity:
         # Simulate logout by blacklisting token
         # Extract JTI from token for blacklisting
         from jose import jwt as jose_jwt
+
         from pazpaz.core.config import settings
 
         payload = jose_jwt.decode(
             jwt_token,
             settings.secret_key,
             algorithms=["HS256"],
-            options={"verify_signature": False}  # Just reading payload for test
+            options={"verify_signature": False},  # Just reading payload for test
         )
         jti = payload.get("jti")
 
@@ -93,7 +92,7 @@ class TestAuthenticationSecurity:
         await redis_client.setex(
             f"blacklist:jwt:{jti}",
             3600,  # 1 hour expiration
-            "1"
+            "1",
         )
 
         # SECURITY VALIDATION: Try to reuse token after logout
@@ -183,7 +182,7 @@ class TestAuthenticationSecurity:
             workspace_1.id,
             test_user_ws1.id,
             test_user_ws1.email,
-            csrf_cookie=None  # No CSRF token
+            csrf_cookie=None,  # No CSRF token
         )
 
         # Test Case 1: POST without CSRF token
@@ -395,18 +394,18 @@ class TestAuthenticationEdgeCases:
         payload = jose_jwt.decode(
             jwt_token,
             key="",  # Empty key is fine when verify_signature=False
-            options={"verify_signature": False}
+            options={"verify_signature": False},
         )
 
         # Tamper with workspace_id
         payload["workspace_id"] = str(workspace_2.id)
 
         # Re-encode with WRONG secret (attacker doesn't know real secret)
-        from pazpaz.core.config import settings
+
         tampered_token = jose_jwt.encode(
             payload,
             "wrong_secret_key",  # Attacker's guess
-            algorithm="HS256"
+            algorithm="HS256",
         )
 
         headers = {
@@ -436,6 +435,7 @@ class TestAuthenticationEdgeCases:
         WHY: JTI is required for token blacklisting (logout).
         """
         from jose import jwt as jose_jwt
+
         from pazpaz.core.config import settings
 
         # Create token without JTI
@@ -449,11 +449,7 @@ class TestAuthenticationEdgeCases:
             # Intentionally omit "jti"
         }
 
-        token_no_jti = jose_jwt.encode(
-            payload,
-            settings.secret_key,
-            algorithm="HS256"
-        )
+        token_no_jti = jose_jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
         headers = {
             "Cookie": f"access_token={token_no_jti}",
@@ -487,6 +483,7 @@ class TestAuthenticationEdgeCases:
         brief window for token reuse.
         """
         from jose import jwt as jose_jwt
+
         from tests.conftest import add_csrf_to_client
 
         # Generate token
@@ -503,7 +500,7 @@ class TestAuthenticationEdgeCases:
         payload = jose_jwt.decode(
             jwt_token,
             key="",  # Empty key is fine when verify_signature=False
-            options={"verify_signature": False}
+            options={"verify_signature": False},
         )
         jti = payload.get("jti")
 

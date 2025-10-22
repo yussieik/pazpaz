@@ -22,6 +22,7 @@ Performance:
 - No performance impact on existing queries
 - Partial indexes automatically exclude NULL workspace_id rows
 """
+
 from collections.abc import Sequence
 
 from sqlalchemy.dialects import postgresql

@@ -15,10 +15,9 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from unittest.mock import patch
 
-import pytest
 import pyotp
+import pytest
 from sqlalchemy import select
 
 from pazpaz.models.user import User

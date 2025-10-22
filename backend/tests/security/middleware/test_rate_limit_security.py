@@ -142,7 +142,8 @@ class TestTrustedProxyAcceptsForwardedFor:
 
         # Should log debug message about missing header
         assert any(
-            "trusted_proxy_no_forwarded_for" in record.message for record in caplog.records
+            "trusted_proxy_no_forwarded_for" in record.message
+            for record in caplog.records
         )
 
 
@@ -496,7 +497,9 @@ class TestForwardedForLogging:
         assert client_ip == "unknown"
 
         warning_logs = [r for r in caplog.records if r.levelname == "WARNING"]
-        assert any("no_client_ip_in_request" in record.message for record in warning_logs)
+        assert any(
+            "no_client_ip_in_request" in record.message for record in warning_logs
+        )
 
 
 # ============================================================================

@@ -361,8 +361,8 @@ def check_rotation_needed(region: str = "us-east-1") -> tuple[bool, str, datetim
         ...     print(f"Rotation needed for {version}")
     """
     try:
+        from pazpaz.utils.encryption import _KEY_REGISTRY, get_current_key_version
         from pazpaz.utils.secrets_manager import load_all_encryption_keys
-        from pazpaz.utils.encryption import get_current_key_version, _KEY_REGISTRY
 
         # Load all keys from AWS
         load_all_encryption_keys(region=region, environment="production")
@@ -504,13 +504,13 @@ def rotate_encryption_keys(
             ),
         )
 
-        print(f"\n✅ Key rotation successful!")
+        print("\n✅ Key rotation successful!")
         print(f"   New key version: {next_version}")
         print(f"   Created: {created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}")
         print(f"   Expires: {expires_at.strftime('%Y-%m-%d %H:%M:%S UTC')}")
         print(f"   Days until next rotation: {expiration_days}")
         print(
-            f"\n⚠️  IMPORTANT: Run scripts/re_encrypt_old_data.py to migrate existing PHI data"
+            "\n⚠️  IMPORTANT: Run scripts/re_encrypt_old_data.py to migrate existing PHI data"
         )
 
 

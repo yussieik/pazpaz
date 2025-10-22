@@ -15,6 +15,7 @@ This enables the platform admin system where platform admins can:
 - Invite therapists to onboard to the platform
 - Track invitation sources for audit purposes
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa

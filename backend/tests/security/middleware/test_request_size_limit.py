@@ -1,6 +1,5 @@
 """Tests for request size limit middleware (DoS prevention)."""
 
-import io
 
 import pytest
 from fastapi import status
@@ -147,9 +146,7 @@ class TestRequestSizeLimitMiddleware:
             assert response.status_code != status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
 
     @pytest.mark.asyncio
-    async def test_middleware_runs_early_in_stack(
-        self, client_with_csrf: AsyncClient
-    ):
+    async def test_middleware_runs_early_in_stack(self, client_with_csrf: AsyncClient):
         """Test that middleware rejects large requests before body parsing."""
         # This test verifies that the middleware runs early enough
         # to prevent memory exhaustion from reading large bodies
@@ -256,9 +253,7 @@ class TestSecurityLogging:
     """Test that security events are logged correctly."""
 
     @pytest.mark.asyncio
-    async def test_rejected_request_logged(
-        self, client_with_csrf: AsyncClient, caplog
-    ):
+    async def test_rejected_request_logged(self, client_with_csrf: AsyncClient, caplog):
         """Test that rejected large requests are logged for security monitoring."""
         # Create 50 MB payload
         large_payload = {"data": "x" * (50 * 1024 * 1024)}

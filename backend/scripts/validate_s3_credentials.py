@@ -28,7 +28,6 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 
 # ANSI color codes for output
@@ -71,13 +70,13 @@ def print_info(message: str):
     print(f"{Colors.OKCYAN}ℹ {message}{Colors.ENDC}")
 
 
-def load_env_file(env_path: Path) -> Dict[str, str]:
+def load_env_file(env_path: Path) -> dict[str, str]:
     """Load environment variables from .env file."""
     env_vars = {}
     if not env_path.exists():
         return env_vars
 
-    with open(env_path, "r") as f:
+    with open(env_path) as f:
         for line in f:
             line = line.strip()
             # Skip comments and empty lines
@@ -93,7 +92,7 @@ def load_env_file(env_path: Path) -> Dict[str, str]:
     return env_vars
 
 
-def get_credentials() -> Tuple[str, str, str]:
+def get_credentials() -> tuple[str, str, str]:
     """
     Get S3/MinIO credentials from environment or .env file.
 
@@ -118,7 +117,7 @@ def get_credentials() -> Tuple[str, str, str]:
 
 def validate_default_credentials(
     access_key: str, secret_key: str, environment: str
-) -> List[str]:
+) -> list[str]:
     """
     Validate that default credentials are not used in production.
 
@@ -150,14 +149,14 @@ def validate_default_credentials(
     elif environment in ["staging", "stage"]:
         if is_default_user or is_default_pass:
             errors.append(
-                f"Default credentials detected in STAGING environment. "
+                "Default credentials detected in STAGING environment. "
                 "Change credentials before deployment."
             )
 
     return errors
 
 
-def validate_password_strength(secret_key: str, strict: bool = False) -> List[str]:
+def validate_password_strength(secret_key: str, strict: bool = False) -> list[str]:
     """
     Validate password meets strength requirements.
 
@@ -184,8 +183,7 @@ def validate_password_strength(secret_key: str, strict: bool = False) -> List[st
     min_length = 32 if strict else 20
     if len(secret_key) < min_length:
         errors.append(
-            f"Password too short: {len(secret_key)} characters "
-            f"(minimum: {min_length})"
+            f"Password too short: {len(secret_key)} characters (minimum: {min_length})"
         )
     elif len(secret_key) < 32 and not strict:
         warnings.append(
@@ -235,8 +233,7 @@ def validate_password_strength(secret_key: str, strict: bool = False) -> List[st
     # Check for repeated characters (more than 2 consecutive)
     if re.search(r"(.)\1{2,}", secret_key):
         warnings.append(
-            "Password contains 3+ repeated characters (e.g., 'aaa'). "
-            "Avoid repetition."
+            "Password contains 3+ repeated characters (e.g., 'aaa'). Avoid repetition."
         )
 
     # Check for common dictionary words
@@ -276,7 +273,7 @@ def validate_password_strength(secret_key: str, strict: bool = False) -> List[st
     return all_messages
 
 
-def validate_username(access_key: str) -> List[str]:
+def validate_username(access_key: str) -> list[str]:
     """
     Validate username meets requirements.
 
@@ -298,9 +295,7 @@ def validate_username(access_key: str) -> List[str]:
     if len(access_key) < 8:
         errors.append(f"Username too short: {len(access_key)} characters (minimum: 8)")
     elif len(access_key) > 32:
-        errors.append(
-            f"Username too long: {len(access_key)} characters (maximum: 32)"
-        )
+        errors.append(f"Username too long: {len(access_key)} characters (maximum: 32)")
 
     # Check allowed characters
     if not re.match(r"^[A-Za-z0-9_-]+$", access_key):
@@ -328,7 +323,7 @@ def validate_username(access_key: str) -> List[str]:
     return errors
 
 
-def check_credential_rotation(environment: str) -> List[str]:
+def check_credential_rotation(environment: str) -> list[str]:
     """
     Check if credentials need rotation based on environment.
 
@@ -364,7 +359,7 @@ def check_credential_rotation(environment: str) -> List[str]:
     return warnings
 
 
-def validate_environment_config(environment: str, access_key: str) -> List[str]:
+def validate_environment_config(environment: str, access_key: str) -> list[str]:
     """
     Validate environment-specific configurations.
 
@@ -547,9 +542,7 @@ def main():
         if not args.quiet:
             print()
             print_info("Credentials meet security requirements.")
-            print_info(
-                "Remember to rotate credentials according to schedule:"
-            )
+            print_info("Remember to rotate credentials according to schedule:")
             print_info("  - Development: Every 180 days")
             print_info("  - Staging: Every 90 days")
             print_info("  - Production: Every 90 days")

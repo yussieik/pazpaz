@@ -11,7 +11,6 @@ import io
 
 import pytest
 from PIL import Image
-from PIL.ExifTags import TAGS
 
 from pazpaz.utils.file_sanitization import (
     SanitizationError,
@@ -129,9 +128,7 @@ class TestExifStripping:
         original_size = len(jpeg_with_exif)
 
         # Strip EXIF
-        sanitized = strip_exif_metadata(
-            jpeg_with_exif, FileType.JPEG, "photo.jpg"
-        )
+        sanitized = strip_exif_metadata(jpeg_with_exif, FileType.JPEG, "photo.jpg")
 
         # Verify sanitized image is valid
         img = Image.open(io.BytesIO(sanitized))
@@ -148,9 +145,7 @@ class TestExifStripping:
 
     def test_strip_exif_from_jpeg_without_metadata(self, jpeg_without_exif):
         """JPEG without EXIF should pass through unchanged."""
-        sanitized = strip_exif_metadata(
-            jpeg_without_exif, FileType.JPEG, "photo.jpg"
-        )
+        sanitized = strip_exif_metadata(jpeg_without_exif, FileType.JPEG, "photo.jpg")
 
         # Verify image is still valid
         img = Image.open(io.BytesIO(sanitized))
@@ -159,9 +154,7 @@ class TestExifStripping:
 
     def test_strip_exif_from_png(self, png_image):
         """PNG images should be processed (though PNG has no EXIF)."""
-        sanitized = strip_exif_metadata(
-            png_image, FileType.PNG, "image.png"
-        )
+        sanitized = strip_exif_metadata(png_image, FileType.PNG, "image.png")
 
         # Verify image is still valid
         img = Image.open(io.BytesIO(sanitized))
@@ -176,9 +169,7 @@ class TestExifStripping:
         img.save(output, format="WEBP", quality=85)
         webp_bytes = output.getvalue()
 
-        sanitized = strip_exif_metadata(
-            webp_bytes, FileType.WEBP, "photo.webp"
-        )
+        sanitized = strip_exif_metadata(webp_bytes, FileType.WEBP, "photo.webp")
 
         # Verify image is still valid
         img = Image.open(io.BytesIO(sanitized))
@@ -186,9 +177,7 @@ class TestExifStripping:
 
     def test_strip_exif_preserves_image_quality(self, jpeg_with_exif):
         """EXIF stripping should preserve image dimensions and quality."""
-        sanitized = strip_exif_metadata(
-            jpeg_with_exif, FileType.JPEG, "photo.jpg"
-        )
+        sanitized = strip_exif_metadata(jpeg_with_exif, FileType.JPEG, "photo.jpg")
 
         # Open both images
         original_img = Image.open(io.BytesIO(jpeg_with_exif))
@@ -200,9 +189,7 @@ class TestExifStripping:
 
     def test_strip_exif_gps_removal(self, jpeg_with_exif):
         """GPS coordinates should be removed from EXIF (all metadata stripped)."""
-        sanitized = strip_exif_metadata(
-            jpeg_with_exif, FileType.JPEG, "photo.jpg"
-        )
+        sanitized = strip_exif_metadata(jpeg_with_exif, FileType.JPEG, "photo.jpg")
 
         # Check sanitized image has minimal/no EXIF data
         img = Image.open(io.BytesIO(sanitized))
@@ -213,9 +200,7 @@ class TestExifStripping:
 
     def test_strip_exif_camera_info_removal(self, jpeg_with_exif):
         """Camera make/model should be removed from EXIF."""
-        sanitized = strip_exif_metadata(
-            jpeg_with_exif, FileType.JPEG, "photo.jpg"
-        )
+        sanitized = strip_exif_metadata(jpeg_with_exif, FileType.JPEG, "photo.jpg")
 
         # Check sanitized image has no camera data
         img = Image.open(io.BytesIO(sanitized))
@@ -243,9 +228,7 @@ class TestExifStripping:
         from pypdf import PdfReader
 
         # Strip metadata via strip_exif_metadata (delegates to strip_pdf_metadata)
-        sanitized = strip_exif_metadata(
-            pdf_with_metadata, FileType.PDF, "document.pdf"
-        )
+        sanitized = strip_exif_metadata(pdf_with_metadata, FileType.PDF, "document.pdf")
 
         # Verify PDF is valid
         reader = PdfReader(io.BytesIO(sanitized))
@@ -311,7 +294,9 @@ class TestPdfMetadataStripping:
             if "/Producer" in sanitized_metadata:
                 producer_value = sanitized_metadata.get("/Producer")
                 # Should be pypdf, not the original "pypdf 4.0.0"
-                assert producer_value == "pypdf", f"Producer should be pypdf only, got: {producer_value}"
+                assert producer_value == "pypdf", (
+                    f"Producer should be pypdf only, got: {producer_value}"
+                )
 
         # File size should be similar or smaller
         assert len(sanitized) > 0

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import time
-import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import status
@@ -876,10 +875,7 @@ class TestSessionSearch:
         # Find audit event with search action
         search_audit = None
         for event in audit_events:
-            if (
-                event.event_metadata
-                and event.event_metadata.get("action") == "search"
-            ):
+            if event.event_metadata and event.event_metadata.get("action") == "search":
                 search_audit = event
                 break
 
@@ -917,9 +913,7 @@ class TestSessionSearch:
 
         # Add some with "shoulder" for matching
         for i in range(10):
-            sessions[i].subjective = (
-                f"Session {i} patient reports shoulder pain"
-            )
+            sessions[i].subjective = f"Session {i} patient reports shoulder pain"
 
         db_session.add_all(sessions)
         await db_session.commit()
@@ -971,9 +965,7 @@ class TestSessionSearch:
 
         # Add some with "shoulder" for matching
         for i in range(50):
-            sessions[i].subjective = (
-                f"Session {i} patient reports shoulder pain"
-            )
+            sessions[i].subjective = f"Session {i} patient reports shoulder pain"
 
         db_session.add_all(sessions)
         await db_session.commit()
@@ -995,6 +987,4 @@ class TestSessionSearch:
 
         # Performance target: <500ms for 500 sessions (relaxed for large dataset)
         # This is acceptable as it's O(n) in-memory filtering
-        assert (
-            elapsed_ms < 1000
-        ), f"Search took {elapsed_ms:.2f}ms (expected <1000ms)"
+        assert elapsed_ms < 1000, f"Search took {elapsed_ms:.2f}ms (expected <1000ms)"

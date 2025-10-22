@@ -78,7 +78,10 @@ class ContentTypeValidationMiddleware(BaseHTTPMiddleware):
 
         # Skip validation for excluded paths
         path = request.url.path
-        if any(path.endswith(excluded) or excluded in path for excluded in self.EXCLUDED_PATHS):
+        if any(
+            path.endswith(excluded) or excluded in path
+            for excluded in self.EXCLUDED_PATHS
+        ):
             return await call_next(request)
 
         # Extract Content-Type header (split on ; to remove charset)
@@ -130,7 +133,9 @@ class ContentTypeValidationMiddleware(BaseHTTPMiddleware):
 
         return any(pattern in path for pattern in self.FILE_UPLOAD_PATTERNS)
 
-    async def _reject_missing_content_type(self, request: Request, call_next) -> JSONResponse:
+    async def _reject_missing_content_type(
+        self, request: Request, call_next
+    ) -> JSONResponse:
         """Reject request with missing Content-Type header."""
         logger.warning(
             "content_type_missing",

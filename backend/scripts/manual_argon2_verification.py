@@ -4,13 +4,14 @@ Run with: uv run python tests/manual_argon2_verification.py
 """
 
 import sys
+
 sys.path.insert(0, "src")
 
 from pazpaz.core.security import (
     get_password_hash,
-    verify_password,
     needs_rehash,
     validate_password_strength,
+    verify_password,
 )
 
 print("=" * 70)

@@ -75,8 +75,6 @@ from pazpaz.core.logging import get_logger
 from pazpaz.db.base import get_async_session
 from pazpaz.models.session import Session
 from pazpaz.utils.encryption import (
-    decrypt_field,
-    encrypt_field,
     get_current_key_version,
     get_key_for_version,
 )
@@ -380,7 +378,7 @@ async def re_encrypt_old_data(
                 batch_size=batch_size,
             )
 
-            print(f"\n📊 Re-encryption Plan:")
+            print("\n📊 Re-encryption Plan:")
             print(f"   Total sessions to process: {total_records}")
             print(f"   Batch size: {batch_size}")
             print(f"   Target key version: {current_version}")
@@ -478,17 +476,15 @@ async def re_encrypt_old_data(
             )
 
             if dry_run:
-                print(f"\n✅ DRY RUN complete!")
+                print("\n✅ DRY RUN complete!")
                 print(f"   Would re-encrypt {total_re_encrypted} sessions")
                 print(f"   Target key version: {current_version}")
             else:
-                print(f"\n✅ Re-encryption complete!")
+                print("\n✅ Re-encryption complete!")
                 print(f"   Sessions processed: {total_processed}")
                 print(f"   Sessions re-encrypted: {total_re_encrypted}")
                 print(f"   New key version: {current_version}")
-                print(
-                    f"   All PHI data is now encrypted with the latest key version."
-                )
+                print("   All PHI data is now encrypted with the latest key version.")
 
     except Exception as e:
         logger.error(

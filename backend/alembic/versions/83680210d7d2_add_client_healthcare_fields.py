@@ -16,6 +16,7 @@ by the frontend and essential for healthcare practice management:
 These fields align with standard healthcare intake forms and enable proper
 client management without data loss when clients are archived.
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa

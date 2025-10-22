@@ -200,8 +200,7 @@ class TestProductionKeyEnforcement:
                 f"Captured logs: {log_text[:500]}"
             )
             assert "fallback_disabled" in log_text, (
-                f"Expected 'fallback_disabled' in logs. "
-                f"Captured logs: {log_text[:500]}"
+                f"Expected 'fallback_disabled' in logs. Captured logs: {log_text[:500]}"
             )
 
     def test_development_environment_allows_env_variable(self, monkeypatch):

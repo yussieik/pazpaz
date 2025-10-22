@@ -110,18 +110,20 @@ async def verify_encryption():
                 # Check first_name (required field)
                 raw_first_name = raw_data[0]
                 if isinstance(raw_first_name, bytes):
-                    print(f"  ✅ first_name is encrypted (binary data)")
+                    print("  ✅ first_name is encrypted (binary data)")
                     print(f"     Length: {len(raw_first_name)} bytes")
                     print(f"     First 50 bytes: {raw_first_name[:50]}")
 
                     # Check version prefix
                     if b":" in raw_first_name[:10]:
-                        version = raw_first_name[:raw_first_name.index(b":")].decode("ascii")
+                        version = raw_first_name[: raw_first_name.index(b":")].decode(
+                            "ascii"
+                        )
                         print(f"     ✅ Version prefix found: {version}")
                     else:
-                        print(f"     ⚠️  No version prefix (legacy format)")
+                        print("     ⚠️  No version prefix (legacy format)")
                 else:
-                    print(f"  ❌ first_name is NOT encrypted (not binary)")
+                    print("  ❌ first_name is NOT encrypted (not binary)")
                     print(f"     Value: {raw_first_name}")
                     total_failed += 1
                     continue
@@ -129,9 +131,9 @@ async def verify_encryption():
                 # Check last_name (required field)
                 raw_last_name = raw_data[1]
                 if isinstance(raw_last_name, bytes):
-                    print(f"  ✅ last_name is encrypted (binary data)")
+                    print("  ✅ last_name is encrypted (binary data)")
                 else:
-                    print(f"  ❌ last_name is NOT encrypted")
+                    print("  ❌ last_name is NOT encrypted")
                     total_failed += 1
                     continue
 
@@ -156,12 +158,12 @@ async def verify_encryption():
                 # Test 3: Verify decryption matches expected plaintext
                 # (Check that ORM decrypted value is reasonable)
                 if not client.first_name or len(client.first_name) < 1:
-                    print(f"  ❌ Decrypted first_name is empty or invalid")
+                    print("  ❌ Decrypted first_name is empty or invalid")
                     total_failed += 1
                     continue
 
                 if not client.last_name or len(client.last_name) < 1:
-                    print(f"  ❌ Decrypted last_name is empty or invalid")
+                    print("  ❌ Decrypted last_name is empty or invalid")
                     total_failed += 1
                     continue
 

@@ -111,6 +111,4 @@ class TestCSRFMiddlewareOrdering:
         result = await db_session.execute(query)
         audit_events = result.scalars().all()
 
-        assert (
-            len(audit_events) >= 0
-        ), "Valid CSRF request should allow audit logging"
+        assert len(audit_events) >= 0, "Valid CSRF request should allow audit logging"

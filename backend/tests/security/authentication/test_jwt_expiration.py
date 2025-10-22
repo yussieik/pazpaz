@@ -22,7 +22,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.core.security import create_access_token, decode_access_token
-from pazpaz.models.user import User, UserRole
+from pazpaz.models.user import User
 from pazpaz.models.workspace import Workspace
 from pazpaz.services.auth_service import blacklist_token, is_token_blacklisted
 

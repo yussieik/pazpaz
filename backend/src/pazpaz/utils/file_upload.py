@@ -223,6 +223,7 @@ def upload_file_to_s3(
 
         # Build encryption metadata for database storage (HIPAA compliance)
         from datetime import UTC, datetime
+
         encryption_metadata = {
             "algorithm": "AES256",
             "verified_at": datetime.now(UTC).isoformat(),

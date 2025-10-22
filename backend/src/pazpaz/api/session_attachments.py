@@ -406,7 +406,9 @@ async def upload_session_attachment(
         file_size=len(sanitized_content),
         s3_key=s3_key,
         encryption_verified=True,
-        encryption_algorithm=encryption_metadata.get("algorithm") if encryption_metadata else None,
+        encryption_algorithm=encryption_metadata.get("algorithm")
+        if encryption_metadata
+        else None,
     )
 
     return SessionAttachmentResponse.model_validate(attachment)

@@ -60,12 +60,15 @@ class TestBlacklistFailClosed:
         service = PlatformOnboardingService()
 
         # Simulate blacklist check failure (patch at the module where it's used)
-        with patch(
-            "pazpaz.core.blacklist.is_email_blacklisted",
-            side_effect=RuntimeError("DB check failed"),
-        ), pytest.raises(
-            EmailBlacklistedError,
-            match="Unable to verify invitation eligibility",
+        with (
+            patch(
+                "pazpaz.core.blacklist.is_email_blacklisted",
+                side_effect=RuntimeError("DB check failed"),
+            ),
+            pytest.raises(
+                EmailBlacklistedError,
+                match="Unable to verify invitation eligibility",
+            ),
         ):
             await service.create_workspace_and_invite_therapist(
                 db=db,
@@ -114,12 +117,15 @@ class TestBlacklistFailClosed:
         )
 
         # Now simulate blacklist check failure during acceptance (patch at the module where it's used)
-        with patch(
-            "pazpaz.core.blacklist.is_email_blacklisted",
-            side_effect=RuntimeError("DB check failed"),
-        ), pytest.raises(
-            InvalidInvitationTokenError,
-            match="Unable to verify invitation eligibility",
+        with (
+            patch(
+                "pazpaz.core.blacklist.is_email_blacklisted",
+                side_effect=RuntimeError("DB check failed"),
+            ),
+            pytest.raises(
+                InvalidInvitationTokenError,
+                match="Unable to verify invitation eligibility",
+            ),
         ):
             await service.accept_invitation(db=db, token=token)
 

@@ -25,6 +25,7 @@ Performance Targets:
 - PHI access queries (resource_type + action): <100ms p95
 - High-volume logging: 10,000+ events/day per workspace
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa

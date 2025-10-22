@@ -11,15 +11,10 @@ All tests verify that sensitive information is NOT leaked in error responses.
 
 from __future__ import annotations
 
-import os
-from unittest.mock import AsyncMock, patch
-
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pazpaz.models.client import Client
 from pazpaz.models.user import User
 from pazpaz.models.workspace import Workspace
 from tests.conftest import add_csrf_to_client, get_auth_headers
@@ -270,7 +265,9 @@ class TestDatabaseExceptionHandlers:
         # Should NOT leak internal database details
         response_str = str(data).lower()
         assert "constraint" not in response_str
-        assert "unique" not in response_str or "unique" in data.get("detail", "").lower()
+        assert (
+            "unique" not in response_str or "unique" in data.get("detail", "").lower()
+        )
         assert "uq_services_workspace_name" not in response_str
         assert "psycopg" not in response_str
         assert "sqlalchemy" not in response_str
@@ -505,9 +502,10 @@ class TestErrorResponseFormat:
 
             # Should NOT contain stack trace keywords
             assert "traceback" not in response_str
-            assert "exception" not in response_str or "exception" in data.get(
-                "detail", ""
-            ).lower()
+            assert (
+                "exception" not in response_str
+                or "exception" in data.get("detail", "").lower()
+            )
             assert "/backend/" not in response_str
             assert "line " not in response_str
             assert ".py" not in response_str or ".py" in data.get("detail", "").lower()

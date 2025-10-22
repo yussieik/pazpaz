@@ -238,8 +238,7 @@ async def list_clients(
     # Sort clients by decrypted last_name, first_name
     # SQLAlchemy decrypts automatically when accessing attributes
     sorted_clients = sorted(
-        all_clients,
-        key=lambda c: (c.last_name.lower(), c.first_name.lower())
+        all_clients, key=lambda c: (c.last_name.lower(), c.first_name.lower())
     )
 
     # Apply pagination to sorted list
@@ -250,7 +249,9 @@ async def list_clients(
 
     # Conditionally enrich with appointment data
     if include_appointments:
-        items = [await enrich_client_response(db, client) for client in paginated_clients]
+        items = [
+            await enrich_client_response(db, client) for client in paginated_clients
+        ]
     else:
         # Just return basic client data (fast)
         items = [ClientResponse.model_validate(client) for client in paginated_clients]

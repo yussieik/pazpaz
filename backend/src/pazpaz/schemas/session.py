@@ -95,9 +95,9 @@ class SessionUpdate(BaseModel):
 
             if v > datetime.now(UTC):
                 raise PydanticCustomError(
-                "value_error",
-                "Session date cannot be in the future",
-            )
+                    "value_error",
+                    "Session date cannot be in the future",
+                )
         return v
 
 

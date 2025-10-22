@@ -43,7 +43,9 @@ class TestJSONEndpointContentType:
         )
 
         # Should NOT be rejected by Content-Type validation
-        assert response.status_code != 415, "application/json with charset should be accepted"
+        assert response.status_code != 415, (
+            "application/json with charset should be accepted"
+        )
 
     async def test_json_endpoint_rejects_multipart_form_data(
         self,
@@ -99,6 +101,7 @@ class TestJSONEndpointContentType:
         """Verify JSON endpoints reject requests without Content-Type header in production."""
         # Temporarily set DEBUG=False to simulate production environment
         from pazpaz.core import config
+
         monkeypatch.setattr(config.settings, "debug", False)
 
         # Send POST without Content-Type header
@@ -125,7 +128,9 @@ class TestJSONEndpointContentType:
         )
 
         # Should be allowed in development (not 415)
-        assert response.status_code != 415, "Development mode should allow missing Content-Type"
+        assert response.status_code != 415, (
+            "Development mode should allow missing Content-Type"
+        )
 
 
 class TestFileUploadContentType:
@@ -144,13 +149,17 @@ class TestFileUploadContentType:
         # The endpoint may not exist yet, but middleware should not reject based on Content-Type
         response = await client.post(
             "/api/v1/sessions/test-uuid/attachments",
-            headers={"Content-Type": "multipart/form-data; boundary=----WebKitFormBoundary"},
-            content=b"------WebKitFormBoundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"test.jpg\"\r\n\r\nfake-image-data\r\n------WebKitFormBoundary--",
+            headers={
+                "Content-Type": "multipart/form-data; boundary=----WebKitFormBoundary"
+            },
+            content=b'------WebKitFormBoundary\r\nContent-Disposition: form-data; name="file"; filename="test.jpg"\r\n\r\nfake-image-data\r\n------WebKitFormBoundary--',
         )
 
         # Should NOT be rejected by Content-Type validation (may fail for other reasons like missing endpoint)
         # 415 = Content-Type rejected, 404 = endpoint doesn't exist (acceptable)
-        assert response.status_code != 415, "multipart/form-data should be accepted for file uploads"
+        assert response.status_code != 415, (
+            "multipart/form-data should be accepted for file uploads"
+        )
 
     async def test_file_upload_endpoint_rejects_application_json(
         self,
@@ -222,7 +231,9 @@ class TestSafeMethodsBypass:
         response = await client.head("/api/v1/health")
 
         # Should NOT be rejected with 415 (may return 200 or 405 if HEAD not supported)
-        assert response.status_code != 415, "HEAD requests should not be rejected by Content-Type validation"
+        assert response.status_code != 415, (
+            "HEAD requests should not be rejected by Content-Type validation"
+        )
 
     async def test_options_request_no_content_type_required(
         self,
@@ -351,6 +362,7 @@ class TestErrorMessages:
         """Verify missing Content-Type error message is clear."""
         # Test in production mode where validation is strict
         from pazpaz.core import config
+
         monkeypatch.setattr(config.settings, "debug", False)
 
         response = await client.post(
@@ -417,6 +429,7 @@ class TestSecurityLogging:
         """Verify missing Content-Type returns 415 in production mode."""
         # Simulate production environment
         from pazpaz.core import config
+
         monkeypatch.setattr(config.settings, "debug", False)
 
         response = await client.post(

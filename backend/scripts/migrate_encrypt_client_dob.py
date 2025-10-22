@@ -39,8 +39,7 @@ import asyncio
 import sys
 from datetime import datetime
 
-from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
 # Add src to path for imports
 sys.path.insert(0, "src")
@@ -48,8 +47,11 @@ sys.path.insert(0, "src")
 from pazpaz.core.config import settings
 from pazpaz.core.logging import get_logger
 from pazpaz.db.base import get_async_session
-from pazpaz.models.client import Client
-from pazpaz.utils.encryption import encrypt_field, get_current_key_version, get_key_for_version
+from pazpaz.utils.encryption import (
+    encrypt_field,
+    get_current_key_version,
+    get_key_for_version,
+)
 
 logger = get_logger(__name__)
 
@@ -193,7 +195,11 @@ async def migrate_client_dob():
         print(f"Migrated:         {migrated_clients}")
         print(f"Failed:           {failed_clients}")
         print(f"Skipped:          {skipped_clients}")
-        print(f"Success rate:     {(migrated_clients / total_clients * 100):.2f}%" if total_clients > 0 else "N/A")
+        print(
+            f"Success rate:     {(migrated_clients / total_clients * 100):.2f}%"
+            if total_clients > 0
+            else "N/A"
+        )
         print("")
         print(f"Completed at: {datetime.now().isoformat()}")
         print("")
@@ -206,7 +212,9 @@ async def migrate_client_dob():
             print("✅ SUCCESS: All client date_of_birth values migrated successfully!")
             print("")
             print("Next steps:")
-            print("  1. Verify encryption: python scripts/verify_client_dob_encryption.py")
+            print(
+                "  1. Verify encryption: python scripts/verify_client_dob_encryption.py"
+            )
             print("  2. If verification passes, proceed with dropping old column")
             print("     (this happens automatically in migration Step 3)")
 

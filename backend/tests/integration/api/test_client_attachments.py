@@ -433,7 +433,10 @@ class TestBulkDownload:
         )
 
         assert response.status_code == status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
-        assert "100 mb" in response.json()["detail"].lower() or "100mb" in response.json()["detail"].lower()
+        assert (
+            "100 mb" in response.json()["detail"].lower()
+            or "100mb" in response.json()["detail"].lower()
+        )
 
     async def test_bulk_download_creates_audit_event(
         self,

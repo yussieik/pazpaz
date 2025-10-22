@@ -34,8 +34,9 @@ Create Date: 2025-10-19 21:55:16.276900
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects.postgresql import DATE
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "92df859932f2"
@@ -118,7 +119,9 @@ def upgrade() -> None:
     # ============================================================================
     print("Step 4/4: Renaming date_of_birth_encrypted to date_of_birth...")
 
-    op.alter_column("clients", "date_of_birth_encrypted", new_column_name="date_of_birth")
+    op.alter_column(
+        "clients", "date_of_birth_encrypted", new_column_name="date_of_birth"
+    )
 
     print("")
     print("✅ Migration complete!")
@@ -145,7 +148,9 @@ def downgrade() -> None:
     4. Rename plaintext column to original name
     """
     print("")
-    print("⚠️  WARNING: Downgrade will store date_of_birth as plaintext DATE (HIPAA risk)")
+    print(
+        "⚠️  WARNING: Downgrade will store date_of_birth as plaintext DATE (HIPAA risk)"
+    )
     print("⚠️  Only proceed if absolutely necessary for emergency rollback")
     print("")
 
@@ -185,7 +190,9 @@ def downgrade() -> None:
     # ============================================================================
     print("Step 4/4: Renaming date_of_birth_plaintext to date_of_birth...")
 
-    op.alter_column("clients", "date_of_birth_plaintext", new_column_name="date_of_birth")
+    op.alter_column(
+        "clients", "date_of_birth_plaintext", new_column_name="date_of_birth"
+    )
 
     print("")
     print("⚠️  Rollback complete. date_of_birth is now stored as PLAINTEXT DATE.")

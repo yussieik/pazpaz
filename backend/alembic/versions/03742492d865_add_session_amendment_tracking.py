@@ -8,9 +8,11 @@ Revises: 0131df2d459b
 Create Date: 2025-10-10 13:03:16.946259
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.

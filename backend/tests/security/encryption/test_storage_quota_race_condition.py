@@ -10,12 +10,11 @@ could bypass quota limits.
 
 import asyncio
 import uuid
-from typing import Any, AsyncGenerator
-from unittest.mock import AsyncMock, patch
+from typing import Any
+from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.models.session_attachment import SessionAttachment
@@ -35,6 +34,7 @@ async def set_workspace_storage(
 ) -> None:
     """Helper to reliably set workspace storage values in tests."""
     from sqlalchemy import update as sql_update
+
     stmt = (
         sql_update(Workspace)
         .where(Workspace.id == workspace_id)
@@ -285,15 +285,15 @@ class TestAtomicQuotaReservation:
         )
 
         # Task2 should acquire lock AFTER task1 acquired it
-        assert (
-            task2_acquired_idx > task1_acquired_idx
-        ), "Task2 should acquire lock after task1"
+        assert task2_acquired_idx > task1_acquired_idx, (
+            "Task2 should acquire lock after task1"
+        )
 
         # Task2 should acquire lock AFTER task1 released it
         # (This demonstrates that the lock is blocking)
-        assert (
-            task1_released_idx < task2_acquired_idx or task1_released_idx == 0
-        ), "Task2 should acquire lock after task1 releases it"
+        assert task1_released_idx < task2_acquired_idx or task1_released_idx == 0, (
+            "Task2 should acquire lock after task1 releases it"
+        )
 
 
 class TestStorageQuotaExceededError:
@@ -382,7 +382,9 @@ class TestUpdateWorkspaceStorage:
         self, db_session: AsyncSession, test_workspace: Workspace
     ) -> None:
         """Storage update should handle negative deltas (deletions)."""
-        await set_workspace_storage(db_session, test_workspace.id, 10 * 1024 * 1024 * 1024, 10000)
+        await set_workspace_storage(
+            db_session, test_workspace.id, 10 * 1024 * 1024 * 1024, 10000
+        )
 
         delta = -3000
 
@@ -403,7 +405,9 @@ class TestUpdateWorkspaceStorage:
         self, db_session: AsyncSession, test_workspace: Workspace
     ) -> None:
         """Storage usage should never go negative."""
-        await set_workspace_storage(db_session, test_workspace.id, 10 * 1024 * 1024 * 1024, 1000)
+        await set_workspace_storage(
+            db_session, test_workspace.id, 10 * 1024 * 1024 * 1024, 1000
+        )
 
         # Try to decrement by more than current usage
         await update_workspace_storage(
@@ -421,7 +425,9 @@ class TestUpdateWorkspaceStorage:
 class TestUploadEndpointIntegration:
     """Test upload endpoint with atomic quota management."""
 
-    @pytest.mark.skip(reason="Integration test needs complex auth/session setup - core logic tested elsewhere")
+    @pytest.mark.skip(
+        reason="Integration test needs complex auth/session setup - core logic tested elsewhere"
+    )
     @pytest.mark.asyncio
     async def test_successful_upload_increments_quota_once(
         self,
@@ -435,9 +441,7 @@ class TestUploadEndpointIntegration:
         initial_usage = test_workspace.storage_used_bytes
 
         # Mock S3 upload to succeed
-        with patch(
-            "pazpaz.api.session_attachments.upload_file_to_s3"
-        ) as mock_upload:
+        with patch("pazpaz.api.session_attachments.upload_file_to_s3") as mock_upload:
             mock_upload.return_value = {"bucket": "test-bucket", "key": "test-key"}
 
             # Upload file
@@ -456,7 +460,9 @@ class TestUploadEndpointIntegration:
         assert test_workspace.storage_used_bytes > initial_usage
         # Note: File size will be different due to EXIF stripping
 
-    @pytest.mark.skip(reason="Integration test needs complex auth/session setup - core logic tested elsewhere")
+    @pytest.mark.skip(
+        reason="Integration test needs complex auth/session setup - core logic tested elsewhere"
+    )
     @pytest.mark.asyncio
     async def test_failed_upload_releases_quota(
         self,
@@ -470,9 +476,7 @@ class TestUploadEndpointIntegration:
         initial_usage = test_workspace.storage_used_bytes
 
         # Mock S3 upload to fail
-        with patch(
-            "pazpaz.api.session_attachments.upload_file_to_s3"
-        ) as mock_upload:
+        with patch("pazpaz.api.session_attachments.upload_file_to_s3") as mock_upload:
             mock_upload.side_effect = RuntimeError("S3 upload failed")
 
             # Attempt upload
@@ -489,7 +493,9 @@ class TestUploadEndpointIntegration:
         await db_session.refresh(test_workspace)
         assert test_workspace.storage_used_bytes == initial_usage
 
-    @pytest.mark.skip(reason="Integration test needs complex auth/session setup - core logic tested elsewhere")
+    @pytest.mark.skip(
+        reason="Integration test needs complex auth/session setup - core logic tested elsewhere"
+    )
     @pytest.mark.asyncio
     async def test_quota_exceeded_rejects_upload(
         self,
@@ -523,7 +529,9 @@ class TestUploadEndpointIntegration:
 class TestDeleteEndpointIntegration:
     """Test delete endpoint with atomic quota management."""
 
-    @pytest.mark.skip(reason="Integration test needs complex auth/session setup - core logic tested elsewhere")
+    @pytest.mark.skip(
+        reason="Integration test needs complex auth/session setup - core logic tested elsewhere"
+    )
     @pytest.mark.asyncio
     async def test_delete_decrements_quota_atomically(
         self,
@@ -537,7 +545,9 @@ class TestDeleteEndpointIntegration:
         """Deleting attachment should decrement quota atomically."""
         # Set initial storage usage
         file_size = test_attachment.file_size_bytes
-        await set_workspace_storage(db, test_workspace.id, 10 * 1024 * 1024 * 1024, 10000)
+        await set_workspace_storage(
+            db, test_workspace.id, 10 * 1024 * 1024 * 1024, 10000
+        )
 
         initial_usage = test_workspace.storage_used_bytes
 
@@ -553,7 +563,9 @@ class TestDeleteEndpointIntegration:
         await db_session.refresh(test_workspace)
         assert test_workspace.storage_used_bytes == initial_usage - file_size
 
-    @pytest.mark.skip(reason="Integration test needs complex auth/session setup - core logic tested elsewhere")
+    @pytest.mark.skip(
+        reason="Integration test needs complex auth/session setup - core logic tested elsewhere"
+    )
     @pytest.mark.asyncio
     async def test_failed_delete_does_not_decrement_quota(
         self,
@@ -564,7 +576,9 @@ class TestDeleteEndpointIntegration:
         db: AsyncSession,
     ) -> None:
         """Failed delete should not decrement quota."""
-        await set_workspace_storage(db, test_workspace.id, 10 * 1024 * 1024 * 1024, 10000)
+        await set_workspace_storage(
+            db, test_workspace.id, 10 * 1024 * 1024 * 1024, 10000
+        )
 
         initial_usage = test_workspace.storage_used_bytes
 

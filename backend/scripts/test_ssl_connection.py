@@ -44,7 +44,9 @@ async def main():
             logger.warning("=" * 60)
             logger.warning("")
             logger.warning("Database connection is NOT encrypted")
-            logger.warning("❌ HIPAA compliance violation - PHI data exposed in transit")
+            logger.warning(
+                "❌ HIPAA compliance violation - PHI data exposed in transit"
+            )
             return 1
 
     except Exception as e:

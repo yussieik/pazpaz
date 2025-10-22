@@ -40,12 +40,17 @@ class TestReferrerPolicyHeader:
         """Verify Referrer-Policy header is present on different HTTP methods."""
         # GET
         response_get = await client.get("/health")
-        assert response_get.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+        assert (
+            response_get.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+        )
 
         # OPTIONS (CORS preflight)
         response_options = await client.options("/health")
         assert "Referrer-Policy" in response_options.headers
-        assert response_options.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+        assert (
+            response_options.headers["Referrer-Policy"]
+            == "strict-origin-when-cross-origin"
+        )
 
     async def test_referrer_policy_prevents_sensitive_data_leakage(
         self, client: AsyncClient
@@ -221,9 +226,9 @@ class TestAllSecurityHeadersComprehensive:
 
             if expected_value is not None:
                 actual_value = response.headers[header]
-                assert (
-                    actual_value == expected_value
-                ), f"Header {header} has incorrect value: {actual_value} != {expected_value}"
+                assert actual_value == expected_value, (
+                    f"Header {header} has incorrect value: {actual_value} != {expected_value}"
+                )
 
     async def test_security_headers_on_all_endpoint_types(self, client: AsyncClient):
         """Verify security headers are present on different endpoint types."""

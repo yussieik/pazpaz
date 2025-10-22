@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -230,8 +229,8 @@ def init_encryption_key_registry():
     """
     from pazpaz.core.config import settings
     from pazpaz.utils.encryption import (
-        EncryptionKeyMetadata,
         _KEY_REGISTRY,
+        EncryptionKeyMetadata,
         register_key,
     )
 

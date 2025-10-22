@@ -15,15 +15,17 @@ Encryption metadata includes:
 
 HIPAA Requirement: §164.312(a)(2)(iv) - Encryption at rest verification
 """
+
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 # revision identifiers, used by Alembic.
-revision: str = '01a5a73e9841'
-down_revision: str | Sequence[str] | None = '01b9ba5f6818'
+revision: str = "01a5a73e9841"
+down_revision: str | Sequence[str] | None = "01b9ba5f6818"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -36,16 +38,16 @@ def upgrade() -> None:
     to ensure PHI file attachments are encrypted at rest.
     """
     op.add_column(
-        'session_attachments',
+        "session_attachments",
         sa.Column(
-            'encryption_metadata',
+            "encryption_metadata",
             postgresql.JSONB(astext_type=sa.Text()),
             nullable=True,
-            comment='S3 server-side encryption metadata for HIPAA compliance verification'
-        )
+            comment="S3 server-side encryption metadata for HIPAA compliance verification",
+        ),
     )
 
 
 def downgrade() -> None:
     """Remove encryption_metadata column from session_attachments."""
-    op.drop_column('session_attachments', 'encryption_metadata')
+    op.drop_column("session_attachments", "encryption_metadata")

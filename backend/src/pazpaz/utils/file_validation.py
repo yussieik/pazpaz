@@ -355,8 +355,8 @@ def detect_polyglot_patterns(file_content: bytes) -> None:
                 reason="Embedded executable code detected in image file",
             )
             raise FileContentError(
-                f"File contains suspicious pattern that may indicate a polyglot attack. "
-                f"Upload rejected for security."
+                "File contains suspicious pattern that may indicate a polyglot attack. "
+                "Upload rejected for security."
             )
 
     # Additional check: Look for trailing data after JPEG end marker

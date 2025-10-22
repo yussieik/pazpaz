@@ -323,8 +323,7 @@ def get_key_for_version(version: str) -> bytes:
             key=key,
             version=version,
             created_at=datetime.now(UTC),  # Approximate (actual created_at in AWS)
-            expires_at=datetime.now(UTC)
-            + timedelta(days=90),  # Approximate expiration
+            expires_at=datetime.now(UTC) + timedelta(days=90),  # Approximate expiration
             is_current=False,  # Fetched keys are not current
         )
         register_key(metadata)
@@ -673,9 +672,7 @@ def decrypt_field_versioned(
 
         # Validate version format
         if not version.startswith("v"):
-            raise ValueError(
-                f"Invalid version format. Expected 'vN', got: {version}"
-            )
+            raise ValueError(f"Invalid version format. Expected 'vN', got: {version}")
 
     else:
         raise ValueError(
@@ -691,7 +688,7 @@ def decrypt_field_versioned(
                 "field_decrypted_versioned_from_registry",
                 key_version=version,
             )
-        except ValueError as e:
+        except ValueError:
             # Fallback to settings if registry not initialized
             logger.warning(
                 "key_registry_not_initialized_using_settings_fallback",

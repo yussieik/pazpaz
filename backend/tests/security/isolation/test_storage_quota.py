@@ -12,10 +12,8 @@ This test suite validates:
 from __future__ import annotations
 
 import uuid
-from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.models.workspace import Workspace
@@ -35,6 +33,7 @@ async def set_workspace_storage(
 ) -> None:
     """Helper to reliably set workspace storage values in tests."""
     from sqlalchemy import update as sql_update
+
     stmt = (
         sql_update(Workspace)
         .where(Workspace.id == workspace_id)
@@ -85,7 +84,9 @@ class TestQuotaValidation:
         await db.commit()
 
         # Upload 1 byte file (should fail - quota exceeded)
-        with pytest.raises(StorageQuotaExceededError, match="Workspace storage quota exceeded"):
+        with pytest.raises(
+            StorageQuotaExceededError, match="Workspace storage quota exceeded"
+        ):
             await validate_workspace_storage_quota(
                 workspace_id=workspace.id,
                 new_file_size=1,
@@ -96,11 +97,15 @@ class TestQuotaValidation:
     async def test_validate_over_quota(self, db: AsyncSession, workspace: Workspace):
         """Test validation fails when already over quota."""
         # Set workspace at 11 GB used (over quota)
-        workspace.storage_used_bytes = workspace.storage_quota_bytes + (1024 * 1024 * 1024)
+        workspace.storage_used_bytes = workspace.storage_quota_bytes + (
+            1024 * 1024 * 1024
+        )
         await db.commit()
 
         # Upload 1 MB file (should fail - already over quota)
-        with pytest.raises(StorageQuotaExceededError, match="Workspace storage quota exceeded"):
+        with pytest.raises(
+            StorageQuotaExceededError, match="Workspace storage quota exceeded"
+        ):
             await validate_workspace_storage_quota(
                 workspace_id=workspace.id,
                 new_file_size=1 * 1024 * 1024,
@@ -117,7 +122,9 @@ class TestQuotaValidation:
         await db.commit()
 
         # Upload 6 GB file (5 GB + 6 GB = 11 GB > 10 GB quota)
-        with pytest.raises(StorageQuotaExceededError, match="Workspace storage quota exceeded"):
+        with pytest.raises(
+            StorageQuotaExceededError, match="Workspace storage quota exceeded"
+        ):
             await validate_workspace_storage_quota(
                 workspace_id=workspace.id,
                 new_file_size=6 * 1024 * 1024 * 1024,
@@ -233,9 +240,7 @@ class TestStorageUsageRetrieval:
     """Test get_workspace_storage_usage() function."""
 
     @pytest.mark.asyncio
-    async def test_get_usage_under_quota(
-        self, db: AsyncSession, workspace: Workspace
-    ):
+    async def test_get_usage_under_quota(self, db: AsyncSession, workspace: Workspace):
         """Test retrieving usage when under quota."""
         workspace.storage_used_bytes = 5 * 1024 * 1024 * 1024  # 5 GB
         workspace.storage_quota_bytes = 10 * 1024 * 1024 * 1024  # 10 GB
@@ -250,9 +255,7 @@ class TestStorageUsageRetrieval:
         assert usage["is_quota_exceeded"] is False
 
     @pytest.mark.asyncio
-    async def test_get_usage_over_quota(
-        self, db: AsyncSession, workspace: Workspace
-    ):
+    async def test_get_usage_over_quota(self, db: AsyncSession, workspace: Workspace):
         """Test retrieving usage when over quota."""
         workspace.storage_used_bytes = 12 * 1024 * 1024 * 1024  # 12 GB
         workspace.storage_quota_bytes = 10 * 1024 * 1024 * 1024  # 10 GB
@@ -312,9 +315,7 @@ class TestWorkspaceModelProperties:
         assert workspace.is_quota_exceeded is False
 
     @pytest.mark.asyncio
-    async def test_is_quota_exceeded_true(
-        self, db: AsyncSession, workspace: Workspace
-    ):
+    async def test_is_quota_exceeded_true(self, db: AsyncSession, workspace: Workspace):
         """Test is_quota_exceeded is True when over quota."""
         workspace.storage_used_bytes = 11 * 1024 * 1024 * 1024
         workspace.storage_quota_bytes = 10 * 1024 * 1024 * 1024
@@ -371,9 +372,7 @@ class TestEdgeCases:
         assert workspace.storage_used_bytes == initial_usage
 
     @pytest.mark.asyncio
-    async def test_large_file_near_quota(
-        self, db: AsyncSession, workspace: Workspace
-    ):
+    async def test_large_file_near_quota(self, db: AsyncSession, workspace: Workspace):
         """Test large file upload that exactly fills quota."""
         await set_workspace_storage(db, workspace.id, 10 * 1024 * 1024 * 1024, 0)
 
@@ -393,6 +392,7 @@ class TestEdgeCases:
 
 
 # Fixtures
+
 
 @pytest.fixture
 async def workspace(db: AsyncSession) -> Workspace:

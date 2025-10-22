@@ -19,10 +19,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.utils.encryption import (
     decrypt_field_versioned as decrypt_field,
+)
+from pazpaz.utils.encryption import (
     encrypt_field_versioned as encrypt_field,
+)
+from pazpaz.utils.encryption import (
     get_current_key_version as get_encryption_key_version,
+)
+from pazpaz.utils.encryption import (
     get_key_for_version as get_encryption_key,
-    get_key_registry,
 )
 
 
@@ -105,7 +110,9 @@ class TestEncryptionSecurity:
         # 2. Retrieves file metadata
         # 3. Verifies x-amz-server-side-encryption header is present
 
-        print("✅ S3 configuration present (full verification requires integration test)")
+        print(
+            "✅ S3 configuration present (full verification requires integration test)"
+        )
 
     @pytest.mark.asyncio
     async def test_key_rotation_scenario(
@@ -230,7 +237,9 @@ class TestEncryptionSecurity:
 
         # Verify key is not obviously weak (not all zeros, not sequential)
         assert active_key != b"\x00" * len(active_key), "Key is all zeros (weak!)"
-        assert active_key != bytes(range(min(256, len(active_key)))), "Key is sequential (weak!)"
+        assert active_key != bytes(range(min(256, len(active_key)))), (
+            "Key is sequential (weak!)"
+        )
 
         print(f"✅ Encryption key strength: {key_length_bits} bits (>= 256 required)")
 
@@ -251,7 +260,9 @@ class TestEncryptionSecurity:
 
         # SECURITY VALIDATION: Ciphertext doesn't contain plaintext
         # Remove version prefix for checking
-        ciphertext_without_version = ciphertext.split(":", 1)[1] if ":" in ciphertext else ciphertext
+        ciphertext_without_version = (
+            ciphertext.split(":", 1)[1] if ":" in ciphertext else ciphertext
+        )
 
         # Plaintext should NOT appear in ciphertext (even partially)
         assert plaintext not in ciphertext_without_version, (

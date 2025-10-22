@@ -53,6 +53,7 @@ logger = get_logger(__name__)
 
 class BucketCreationError(Exception):
     """Raised when bucket creation fails."""
+
     pass
 
 
@@ -99,7 +100,10 @@ def create_bucket_if_not_exists() -> bool:
 
         # For MinIO (localhost), we don't specify LocationConstraint
         # For AWS S3, we would need CreateBucketConfiguration
-        if "localhost" in settings.s3_endpoint_url or "minio" in settings.s3_endpoint_url:
+        if (
+            "localhost" in settings.s3_endpoint_url
+            or "minio" in settings.s3_endpoint_url
+        ):
             # MinIO doesn't support LocationConstraint
             s3_client.create_bucket(Bucket=bucket_name)
         else:
@@ -109,7 +113,9 @@ def create_bucket_if_not_exists() -> bool:
             else:
                 s3_client.create_bucket(
                     Bucket=bucket_name,
-                    CreateBucketConfiguration={"LocationConstraint": settings.s3_region},
+                    CreateBucketConfiguration={
+                        "LocationConstraint": settings.s3_region
+                    },
                 )
 
         logger.info(f"Bucket created successfully: {bucket_name}")
@@ -271,9 +277,7 @@ def configure_lifecycle_policies(s3_client, bucket_name: str) -> None:
                     {
                         "Id": "delete-incomplete-multipart-uploads",
                         "Status": "Enabled",
-                        "AbortIncompleteMultipartUpload": {
-                            "DaysAfterInitiation": 7
-                        },
+                        "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 7},
                         "Filter": {},
                     }
                 ]
@@ -285,11 +289,11 @@ def configure_lifecycle_policies(s3_client, bucket_name: str) -> None:
         # MinIO may not support this API, log warning but continue
         error_code = e.response["Error"]["Code"]
         if error_code in ("NotImplemented", "MethodNotAllowed"):
-            logger.warning(
-                f"Lifecycle policy API not supported (MinIO): {bucket_name}"
-            )
+            logger.warning(f"Lifecycle policy API not supported (MinIO): {bucket_name}")
         else:
-            logger.error(f"Failed to configure lifecycle policies on {bucket_name}: {e}")
+            logger.error(
+                f"Failed to configure lifecycle policies on {bucket_name}: {e}"
+            )
             raise BucketCreationError(
                 f"Lifecycle policy configuration failed: {e}"
             ) from e

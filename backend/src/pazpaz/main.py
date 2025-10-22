@@ -623,7 +623,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
         if field in PHI_FIELDS:
             # Redact input value for PHI fields
-            sanitized_error["msg"] = "Invalid value (details redacted for PHI protection)"
+            sanitized_error["msg"] = (
+                "Invalid value (details redacted for PHI protection)"
+            )
             # Remove input value from error details
             sanitized_error.pop("input", None)
 

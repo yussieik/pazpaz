@@ -91,9 +91,7 @@ def measure_json_depth(obj: Any, current_depth: int = 0) -> int:
                 measure_json_depth(value, current_depth + 1) for value in obj.values()
             )
         else:  # list
-            return max(
-                measure_json_depth(item, current_depth + 1) for item in obj
-            )
+            return max(measure_json_depth(item, current_depth + 1) for item in obj)
     except RecursionError as e:
         # Python hit recursion limit - JSON is too deeply nested
         # This is a DoS attack attempt
@@ -181,6 +179,7 @@ class JSONDepthValidationMiddleware(BaseHTTPMiddleware):
                         error=str(e),
                         content_length=len(body),
                     )
+
                     # Reconstruct request with original body for FastAPI
                     # (body() consumes the stream, must restore it)
                     async def receive():

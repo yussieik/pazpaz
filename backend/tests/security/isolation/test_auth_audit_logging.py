@@ -12,16 +12,13 @@ Reference: Week 2, Task 2.5 - Authentication Audit Logging
 
 from __future__ import annotations
 
-import uuid
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import delete, select
 
 from pazpaz.models.audit_event import AuditAction, AuditEvent, ResourceType
-from pazpaz.models.user import User, UserRole
+from pazpaz.models.user import User
 from pazpaz.models.workspace import Workspace
-from tests.conftest import add_csrf_to_client
 
 pytestmark = pytest.mark.asyncio
 

@@ -14,7 +14,7 @@ from pazpaz.core.blacklist import is_email_blacklisted
 from pazpaz.models.audit_event import AuditEvent
 from pazpaz.models.email_blacklist import EmailBlacklist
 from pazpaz.models.user import User, UserRole
-from pazpaz.models.workspace import Workspace, WorkspaceStatus
+from pazpaz.models.workspace import Workspace
 from pazpaz.services.auth_service import request_magic_link
 from pazpaz.services.platform_onboarding_service import (
     EmailBlacklistedError,
@@ -269,7 +269,10 @@ class TestAuthServiceBlacklist:
         await db.commit()  # Ensure audit events are committed
         result = await db.execute(
             select(AuditEvent)
-            .where(AuditEvent.event_metadata["action"].astext == "magic_link_request_blacklisted_email")
+            .where(
+                AuditEvent.event_metadata["action"].astext
+                == "magic_link_request_blacklisted_email"
+            )
             .order_by(AuditEvent.created_at.desc())
             .limit(1)
         )
@@ -302,7 +305,9 @@ class TestAuthServiceBlacklist:
         """Test that non-blacklisted emails can request magic links."""
         # Ensure test_user_ws1 is not blacklisted
         result = await db.execute(
-            select(EmailBlacklist).where(EmailBlacklist.email == test_user_ws1.email.lower())
+            select(EmailBlacklist).where(
+                EmailBlacklist.email == test_user_ws1.email.lower()
+            )
         )
         assert result.scalar_one_or_none() is None
 
@@ -581,7 +586,10 @@ class TestBlacklistAuditLogging:
         await db.commit()  # Ensure audit events are committed
         result = await db.execute(
             select(AuditEvent)
-            .where(AuditEvent.event_metadata["action"].astext == "magic_link_request_blacklisted_email")
+            .where(
+                AuditEvent.event_metadata["action"].astext
+                == "magic_link_request_blacklisted_email"
+            )
             .order_by(AuditEvent.created_at.desc())
             .limit(1)
         )

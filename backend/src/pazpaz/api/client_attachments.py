@@ -32,7 +32,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -422,7 +422,9 @@ async def upload_client_attachment(
         s3_key=s3_key,
         is_client_level=True,
         encryption_verified=True,
-        encryption_algorithm=encryption_metadata.get("algorithm") if encryption_metadata else None,
+        encryption_algorithm=encryption_metadata.get("algorithm")
+        if encryption_metadata
+        else None,
     )
 
     # Return response with is_session_file=False

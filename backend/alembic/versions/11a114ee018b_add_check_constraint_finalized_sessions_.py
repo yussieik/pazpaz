@@ -13,6 +13,7 @@ CONSTRAINT LOGIC:
 - If finalized_at IS NOT NULL → is_draft MUST be false (enforces finalized)
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op

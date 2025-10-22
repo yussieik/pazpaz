@@ -329,6 +329,7 @@ class TestCSRFAuthenticationFlow:
         # Manually create a magic link token in Redis
         import json
         import secrets
+
         from pazpaz.services.auth_service import get_token_cipher
 
         magic_token = secrets.token_urlsafe(32)

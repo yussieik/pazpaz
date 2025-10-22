@@ -13,7 +13,6 @@ This test suite verifies that the session idle timeout feature correctly:
 
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
@@ -310,9 +309,7 @@ class TestSessionIdleTimeoutMiddleware:
         await redis_client.setex(key, 3600, old_timestamp.isoformat())
 
         # Make request to non-existent endpoint (404)
-        response = await client.get(
-            "/api/v1/nonexistent", headers=auth_headers
-        )
+        response = await client.get("/api/v1/nonexistent", headers=auth_headers)
         assert response.status_code == 404
 
         # Verify activity record was NOT updated
@@ -364,9 +361,7 @@ class TestSessionIdleTimeoutMiddleware:
         key = f"session:activity:{test_user_ws1.id}:{jti}"
 
         # Create activity record
-        await update_session_activity(
-            redis_client, str(test_user_ws1.id), jti
-        )
+        await update_session_activity(redis_client, str(test_user_ws1.id), jti)
 
         # Verify it exists
         exists_before = await redis_client.exists(key)

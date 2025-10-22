@@ -9,13 +9,14 @@ Fix pgcrypto encryption functions to properly handle bytea conversion.
 The previous version had incorrect bytea casting for the encryption key.
 This migration replaces the functions with corrected versions.
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '8283b279aeac'
-down_revision: str | Sequence[str] | None = '6be7adba063b'
+revision: str = "8283b279aeac"
+down_revision: str | Sequence[str] | None = "6be7adba063b"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

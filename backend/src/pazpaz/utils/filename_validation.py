@@ -80,7 +80,7 @@ def validate_filename_characters(filename: str) -> None:
     """
     if re.search(INVALID_CHARS_PATTERN, filename):
         raise FilenameValidationError(
-            'Filename contains invalid characters. '
+            "Filename contains invalid characters. "
             r'The following characters are not allowed: / \ : * ? " < > |'
         )
 

@@ -37,8 +37,7 @@ import asyncio
 import sys
 from datetime import datetime
 
-from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
 # Add src to path for imports
 sys.path.insert(0, "src")
@@ -46,8 +45,11 @@ sys.path.insert(0, "src")
 from pazpaz.core.config import settings
 from pazpaz.core.logging import get_logger
 from pazpaz.db.base import get_async_session
-from pazpaz.models.client import Client
-from pazpaz.utils.encryption import encrypt_field, get_current_key_version, get_key_for_version
+from pazpaz.utils.encryption import (
+    encrypt_field,
+    get_current_key_version,
+    get_key_for_version,
+)
 
 logger = get_logger(__name__)
 
@@ -144,14 +146,38 @@ async def migrate_client_data():
                     emergency_contact_phone = client[8]
 
                     # Encrypt each field (handle None values)
-                    first_name_encrypted = encrypt_field(first_name, encryption_key) if first_name else None
-                    last_name_encrypted = encrypt_field(last_name, encryption_key) if last_name else None
-                    email_encrypted = encrypt_field(email, encryption_key) if email else None
-                    phone_encrypted = encrypt_field(phone, encryption_key) if phone else None
-                    address_encrypted = encrypt_field(address, encryption_key) if address else None
-                    medical_history_encrypted = encrypt_field(medical_history, encryption_key) if medical_history else None
-                    emergency_contact_name_encrypted = encrypt_field(emergency_contact_name, encryption_key) if emergency_contact_name else None
-                    emergency_contact_phone_encrypted = encrypt_field(emergency_contact_phone, encryption_key) if emergency_contact_phone else None
+                    first_name_encrypted = (
+                        encrypt_field(first_name, encryption_key)
+                        if first_name
+                        else None
+                    )
+                    last_name_encrypted = (
+                        encrypt_field(last_name, encryption_key) if last_name else None
+                    )
+                    email_encrypted = (
+                        encrypt_field(email, encryption_key) if email else None
+                    )
+                    phone_encrypted = (
+                        encrypt_field(phone, encryption_key) if phone else None
+                    )
+                    address_encrypted = (
+                        encrypt_field(address, encryption_key) if address else None
+                    )
+                    medical_history_encrypted = (
+                        encrypt_field(medical_history, encryption_key)
+                        if medical_history
+                        else None
+                    )
+                    emergency_contact_name_encrypted = (
+                        encrypt_field(emergency_contact_name, encryption_key)
+                        if emergency_contact_name
+                        else None
+                    )
+                    emergency_contact_phone_encrypted = (
+                        encrypt_field(emergency_contact_phone, encryption_key)
+                        if emergency_contact_phone
+                        else None
+                    )
 
                     # Prepend version prefix to each encrypted field
                     version_prefix = f"{key_version}:".encode()
@@ -167,11 +193,17 @@ async def migrate_client_data():
                     if address_encrypted:
                         address_encrypted = version_prefix + address_encrypted
                     if medical_history_encrypted:
-                        medical_history_encrypted = version_prefix + medical_history_encrypted
+                        medical_history_encrypted = (
+                            version_prefix + medical_history_encrypted
+                        )
                     if emergency_contact_name_encrypted:
-                        emergency_contact_name_encrypted = version_prefix + emergency_contact_name_encrypted
+                        emergency_contact_name_encrypted = (
+                            version_prefix + emergency_contact_name_encrypted
+                        )
                     if emergency_contact_phone_encrypted:
-                        emergency_contact_phone_encrypted = version_prefix + emergency_contact_phone_encrypted
+                        emergency_contact_phone_encrypted = (
+                            version_prefix + emergency_contact_phone_encrypted
+                        )
 
                     # Update client with encrypted values
                     await session.execute(
@@ -233,7 +265,11 @@ async def migrate_client_data():
         print(f"Total clients:    {total_clients}")
         print(f"Migrated:         {migrated_clients}")
         print(f"Failed:           {failed_clients}")
-        print(f"Success rate:     {(migrated_clients / total_clients * 100):.2f}%" if total_clients > 0 else "N/A")
+        print(
+            f"Success rate:     {(migrated_clients / total_clients * 100):.2f}%"
+            if total_clients > 0
+            else "N/A"
+        )
         print("")
         print(f"Completed at: {datetime.now().isoformat()}")
         print("")

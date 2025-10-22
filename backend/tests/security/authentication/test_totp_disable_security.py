@@ -15,19 +15,19 @@ Test Coverage:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 
-import pytest
 import pyotp
+import pytest
 from httpx import AsyncClient
 from jose import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.core.config import settings
+from pazpaz.middleware.csrf import generate_csrf_token
 from pazpaz.models.user import User, UserRole
 from pazpaz.models.workspace import Workspace
 from pazpaz.services.totp_service import enroll_totp, verify_and_enable_totp
-from pazpaz.middleware.csrf import generate_csrf_token
 
 pytestmark = pytest.mark.asyncio
 

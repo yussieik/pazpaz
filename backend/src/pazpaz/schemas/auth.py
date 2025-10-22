@@ -151,6 +151,4 @@ class TOTPDisableRequest(BaseModel):
         examples=["123456", "A1B2C3D4"],
     )
 
-    model_config = ConfigDict(
-        json_schema_extra={"example": {"totp_code": "123456"}}
-    )
+    model_config = ConfigDict(json_schema_extra={"example": {"totp_code": "123456"}})

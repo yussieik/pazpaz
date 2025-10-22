@@ -102,25 +102,25 @@ async def verify_dob_encryption():
                 # Check date_of_birth (should be encrypted BYTEA)
                 raw_dob = raw_data[0]
                 if isinstance(raw_dob, bytes):
-                    print(f"  ✅ date_of_birth is encrypted (binary data)")
+                    print("  ✅ date_of_birth is encrypted (binary data)")
                     print(f"     Length: {len(raw_dob)} bytes")
                     print(f"     First 50 bytes: {raw_dob[:50]}")
 
                     # Check version prefix
                     if b":" in raw_dob[:10]:
-                        version = raw_dob[:raw_dob.index(b":")].decode("ascii")
+                        version = raw_dob[: raw_dob.index(b":")].decode("ascii")
                         print(f"     ✅ Version prefix found: {version}")
                     else:
-                        print(f"     ⚠️  No version prefix (legacy format)")
+                        print("     ⚠️  No version prefix (legacy format)")
                 else:
-                    print(f"  ❌ date_of_birth is NOT encrypted (not binary)")
+                    print("  ❌ date_of_birth is NOT encrypted (not binary)")
                     print(f"     Value: {raw_dob}")
                     total_failed += 1
                     continue
 
                 # Test 3: Verify decrypted value is valid ISO format date string
                 if not client.date_of_birth:
-                    print(f"  ❌ Decrypted date_of_birth is empty or None")
+                    print("  ❌ Decrypted date_of_birth is empty or None")
                     total_failed += 1
                     continue
 
@@ -141,13 +141,20 @@ async def verify_dob_encryption():
                 print(f"  ✅ Age calculation works: {age} years old")
 
                 # Test 6: Verify format is ISO YYYY-MM-DD
-                if len(client.date_of_birth) == 10 and client.date_of_birth.count("-") == 2:
-                    print(f"  ✅ date_of_birth format is ISO YYYY-MM-DD")
+                if (
+                    len(client.date_of_birth) == 10
+                    and client.date_of_birth.count("-") == 2
+                ):
+                    print("  ✅ date_of_birth format is ISO YYYY-MM-DD")
                 else:
-                    print(f"  ⚠️  date_of_birth format unexpected: {client.date_of_birth}")
+                    print(
+                        f"  ⚠️  date_of_birth format unexpected: {client.date_of_birth}"
+                    )
 
                 print("")
-                print(f"  ✅ Client {client.id} date_of_birth encryption verified successfully")
+                print(
+                    f"  ✅ Client {client.id} date_of_birth encryption verified successfully"
+                )
                 total_verified += 1
 
             except Exception as e:

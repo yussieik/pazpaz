@@ -13,14 +13,12 @@ HIPAA Compliance: §164.308(a)(7)(ii)(B) - Disaster recovery testing
 
 import base64
 import json
-import os
 import secrets
 import subprocess
 import tempfile
 import time
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from botocore.exceptions import ClientError
@@ -41,7 +39,9 @@ class TestMultiRegionFailover:
         with patch("boto3.client") as mock_client:
             yield mock_client
 
-    @pytest.mark.skip(reason="Multi-region key recovery not yet implemented - planned for future release")
+    @pytest.mark.skip(
+        reason="Multi-region key recovery not yet implemented - planned for future release"
+    )
     def test_primary_region_fetch_success(self, mock_boto_client):
         """Test successful key fetch from primary region (us-east-1)."""
         # Mock successful response from primary region
@@ -75,7 +75,9 @@ class TestMultiRegionFailover:
             SecretId="pazpaz/encryption-key-v1"
         )
 
-    @pytest.mark.skip(reason="Multi-region key recovery not yet implemented - planned for future release")
+    @pytest.mark.skip(
+        reason="Multi-region key recovery not yet implemented - planned for future release"
+    )
     def test_automatic_failover_to_replica_region(self, mock_boto_client):
         """Test automatic failover to us-west-2 when us-east-1 fails."""
 
@@ -124,14 +126,14 @@ class TestMultiRegionFailover:
         assert key == TEST_KEY_V1
 
         # Verify failover was fast (<5 seconds target)
-        assert (
-            failover_time < 5.0
-        ), f"Failover took {failover_time}s (target: <5s)"
+        assert failover_time < 5.0, f"Failover took {failover_time}s (target: <5s)"
 
         # Verify both regions were tried
         assert mock_boto_client.call_count >= 2
 
-    @pytest.mark.skip(reason="Multi-region key recovery not yet implemented - planned for future release")
+    @pytest.mark.skip(
+        reason="Multi-region key recovery not yet implemented - planned for future release"
+    )
     def test_all_regions_fail(self, mock_boto_client):
         """Test error handling when all regions (primary + replicas) fail."""
 
@@ -265,13 +267,11 @@ class TestOfflineBackupRecovery:
             assert decrypted_file.exists()
 
             # Verify content
-            with open(decrypted_file, "r") as f:
+            with open(decrypted_file) as f:
                 restored = json.load(f)
 
             assert restored["version"] == "v1"
-            assert restored["encryption_key"] == base64.b64encode(
-                TEST_KEY_V1
-            ).decode()
+            assert restored["encryption_key"] == base64.b64encode(TEST_KEY_V1).decode()
 
     def test_verify_restored_key_integrity(self, temp_backup_dir):
         """Test verifying integrity of restored key."""
@@ -289,7 +289,7 @@ class TestOfflineBackupRecovery:
             json.dump(secret_value, f)
 
         # Verify integrity
-        with open(key_file, "r") as f:
+        with open(key_file) as f:
             restored = json.load(f)
 
         # Check required fields
@@ -309,7 +309,9 @@ class TestOfflineBackupRecovery:
         """Test that invalid keys are rejected during verification."""
         # Create invalid key file (wrong size)
         invalid_secret = {
-            "encryption_key": base64.b64encode(secrets.token_bytes(16)).decode(),  # 16 bytes instead of 32
+            "encryption_key": base64.b64encode(
+                secrets.token_bytes(16)
+            ).decode(),  # 16 bytes instead of 32
             "version": "v1",
             "created_at": "2025-01-19T12:00:00Z",
             "expires_at": "2025-04-19T12:00:00Z",
@@ -320,7 +322,7 @@ class TestOfflineBackupRecovery:
             json.dump(invalid_secret, f)
 
         # Verify integrity fails
-        with open(key_file, "r") as f:
+        with open(key_file) as f:
             restored = json.load(f)
 
         key = base64.b64decode(restored["encryption_key"])
@@ -356,7 +358,7 @@ class TestDecryptionWithRecoveredKeys:
 
     def test_decrypt_multiple_key_versions(self):
         """Test decryption with different key versions (v1, v2, v3)."""
-        from pazpaz.utils.encryption import encrypt_field, decrypt_field
+        from pazpaz.utils.encryption import decrypt_field, encrypt_field
 
         test_data = [
             ("v1", TEST_KEY_V1, "PHI data encrypted with v1"),
@@ -380,7 +382,7 @@ class TestDecryptionWithRecoveredKeys:
 
     def test_wrong_key_fails_decryption(self):
         """Test that using wrong key for decryption fails."""
-        from pazpaz.utils.encryption import encrypt_field, decrypt_field
+        from pazpaz.utils.encryption import decrypt_field, encrypt_field
 
         # Encrypt with v1
         ciphertext = encrypt_field(EXPECTED_PLAINTEXT, TEST_KEY_V1)
@@ -480,7 +482,9 @@ class TestQuarterlyRecoveryDrills:
     """Test quarterly recovery drill procedures."""
 
     @pytest.mark.quarterly_drill
-    @pytest.mark.skip(reason="Multi-region key recovery not yet implemented - planned for future release")
+    @pytest.mark.skip(
+        reason="Multi-region key recovery not yet implemented - planned for future release"
+    )
     def test_q1_multi_region_failover_drill(self):
         """
         Q1 Drill: Test automatic failover to replica region.
@@ -538,14 +542,14 @@ class TestQuarterlyRecoveryDrills:
             failover_time = time.time() - start_time
 
             print(f"\n2️⃣ Failover successful in {failover_time:.2f}s")
-            print(f"   Target: <5s")
+            print("   Target: <5s")
             assert failover_time < 5.0
 
             print("\n3️⃣ Verifying key integrity...")
             assert len(key) == 32
 
             print("\n4️⃣ Testing decryption with failover key...")
-            from pazpaz.utils.encryption import encrypt_field, decrypt_field
+            from pazpaz.utils.encryption import decrypt_field, encrypt_field
 
             ciphertext = encrypt_field(EXPECTED_PLAINTEXT, TEST_KEY_V1)
             plaintext = decrypt_field(ciphertext, key)
@@ -587,7 +591,7 @@ class TestQuarterlyRecoveryDrills:
 
         # 2. Verify key integrity
         print("\n2️⃣ Verifying key integrity...")
-        with open(backup_file, "r") as f:
+        with open(backup_file) as f:
             restored = json.load(f)
 
         key = base64.b64decode(restored["encryption_key"])
@@ -595,7 +599,7 @@ class TestQuarterlyRecoveryDrills:
 
         # 3. Test decryption
         print("\n3️⃣ Testing decryption with restored key...")
-        from pazpaz.utils.encryption import encrypt_field, decrypt_field
+        from pazpaz.utils.encryption import decrypt_field, encrypt_field
 
         ciphertext = encrypt_field(EXPECTED_PLAINTEXT, TEST_KEY_V1)
         plaintext = decrypt_field(ciphertext, key)
@@ -614,7 +618,9 @@ class TestQuarterlyRecoveryDrills:
 class TestRTOandRPO:
     """Test Recovery Time Objective (RTO) and Recovery Point Objective (RPO) targets."""
 
-    @pytest.mark.skip(reason="Multi-region key recovery not yet implemented - planned for future release")
+    @pytest.mark.skip(
+        reason="Multi-region key recovery not yet implemented - planned for future release"
+    )
     def test_multi_region_failover_rto_under_5_minutes(self):
         """Verify multi-region failover RTO is under 5 minutes."""
         # Mock AWS outage and failover
@@ -682,14 +688,14 @@ class TestRTOandRPO:
         # time.sleep(5)  # Simulate GPG decryption time
 
         # 3. Verify integrity
-        with open(backup_file, "r") as f:
+        with open(backup_file) as f:
             restored = json.load(f)
 
         key = base64.b64decode(restored["encryption_key"])
         assert len(key) == 32
 
         # 4. Test decryption
-        from pazpaz.utils.encryption import encrypt_field, decrypt_field
+        from pazpaz.utils.encryption import decrypt_field, encrypt_field
 
         ciphertext = encrypt_field(EXPECTED_PLAINTEXT, TEST_KEY_V1)
         plaintext = decrypt_field(ciphertext, key)

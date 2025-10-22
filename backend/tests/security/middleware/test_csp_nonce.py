@@ -63,7 +63,9 @@ class TestCSPNonceGeneration:
 class TestProductionCSP:
     """Test production CSP policy (no unsafe-inline, no unsafe-eval)."""
 
-    async def test_production_csp_no_unsafe_inline(self, client: AsyncClient, monkeypatch):
+    async def test_production_csp_no_unsafe_inline(
+        self, client: AsyncClient, monkeypatch
+    ):
         """Verify production CSP does not include 'unsafe-inline'."""
         # Simulate production environment
         from pazpaz.core import config
@@ -74,9 +76,13 @@ class TestProductionCSP:
         response = await client.get("/health")
 
         csp = response.headers.get("Content-Security-Policy", "")
-        assert "unsafe-inline" not in csp, "Production CSP must not include 'unsafe-inline'"
+        assert "unsafe-inline" not in csp, (
+            "Production CSP must not include 'unsafe-inline'"
+        )
 
-    async def test_production_csp_no_unsafe_eval(self, client: AsyncClient, monkeypatch):
+    async def test_production_csp_no_unsafe_eval(
+        self, client: AsyncClient, monkeypatch
+    ):
         """Verify production CSP does not include 'unsafe-eval'."""
         from pazpaz.core import config
 
@@ -122,7 +128,9 @@ class TestProductionCSP:
         # CSP should include style-src with nonce
         assert f"style-src 'self' 'nonce-{nonce}'" in csp
 
-    async def test_production_csp_default_src_self(self, client: AsyncClient, monkeypatch):
+    async def test_production_csp_default_src_self(
+        self, client: AsyncClient, monkeypatch
+    ):
         """Verify production CSP sets default-src to 'self'."""
         from pazpaz.core import config
 
@@ -238,9 +246,9 @@ class TestNonceInRequestState:
             match = re.search(r"nonce-([A-Za-z0-9_-]+)", csp)
             if match:
                 nonce_from_csp = match.group(1)
-                assert (
-                    nonce_from_header == nonce_from_csp
-                ), "Nonce mismatch between header and CSP"
+                assert nonce_from_header == nonce_from_csp, (
+                    "Nonce mismatch between header and CSP"
+                )
 
 
 class TestXCSPNonceHeader:
@@ -352,7 +360,9 @@ class TestCSPDirectivesCoverage:
         for directive in required_directives:
             assert directive in csp, f"Missing CSP directive: {directive}"
 
-    async def test_development_csp_has_all_required_directives(self, client: AsyncClient):
+    async def test_development_csp_has_all_required_directives(
+        self, client: AsyncClient
+    ):
         """Verify development CSP includes all security-critical directives."""
         response = await client.get("/health")
         csp = response.headers.get("Content-Security-Policy", "")
@@ -377,7 +387,9 @@ class TestCSPDirectivesCoverage:
 class TestCSPEnvironmentDetection:
     """Test CSP changes based on environment (debug and environment settings)."""
 
-    async def test_csp_uses_nonce_when_debug_false(self, client: AsyncClient, monkeypatch):
+    async def test_csp_uses_nonce_when_debug_false(
+        self, client: AsyncClient, monkeypatch
+    ):
         """Verify nonce-based CSP is used when debug=False."""
         from pazpaz.core import config
 

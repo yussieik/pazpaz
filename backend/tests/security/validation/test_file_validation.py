@@ -21,12 +21,11 @@ from PIL import Image
 from pypdf import PdfWriter
 
 from pazpaz.utils.file_validation import (
+    MAX_FILE_SIZE_BYTES,
     FileContentError,
     FileSizeExceededError,
     FileType,
     FileValidationError,
-    MAX_FILE_SIZE_BYTES,
-    MAX_TOTAL_ATTACHMENTS_BYTES,
     MimeTypeMismatchError,
     UnsupportedFileTypeError,
     detect_mime_type,
@@ -81,7 +80,6 @@ def valid_pdf_bytes() -> bytes:
 @pytest.fixture
 def image_with_exif() -> bytes:
     """Create JPEG with EXIF metadata."""
-    from PIL.ExifTags import TAGS
 
     img = Image.new("RGB", (100, 100), color="yellow")
 
@@ -209,7 +207,10 @@ class TestMimeTypeDetection:
         with pytest.raises((UnsupportedFileTypeError, FileValidationError)) as exc_info:
             detect_mime_type(text_content)
 
-        assert "not allowed" in str(exc_info.value).lower() or "failed" in str(exc_info.value).lower()
+        assert (
+            "not allowed" in str(exc_info.value).lower()
+            or "failed" in str(exc_info.value).lower()
+        )
 
     def test_detect_mime_type_php_file(self):
         """PHP file should raise error regardless of content."""
@@ -384,7 +385,9 @@ class TestSecurityValidation:
     def test_type_confusion_attack_php_renamed_to_jpg(self):
         """PHP file renamed to .jpg should be rejected."""
         php_content = b"<?php system($_GET['cmd']); ?>"
-        with pytest.raises((UnsupportedFileTypeError, MimeTypeMismatchError, FileValidationError)):
+        with pytest.raises(
+            (UnsupportedFileTypeError, MimeTypeMismatchError, FileValidationError)
+        ):
             validate_file("malicious.jpg", php_content)
 
     def test_type_confusion_attack_pdf_renamed_to_jpg(self, valid_pdf_bytes):

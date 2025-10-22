@@ -6,7 +6,8 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, Text
+from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pazpaz.db.base import Base
@@ -38,11 +39,11 @@ class EmailBlacklist(Base):
         index=True,
     )
     email: Mapped[str] = mapped_column(
-        String(255),
+        CITEXT,
         nullable=False,
         unique=True,
         index=True,
-        comment="Email address to blacklist (case-insensitive)",
+        comment="Email address (case-insensitive via CITEXT)",
     )
     reason: Mapped[str] = mapped_column(
         Text,

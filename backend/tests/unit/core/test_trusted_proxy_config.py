@@ -16,8 +16,6 @@ rate limits, location-based restrictions, and audit logging.
 
 from __future__ import annotations
 
-import os
-
 import pytest
 from pydantic import ValidationError
 
@@ -52,9 +50,7 @@ class TestTrustedProxyIPValidation:
 
     def test_valid_multiple_cidr_ranges(self):
         """Valid multiple CIDR ranges should be accepted."""
-        settings = Settings(
-            trusted_proxy_ips="10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
-        )
+        settings = Settings(trusted_proxy_ips="10.0.0.0/8,172.16.0.0/12,192.168.0.0/16")
         assert settings.trusted_proxy_ips == "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
     def test_valid_mixed_ips_and_cidrs(self):
@@ -199,9 +195,7 @@ class TestIsTrustedProxyMethod:
 
     def test_multiple_cidr_ranges(self):
         """IP matching any CIDR range should be trusted."""
-        settings = Settings(
-            trusted_proxy_ips="10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
-        )
+        settings = Settings(trusted_proxy_ips="10.0.0.0/8,172.16.0.0/12,192.168.0.0/16")
 
         # Test each range
         assert settings.is_trusted_proxy("10.1.2.3") is True  # 10.0.0.0/8
@@ -280,7 +274,9 @@ class TestIsTrustedProxyMethod:
 
         # IPv6 private networks should be trusted by default
         assert settings.is_trusted_proxy("fc00::1") is True  # IPv6 ULA
-        assert settings.is_trusted_proxy("fd00::1") is True  # IPv6 ULA (fd00::/8 subset)
+        assert (
+            settings.is_trusted_proxy("fd00::1") is True
+        )  # IPv6 ULA (fd00::/8 subset)
         assert settings.is_trusted_proxy("fe80::1") is True  # IPv6 link-local
 
     def test_default_configuration_public_ip_untrusted(self):

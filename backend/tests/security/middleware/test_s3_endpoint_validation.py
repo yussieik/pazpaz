@@ -4,8 +4,9 @@ Test S3 endpoint HTTPS validation in production.
 Security Requirement: Production S3 endpoints MUST use HTTPS (HIPAA §164.312(e)(1)).
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 from pydantic import ValidationError
 
 from pazpaz.core.config import Settings

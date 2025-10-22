@@ -39,12 +39,12 @@ class TestJWTAlgorithmValidation:
 
         # Manually create token with alg: none
         header = {"alg": "none", "typ": "JWT"}
-        header_bytes = base64.urlsafe_b64encode(
-            json.dumps(header).encode()
-        ).rstrip(b"=")
-        payload_bytes = base64.urlsafe_b64encode(
-            json.dumps(payload).encode()
-        ).rstrip(b"=")
+        header_bytes = base64.urlsafe_b64encode(json.dumps(header).encode()).rstrip(
+            b"="
+        )
+        payload_bytes = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(
+            b"="
+        )
         token = (header_bytes + b"." + payload_bytes + b".").decode()
 
         # Should reject with 401
@@ -68,12 +68,12 @@ class TestJWTAlgorithmValidation:
 
         # Create token with RS256 algorithm header (will fail signature verification)
         header = {"alg": "RS256", "typ": "JWT"}
-        header_bytes = base64.urlsafe_b64encode(
-            json.dumps(header).encode()
-        ).rstrip(b"=")
-        payload_bytes = base64.urlsafe_b64encode(
-            json.dumps(payload).encode()
-        ).rstrip(b"=")
+        header_bytes = base64.urlsafe_b64encode(json.dumps(header).encode()).rstrip(
+            b"="
+        )
+        payload_bytes = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(
+            b"="
+        )
 
         # Sign with HMAC (pretending it's RSA public key confusion)
         signature = base64.urlsafe_b64encode(b"fake-signature").rstrip(b"=")
@@ -98,12 +98,12 @@ class TestJWTAlgorithmValidation:
 
         # Create token with HS512 algorithm header
         header = {"alg": "HS512", "typ": "JWT"}
-        header_bytes = base64.urlsafe_b64encode(
-            json.dumps(header).encode()
-        ).rstrip(b"=")
-        payload_bytes = base64.urlsafe_b64encode(
-            json.dumps(payload).encode()
-        ).rstrip(b"=")
+        header_bytes = base64.urlsafe_b64encode(json.dumps(header).encode()).rstrip(
+            b"="
+        )
+        payload_bytes = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(
+            b"="
+        )
 
         # Create fake signature
         signature = base64.urlsafe_b64encode(b"fake-hs512-signature").rstrip(b"=")
@@ -129,12 +129,12 @@ class TestJWTAlgorithmValidation:
 
         # Create token without 'alg' field
         header = {"typ": "JWT"}  # Missing "alg"
-        header_bytes = base64.urlsafe_b64encode(
-            json.dumps(header).encode()
-        ).rstrip(b"=")
-        payload_bytes = base64.urlsafe_b64encode(
-            json.dumps(payload).encode()
-        ).rstrip(b"=")
+        header_bytes = base64.urlsafe_b64encode(json.dumps(header).encode()).rstrip(
+            b"="
+        )
+        payload_bytes = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(
+            b"="
+        )
 
         # Create fake signature
         signature = base64.urlsafe_b64encode(b"fake-signature").rstrip(b"=")
@@ -315,12 +315,12 @@ class TestJWTSignatureValidation:
 
         # Create token without signature
         header = {"alg": "HS256", "typ": "JWT"}
-        header_bytes = base64.urlsafe_b64encode(
-            json.dumps(header).encode()
-        ).rstrip(b"=")
-        payload_bytes = base64.urlsafe_b64encode(
-            json.dumps(payload).encode()
-        ).rstrip(b"=")
+        header_bytes = base64.urlsafe_b64encode(json.dumps(header).encode()).rstrip(
+            b"="
+        )
+        payload_bytes = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(
+            b"="
+        )
         token = (header_bytes + b"." + payload_bytes + b".").decode()
 
         with pytest.raises(HTTPException) as exc:
@@ -465,12 +465,12 @@ class TestJWTErrorHandling:
 
         # Create token with HS512 algorithm
         header = {"alg": "HS512", "typ": "JWT"}
-        header_bytes = base64.urlsafe_b64encode(
-            json.dumps(header).encode()
-        ).rstrip(b"=")
-        payload_bytes = base64.urlsafe_b64encode(
-            json.dumps(payload).encode()
-        ).rstrip(b"=")
+        header_bytes = base64.urlsafe_b64encode(json.dumps(header).encode()).rstrip(
+            b"="
+        )
+        payload_bytes = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(
+            b"="
+        )
         signature = base64.urlsafe_b64encode(b"fake-signature").rstrip(b"=")
         token = (header_bytes + b"." + payload_bytes + b"." + signature).decode()
 
@@ -483,9 +483,10 @@ class TestJWTErrorHandling:
 
         # Verify security event was logged
         assert any(
-            "jwt_algorithm_mismatch" in record.message
-            for record in caplog.records
-        ), f"Algorithm mismatch should be logged. Captured logs: {[r.message for r in caplog.records]}"
+            "jwt_algorithm_mismatch" in record.message for record in caplog.records
+        ), (
+            f"Algorithm mismatch should be logged. Captured logs: {[r.message for r in caplog.records]}"
+        )
 
     def test_malformed_token_returns_401(self):
         """Test that malformed tokens return 401."""

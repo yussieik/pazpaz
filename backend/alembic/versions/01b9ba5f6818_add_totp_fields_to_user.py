@@ -10,6 +10,7 @@ Security enhancement for HIPAA compliance - enables optional multi-factor
 authentication for users accessing PHI data.
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa

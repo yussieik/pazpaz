@@ -29,6 +29,7 @@ async def set_workspace_storage(
 ) -> None:
     """Helper to reliably set workspace storage values in tests."""
     from sqlalchemy import update as sql_update
+
     stmt = (
         sql_update(Workspace)
         .where(Workspace.id == workspace_id)

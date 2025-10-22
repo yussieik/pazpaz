@@ -23,8 +23,7 @@ Acceptance Criteria:
 import asyncio
 import sys
 import time
-import uuid
-from statistics import mean, median, stdev
+from statistics import mean, median
 
 from sqlalchemy import select
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, Index, Integer, Text
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, UUID
@@ -45,7 +45,7 @@ class SessionAttachment(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    session_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    session_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("sessions.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
@@ -89,7 +89,7 @@ class SessionAttachment(Base):
     )
 
     # Relationships
-    session: Mapped[Optional[Session]] = relationship(
+    session: Mapped[Session | None] = relationship(
         "Session", back_populates="attachments"
     )
     client: Mapped[Client] = relationship("Client")
@@ -118,7 +118,9 @@ class SessionAttachment(Base):
         return self.session_id is not None
 
     def __repr__(self) -> str:
-        session_info = f"session_id={self.session_id}" if self.session_id else "client-level"
+        session_info = (
+            f"session_id={self.session_id}" if self.session_id else "client-level"
+        )
         return (
             f"<SessionAttachment(id={self.id}, {session_info}, "
             f"client_id={self.client_id}, file_name={self.file_name})>"

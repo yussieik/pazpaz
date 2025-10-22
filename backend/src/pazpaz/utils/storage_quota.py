@@ -48,7 +48,6 @@ import uuid
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from pazpaz.core.logging import get_logger
 from pazpaz.models.workspace import Workspace

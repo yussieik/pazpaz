@@ -24,7 +24,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.core.constants import ENCRYPTION_KEY_SIZE
-from pazpaz.db.types import EncryptedString
 from pazpaz.models.session import Session
 from pazpaz.utils.encryption import (
     EncryptionKeyMetadata,
@@ -33,12 +32,10 @@ from pazpaz.utils.encryption import (
     encrypt_field,
     encrypt_field_versioned,
     get_current_key_version,
-    get_key_for_version,
     get_key_registry,
     get_keys_needing_rotation,
     register_key,
 )
-
 
 # =============================================================================
 # Key Metadata Tests

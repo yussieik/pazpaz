@@ -81,7 +81,9 @@ class TestTokenEntropy:
         token = token_key.replace("magic_link:", "")
 
         # 48 bytes base64url encoded = 64 characters
-        assert len(token) == 64, f"Token length {len(token)} != 64 (expected for 384 bits)"
+        assert len(token) == 64, (
+            f"Token length {len(token)} != 64 (expected for 384 bits)"
+        )
 
 
 class TestTokenEncryption:
@@ -174,14 +176,18 @@ class TestBruteForceDetection:
         """Verify brute force detection locks out after threshold reached."""
         # Manually set counter to threshold to trigger lockout
         await redis_client.set("magic_link_failed_attempts", BRUTE_FORCE_THRESHOLD)
-        await redis_client.expire("magic_link_failed_attempts", BRUTE_FORCE_LOCKOUT_SECONDS)
+        await redis_client.expire(
+            "magic_link_failed_attempts", BRUTE_FORCE_LOCKOUT_SECONDS
+        )
 
         fake_token = secrets.token_urlsafe(48)
         response = await client.post(
             "/api/v1/auth/verify",
             json={"token": fake_token},
         )
-        assert response.status_code == 429, "Should be locked out when threshold reached"
+        assert response.status_code == 429, (
+            "Should be locked out when threshold reached"
+        )
         assert "too many failed" in response.json()["detail"].lower()
 
     async def test_successful_login_resets_attempt_counter(
@@ -361,7 +367,7 @@ class TestVerifyEndpointRateLimiting:
                 200,
                 401,
                 422,
-            ), f"Attempt {i+1}: Expected 200/401/422, got {response.status_code}"
+            ), f"Attempt {i + 1}: Expected 200/401/422, got {response.status_code}"
 
         # 11th request should be rate limited
         response = await client.post(
@@ -394,8 +400,12 @@ class TestVerifyEndpointRateLimiting:
                 rate_limited_requests += 1
 
         # First 10 should succeed (or fail validation), rest should be rate limited
-        assert successful_requests == 10, f"Expected 10 successful, got {successful_requests}"
-        assert rate_limited_requests == 5, f"Expected 5 rate limited, got {rate_limited_requests}"
+        assert successful_requests == 10, (
+            f"Expected 10 successful, got {successful_requests}"
+        )
+        assert rate_limited_requests == 5, (
+            f"Expected 5 rate limited, got {rate_limited_requests}"
+        )
 
 
 class TestReferrerPolicyHeader:
@@ -419,7 +429,9 @@ class TestReferrerPolicyHeader:
             elif method == "POST":
                 response = await client.post(path, json=data)
 
-            assert "Referrer-Policy" in response.headers, f"Missing header on {method} {path}"
+            assert "Referrer-Policy" in response.headers, (
+                f"Missing header on {method} {path}"
+            )
 
             policy = response.headers["Referrer-Policy"]
 

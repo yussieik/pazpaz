@@ -106,7 +106,9 @@ def mock_s3_client():
         # Mock S3 operations
         client.put_object.return_value = {"ETag": '"mock-etag-12345"'}
         client.delete_object.return_value = {}
-        client.generate_presigned_url.return_value = "https://mock-s3.example.com/presigned-url?signature=abc123"
+        client.generate_presigned_url.return_value = (
+            "https://mock-s3.example.com/presigned-url?signature=abc123"
+        )
         client.head_bucket.return_value = {}  # Bucket exists (no error)
         client.create_bucket.return_value = {}  # Bucket creation successful
 
@@ -229,7 +231,9 @@ class TestUploadAttachment:
         mock_s3_client,
     ):
         """Test EXIF metadata (GPS, camera info) is stripped from uploaded images."""
-        files = {"file": ("photo_with_gps.jpg", io.BytesIO(jpeg_with_exif), "image/jpeg")}
+        files = {
+            "file": ("photo_with_gps.jpg", io.BytesIO(jpeg_with_exif), "image/jpeg")
+        }
 
         response = await authenticated_client.post(
             f"/api/v1/sessions/{test_session.id}/attachments",
@@ -329,10 +333,13 @@ class TestUploadAttachment:
 
         # Verify audit event created
         result = await db_session.execute(
-            select(AuditEvent).where(
+            select(AuditEvent)
+            .where(
                 AuditEvent.resource_type == ResourceType.SESSION_ATTACHMENT.value,
                 AuditEvent.action == AuditAction.CREATE,
-            ).order_by(AuditEvent.created_at.desc()).limit(1)
+            )
+            .order_by(AuditEvent.created_at.desc())
+            .limit(1)
         )
         audit_event = result.scalar_one_or_none()
         assert audit_event is not None
@@ -347,7 +354,9 @@ class TestUploadAttachment:
     ):
         """Test rejection of unsupported file types (.exe, .txt, etc.)."""
         # Try to upload executable file
-        files = {"file": ("virus.exe", io.BytesIO(b"MZ\x90\x00"), "application/x-msdownload")}
+        files = {
+            "file": ("virus.exe", io.BytesIO(b"MZ\x90\x00"), "application/x-msdownload")
+        }
 
         response = await authenticated_client.post(
             f"/api/v1/sessions/{test_session.id}/attachments",
@@ -427,7 +436,9 @@ class TestUploadAttachment:
         )
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        assert "validation" in response.text.lower() or "corrupt" in response.text.lower()
+        assert (
+            "validation" in response.text.lower() or "corrupt" in response.text.lower()
+        )
 
     async def test_upload_reject_wrong_extension(
         self,
@@ -861,9 +872,7 @@ class TestListAttachments:
         test_session,
     ):
         """Test unauthenticated list is rejected (401)."""
-        response = await client.get(
-            f"/api/v1/sessions/{test_session.id}/attachments"
-        )
+        response = await client.get(f"/api/v1/sessions/{test_session.id}/attachments")
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -916,7 +925,9 @@ class TestDownloadAttachment:
         assert "download_url" in data
         assert "expires_in_seconds" in data
         assert data["expires_in_seconds"] == 900  # 15 minutes = 900 seconds
-        assert "presigned" in data["download_url"] or "signature" in data["download_url"]
+        assert (
+            "presigned" in data["download_url"] or "signature" in data["download_url"]
+        )
 
     async def test_download_custom_expiration(
         self,
@@ -1044,10 +1055,13 @@ class TestDownloadAttachment:
 
         # Verify audit event created
         result = await db_session.execute(
-            select(AuditEvent).where(
+            select(AuditEvent)
+            .where(
                 AuditEvent.resource_type == ResourceType.SESSION_ATTACHMENT.value,
                 AuditEvent.action == AuditAction.READ,
-            ).order_by(AuditEvent.created_at.desc()).limit(1)
+            )
+            .order_by(AuditEvent.created_at.desc())
+            .limit(1)
         )
         audit_event = result.scalar_one_or_none()
         # Note: Audit event may be created by middleware, not endpoint
@@ -1238,10 +1252,13 @@ class TestDeleteAttachment:
 
         # Verify audit event created
         result = await db_session.execute(
-            select(AuditEvent).where(
+            select(AuditEvent)
+            .where(
                 AuditEvent.resource_type == ResourceType.SESSION_ATTACHMENT.value,
                 AuditEvent.action == AuditAction.DELETE,
-            ).order_by(AuditEvent.created_at.desc()).limit(1)
+            )
+            .order_by(AuditEvent.created_at.desc())
+            .limit(1)
         )
         audit_event = result.scalar_one_or_none()
         # Note: Audit event may be created by middleware
@@ -1474,7 +1491,9 @@ class TestIntegrationWorkflow:
         list_response = await authenticated_client.get(
             f"/api/v1/sessions/{test_session.id}/attachments"
         )
-        total_size = sum(item["file_size_bytes"] for item in list_response.json()["items"])
+        total_size = sum(
+            item["file_size_bytes"] for item in list_response.json()["items"]
+        )
 
         # Create a file large enough to exceed 50 MB when added to existing files
         # If we have ~8 MB so far, create a 43 MB file to exceed 50 MB limit
@@ -1491,7 +1510,9 @@ class TestIntegrationWorkflow:
                 workspace_id=test_session.workspace_id,
                 file_name=f"mock_{i}.jpg",
                 file_type="image/jpeg",
-                file_size_bytes=int(9.99 * 1024 * 1024),  # 9.99 MB each (~49.95 MB total)
+                file_size_bytes=int(
+                    9.99 * 1024 * 1024
+                ),  # 9.99 MB each (~49.95 MB total)
                 s3_key=f"workspaces/{test_session.workspace_id}/sessions/{test_session.id}/attachments/{uuid.uuid4()}.jpg",
                 uploaded_by_user_id=test_session.created_by_user_id,
             )
@@ -1995,10 +2016,13 @@ class TestWorkspaceIsolation:
 
         # Verify audit event includes workspace_id
         result = await db_session.execute(
-            select(AuditEvent).where(
+            select(AuditEvent)
+            .where(
                 AuditEvent.resource_type == ResourceType.SESSION_ATTACHMENT.value,
                 AuditEvent.action == AuditAction.CREATE,
-            ).order_by(AuditEvent.created_at.desc()).limit(1)
+            )
+            .order_by(AuditEvent.created_at.desc())
+            .limit(1)
         )
         audit_event = result.scalar_one_or_none()
         if audit_event:  # Audit event may be created by middleware

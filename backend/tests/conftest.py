@@ -44,8 +44,12 @@ if not os.getenv("ENCRYPTION_MASTER_KEY"):
 
 # Test database URL - use separate test database
 # Get password from environment (should match running Docker container)
-TEST_DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "7ZkNSVfvKEbFi2D0uNFoPJzv8sXAYiGaSnXGbRWEoY")
-TEST_DATABASE_URL = f"postgresql+asyncpg://pazpaz:{TEST_DB_PASSWORD}@localhost:5432/pazpaz_test"
+TEST_DB_PASSWORD = os.getenv(
+    "POSTGRES_PASSWORD", "7ZkNSVfvKEbFi2D0uNFoPJzv8sXAYiGaSnXGbRWEoY"
+)
+TEST_DATABASE_URL = (
+    f"postgresql+asyncpg://pazpaz:{TEST_DB_PASSWORD}@localhost:5432/pazpaz_test"
+)
 # Use database 1 for tests
 TEST_REDIS_URL = "redis://localhost:6379/1"
 
@@ -312,10 +316,13 @@ async def test_db_engine():
         poolclass=NullPool,
     )
 
-    # ONE-TIME SETUP: Create all tables and install pgcrypto extension
+    # ONE-TIME SETUP: Create all tables and install required extensions
     async with engine.begin() as conn:
         # Install pgcrypto extension for encryption tests
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pgcrypto;"))
+
+        # Install citext extension for case-insensitive email comparisons
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS citext;"))
 
         # Create encryption functions (used in performance tests)
         await conn.execute(
@@ -578,7 +585,7 @@ async def redis_client() -> AsyncGenerator[redis.Redis]:
     # Clear test database before test
     try:
         await client.flushdb()
-    except Exception as e:
+    except Exception:
         # If flushdb fails on setup, close client and re-raise
         await client.aclose()
         raise
@@ -700,7 +707,9 @@ async def client_with_csrf(
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         # Add CSRF token to client
-        csrf_token = await add_csrf_to_client(ac, workspace_1.id, test_user_ws1.id, redis_client)
+        csrf_token = await add_csrf_to_client(
+            ac, workspace_1.id, test_user_ws1.id, redis_client
+        )
         # Set CSRF cookie and default header on client
         ac.cookies.set("csrf_token", csrf_token)
         ac.headers["X-CSRF-Token"] = csrf_token
