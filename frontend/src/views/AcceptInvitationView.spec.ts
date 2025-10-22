@@ -442,7 +442,9 @@ describe('AcceptInvitationView', () => {
       await wrapper.vm.$nextTick()
 
       expect(wrapper.text()).toContain('Invitation Failed')
-      expect(wrapper.text()).toContain('This invitation has expired or has already been used')
+      expect(wrapper.text()).toContain(
+        'This invitation has expired or has already been used'
+      )
     })
 
     it('redirects to login after 3 seconds on 410', async () => {

@@ -447,22 +447,18 @@ async function uploadClientFile(file: File): Promise<void> {
   formData.append('file', file)
 
   try {
-    await apiClient.post(
-      `/clients/${props.clientId}/attachments`,
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 30000, // 30 second timeout
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            const percentCompleted = Math.round(
-              (progressEvent.loaded * 100) / progressEvent.total
-            )
-            uploadProgress.value.set(file.name, percentCompleted)
-          }
-        },
-      }
-    )
+    await apiClient.post(`/clients/${props.clientId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000, // 30 second timeout
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          )
+          uploadProgress.value.set(file.name, percentCompleted)
+        }
+      },
+    })
 
     // Remove progress tracking
     uploadProgress.value.delete(file.name)
@@ -1049,9 +1045,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
             v-if="selectedFilesCount > 0"
             class="text-sm font-medium text-emerald-700"
           >
-            {{ selectedFilesCount }} file{{
-              selectedFilesCount !== 1 ? 's' : ''
-            }}
+            {{ selectedFilesCount }} file{{ selectedFilesCount !== 1 ? 's' : '' }}
             selected
           </div>
         </div>

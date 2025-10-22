@@ -10,7 +10,9 @@ if (!crypto.hash) {
   // @ts-expect-error - Adding polyfill for missing crypto.hash in Node.js 20.11
   crypto.hash = (algorithm: string, data: string | Buffer, outputEncoding?: string) => {
     const hash = crypto.createHash(algorithm).update(data)
-    return outputEncoding ? hash.digest(outputEncoding as BufferEncoding) : hash.digest()
+    return outputEncoding
+      ? hash.digest(outputEncoding as BufferEncoding)
+      : hash.digest()
   }
 }
 

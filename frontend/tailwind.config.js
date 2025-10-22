@@ -9,8 +9,8 @@ export default {
     extend: {
       // Custom scales for micro-interactions
       scale: {
-        '98': '0.98',
-        '102': '1.02',
+        98: '0.98',
+        102: '1.02',
       },
       // Custom animations for drag-and-drop and micro-interactions
       animation: {
@@ -21,8 +21,8 @@ export default {
         'bounce-in': 'bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
         'slide-in-right': 'slide-in-right 0.3s ease-out',
         'slide-down': 'slide-down 0.3s ease-out',
-        'shake': 'shake 0.4s ease-in-out',
-        'shimmer': 'shimmer 2s infinite linear',
+        shake: 'shake 0.4s ease-in-out',
+        shimmer: 'shimmer 2s infinite linear',
         'modal-backdrop': 'modal-backdrop 0.2s ease-out',
         'modal-content': 'modal-content 0.3s ease-out',
       },
@@ -64,12 +64,12 @@ export default {
           '0%': { transform: 'translateY(-10px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
         },
-        'shake': {
+        shake: {
           '0%, 100%': { transform: 'translateX(0)' },
           '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-4px)' },
           '20%, 40%, 60%, 80%': { transform: 'translateX(4px)' },
         },
-        'shimmer': {
+        shimmer: {
           '0%': { backgroundPosition: '-1000px 0' },
           '100%': { backgroundPosition: '1000px 0' },
         },

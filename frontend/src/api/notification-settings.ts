@@ -5,7 +5,10 @@
  */
 
 import apiClient from './client'
-import type { NotificationSettings, NotificationSettingsUpdate } from '@/types/notification-settings'
+import type {
+  NotificationSettings,
+  NotificationSettingsUpdate,
+} from '@/types/notification-settings'
 
 /**
  * Get current user's notification settings
@@ -14,7 +17,9 @@ import type { NotificationSettings, NotificationSettingsUpdate } from '@/types/n
  * @throws Error if API call fails
  */
 export async function getNotificationSettings(): Promise<NotificationSettings> {
-  const response = await apiClient.get<NotificationSettings>('/users/me/notification-settings')
+  const response = await apiClient.get<NotificationSettings>(
+    '/users/me/notification-settings'
+  )
   return response.data
 }
 

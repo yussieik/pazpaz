@@ -175,7 +175,9 @@ describe('WorkspaceCard', () => {
       await actionsButton.trigger('click')
 
       const menuItems = wrapper.findAll('[role="menuitem"]')
-      const viewDetailsItem = menuItems.find(item => item.text().includes('View Details'))
+      const viewDetailsItem = menuItems.find((item) =>
+        item.text().includes('View Details')
+      )
       expect(viewDetailsItem).toBeTruthy()
     })
 
@@ -190,7 +192,9 @@ describe('WorkspaceCard', () => {
       await actionsButton.trigger('click')
 
       const menuItems = wrapper.findAll('[role="menuitem"]')
-      const suspendItem = menuItems.find(item => item.text().includes('Suspend Workspace'))
+      const suspendItem = menuItems.find((item) =>
+        item.text().includes('Suspend Workspace')
+      )
       expect(suspendItem).toBeTruthy()
     })
 
@@ -206,7 +210,9 @@ describe('WorkspaceCard', () => {
       await actionsButton.trigger('click')
 
       const menuItems = wrapper.findAll('[role="menuitem"]')
-      const reactivateItem = menuItems.find(item => item.text().includes('Reactivate Workspace'))
+      const reactivateItem = menuItems.find((item) =>
+        item.text().includes('Reactivate Workspace')
+      )
       expect(reactivateItem).toBeTruthy()
     })
 
@@ -222,7 +228,9 @@ describe('WorkspaceCard', () => {
       await actionsButton.trigger('click')
 
       const menuItems = wrapper.findAll('[role="menuitem"]')
-      const resendItem = menuItems.find(item => item.text().includes('Resend Invitation'))
+      const resendItem = menuItems.find((item) =>
+        item.text().includes('Resend Invitation')
+      )
       expect(resendItem).toBeTruthy()
     })
 
@@ -238,7 +246,9 @@ describe('WorkspaceCard', () => {
       await actionsButton.trigger('click')
 
       const menuItems = wrapper.findAll('[role="menuitem"]')
-      const suspendItem = menuItems.find(item => item.text().includes('Suspend Workspace'))
+      const suspendItem = menuItems.find((item) =>
+        item.text().includes('Suspend Workspace')
+      )
       expect(suspendItem).toBeFalsy()
     })
   })
@@ -255,7 +265,9 @@ describe('WorkspaceCard', () => {
       await actionsButton.trigger('click')
 
       const menuItems = wrapper.findAll('[role="menuitem"]')
-      const viewDetailsItem = menuItems.find(item => item.text().includes('View Details'))
+      const viewDetailsItem = menuItems.find((item) =>
+        item.text().includes('View Details')
+      )
       await viewDetailsItem?.trigger('click')
 
       expect(wrapper.emitted('view-details')).toBeTruthy()
@@ -273,7 +285,9 @@ describe('WorkspaceCard', () => {
       await actionsButton.trigger('click')
 
       const menuItems = wrapper.findAll('[role="menuitem"]')
-      const suspendItem = menuItems.find(item => item.text().includes('Suspend Workspace'))
+      const suspendItem = menuItems.find((item) =>
+        item.text().includes('Suspend Workspace')
+      )
       await suspendItem?.trigger('click')
 
       expect(wrapper.emitted('suspend')).toBeTruthy()
@@ -292,7 +306,9 @@ describe('WorkspaceCard', () => {
       await actionsButton.trigger('click')
 
       const menuItems = wrapper.findAll('[role="menuitem"]')
-      const reactivateItem = menuItems.find(item => item.text().includes('Reactivate Workspace'))
+      const reactivateItem = menuItems.find((item) =>
+        item.text().includes('Reactivate Workspace')
+      )
       await reactivateItem?.trigger('click')
 
       expect(wrapper.emitted('reactivate')).toBeTruthy()
@@ -311,7 +327,9 @@ describe('WorkspaceCard', () => {
       await actionsButton.trigger('click')
 
       const menuItems = wrapper.findAll('[role="menuitem"]')
-      const resendItem = menuItems.find(item => item.text().includes('Resend Invitation'))
+      const resendItem = menuItems.find((item) =>
+        item.text().includes('Resend Invitation')
+      )
       await resendItem?.trigger('click')
 
       expect(wrapper.emitted('resend')).toBeTruthy()
@@ -330,7 +348,9 @@ describe('WorkspaceCard', () => {
       expect(wrapper.find('[role="menu"]').exists()).toBe(true)
 
       const menuItems = wrapper.findAll('[role="menuitem"]')
-      const viewDetailsItem = menuItems.find(item => item.text().includes('View Details'))
+      const viewDetailsItem = menuItems.find((item) =>
+        item.text().includes('View Details')
+      )
       await viewDetailsItem?.trigger('click')
 
       // Wait for next tick
@@ -359,7 +379,9 @@ describe('WorkspaceCard', () => {
       })
 
       const actionsButton = wrapper.find('[aria-haspopup="true"]')
-      expect(actionsButton.attributes('aria-label')).toContain("Sarah's Massage Therapy")
+      expect(actionsButton.attributes('aria-label')).toContain(
+        "Sarah's Massage Therapy"
+      )
       expect(actionsButton.attributes('aria-expanded')).toBe('false')
     })
 

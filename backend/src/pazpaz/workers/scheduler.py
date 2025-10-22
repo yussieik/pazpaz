@@ -251,18 +251,17 @@ async def send_daily_digests(ctx: dict) -> dict:
         dict: Summary statistics
             - sent: Number of digests sent successfully
             - errors: Number of errors encountered
-            - skipped_weekend: Number of users skipped due to weekend setting
             - timezones_checked: Number of timezones processed
 
     Note:
         Implements proper timezone support - loops through all workspace timezones
         and converts UTC to local time for accurate digest delivery.
+        Day filtering is done in the database query using digest_days array.
     """
     logger.info("daily_digests_task_started")
 
     sent_count = 0
     error_count = 0
-    skipped_weekend_count = 0
     timezones_checked = 0
 
     try:
@@ -290,10 +289,10 @@ async def send_daily_digests(ctx: dict) -> dict:
                     tz = ZoneInfo(timezone_name)
                     local_now = utc_now.astimezone(tz)
                     local_time = local_now.time()
-                    local_day = local_now.weekday()  # 0=Monday, 6=Sunday
-
-                    # Check if today is weekend in this timezone
-                    is_weekend = local_day in (5, 6)
+                    # Convert Python's weekday (0=Monday) to our format (0=Sunday)
+                    # Python weekday(): Monday=0, Sunday=6
+                    # Our format: Sunday=0, Monday=1, ..., Saturday=6
+                    local_day = (local_now.weekday() + 1) % 7
 
                     logger.debug(
                         "checking_timezone",
@@ -301,11 +300,10 @@ async def send_daily_digests(ctx: dict) -> dict:
                         utc_time=utc_now.strftime("%H:%M"),
                         local_time=local_time.strftime("%H:%M"),
                         local_day=local_day,
-                        is_weekend=is_weekend,
                     )
 
                     # Query users in this timezone needing digest at this local time
-                    # Service already filters weekend-skippers on weekends
+                    # Service filters by digest_days array
                     users = await get_users_needing_daily_digest(
                         db, local_time, local_day, timezone_name
                     )
@@ -317,7 +315,6 @@ async def send_daily_digests(ctx: dict) -> dict:
                             user_count=len(users),
                             local_time=local_time.strftime("%H:%M"),
                             local_day=local_day,
-                            is_weekend=is_weekend,
                         )
 
                     # Send digest to each user
@@ -436,14 +433,12 @@ async def send_daily_digests(ctx: dict) -> dict:
             "daily_digests_task_completed",
             sent=sent_count,
             errors=error_count,
-            skipped_weekend=skipped_weekend_count,
             timezones_checked=timezones_checked,
         )
 
         return {
             "sent": sent_count,
             "errors": error_count,
-            "skipped_weekend": skipped_weekend_count,
             "timezones_checked": timezones_checked,
         }
 

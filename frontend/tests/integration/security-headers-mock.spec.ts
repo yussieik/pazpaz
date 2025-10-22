@@ -26,10 +26,11 @@ const server = setupServer(
           'content-security-policy':
             "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:*; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http://localhost:*; font-src 'self' data:; connect-src 'self' ws://localhost:* http://localhost:*; frame-ancestors 'none'; base-uri 'self'; form-action 'self';",
           'referrer-policy': 'strict-origin-when-cross-origin',
-          'permissions-policy': 'geolocation=(), microphone=(), camera=(), payment=(), usb=()',
+          'permissions-policy':
+            'geolocation=(), microphone=(), camera=(), payment=(), usb=()',
           'x-request-id': '123e4567-e89b-12d3-a456-426614174000',
-          'x-csp-nonce': 'abc123def456'
-        }
+          'x-csp-nonce': 'abc123def456',
+        },
       }
     )
   }),
@@ -45,9 +46,10 @@ const server = setupServer(
           'x-xss-protection': '1; mode=block',
           'content-security-policy': "default-src 'self'; frame-ancestors 'none'",
           'referrer-policy': 'strict-origin-when-cross-origin',
-          'permissions-policy': 'geolocation=(), microphone=(), camera=(), payment=(), usb=()',
-          'x-request-id': '987e6543-e21b-45d3-a789-123456789000'
-        }
+          'permissions-policy':
+            'geolocation=(), microphone=(), camera=(), payment=(), usb=()',
+          'x-request-id': '987e6543-e21b-45d3-a789-123456789000',
+        },
       }
     )
   }),
@@ -63,8 +65,8 @@ const server = setupServer(
           'x-content-type-options': 'nosniff',
           'x-xss-protection': '1; mode=block',
           'content-security-policy': "default-src 'self'",
-          'referrer-policy': 'strict-origin-when-cross-origin'
-        }
+          'referrer-policy': 'strict-origin-when-cross-origin',
+        },
       }
     )
   }),
@@ -79,8 +81,9 @@ const server = setupServer(
           'x-frame-options': 'DENY',
           'x-content-type-options': 'nosniff',
           'referrer-policy': 'strict-origin-when-cross-origin',
-          'permissions-policy': 'geolocation=(), microphone=(), camera=(), payment=(), usb=()'
-        }
+          'permissions-policy':
+            'geolocation=(), microphone=(), camera=(), payment=(), usb=()',
+        },
       }
     )
   })

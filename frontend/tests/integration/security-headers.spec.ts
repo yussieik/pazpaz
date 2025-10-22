@@ -29,7 +29,7 @@ describe.skip('Security Headers E2E Verification', () => {
     client = axios.create({
       baseURL,
       validateStatus: () => true, // Accept all status codes
-      timeout: 5000
+      timeout: 5000,
     })
   })
 
@@ -364,7 +364,7 @@ describe.skip('Security Headers E2E Verification', () => {
       '/health',
       '/api/v1/health',
       '/api/v1/users/me',
-      '/api/v1/workspaces'
+      '/api/v1/workspaces',
     ]
 
     endpoints.forEach((endpoint) => {
@@ -436,7 +436,7 @@ describe.skip('Security Headers E2E Verification', () => {
     it('returns security headers on validation errors', async () => {
       // POST with invalid data
       const response = await client.post('/api/v1/auth/magic-link/request', {
-        email: 'invalid-email' // Invalid email format
+        email: 'invalid-email', // Invalid email format
       })
 
       // Should be validation error (422) or other error
@@ -517,7 +517,7 @@ describe.skip('Security Headers E2E Verification', () => {
           ? 'Present'
           : 'Missing',
         'X-Request-ID': response.headers['x-request-id'] ? 'Present' : 'Missing',
-        'X-CSP-Nonce': response.headers['x-csp-nonce'] ? 'Present' : 'Missing'
+        'X-CSP-Nonce': response.headers['x-csp-nonce'] ? 'Present' : 'Missing',
       }
 
       // Log report for debugging

@@ -30,7 +30,7 @@ export const REQUIRED_SECURITY_HEADERS: Partial<SecurityHeadersConfig> = {
   'x-xss-protection': '1; mode=block',
   'content-security-policy': "default-src 'self'", // Minimum requirement
   'referrer-policy': 'strict-origin-when-cross-origin',
-  'permissions-policy': 'geolocation=(), camera=(), microphone=()'
+  'permissions-policy': 'geolocation=(), camera=(), microphone=()',
 }
 
 /**
@@ -39,7 +39,7 @@ export const REQUIRED_SECURITY_HEADERS: Partial<SecurityHeadersConfig> = {
 export const OPTIONAL_SECURITY_HEADERS = [
   'strict-transport-security', // Omitted on localhost
   'x-request-id', // Present but value is dynamic
-  'x-csp-nonce' // Present but value is dynamic
+  'x-csp-nonce', // Present but value is dynamic
 ]
 
 export interface SecurityHeadersVerification {
@@ -90,7 +90,7 @@ export function verifySecurityHeaders(
       invalid.push({
         header,
         expected: expectedValue,
-        actual: actualValue
+        actual: actualValue,
       })
     }
   }
@@ -104,14 +104,14 @@ export function verifySecurityHeaders(
         // HSTS is expected to be omitted on localhost
         warnings.push({
           header,
-          message: 'HSTS omitted on localhost (expected in development)'
+          message: 'HSTS omitted on localhost (expected in development)',
         })
       } else if (options?.strict) {
         missing.push(header)
       } else {
         warnings.push({
           header,
-          message: 'Optional header not present'
+          message: 'Optional header not present',
         })
       }
     } else {
@@ -123,7 +123,7 @@ export function verifySecurityHeaders(
         if (!uuidRegex.test(actualValue)) {
           warnings.push({
             header,
-            message: `Invalid UUID format: ${actualValue}`
+            message: `Invalid UUID format: ${actualValue}`,
           })
         }
       }
@@ -136,7 +136,7 @@ export function verifySecurityHeaders(
           if (maxAge < 31536000) {
             warnings.push({
               header,
-              message: `HSTS max-age too short: ${maxAge} < 31536000 (1 year)`
+              message: `HSTS max-age too short: ${maxAge} < 31536000 (1 year)`,
             })
           }
         }
@@ -148,7 +148,7 @@ export function verifySecurityHeaders(
     valid: missing.length === 0 && invalid.length === 0,
     missing,
     invalid,
-    warnings
+    warnings,
   }
 }
 
@@ -216,7 +216,7 @@ export function verifyCSP(csp: string): {
     "default-src 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",
-    "form-action 'self'"
+    "form-action 'self'",
   ]
 
   for (const directive of requiredDirectives) {
@@ -238,7 +238,7 @@ export function verifyCSP(csp: string): {
 
   return {
     valid: issues.length === 0,
-    issues
+    issues,
   }
 }
 
@@ -260,7 +260,7 @@ export function verifyPermissionsPolicy(policy: string): {
     'microphone', // PHI - no audio recording
     'camera', // PHI - no video recording
     'payment', // Not needed
-    'usb' // Security - no USB access
+    'usb', // Security - no USB access
   ]
 
   for (const feature of requiredDisabledFeatures) {
@@ -271,7 +271,7 @@ export function verifyPermissionsPolicy(policy: string): {
 
   return {
     valid: issues.length === 0,
-    issues
+    issues,
   }
 }
 
@@ -301,7 +301,7 @@ export function createSecurityHeadersReport(headers: Record<string, string>): {
 
   const details = [
     ...Object.keys(REQUIRED_SECURITY_HEADERS),
-    ...OPTIONAL_SECURITY_HEADERS
+    ...OPTIONAL_SECURITY_HEADERS,
   ].map((header) => {
     const value = normalizedHeaders[header]
     let status: 'present' | 'missing' | 'invalid' = 'present'
@@ -328,12 +328,12 @@ export function createSecurityHeadersReport(headers: Record<string, string>): {
       header,
       value: value || 'N/A',
       status,
-      notes
+      notes,
     }
   })
 
   return {
     summary,
-    details
+    details,
   }
 }

@@ -162,7 +162,7 @@ onUnmounted(() => {
         <div class="flex items-center gap-4">
           <!-- Desktop logout button -->
           <button
-            class="hidden rounded-md px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:block"
+            class="hidden rounded-md px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:block"
             @click="initiateLogout"
             :disabled="isLoggingOut"
           >

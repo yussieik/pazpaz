@@ -423,7 +423,9 @@ describe('SessionTimeoutModal', () => {
       const dialog = document.querySelector('[role="dialog"]')
       expect(dialog?.getAttribute('aria-modal')).toBe('true')
       expect(dialog?.getAttribute('aria-labelledby')).toBe('session-timeout-title')
-      expect(dialog?.getAttribute('aria-describedby')).toBe('session-timeout-description')
+      expect(dialog?.getAttribute('aria-describedby')).toBe(
+        'session-timeout-description'
+      )
       wrapper.unmount()
     })
 

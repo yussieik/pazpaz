@@ -55,7 +55,7 @@ describe('MetricCard', () => {
     it('renders all icon types correctly', () => {
       const icons = ['workspaces', 'users', 'invitations', 'blacklist'] as const
 
-      icons.forEach(icon => {
+      icons.forEach((icon) => {
         const wrapper = mount(MetricCard, {
           props: {
             title: 'Test',

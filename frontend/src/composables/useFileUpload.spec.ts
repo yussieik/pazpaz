@@ -173,7 +173,9 @@ describe('useFileUpload', () => {
       })
 
       // Use maxRetries=0 to disable retries and avoid timeout
-      await expect(uploadFile(sessionId, mockFile, undefined, 0)).rejects.toThrow(/rate limit/i)
+      await expect(uploadFile(sessionId, mockFile, undefined, 0)).rejects.toThrow(
+        /rate limit/i
+      )
     })
   })
 

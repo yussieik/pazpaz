@@ -22,7 +22,9 @@ withDefaults(defineProps<Props>(), {
     <!-- Loading State -->
     <div v-if="loading" class="space-y-4">
       <div v-for="i in 5" :key="i" class="flex gap-3">
-        <div class="h-8 w-8 flex-shrink-0 animate-pulse rounded-full bg-slate-200"></div>
+        <div
+          class="h-8 w-8 flex-shrink-0 animate-pulse rounded-full bg-slate-200"
+        ></div>
         <div class="flex-1 space-y-2 pt-1">
           <div class="h-4 w-3/4 animate-pulse rounded bg-slate-200"></div>
           <div class="h-3 w-1/4 animate-pulse rounded bg-slate-200"></div>
@@ -31,10 +33,7 @@ withDefaults(defineProps<Props>(), {
     </div>
 
     <!-- Empty State -->
-    <div
-      v-else-if="activities.length === 0"
-      class="py-8 text-center"
-    >
+    <div v-else-if="activities.length === 0" class="py-8 text-center">
       <svg
         class="mx-auto h-12 w-12 text-slate-400"
         fill="none"

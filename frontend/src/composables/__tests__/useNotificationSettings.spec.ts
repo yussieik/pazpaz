@@ -73,7 +73,9 @@ describe('useNotificationSettings', () => {
     it('loads settings successfully', async () => {
       vi.mocked(notificationApi.getNotificationSettings).mockResolvedValue(mockSettings)
       // Mock updateNotificationSettings to handle the auto-save triggered by watch
-      vi.mocked(notificationApi.updateNotificationSettings).mockResolvedValue(mockSettings)
+      vi.mocked(notificationApi.updateNotificationSettings).mockResolvedValue(
+        mockSettings
+      )
 
       const { settings, isLoading, error, loadSettings } = useNotificationSettings()
 
@@ -136,7 +138,8 @@ describe('useNotificationSettings', () => {
         updatedSettings
       )
 
-      const { settings, isSaving, error, loadSettings, saveNow } = useNotificationSettings()
+      const { settings, isSaving, error, loadSettings, saveNow } =
+        useNotificationSettings()
 
       await loadSettings()
       await nextTick()
@@ -174,7 +177,8 @@ describe('useNotificationSettings', () => {
       vi.mocked(notificationApi.getNotificationSettings).mockResolvedValue(mockSettings)
       vi.mocked(notificationApi.updateNotificationSettings).mockRejectedValue(mockError)
 
-      const { settings, isSaving, error, loadSettings, saveNow } = useNotificationSettings()
+      const { settings, isSaving, error, loadSettings, saveNow } =
+        useNotificationSettings()
 
       await loadSettings()
       await nextTick()
@@ -216,7 +220,9 @@ describe('useNotificationSettings', () => {
 
     it('updates lastSaved after successful save', async () => {
       vi.mocked(notificationApi.getNotificationSettings).mockResolvedValue(mockSettings)
-      vi.mocked(notificationApi.updateNotificationSettings).mockResolvedValue(mockSettings)
+      vi.mocked(notificationApi.updateNotificationSettings).mockResolvedValue(
+        mockSettings
+      )
 
       const { lastSaved, loadSettings, saveNow } = useNotificationSettings()
 
@@ -235,7 +241,8 @@ describe('useNotificationSettings', () => {
 
   describe('State management', () => {
     it('initializes with correct default values', () => {
-      const { settings, isLoading, isSaving, lastSaved, error } = useNotificationSettings()
+      const { settings, isLoading, isSaving, lastSaved, error } =
+        useNotificationSettings()
 
       expect(settings.value).toBeNull()
       expect(isLoading.value).toBe(false)

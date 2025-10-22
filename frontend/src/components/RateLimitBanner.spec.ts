@@ -97,9 +97,7 @@ describe('RateLimitBanner', () => {
       store.setRateLimit('/api/v1/auth/login', 60)
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.text()).toContain(
-        'sending requests too quickly'
-      )
+      expect(wrapper.text()).toContain('sending requests too quickly')
     })
 
     it('displays warning icon', async () => {
@@ -328,9 +326,7 @@ describe('RateLimitBanner', () => {
       await wrapper.vm.$nextTick()
 
       const countdown = wrapper.find('.tabular-nums')
-      expect(countdown.attributes('aria-label')).toMatch(
-        /\d+ seconds remaining/
-      )
+      expect(countdown.attributes('aria-label')).toMatch(/\d+ seconds remaining/)
     })
   })
 

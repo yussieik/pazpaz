@@ -62,11 +62,9 @@ describe('API Client 429 Handling', () => {
     it('extracts Retry-After header correctly', async () => {
       const rateLimitStore = useRateLimitStore()
 
-      mock.onGet('/clients').reply(
-        429,
-        { detail: 'Too many requests' },
-        { 'retry-after': '120' }
-      )
+      mock
+        .onGet('/clients')
+        .reply(429, { detail: 'Too many requests' }, { 'retry-after': '120' })
 
       try {
         await apiClient.get('/clients')
@@ -145,11 +143,7 @@ describe('API Client 429 Handling', () => {
     it('stores correct endpoint path', async () => {
       const rateLimitStore = useRateLimitStore()
 
-      mock.onGet('/appointments/conflicts').reply(
-        429,
-        {},
-        { 'retry-after': '45' }
-      )
+      mock.onGet('/appointments/conflicts').reply(429, {}, { 'retry-after': '45' })
 
       try {
         await apiClient.get('/appointments/conflicts')
@@ -158,9 +152,7 @@ describe('API Client 429 Handling', () => {
       }
 
       await vi.waitFor(() => {
-        expect(
-          rateLimitStore.isEndpointLimited('/appointments/conflicts')
-        ).toBe(true)
+        expect(rateLimitStore.isEndpointLimited('/appointments/conflicts')).toBe(true)
       })
     })
   })
@@ -170,11 +162,7 @@ describe('API Client 429 Handling', () => {
       const rateLimitStore = useRateLimitStore()
 
       // Rate limit endpoint 1
-      mock.onPost('/auth/login').reply(
-        429,
-        {},
-        { 'retry-after': '60' }
-      )
+      mock.onPost('/auth/login').reply(429, {}, { 'retry-after': '60' })
 
       try {
         await apiClient.post('/auth/login', {})
@@ -202,11 +190,7 @@ describe('API Client 429 Handling', () => {
       const rateLimitStore = useRateLimitStore()
 
       // First rate limit
-      mock.onPost('/auth/login').reply(
-        429,
-        {},
-        { 'retry-after': '30' }
-      )
+      mock.onPost('/auth/login').reply(429, {}, { 'retry-after': '30' })
 
       try {
         await apiClient.post('/auth/login', {})
@@ -219,11 +203,7 @@ describe('API Client 429 Handling', () => {
       })
 
       // Wait and try again (updates rate limit)
-      mock.onPost('/auth/login').reply(
-        429,
-        {},
-        { 'retry-after': '60' }
-      )
+      mock.onPost('/auth/login').reply(429, {}, { 'retry-after': '60' })
 
       try {
         await apiClient.post('/auth/login', {})
@@ -314,8 +294,7 @@ describe('API Client 429 Handling', () => {
 
   describe('error detail messages', () => {
     it('handles custom error detail message', async () => {
-      const customMessage =
-        'Login rate limit exceeded. Please try again in 60 seconds.'
+      const customMessage = 'Login rate limit exceeded. Please try again in 60 seconds.'
 
       mock.onPost('/auth/login').reply(
         429,

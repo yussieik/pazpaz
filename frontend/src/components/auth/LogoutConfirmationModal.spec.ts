@@ -45,7 +45,9 @@ describe('LogoutConfirmationModal', () => {
 
       expect(wrapper.text()).toContain('Confirm Logout')
       expect(wrapper.text()).toContain('Are you sure you want to logout?')
-      expect(wrapper.text()).toContain('You will need to sign in again to access your workspace')
+      expect(wrapper.text()).toContain(
+        'You will need to sign in again to access your workspace'
+      )
     })
 
     it('should not show unsaved changes list', () => {
@@ -89,7 +91,9 @@ describe('LogoutConfirmationModal', () => {
         props: unsavedProps,
       })
 
-      expect(wrapper.text()).toContain('You have unsaved work that will be lost if you logout')
+      expect(wrapper.text()).toContain(
+        'You have unsaved work that will be lost if you logout'
+      )
     })
 
     it('should list all unsaved item descriptions', () => {
@@ -108,7 +112,9 @@ describe('LogoutConfirmationModal', () => {
         props: unsavedProps,
       })
 
-      expect(wrapper.text()).toContain('For HIPAA compliance, all local data is cleared on logout')
+      expect(wrapper.text()).toContain(
+        'For HIPAA compliance, all local data is cleared on logout'
+      )
     })
 
     it('should show correct count of unsaved items', () => {
@@ -153,7 +159,9 @@ describe('LogoutConfirmationModal', () => {
         props: defaultProps,
       })
 
-      const cancelButton = wrapper.findAll('button').find((btn) => btn.text().includes('Cancel'))
+      const cancelButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Cancel'))
       await cancelButton?.trigger('click')
 
       expect(wrapper.emitted('cancel')).toBeTruthy()

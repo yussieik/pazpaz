@@ -117,7 +117,10 @@ function handleTabKey(e: KeyboardEvent) {
     aria-modal="true"
     aria-labelledby="invite-modal-title"
   >
-    <div ref="modalRef" class="w-full max-w-md rounded-lg bg-white p-4 shadow-xl sm:p-6">
+    <div
+      ref="modalRef"
+      class="w-full max-w-md rounded-lg bg-white p-4 shadow-xl sm:p-6"
+    >
       <!-- Header -->
       <div class="mb-4 flex items-center justify-between">
         <h2 id="invite-modal-title" class="text-xl font-semibold text-slate-900">
@@ -309,7 +312,7 @@ function handleTabKey(e: KeyboardEvent) {
         </div>
 
         <!-- Actions -->
-        <div class="flex flex-col gap-3 pt-4 sm:flex-row sm:space-x-3 sm:gap-0">
+        <div class="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-0 sm:space-x-3">
           <button
             type="button"
             @click="handleClose"

@@ -273,7 +273,9 @@ describe('ImagePreviewModal', () => {
 
       await nextTick()
 
-      const prevButton = document.querySelector('button[aria-label="Previous image"]') as HTMLElement
+      const prevButton = document.querySelector(
+        'button[aria-label="Previous image"]'
+      ) as HTMLElement
       prevButton.click()
 
       await nextTick()
@@ -295,7 +297,9 @@ describe('ImagePreviewModal', () => {
 
       await nextTick()
 
-      const nextButton = document.querySelector('button[aria-label="Next image"]') as HTMLElement
+      const nextButton = document.querySelector(
+        'button[aria-label="Next image"]'
+      ) as HTMLElement
       nextButton.click()
 
       await nextTick()
@@ -319,7 +323,9 @@ describe('ImagePreviewModal', () => {
 
       await nextTick()
 
-      const closeButton = document.querySelector('button[aria-label="Close image preview"]') as HTMLElement
+      const closeButton = document.querySelector(
+        'button[aria-label="Close image preview"]'
+      ) as HTMLElement
       closeButton.click()
 
       await nextTick()
@@ -364,7 +370,9 @@ describe('ImagePreviewModal', () => {
 
       await nextTick()
 
-      const downloadButton = document.querySelector('button[aria-label="Download image"]') as HTMLElement
+      const downloadButton = document.querySelector(
+        'button[aria-label="Download image"]'
+      ) as HTMLElement
       downloadButton.click()
 
       await nextTick()
@@ -467,7 +475,9 @@ describe('ImagePreviewModal', () => {
 
       await nextTick()
 
-      const closeButton = document.querySelector('button[aria-label="Close image preview"]')
+      const closeButton = document.querySelector(
+        'button[aria-label="Close image preview"]'
+      )
       expect(closeButton?.getAttribute('title')).toContain('Esc')
 
       const nextButton = document.querySelector('button[aria-label="Next image"]')

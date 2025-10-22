@@ -18,7 +18,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pazpaz.db.base import Base
@@ -138,11 +138,11 @@ class UserNotificationSettings(Base):
         comment="Time to send digest in HH:MM format (24-hour, workspace timezone)",
     )
 
-    digest_skip_weekends: Mapped[bool] = mapped_column(
-        Boolean,
+    digest_days: Mapped[list[int]] = mapped_column(
+        ARRAY(Integer),
         nullable=False,
-        server_default=text("true"),
-        comment="Skip digest on Saturdays and Sundays",
+        server_default=text("'{1,2,3,4,5}'"),
+        comment="Days of week to send digest (0=Sunday, 1=Monday, ..., 6=Saturday)",
     )
 
     # Appointment reminder settings

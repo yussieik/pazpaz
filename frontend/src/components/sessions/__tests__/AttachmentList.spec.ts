@@ -279,7 +279,9 @@ describe('AttachmentList', () => {
 
       // Find cancel button in teleported dialog
       const buttons = document.querySelectorAll('[role="dialog"] button')
-      const cancelButton = Array.from(buttons).find((b) => b.textContent?.trim() === 'Cancel') as HTMLElement
+      const cancelButton = Array.from(buttons).find(
+        (b) => b.textContent?.trim() === 'Cancel'
+      ) as HTMLElement
       expect(cancelButton).toBeTruthy()
 
       // Trigger click event
@@ -307,7 +309,9 @@ describe('AttachmentList', () => {
 
       // Find delete button in teleported dialog
       const buttons = document.querySelectorAll('[role="dialog"] button')
-      const confirmButton = Array.from(buttons).find((b) => b.textContent?.trim() === 'Delete') as HTMLElement
+      const confirmButton = Array.from(buttons).find(
+        (b) => b.textContent?.trim() === 'Delete'
+      ) as HTMLElement
       expect(confirmButton).toBeTruthy()
 
       // Trigger click event
@@ -338,7 +342,9 @@ describe('AttachmentList', () => {
 
       // Find delete button in teleported dialog
       const buttons = document.querySelectorAll('[role="dialog"] button')
-      const confirmButton = Array.from(buttons).find((b) => b.textContent?.trim() === 'Delete') as HTMLElement
+      const confirmButton = Array.from(buttons).find(
+        (b) => b.textContent?.trim() === 'Delete'
+      ) as HTMLElement
       expect(confirmButton).toBeTruthy()
 
       // Trigger click event
@@ -370,7 +376,9 @@ describe('AttachmentList', () => {
 
       // Find delete button in teleported dialog
       const buttons = document.querySelectorAll('[role="dialog"] button')
-      const confirmButton = Array.from(buttons).find((b) => b.textContent?.trim() === 'Delete') as HTMLElement
+      const confirmButton = Array.from(buttons).find(
+        (b) => b.textContent?.trim() === 'Delete'
+      ) as HTMLElement
       expect(confirmButton).toBeTruthy()
 
       // Trigger click event

@@ -9,13 +9,13 @@
       aria-describedby="session-timeout-description"
     >
       <div
-        class="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl"
+        class="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
         role="alertdialog"
       >
         <!-- Warning Icon and Title -->
-        <div class="flex items-center mb-4">
+        <div class="mb-4 flex items-center">
           <svg
-            class="w-6 h-6 text-yellow-500 mr-3 flex-shrink-0"
+            class="mr-3 h-6 w-6 flex-shrink-0 text-yellow-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -35,11 +35,11 @@
         </div>
 
         <!-- Description with Countdown -->
-        <p id="session-timeout-description" class="text-gray-700 mb-6">
+        <p id="session-timeout-description" class="mb-6 text-gray-700">
           Your session will expire in
-          <strong class="text-gray-900 font-mono text-lg">{{ formattedTime }}</strong
+          <strong class="font-mono text-lg text-gray-900">{{ formattedTime }}</strong
           >.
-          <span class="block mt-2">
+          <span class="mt-2 block">
             You will be automatically logged out to protect your data.
           </span>
         </p>
@@ -48,7 +48,7 @@
         <div class="flex gap-3">
           <button
             @click="handleRefresh"
-            class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+            class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
             type="button"
             :disabled="isRefreshing"
           >
@@ -57,7 +57,7 @@
           </button>
           <button
             @click="handleLogout"
-            class="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+            class="flex-1 rounded-lg bg-gray-200 px-4 py-2 text-gray-800 transition-colors hover:bg-gray-300 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none"
             type="button"
             :disabled="isRefreshing"
           >
@@ -66,8 +66,9 @@
         </div>
 
         <!-- HIPAA Compliance Notice -->
-        <p class="text-xs text-gray-500 mt-4 text-center">
-          Automatic session timeout is required for HIPAA compliance to protect patient data.
+        <p class="mt-4 text-center text-xs text-gray-500">
+          Automatic session timeout is required for HIPAA compliance to protect patient
+          data.
         </p>
       </div>
     </div>

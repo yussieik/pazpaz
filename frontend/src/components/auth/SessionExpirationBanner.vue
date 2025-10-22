@@ -2,7 +2,7 @@
   <Transition name="banner-slide">
     <div
       v-if="visible"
-      class="fixed top-0 left-0 right-0 z-40 bg-amber-50 border-b border-amber-200 shadow-md"
+      class="fixed top-0 right-0 left-0 z-40 border-b border-amber-200 bg-amber-50 shadow-md"
       role="alert"
       aria-live="polite"
       aria-atomic="true"
@@ -10,9 +10,9 @@
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between py-3">
           <!-- Warning Icon + Message -->
-          <div class="flex items-center gap-3 flex-1">
+          <div class="flex flex-1 items-center gap-3">
             <svg
-              class="h-5 w-5 text-amber-600 flex-shrink-0"
+              class="h-5 w-5 flex-shrink-0 text-amber-600"
               fill="currentColor"
               viewBox="0 0 20 20"
               aria-hidden="true"
@@ -31,7 +31,7 @@
                 >.
                 <button
                   @click="handleExtend"
-                  class="underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 rounded"
+                  class="rounded underline hover:no-underline focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:outline-none"
                   :disabled="isExtending"
                 >
                   {{ isExtending ? 'Extending...' : 'Click here to extend' }}
@@ -43,11 +43,16 @@
           <!-- Dismiss Button -->
           <button
             @click="handleDismiss"
-            class="ml-4 rounded-md p-1 text-amber-700 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-amber-50 transition-colors"
+            class="ml-4 rounded-md p-1 text-amber-700 transition-colors hover:bg-amber-100 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-amber-50 focus:outline-none"
             type="button"
             aria-label="Dismiss warning"
           >
-            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+            <svg
+              class="h-5 w-5"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              aria-hidden="true"
+            >
               <path
                 fill-rule="evenodd"
                 d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"

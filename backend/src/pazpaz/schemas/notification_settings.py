@@ -55,9 +55,11 @@ class NotificationSettingsResponse(BaseModel):
         description="Time to send digest in HH:MM format (24-hour, workspace timezone)",
         examples=["08:00", "18:30"],
     )
-    digest_skip_weekends: bool = Field(
+    digest_days: list[int] = Field(
         ...,
-        description="Skip digest on Saturdays and Sundays",
+        min_length=1,
+        description="Days of week to send digest (0=Sunday, 1=Monday, ..., 6=Saturday)",
+        examples=[[1, 2, 3, 4, 5], [1, 3, 5], [0, 1, 2, 3, 4, 5, 6]],
     )
 
     # Appointment reminder settings
@@ -136,9 +138,11 @@ class NotificationSettingsUpdate(BaseModel):
         description="Time to send digest in HH:MM format (24-hour, workspace timezone)",
         examples=["08:00", "18:30"],
     )
-    digest_skip_weekends: bool | None = Field(
+    digest_days: list[int] | None = Field(
         None,
-        description="Skip digest on Saturdays and Sundays",
+        min_length=1,
+        description="Days of week to send digest (0=Sunday, 1=Monday, ..., 6=Saturday)",
+        examples=[[1, 2, 3, 4, 5], [1, 3, 5], [0, 1, 2, 3, 4, 5, 6]],
     )
 
     # Appointment reminder settings
@@ -228,3 +232,41 @@ class NotificationSettingsUpdate(BaseModel):
             )
 
         return v
+
+    @field_validator("digest_days")
+    @classmethod
+    def validate_digest_days(cls, v: list[int] | None) -> list[int] | None:
+        """
+        Validate digest_days array contains valid day numbers.
+
+        Args:
+            v: List of day numbers to validate (0=Sunday, 6=Saturday)
+
+        Returns:
+            Validated and normalized list of day numbers (sorted, deduplicated)
+
+        Raises:
+            PydanticCustomError: If any day number is outside 0-6 range or list is empty
+        """
+        if v is None:
+            return v
+
+        # Ensure at least one day is selected
+        if len(v) == 0:
+            raise PydanticCustomError(
+                "digest_days_empty",
+                "At least one day must be selected for digest",
+                {},
+            )
+
+        # Validate all values are 0-6
+        if not all(0 <= day <= 6 for day in v):
+            invalid_days = [day for day in v if not 0 <= day <= 6]
+            raise PydanticCustomError(
+                "digest_days_invalid",
+                "digest_days must contain values between 0 and 6, got invalid values: {invalid_days}",
+                {"invalid_days": invalid_days},
+            )
+
+        # Remove duplicates and sort
+        return sorted(list(set(v)))

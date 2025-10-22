@@ -78,7 +78,9 @@ describe('SessionCard', () => {
    * Helper function to click the cancel button in confirmation dialog
    */
   async function clickCancelButton() {
-    const cancelButton = wrapper.findAll('button').find((btn) => btn.text() === 'Cancel')
+    const cancelButton = wrapper
+      .findAll('button')
+      .find((btn) => btn.text() === 'Cancel')
     if (cancelButton) {
       await cancelButton.trigger('click')
       await nextTick()
@@ -282,10 +284,10 @@ describe('SessionCard', () => {
       await nextTick()
 
       expect(mockToast.showSuccess).toHaveBeenCalledWith(
-        expect.stringContaining('deleted'),
+        expect.stringContaining('deleted')
       )
       expect(mockToast.showSuccess).toHaveBeenCalledWith(
-        expect.stringContaining('30 days'),
+        expect.stringContaining('30 days')
       )
     })
 
@@ -354,7 +356,9 @@ describe('SessionCard', () => {
       await clickConfirmButton()
       await nextTick()
 
-      expect(mockToast.showError).toHaveBeenCalledWith(expect.stringContaining('no longer exists'))
+      expect(mockToast.showError).toHaveBeenCalledWith(
+        expect.stringContaining('no longer exists')
+      )
       expect(wrapper.emitted('deleted')).toBeTruthy() // Should still remove from UI
     })
 
@@ -371,7 +375,9 @@ describe('SessionCard', () => {
       await clickConfirmButton()
       await nextTick()
 
-      expect(mockToast.showError).toHaveBeenCalledWith(expect.stringContaining('permission'))
+      expect(mockToast.showError).toHaveBeenCalledWith(
+        expect.stringContaining('permission')
+      )
     })
 
     it('handles 410 error (already deleted)', async () => {
@@ -387,7 +393,9 @@ describe('SessionCard', () => {
       await clickConfirmButton()
       await nextTick()
 
-      expect(mockToast.showError).toHaveBeenCalledWith(expect.stringContaining('already been deleted'))
+      expect(mockToast.showError).toHaveBeenCalledWith(
+        expect.stringContaining('already been deleted')
+      )
       expect(wrapper.emitted('deleted')).toBeTruthy()
     })
 
@@ -407,7 +415,9 @@ describe('SessionCard', () => {
       await clickConfirmButton()
       await nextTick()
 
-      expect(mockToast.showError).toHaveBeenCalledWith(expect.stringContaining('amended'))
+      expect(mockToast.showError).toHaveBeenCalledWith(
+        expect.stringContaining('amended')
+      )
     })
 
     it('handles generic server error', async () => {
@@ -486,7 +496,9 @@ describe('SessionCard', () => {
 
       const dialog = wrapper.find('[role="alertdialog"]')
       expect(dialog.attributes('aria-labelledby')).toBe('delete-confirmation-title')
-      expect(dialog.attributes('aria-describedby')).toBe('delete-confirmation-description')
+      expect(dialog.attributes('aria-describedby')).toBe(
+        'delete-confirmation-description'
+      )
     })
 
     it('has proper labels for title and description', async () => {

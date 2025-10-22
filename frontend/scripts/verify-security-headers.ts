@@ -19,7 +19,7 @@ import {
   formatSecurityHeadersReport,
   createSecurityHeadersReport,
   verifyCSP,
-  verifyPermissionsPolicy
+  verifyPermissionsPolicy,
 } from '../src/utils/securityHeaders'
 
 const API_URL = process.env.VITE_API_URL || 'http://localhost:8000'
@@ -33,7 +33,7 @@ const COLORS = {
   green: '\x1b[32m',
   yellow: '\x1b[33m',
   blue: '\x1b[34m',
-  cyan: '\x1b[36m'
+  cyan: '\x1b[36m',
 }
 
 function colorize(text: string, color: keyof typeof COLORS): string {
@@ -52,15 +52,12 @@ async function verifySecurityConfiguration() {
     console.log(colorize('Testing /health endpoint...', 'cyan'))
     const healthResponse = await axios.get(`${API_URL}/health`, {
       validateStatus: () => true,
-      timeout: 5000
+      timeout: 5000,
     })
 
     if (healthResponse.status !== 200) {
       console.error(
-        colorize(
-          `✗ Health check failed with status ${healthResponse.status}`,
-          'red'
-        )
+        colorize(`✗ Health check failed with status ${healthResponse.status}`, 'red')
       )
       exitCode = 1
     } else {
@@ -71,7 +68,7 @@ async function verifySecurityConfiguration() {
     console.log(colorize('\nVerifying security headers...', 'cyan'))
     const verification = verifySecurityHeaders(healthResponse.headers, {
       environment: ENVIRONMENT,
-      strict: ENVIRONMENT === 'production'
+      strict: ENVIRONMENT === 'production',
     })
 
     const report = formatSecurityHeadersReport(verification)
@@ -95,7 +92,7 @@ async function verifySecurityConfiguration() {
     console.log(colorize('Testing /api/v1/health endpoint...', 'cyan'))
     const apiHealthResponse = await axios.get(`${API_URL}/api/v1/health`, {
       validateStatus: () => true,
-      timeout: 5000
+      timeout: 5000,
     })
 
     if (apiHealthResponse.status !== 200) {
@@ -112,7 +109,7 @@ async function verifySecurityConfiguration() {
 
     const apiVerification = verifySecurityHeaders(apiHealthResponse.headers, {
       environment: ENVIRONMENT,
-      strict: ENVIRONMENT === 'production'
+      strict: ENVIRONMENT === 'production',
     })
 
     if (!apiVerification.valid) {
@@ -223,23 +220,23 @@ async function verifySecurityConfiguration() {
       {
         requirement: '§164.312(a)(1) - Access Control',
         header: 'x-frame-options',
-        expectedValue: 'DENY'
+        expectedValue: 'DENY',
       },
       {
         requirement: '§164.312(e)(1) - Transmission Security',
         header: 'referrer-policy',
-        expectedValue: 'strict-origin-when-cross-origin'
+        expectedValue: 'strict-origin-when-cross-origin',
       },
       {
         requirement: '§164.308(a)(4) - Information Access Management',
         header: 'permissions-policy',
-        expectedValue: 'microphone=()'
+        expectedValue: 'microphone=()',
       },
       {
         requirement: '§164.312(b) - Audit Controls',
         header: 'x-request-id',
-        expectedValue: null // Just needs to be present
-      }
+        expectedValue: null, // Just needs to be present
+      },
     ]
 
     let hipaaCompliant = true
@@ -249,19 +246,13 @@ async function verifySecurityConfiguration() {
 
       if (!headerValue) {
         console.error(
-          colorize(
-            `✗ ${check.requirement}: Missing ${check.header}`,
-            'red'
-          )
+          colorize(`✗ ${check.requirement}: Missing ${check.header}`, 'red')
         )
         hipaaCompliant = false
         exitCode = 1
       } else if (check.expectedValue && !headerValue.includes(check.expectedValue)) {
         console.error(
-          colorize(
-            `✗ ${check.requirement}: Invalid ${check.header}`,
-            'red'
-          )
+          colorize(`✗ ${check.requirement}: Invalid ${check.header}`, 'red')
         )
         hipaaCompliant = false
         exitCode = 1
@@ -308,15 +299,10 @@ async function verifySecurityConfiguration() {
   // Exit with appropriate code
   if (exitCode === 0) {
     console.log(
-      colorize(
-        '✅ Security headers verification completed successfully\n',
-        'green'
-      )
+      colorize('✅ Security headers verification completed successfully\n', 'green')
     )
   } else {
-    console.error(
-      colorize('❌ Security headers verification FAILED\n', 'red')
-    )
+    console.error(colorize('❌ Security headers verification FAILED\n', 'red'))
   }
 
   process.exit(exitCode)

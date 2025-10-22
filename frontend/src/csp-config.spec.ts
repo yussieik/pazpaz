@@ -91,9 +91,9 @@ describe('CSP Configuration', () => {
     // Should NOT allow 'unsafe-eval' by default (only via placeholder)
     // Should NOT allow wildcard origins like * or https://*
     const dangerousPatterns = [
-      "default-src *", // Wildcard allows any origin
-      "script-src *", // Wildcard allows any script
-      "script-src https:", // Too permissive (allows any HTTPS script)
+      'default-src *', // Wildcard allows any origin
+      'script-src *', // Wildcard allows any script
+      'script-src https:', // Too permissive (allows any HTTPS script)
     ]
 
     dangerousPatterns.forEach((pattern) => {

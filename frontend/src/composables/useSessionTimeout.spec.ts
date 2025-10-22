@@ -543,7 +543,10 @@ describe('useSessionTimeout', () => {
         '[SessionTimeout] Cleaning up session timeout tracking'
       )
       expect(removeEventListenerSpy).toHaveBeenCalledWith('click', expect.any(Function))
-      expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function))
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        'keydown',
+        expect.any(Function)
+      )
     })
 
     it('should cleanup API interceptor on unmount', () => {

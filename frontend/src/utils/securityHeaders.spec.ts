@@ -9,7 +9,7 @@ import {
   verifyCSP,
   verifyPermissionsPolicy,
   createSecurityHeadersReport,
-  REQUIRED_SECURITY_HEADERS
+  REQUIRED_SECURITY_HEADERS,
 } from './securityHeaders'
 
 describe('securityHeaders utility', () => {
@@ -21,7 +21,7 @@ describe('securityHeaders utility', () => {
         'x-xss-protection': '1; mode=block',
         'content-security-policy': "default-src 'self'; script-src 'self'",
         'referrer-policy': 'strict-origin-when-cross-origin',
-        'permissions-policy': 'geolocation=(), camera=(), microphone=()'
+        'permissions-policy': 'geolocation=(), camera=(), microphone=()',
       }
 
       const result = verifySecurityHeaders(headers)
@@ -33,7 +33,7 @@ describe('securityHeaders utility', () => {
 
     it('detects missing required headers', () => {
       const headers = {
-        'x-frame-options': 'DENY'
+        'x-frame-options': 'DENY',
         // Missing other required headers
       }
 
@@ -52,7 +52,7 @@ describe('securityHeaders utility', () => {
         'x-xss-protection': '1; mode=block',
         'content-security-policy': "default-src 'self'",
         'referrer-policy': 'strict-origin-when-cross-origin',
-        'permissions-policy': 'geolocation=(), camera=(), microphone=()'
+        'permissions-policy': 'geolocation=(), camera=(), microphone=()',
       }
 
       const result = verifySecurityHeaders(headers)
@@ -71,7 +71,7 @@ describe('securityHeaders utility', () => {
         'X-XSS-Protection': '1; mode=block',
         'Content-Security-Policy': "default-src 'self'",
         'Referrer-Policy': 'strict-origin-when-cross-origin',
-        'Permissions-Policy': 'geolocation=(), camera=(), microphone=()'
+        'Permissions-Policy': 'geolocation=(), camera=(), microphone=()',
       }
 
       const result = verifySecurityHeaders(headers)
@@ -87,8 +87,7 @@ describe('securityHeaders utility', () => {
         'content-security-policy':
           "default-src 'self'; script-src 'self' 'nonce-abc123'", // More than minimum
         'referrer-policy': 'strict-origin-when-cross-origin',
-        'permissions-policy':
-          'geolocation=(), camera=(), microphone=(), payment=()' // More features disabled
+        'permissions-policy': 'geolocation=(), camera=(), microphone=(), payment=()', // More features disabled
       }
 
       const result = verifySecurityHeaders(headers)
@@ -103,7 +102,7 @@ describe('securityHeaders utility', () => {
         'x-xss-protection': '1; mode=block',
         'content-security-policy': "default-src 'self'",
         'referrer-policy': 'strict-origin-when-cross-origin',
-        'permissions-policy': 'geolocation=(), camera=(), microphone=()'
+        'permissions-policy': 'geolocation=(), camera=(), microphone=()',
         // Missing optional headers: strict-transport-security, x-request-id, x-csp-nonce
       }
 
@@ -120,7 +119,7 @@ describe('securityHeaders utility', () => {
         'x-xss-protection': '1; mode=block',
         'content-security-policy': "default-src 'self'",
         'referrer-policy': 'strict-origin-when-cross-origin',
-        'permissions-policy': 'geolocation=(), camera=(), microphone=()'
+        'permissions-policy': 'geolocation=(), camera=(), microphone=()',
         // Missing optional headers
       }
 
@@ -137,7 +136,7 @@ describe('securityHeaders utility', () => {
         'x-xss-protection': '1; mode=block',
         'content-security-policy': "default-src 'self'",
         'referrer-policy': 'strict-origin-when-cross-origin',
-        'permissions-policy': 'geolocation=(), camera=(), microphone=()'
+        'permissions-policy': 'geolocation=(), camera=(), microphone=()',
         // Missing HSTS
       }
 
@@ -159,7 +158,7 @@ describe('securityHeaders utility', () => {
         'content-security-policy': "default-src 'self'",
         'referrer-policy': 'strict-origin-when-cross-origin',
         'permissions-policy': 'geolocation=(), camera=(), microphone=()',
-        'strict-transport-security': 'max-age=86400' // Only 1 day
+        'strict-transport-security': 'max-age=86400', // Only 1 day
       }
 
       const result = verifySecurityHeaders(headers)
@@ -180,7 +179,7 @@ describe('securityHeaders utility', () => {
         'content-security-policy': "default-src 'self'",
         'referrer-policy': 'strict-origin-when-cross-origin',
         'permissions-policy': 'geolocation=(), camera=(), microphone=()',
-        'x-request-id': 'invalid-uuid'
+        'x-request-id': 'invalid-uuid',
       }
 
       const result = verifySecurityHeaders(headers)
@@ -199,7 +198,7 @@ describe('securityHeaders utility', () => {
         'content-security-policy': "default-src 'self'",
         'referrer-policy': 'strict-origin-when-cross-origin',
         'permissions-policy': 'geolocation=(), camera=(), microphone=()',
-        'x-request-id': '123e4567-e89b-12d3-a456-426614174000'
+        'x-request-id': '123e4567-e89b-12d3-a456-426614174000',
       }
 
       const result = verifySecurityHeaders(headers)
@@ -216,7 +215,7 @@ describe('securityHeaders utility', () => {
         valid: true,
         missing: [],
         invalid: [],
-        warnings: []
+        warnings: [],
       }
 
       const report = formatSecurityHeadersReport(verification)
@@ -230,7 +229,7 @@ describe('securityHeaders utility', () => {
         valid: false,
         missing: ['x-frame-options', 'x-content-type-options'],
         invalid: [],
-        warnings: []
+        warnings: [],
       }
 
       const report = formatSecurityHeadersReport(verification)
@@ -249,10 +248,10 @@ describe('securityHeaders utility', () => {
           {
             header: 'x-frame-options',
             expected: 'DENY',
-            actual: 'SAMEORIGIN'
-          }
+            actual: 'SAMEORIGIN',
+          },
         ],
-        warnings: []
+        warnings: [],
       }
 
       const report = formatSecurityHeadersReport(verification)
@@ -272,9 +271,9 @@ describe('securityHeaders utility', () => {
         warnings: [
           {
             header: 'strict-transport-security',
-            message: 'HSTS omitted on localhost'
-          }
-        ]
+            message: 'HSTS omitted on localhost',
+          },
+        ],
       }
 
       const report = formatSecurityHeadersReport(verification)
@@ -293,15 +292,15 @@ describe('securityHeaders utility', () => {
           {
             header: 'x-frame-options',
             expected: 'DENY',
-            actual: 'SAMEORIGIN'
-          }
+            actual: 'SAMEORIGIN',
+          },
         ],
         warnings: [
           {
             header: 'strict-transport-security',
-            message: 'max-age too short'
-          }
-        ]
+            message: 'max-age too short',
+          },
+        ],
       }
 
       const report = formatSecurityHeadersReport(verification)
@@ -397,7 +396,7 @@ describe('securityHeaders utility', () => {
         'permissions-policy': 'geolocation=(), camera=(), microphone=()',
         'strict-transport-security': 'max-age=31536000; includeSubDomains',
         'x-request-id': '123e4567-e89b-12d3-a456-426614174000',
-        'x-csp-nonce': 'abc123'
+        'x-csp-nonce': 'abc123',
       }
 
       const report = createSecurityHeadersReport(headers)
@@ -413,7 +412,7 @@ describe('securityHeaders utility', () => {
 
     it('reports missing headers', () => {
       const headers = {
-        'x-frame-options': 'DENY'
+        'x-frame-options': 'DENY',
       }
 
       const report = createSecurityHeadersReport(headers)
@@ -429,7 +428,7 @@ describe('securityHeaders utility', () => {
         'x-xss-protection': '1; mode=block',
         'content-security-policy': "default-src 'self'",
         'referrer-policy': 'strict-origin-when-cross-origin',
-        'permissions-policy': 'geolocation=(), camera=(), microphone=()'
+        'permissions-policy': 'geolocation=(), camera=(), microphone=()',
       }
 
       const report = createSecurityHeadersReport(headers)
@@ -449,7 +448,7 @@ describe('securityHeaders utility', () => {
         'content-security-policy': "default-src 'self'",
         'referrer-policy': 'strict-origin-when-cross-origin',
         'permissions-policy': 'geolocation=(), camera=(), microphone=()',
-        'strict-transport-security': 'max-age=86400' // Too short
+        'strict-transport-security': 'max-age=86400', // Too short
       }
 
       const report = createSecurityHeadersReport(headers)

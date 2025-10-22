@@ -15,101 +15,102 @@
           <div
             v-if="visible"
             ref="modalRef"
-            class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+            class="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
             role="alertdialog"
             tabindex="-1"
           >
-          <!-- Warning Icon and Title -->
-          <div class="flex items-start mb-4">
-            <svg
-              class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-0.5"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-              aria-hidden="true"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                clip-rule="evenodd"
-              />
-            </svg>
-            <div class="flex-1">
-              <h3 id="logout-modal-title" class="text-lg font-semibold text-slate-900">
-                {{ title }}
-              </h3>
-            </div>
-          </div>
-
-          <!-- Description with Unsaved Changes List -->
-          <div id="logout-modal-description" class="text-slate-700 mb-6">
-            <p v-if="hasUnsavedChanges" class="mb-3">
-              You have unsaved work that will be lost if you logout:
-            </p>
-            <p v-else class="mb-3">Are you sure you want to logout?</p>
-
-            <!-- Unsaved Changes List -->
-            <ul
-              v-if="hasUnsavedChanges && unsavedItemDescriptions.length > 0"
-              class="list-disc list-inside space-y-1 mb-4 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3"
-              role="list"
-            >
-              <li
-                v-for="(description, index) in unsavedItemDescriptions"
-                :key="index"
-                class="text-amber-900"
+            <!-- Warning Icon and Title -->
+            <div class="mb-4 flex items-start">
+              <svg
+                class="mt-0.5 mr-3 h-6 w-6 flex-shrink-0 text-amber-500"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                aria-hidden="true"
               >
-                {{ description }}
-              </li>
-            </ul>
+                <path
+                  fill-rule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <div class="flex-1">
+                <h3
+                  id="logout-modal-title"
+                  class="text-lg font-semibold text-slate-900"
+                >
+                  {{ title }}
+                </h3>
+              </div>
+            </div>
 
-            <p v-if="hasUnsavedChanges" class="text-sm text-slate-600">
-              Your drafts are saved locally and will be permanently deleted when you logout.
-            </p>
-            <p v-else class="text-sm text-slate-600">
-              You will need to sign in again to access your workspace.
+            <!-- Description with Unsaved Changes List -->
+            <div id="logout-modal-description" class="mb-6 text-slate-700">
+              <p v-if="hasUnsavedChanges" class="mb-3">
+                You have unsaved work that will be lost if you logout:
+              </p>
+              <p v-else class="mb-3">Are you sure you want to logout?</p>
+
+              <!-- Unsaved Changes List -->
+              <ul
+                v-if="hasUnsavedChanges && unsavedItemDescriptions.length > 0"
+                class="mb-4 list-inside list-disc space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm"
+                role="list"
+              >
+                <li
+                  v-for="(description, index) in unsavedItemDescriptions"
+                  :key="index"
+                  class="text-amber-900"
+                >
+                  {{ description }}
+                </li>
+              </ul>
+
+              <p v-if="hasUnsavedChanges" class="text-sm text-slate-600">
+                Your drafts are saved locally and will be permanently deleted when you
+                logout.
+              </p>
+              <p v-else class="text-sm text-slate-600">
+                You will need to sign in again to access your workspace.
+              </p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3">
+              <button
+                ref="cancelButtonRef"
+                @click="handleCancel"
+                :class="[
+                  'flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 font-medium text-white',
+                  'transition-all duration-200 ease-in-out',
+                  'transform hover:scale-102 hover:bg-emerald-700 hover:shadow-lg active:scale-98',
+                  'focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none',
+                ]"
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                @click="handleLogout"
+                :class="[
+                  'flex-1 rounded-lg bg-slate-200 px-4 py-2.5 font-medium text-slate-800',
+                  'transition-all duration-200 ease-in-out',
+                  'focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:outline-none',
+                  isLoggingOut
+                    ? 'cursor-not-allowed opacity-50'
+                    : 'transform hover:scale-102 hover:bg-slate-300 hover:shadow-md active:scale-98',
+                ]"
+                type="button"
+                :disabled="isLoggingOut"
+              >
+                {{ isLoggingOut ? 'Logging out...' : 'Logout Anyway' }}
+              </button>
+            </div>
+
+            <!-- HIPAA Compliance Notice (only if unsaved changes) -->
+            <p v-if="hasUnsavedChanges" class="mt-4 text-center text-xs text-slate-500">
+              For HIPAA compliance, all local data is cleared on logout.
             </p>
           </div>
-
-          <!-- Action Buttons -->
-          <div class="flex gap-3">
-            <button
-              ref="cancelButtonRef"
-              @click="handleCancel"
-              :class="[
-                'flex-1 bg-emerald-600 text-white px-4 py-2.5 rounded-lg font-medium',
-                'transition-all duration-200 ease-in-out',
-                'hover:bg-emerald-700 hover:shadow-lg transform hover:scale-102 active:scale-98',
-                'focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2',
-              ]"
-              type="button"
-            >
-              Cancel
-            </button>
-            <button
-              @click="handleLogout"
-              :class="[
-                'flex-1 bg-slate-200 text-slate-800 px-4 py-2.5 rounded-lg font-medium',
-                'transition-all duration-200 ease-in-out',
-                'focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2',
-                isLoggingOut
-                  ? 'cursor-not-allowed opacity-50'
-                  : 'hover:bg-slate-300 hover:shadow-md transform hover:scale-102 active:scale-98',
-              ]"
-              type="button"
-              :disabled="isLoggingOut"
-            >
-              {{ isLoggingOut ? 'Logging out...' : 'Logout Anyway' }}
-            </button>
-          </div>
-
-          <!-- HIPAA Compliance Notice (only if unsaved changes) -->
-          <p
-            v-if="hasUnsavedChanges"
-            class="text-xs text-slate-500 mt-4 text-center"
-          >
-            For HIPAA compliance, all local data is cleared on logout.
-          </p>
-        </div>
         </Transition>
       </div>
     </Transition>

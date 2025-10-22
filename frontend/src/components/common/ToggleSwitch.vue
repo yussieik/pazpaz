@@ -49,7 +49,9 @@ const emit = defineEmits<{
 /**
  * Generate unique ID for toggle if not provided
  */
-const toggleId = computed(() => props.id || `toggle-${Math.random().toString(36).slice(2, 9)}`)
+const toggleId = computed(
+  () => props.id || `toggle-${Math.random().toString(36).slice(2, 9)}`
+)
 
 /**
  * Handle toggle click/keyboard interaction
@@ -84,7 +86,7 @@ function handleKeydown(event: KeyboardEvent) {
     :class="{
       'bg-emerald-600': modelValue,
       'bg-slate-300': !modelValue,
-      'opacity-50 cursor-not-allowed': disabled,
+      'cursor-not-allowed opacity-50': disabled,
     }"
     @click="handleToggle"
     @keydown="handleKeydown"

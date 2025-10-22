@@ -33,13 +33,16 @@ const firstFocusableElement = ref<HTMLElement | null>(null)
 const lastFocusableElement = ref<HTMLElement | null>(null)
 
 // Reset reason when modal visibility changes
-watch(() => props.visible, (isVisible) => {
-  if (isVisible) {
-    reason.value = ''
-    // Setup focus trap on next tick to ensure DOM is rendered
-    setTimeout(setupFocusTrap, 0)
+watch(
+  () => props.visible,
+  (isVisible) => {
+    if (isVisible) {
+      reason.value = ''
+      // Setup focus trap on next tick to ensure DOM is rendered
+      setTimeout(setupFocusTrap, 0)
+    }
   }
-})
+)
 
 function setupFocusTrap() {
   if (modalRef.value) {
@@ -101,23 +104,27 @@ function handleTabKey(e: KeyboardEvent) {
   }
 }
 
-const confirmButtonClass = props.confirmStyle === 'danger'
-  ? 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
-  : 'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500'
+const confirmButtonClass =
+  props.confirmStyle === 'danger'
+    ? 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
+    : 'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500'
 </script>
 
 <template>
   <Transition name="modal">
     <div
       v-if="visible"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+      class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black p-4"
       @click.self="handleCancel"
       @keydown="handleTabKey"
       role="dialog"
       aria-modal="true"
       :aria-labelledby="`modal-title-${title}`"
     >
-      <div ref="modalRef" class="w-full max-w-md rounded-xl bg-white p-4 shadow-xl sm:p-6">
+      <div
+        ref="modalRef"
+        class="w-full max-w-md rounded-xl bg-white p-4 shadow-xl sm:p-6"
+      >
         <!-- Header -->
         <div class="mb-4 flex items-start justify-between">
           <div class="flex items-center">
@@ -140,13 +147,16 @@ const confirmButtonClass = props.confirmStyle === 'danger'
                 />
               </svg>
             </div>
-            <h2 :id="`modal-title-${title}`" class="text-xl font-semibold text-slate-900">
+            <h2
+              :id="`modal-title-${title}`"
+              class="text-xl font-semibold text-slate-900"
+            >
               {{ title }}
             </h2>
           </div>
           <button
             @click="handleCancel"
-            class="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            class="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none"
             aria-label="Close modal"
             type="button"
           >
@@ -177,7 +187,9 @@ const confirmButtonClass = props.confirmStyle === 'danger'
             class="mb-1 block text-sm font-medium text-slate-700"
           >
             {{ reasonLabel }}
-            <span v-if="reasonRequired" class="text-red-600" aria-label="required">*</span>
+            <span v-if="reasonRequired" class="text-red-600" aria-label="required"
+              >*</span
+            >
           </label>
           <textarea
             :id="`reason-${title}`"
@@ -185,17 +197,17 @@ const confirmButtonClass = props.confirmStyle === 'danger'
             :placeholder="reasonPlaceholder"
             :required="reasonRequired"
             rows="3"
-            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             :aria-required="reasonRequired"
           />
         </div>
 
         <!-- Actions -->
-        <div class="flex flex-col gap-3 sm:flex-row sm:space-x-3 sm:gap-0">
+        <div class="flex flex-col gap-3 sm:flex-row sm:gap-0 sm:space-x-3">
           <button
             type="button"
             @click="handleCancel"
-            class="flex-1 rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+            class="flex-1 rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:outline-none"
           >
             Cancel
           </button>
@@ -205,7 +217,7 @@ const confirmButtonClass = props.confirmStyle === 'danger'
             :disabled="showReasonField && reasonRequired && !reason.trim()"
             :class="[
               confirmButtonClass,
-              'flex-1 rounded-lg px-4 py-2 font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
+              'flex-1 rounded-lg px-4 py-2 font-semibold transition focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
             ]"
           >
             {{ confirmText }}

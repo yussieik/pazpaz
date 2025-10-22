@@ -72,9 +72,10 @@ export interface NotificationSettings {
   digest_time: string | null
 
   /**
-   * Skip digest on weekends (Saturday and Sunday)
+   * Days of the week to send digest (0=Sunday, 1=Monday, ..., 6=Saturday)
+   * Default: [1, 2, 3, 4, 5] (Monday-Friday)
    */
-  digest_skip_weekends: boolean
+  digest_days: number[]
 
   /**
    * Appointment Reminders
@@ -133,7 +134,7 @@ export interface NotificationSettingsUpdate {
   notify_appointment_confirmed?: boolean
   digest_enabled?: boolean
   digest_time?: string | null
-  digest_skip_weekends?: boolean
+  digest_days?: number[]
   reminder_enabled?: boolean
   reminder_minutes?: number | null
   notes_reminder_enabled?: boolean

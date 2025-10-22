@@ -231,7 +231,9 @@ describe('SessionExpirationModal', () => {
       const dialog = wrapper.find('[role="dialog"]')
       expect(dialog.attributes('aria-modal')).toBe('true')
       expect(dialog.attributes('aria-labelledby')).toBe('session-expiration-title')
-      expect(dialog.attributes('aria-describedby')).toBe('session-expiration-description')
+      expect(dialog.attributes('aria-describedby')).toBe(
+        'session-expiration-description'
+      )
     })
 
     it('should have alertdialog role on inner modal', () => {

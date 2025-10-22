@@ -20,9 +20,9 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'view-details': [workspaceId: string]
-  'suspend': [workspaceId: string]
-  'resend': [workspaceId: string]
-  'reactivate': [workspaceId: string]
+  suspend: [workspaceId: string]
+  resend: [workspaceId: string]
+  reactivate: [workspaceId: string]
 }>()
 
 const showActionsMenu = ref(false)
@@ -120,7 +120,9 @@ if (typeof window !== 'undefined') {
         </div>
 
         <!-- Stats Row -->
-        <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+        <div
+          class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500"
+        >
           <div class="flex items-center gap-1">
             <svg
               class="h-4 w-4"
@@ -136,7 +138,10 @@ if (typeof window !== 'undefined') {
                 d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
               />
             </svg>
-            <span>{{ workspace.userCount }} {{ workspace.userCount === 1 ? 'user' : 'users' }}</span>
+            <span
+              >{{ workspace.userCount }}
+              {{ workspace.userCount === 1 ? 'user' : 'users' }}</span
+            >
           </div>
           <div class="flex items-center gap-1">
             <svg
@@ -170,7 +175,12 @@ if (typeof window !== 'undefined') {
                 d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <span>{{ workspace.appointmentCount }} {{ workspace.appointmentCount === 1 ? 'appointment' : 'appointments' }}</span>
+            <span
+              >{{ workspace.appointmentCount }}
+              {{
+                workspace.appointmentCount === 1 ? 'appointment' : 'appointments'
+              }}</span
+            >
           </div>
           <div class="flex items-center gap-1">
             <svg
@@ -196,7 +206,10 @@ if (typeof window !== 'undefined') {
       <div class="ml-4 flex flex-col items-end gap-2">
         <!-- Status Badge -->
         <span
-          :class="[statusConfig[workspace.status].color, 'flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold']"
+          :class="[
+            statusConfig[workspace.status].color,
+            'flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold',
+          ]"
           role="status"
           :aria-label="`Status: ${statusConfig[workspace.status].label}`"
         >
@@ -221,7 +234,7 @@ if (typeof window !== 'undefined') {
         <div class="actions-menu-container relative">
           <button
             @click="toggleActionsMenu"
-            class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none"
             :aria-label="`Actions for ${workspace.name}`"
             aria-haspopup="true"
             :aria-expanded="showActionsMenu"
@@ -358,7 +371,9 @@ if (typeof window !== 'undefined') {
 /* Menu transition */
 .menu-enter-active,
 .menu-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
 }
 
 .menu-enter-from,

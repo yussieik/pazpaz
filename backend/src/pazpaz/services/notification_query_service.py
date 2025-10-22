@@ -153,19 +153,19 @@ async def get_users_needing_daily_digest(
     - email_enabled=True
     - digest_time matches current_time (hour:minute)
     - workspace.timezone matches the specified timezone
-    - If digest_skip_weekends=True, skip on weekends (Sat/Sun)
+    - current_day is in user's digest_days array
 
     Args:
         db: Async database session
         current_time: Current local time in the specified timezone (HH:MM format)
-        current_day: Day of week in the specified timezone (0=Monday, 6=Sunday)
+        current_day: Day of week in the specified timezone (0=Sunday, 1=Monday, ..., 6=Saturday)
         timezone: IANA timezone name (e.g., 'Asia/Jerusalem', 'America/New_York')
 
     Returns:
         List of User objects with notification_settings and workspace preloaded
 
     Example:
-        >>> # Monday at 08:00 in Israel timezone
+        >>> # Sunday at 08:00 in Israel timezone
         >>> users = await get_users_needing_daily_digest(
         ...     db, time(8, 0), 0, "Asia/Jerusalem"
         ... )
@@ -174,35 +174,34 @@ async def get_users_needing_daily_digest(
 
     Notes:
         - Respects workspace timezone for accurate digest delivery
-        - Skips weekends (Sat=5, Sun=6) if user has skip_weekends=True
+        - Filters by digest_days array (0=Sunday, 6=Saturday)
         - Uses partial index for efficient filtering
         - Defaults to UTC if workspace.timezone is NULL
+        - Day numbering changed: current_day is now 0=Sunday (was 0=Monday in old code)
     """
     # Format time as HH:MM string for database comparison
     time_str = current_time.strftime("%H:%M")
-
-    # Check if today is weekend
-    is_weekend = current_day in (5, 6)  # Saturday=5, Sunday=6
 
     logger.debug(
         "querying_daily_digest",
         current_time=time_str,
         current_day=current_day,
-        is_weekend=is_weekend,
         timezone=timezone,
     )
 
-    # Build query with weekend filtering and timezone
+    # Build query filtering by digest_days array
+    # Use PostgreSQL's @> operator to check if array contains the current day
+    from sqlalchemy import cast, type_coerce
+    from sqlalchemy.dialects.postgresql import ARRAY
+
     conditions = [
         UserNotificationSettings.email_enabled == True,  # noqa: E712
         UserNotificationSettings.digest_enabled == True,  # noqa: E712
         UserNotificationSettings.digest_time == time_str,
         Workspace.timezone == timezone,
+        # Check if current_day is in digest_days array
+        UserNotificationSettings.digest_days.contains([current_day]),
     ]
-
-    # If today is weekend, exclude users with skip_weekends=True
-    if is_weekend:
-        conditions.append(UserNotificationSettings.digest_skip_weekends == False)  # noqa: E712
 
     stmt = (
         select(User)
@@ -222,7 +221,6 @@ async def get_users_needing_daily_digest(
         "daily_digest_query_complete",
         current_time=time_str,
         current_day=current_day,
-        is_weekend=is_weekend,
         timezone=timezone,
         user_count=len(users),
     )

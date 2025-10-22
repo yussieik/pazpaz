@@ -14,11 +14,13 @@ describe('crossTabSync', () => {
     // Mock BroadcastChannel
     mockBroadcastChannel = {
       postMessage: vi.fn(),
-      addEventListener: vi.fn((event: string, handler: (event: MessageEvent<AuthMessage>) => void) => {
-        if (event === 'message') {
-          messageHandler = handler
+      addEventListener: vi.fn(
+        (event: string, handler: (event: MessageEvent<AuthMessage>) => void) => {
+          if (event === 'message') {
+            messageHandler = handler
+          }
         }
-      }),
+      ),
       removeEventListener: vi.fn(),
       close: vi.fn(),
     }
@@ -42,7 +44,7 @@ describe('crossTabSync', () => {
       createAuthChannel()
       expect(mockBroadcastChannel.addEventListener).toHaveBeenCalledWith(
         'message',
-        expect.any(Function),
+        expect.any(Function)
       )
     })
 
@@ -79,7 +81,7 @@ describe('crossTabSync', () => {
           workspaceId: 'workspace456',
           timestamp: expect.any(Number),
           tabId: expect.any(String),
-        }),
+        })
       )
     })
 
@@ -151,7 +153,7 @@ describe('crossTabSync', () => {
           workspaceId: 'workspace456',
           timestamp: expect.any(Number),
           tabId: expect.any(String),
-        }),
+        })
       )
     })
 
@@ -185,7 +187,7 @@ describe('crossTabSync', () => {
           workspaceId: 'workspace456',
           timestamp: expect.any(Number),
           tabId: expect.any(String),
-        }),
+        })
       )
     })
 
@@ -225,7 +227,7 @@ describe('crossTabSync', () => {
       expect(handler).not.toHaveBeenCalled()
       expect(consoleSpy).toHaveBeenCalledWith(
         '[CrossTabSync] Invalid message received:',
-        invalidMessage,
+        invalidMessage
       )
 
       consoleSpy.mockRestore()
@@ -249,7 +251,7 @@ describe('crossTabSync', () => {
       expect(handler).not.toHaveBeenCalled()
       expect(consoleSpy).toHaveBeenCalledWith(
         '[CrossTabSync] Invalid message received:',
-        invalidMessage,
+        invalidMessage
       )
 
       consoleSpy.mockRestore()
@@ -273,7 +275,7 @@ describe('crossTabSync', () => {
       expect(handler).not.toHaveBeenCalled()
       expect(consoleSpy).toHaveBeenCalledWith(
         '[CrossTabSync] Unknown message type:',
-        'unknown_type',
+        'unknown_type'
       )
 
       consoleSpy.mockRestore()
@@ -287,7 +289,7 @@ describe('crossTabSync', () => {
 
       expect(mockBroadcastChannel.removeEventListener).toHaveBeenCalledWith(
         'message',
-        expect.any(Function),
+        expect.any(Function)
       )
     })
 

@@ -64,7 +64,7 @@ describe('ActivityItem', () => {
         'user-blacklisted': 'bg-red-100',
       }
 
-      activityTypes.forEach(type => {
+      activityTypes.forEach((type) => {
         const activity: Activity = {
           id: '1',
           type,
@@ -82,7 +82,7 @@ describe('ActivityItem', () => {
     })
 
     it('renders all activity types without errors', () => {
-      activityTypes.forEach(type => {
+      activityTypes.forEach((type) => {
         const activity: Activity = {
           id: '1',
           type,

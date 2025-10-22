@@ -210,23 +210,23 @@ class TestGetUsersNeedingDailyDigest:
         user: User,
     ):
         """Test that users with matching digest time are found."""
-        # Create notification settings with 08:00 digest
+        # Create notification settings with 08:00 digest, all days enabled
         settings = UserNotificationSettings(
             user_id=user.id,
             workspace_id=user.workspace_id,
             email_enabled=True,
             digest_enabled=True,
             digest_time="08:00",
-            digest_skip_weekends=False,
+            digest_days=[0, 1, 2, 3, 4, 5, 6],  # All days
         )
         db_session.add(settings)
         await db_session.commit()
 
-        # Query for users at 08:00 on Monday (day=0) UTC
+        # Query for users at 08:00 on Monday (day=1) UTC
         users = await get_users_needing_daily_digest(
             db_session,
             time(8, 0),
-            0,  # Monday
+            1,  # Monday (0=Sunday, 1=Monday)
             "UTC",
         )
 
@@ -234,68 +234,68 @@ class TestGetUsersNeedingDailyDigest:
         assert users[0].id == user.id
 
     @pytest.mark.asyncio
-    async def test_excludes_users_on_weekend_with_skip_enabled(
+    async def test_excludes_users_on_unselected_days(
         self,
         db_session: AsyncSession,
         user: User,
     ):
-        """Test that users with skip_weekends=True are excluded on weekends."""
-        # Create notification settings with weekend skip enabled
+        """Test that users are excluded on days not in digest_days."""
+        # Create notification settings with Mon-Fri only (no weekends)
         settings = UserNotificationSettings(
             user_id=user.id,
             workspace_id=user.workspace_id,
             email_enabled=True,
             digest_enabled=True,
             digest_time="08:00",
-            digest_skip_weekends=True,  # Skip weekends
+            digest_days=[1, 2, 3, 4, 5],  # Monday-Friday only
         )
         db_session.add(settings)
         await db_session.commit()
 
-        # Query for users at 08:00 on Saturday (day=5) UTC
+        # Query for users at 08:00 on Saturday (day=6) UTC
         users = await get_users_needing_daily_digest(
             db_session,
             time(8, 0),
-            5,  # Saturday
+            6,  # Saturday (0=Sunday, 6=Saturday)
             "UTC",
         )
 
         assert len(users) == 0
 
-        # Query for users at 08:00 on Sunday (day=6) UTC
+        # Query for users at 08:00 on Sunday (day=0) UTC
         users = await get_users_needing_daily_digest(
             db_session,
             time(8, 0),
-            6,  # Sunday
+            0,  # Sunday
             "UTC",
         )
 
         assert len(users) == 0
 
     @pytest.mark.asyncio
-    async def test_includes_users_on_weekend_with_skip_disabled(
+    async def test_includes_users_on_selected_days(
         self,
         db_session: AsyncSession,
         user: User,
     ):
-        """Test that users with skip_weekends=False are included on weekends."""
-        # Create notification settings with weekend skip disabled
+        """Test that users are included on days in digest_days."""
+        # Create notification settings with all days enabled
         settings = UserNotificationSettings(
             user_id=user.id,
             workspace_id=user.workspace_id,
             email_enabled=True,
             digest_enabled=True,
             digest_time="08:00",
-            digest_skip_weekends=False,  # Don't skip weekends
+            digest_days=[0, 1, 2, 3, 4, 5, 6],  # All days including weekends
         )
         db_session.add(settings)
         await db_session.commit()
 
-        # Query for users at 08:00 on Saturday (day=5) UTC
+        # Query for users at 08:00 on Saturday (day=6) UTC
         users = await get_users_needing_daily_digest(
             db_session,
             time(8, 0),
-            5,  # Saturday
+            6,  # Saturday (0=Sunday, 6=Saturday)
             "UTC",
         )
 
@@ -316,6 +316,7 @@ class TestGetUsersNeedingDailyDigest:
             email_enabled=True,
             digest_enabled=False,  # Disabled
             digest_time="08:00",
+            digest_days=[1, 2, 3, 4, 5],  # Mon-Fri
         )
         db_session.add(settings)
         await db_session.commit()
@@ -324,7 +325,7 @@ class TestGetUsersNeedingDailyDigest:
         users = await get_users_needing_daily_digest(
             db_session,
             time(8, 0),
-            0,  # Monday
+            1,  # Monday (0=Sunday, 1=Monday)
             "UTC",
         )
 

@@ -20,7 +20,9 @@ export const useAuthSessionStore = defineStore('authSession', () => {
   const hasUnsavedChanges = computed(() => unsavedItems.value.size > 0)
 
   // Computed: Array of unsaved item descriptions
-  const unsavedItemDescriptions = computed(() => Array.from(unsavedItems.value.values()))
+  const unsavedItemDescriptions = computed(() =>
+    Array.from(unsavedItems.value.values())
+  )
 
   /**
    * Track an unsaved change
@@ -110,7 +112,9 @@ export const useAuthSessionStore = defineStore('authSession', () => {
       })
 
       if (draftDescriptions.length > 0) {
-        console.info(`[AuthSession] Synced ${draftDescriptions.length} drafts from IndexedDB`)
+        console.info(
+          `[AuthSession] Synced ${draftDescriptions.length} drafts from IndexedDB`
+        )
       }
     } catch (error) {
       console.error('[AuthSession] Failed to sync drafts from IndexedDB:', error)

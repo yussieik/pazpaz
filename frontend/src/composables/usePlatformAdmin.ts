@@ -216,7 +216,7 @@ export function usePlatformAdmin() {
       })
 
       // Transform API response to Workspace format
-      workspaces.value = response.data.workspaces.map(ws => ({
+      workspaces.value = response.data.workspaces.map((ws) => ({
         id: ws.id,
         name: ws.name,
         email: ws.owner_email,
@@ -256,7 +256,7 @@ export function usePlatformAdmin() {
       })
 
       // Optimistically update workspace status
-      const workspace = workspaces.value.find(w => w.id === workspaceId)
+      const workspace = workspaces.value.find((w) => w.id === workspaceId)
       if (workspace) {
         workspace.status = 'suspended'
       }
@@ -289,7 +289,7 @@ export function usePlatformAdmin() {
       await apiClient.post(`/platform-admin/workspaces/${workspaceId}/reactivate`)
 
       // Optimistically update workspace status
-      const workspace = workspaces.value.find(w => w.id === workspaceId)
+      const workspace = workspaces.value.find((w) => w.id === workspaceId)
       if (workspace) {
         workspace.status = 'active'
       }
@@ -324,7 +324,7 @@ export function usePlatformAdmin() {
       })
 
       // Remove workspace from local state
-      workspaces.value = workspaces.value.filter(w => w.id !== workspaceId)
+      workspaces.value = workspaces.value.filter((w) => w.id !== workspaceId)
     } catch (err) {
       const apiError = err as ApiError
       error.value = apiError.body?.detail || 'Failed to delete workspace'
@@ -361,7 +361,7 @@ export function usePlatformAdmin() {
       }>('/platform-admin/blacklist')
 
       // Transform API response to BlacklistEntry format
-      blacklist.value = response.data.blacklist.map(entry => ({
+      blacklist.value = response.data.blacklist.map((entry) => ({
         email: entry.email,
         reason: entry.reason,
         addedAt: entry.added_at,
@@ -427,7 +427,7 @@ export function usePlatformAdmin() {
       await apiClient.delete(`/platform-admin/blacklist/${encodeURIComponent(email)}`)
 
       // Remove from local state
-      blacklist.value = blacklist.value.filter(entry => entry.email !== email)
+      blacklist.value = blacklist.value.filter((entry) => entry.email !== email)
     } catch (err) {
       const apiError = err as ApiError
       error.value = apiError.body?.detail || 'Failed to remove from blacklist'

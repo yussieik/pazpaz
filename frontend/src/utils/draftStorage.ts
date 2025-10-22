@@ -58,7 +58,9 @@ async function getDB(): Promise<IDBPDatabase> {
  * @param draft - Draft content to save
  * @returns true if saved successfully
  */
-export async function saveDraft(draft: Omit<SOAPNoteDraft, 'savedAt' | 'expiresAt'>): Promise<boolean> {
+export async function saveDraft(
+  draft: Omit<SOAPNoteDraft, 'savedAt' | 'expiresAt'>
+): Promise<boolean> {
   try {
     const db = await getDB()
     const now = new Date()
@@ -147,7 +149,9 @@ export async function getAllDrafts(): Promise<SOAPNoteDraft[]> {
       return true
     })
 
-    console.info(`[DraftStorage] Retrieved ${activeDrafts.length} active drafts (${allDrafts.length - activeDrafts.length} expired)`)
+    console.info(
+      `[DraftStorage] Retrieved ${activeDrafts.length} active drafts (${allDrafts.length - activeDrafts.length} expired)`
+    )
     return activeDrafts
   } catch (error) {
     console.error('[DraftStorage] Failed to get all drafts:', error)

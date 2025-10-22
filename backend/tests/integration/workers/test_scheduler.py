@@ -87,7 +87,7 @@ class TestSchedulerTasks:
             email_enabled=True,
             digest_enabled=True,
             digest_time="08:00",
-            digest_skip_weekends=False,
+            digest_days=[0, 1, 2, 3, 4, 5, 6],  # All days
         )
         db_session.add(settings)
 

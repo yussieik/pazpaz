@@ -2,16 +2,16 @@
   <Transition name="slide-down">
     <div
       v-if="rateLimitStore.hasActiveRateLimits"
-      class="fixed top-0 left-0 right-0 z-40 bg-yellow-50 border-b border-yellow-200 px-4 py-3 shadow-md"
+      class="fixed top-0 right-0 left-0 z-40 border-b border-yellow-200 bg-yellow-50 px-4 py-3 shadow-md"
       role="alert"
       aria-live="polite"
       aria-atomic="true"
     >
-      <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="mx-auto flex max-w-7xl items-center justify-between">
         <!-- Left side: Icon and message -->
         <div class="flex items-center space-x-3">
           <svg
-            class="w-5 h-5 text-yellow-600 flex-shrink-0"
+            class="h-5 w-5 flex-shrink-0 text-yellow-600"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -37,11 +37,16 @@
           <div
             v-for="limit in rateLimitStore.activeLimits"
             :key="limit.endpoint"
-            class="text-sm text-yellow-800 flex items-center space-x-2"
+            class="flex items-center space-x-2 text-sm text-yellow-800"
           >
-            <span class="font-mono font-semibold">{{ formatEndpoint(limit.endpoint) }}</span>
+            <span class="font-mono font-semibold">{{
+              formatEndpoint(limit.endpoint)
+            }}</span>
             <span class="text-yellow-600">-</span>
-            <span class="font-mono tabular-nums" :aria-label="`${getRemainingSeconds(limit.endpoint)} seconds remaining`">
+            <span
+              class="font-mono tabular-nums"
+              :aria-label="`${getRemainingSeconds(limit.endpoint)} seconds remaining`"
+            >
               {{ getRemainingSeconds(limit.endpoint) }}s
             </span>
           </div>

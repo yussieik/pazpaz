@@ -748,7 +748,9 @@ describe('LoginView', () => {
       await wrapper.vm.$nextTick()
 
       // Click edit button
-      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit'))
+      const editButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Edit'))
       await editButton?.trigger('click')
       await wrapper.vm.$nextTick()
 
@@ -781,7 +783,9 @@ describe('LoginView', () => {
       await wrapper.vm.$nextTick()
 
       // Click edit
-      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit'))
+      const editButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Edit'))
       await editButton?.trigger('click')
       await wrapper.vm.$nextTick()
 
@@ -801,7 +805,9 @@ describe('LoginView', () => {
       await wrapper.vm.$nextTick()
 
       // Click edit
-      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit'))
+      const editButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Edit'))
       await editButton?.trigger('click')
       await wrapper.vm.$nextTick()
 
@@ -833,7 +839,9 @@ describe('LoginView', () => {
       expect(apiClient.post).toHaveBeenCalledTimes(1)
 
       // Click edit
-      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit'))
+      const editButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Edit'))
       await editButton?.trigger('click')
       await wrapper.vm.$nextTick()
 
@@ -996,7 +1004,9 @@ describe('LoginView', () => {
 
       // Find edit button inside accordion
       const helpContent = wrapper.find('#help-content')
-      const editButton = helpContent.findAll('button').find((btn) => btn.text().includes('edit'))
+      const editButton = helpContent
+        .findAll('button')
+        .find((btn) => btn.text().includes('edit'))
       await editButton?.trigger('click')
       await wrapper.vm.$nextTick()
 

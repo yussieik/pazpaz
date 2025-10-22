@@ -91,23 +91,27 @@ describe('SessionTimeline', () => {
     })
 
     // Mock API responses
-    vi.mocked(apiClient.get).mockImplementation((url: string, config?: { params?: Record<string, unknown> }) => {
-      if (url === '/sessions' || url.includes('/sessions?')) {
-        return Promise.resolve({ data: { items: mockSessions, total: mockSessions.length } })
+    vi.mocked(apiClient.get).mockImplementation(
+      (url: string, config?: { params?: Record<string, unknown> }) => {
+        if (url === '/sessions' || url.includes('/sessions?')) {
+          return Promise.resolve({
+            data: { items: mockSessions, total: mockSessions.length },
+          })
+        }
+        if (url.includes('/appointments')) {
+          return Promise.resolve({ data: { items: mockAppointments } })
+        }
+        if (url.includes('/appointments/')) {
+          // Individual appointment fetch
+          const appointmentId = url.split('/').pop()
+          const appointment = mockAppointments.find((a) => a.id === appointmentId)
+          return appointment
+            ? Promise.resolve({ data: appointment })
+            : Promise.reject(new Error('Appointment not found'))
+        }
+        return Promise.reject(new Error('Unknown endpoint'))
       }
-      if (url.includes('/appointments')) {
-        return Promise.resolve({ data: { items: mockAppointments } })
-      }
-      if (url.includes('/appointments/')) {
-        // Individual appointment fetch
-        const appointmentId = url.split('/').pop()
-        const appointment = mockAppointments.find((a) => a.id === appointmentId)
-        return appointment
-          ? Promise.resolve({ data: appointment })
-          : Promise.reject(new Error('Appointment not found'))
-      }
-      return Promise.reject(new Error('Unknown endpoint'))
-    })
+    )
   })
 
   const createWrapper = () => {
@@ -131,9 +135,12 @@ describe('SessionTimeline', () => {
       await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Check that API was called with params object (not query string)
-      expect(apiClient.get).toHaveBeenCalledWith('/sessions', expect.objectContaining({
-        params: expect.objectContaining({ client_id: 'client-1' })
-      }))
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/sessions',
+        expect.objectContaining({
+          params: expect.objectContaining({ client_id: 'client-1' }),
+        })
+      )
       expect(apiClient.get).toHaveBeenCalledWith(
         '/appointments?client_id=client-1&status=completed'
       )
@@ -204,9 +211,12 @@ describe('SessionTimeline', () => {
       await wrapper.vm.refresh()
 
       // Verify both endpoints are called
-      expect(apiClient.get).toHaveBeenCalledWith('/sessions', expect.objectContaining({
-        params: expect.objectContaining({ client_id: 'client-1' })
-      }))
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/sessions',
+        expect.objectContaining({
+          params: expect.objectContaining({ client_id: 'client-1' }),
+        })
+      )
       expect(apiClient.get).toHaveBeenCalledWith(
         '/appointments?client_id=client-1&status=completed'
       )
@@ -239,23 +249,27 @@ describe('SessionTimeline', () => {
         finalized_at: null,
       }
 
-      vi.mocked(apiClient.get).mockImplementation((url: string, config?: { params?: Record<string, unknown> }) => {
-        if (url === '/sessions' || url.includes('/sessions?')) {
-          return Promise.resolve({ data: { items: [...mockSessions, newSession], total: 3 } })
+      vi.mocked(apiClient.get).mockImplementation(
+        (url: string, config?: { params?: Record<string, unknown> }) => {
+          if (url === '/sessions' || url.includes('/sessions?')) {
+            return Promise.resolve({
+              data: { items: [...mockSessions, newSession], total: 3 },
+            })
+          }
+          if (url.includes('/appointments')) {
+            return Promise.resolve({ data: { items: mockAppointments } })
+          }
+          if (url.includes('/appointments/')) {
+            // Individual appointment fetch
+            const appointmentId = url.split('/').pop()
+            const appointment = mockAppointments.find((a) => a.id === appointmentId)
+            return appointment
+              ? Promise.resolve({ data: appointment })
+              : Promise.reject(new Error('Appointment not found'))
+          }
+          return Promise.reject(new Error('Unknown endpoint'))
         }
-        if (url.includes('/appointments')) {
-          return Promise.resolve({ data: { items: mockAppointments } })
-        }
-        if (url.includes('/appointments/')) {
-          // Individual appointment fetch
-          const appointmentId = url.split('/').pop()
-          const appointment = mockAppointments.find((a) => a.id === appointmentId)
-          return appointment
-            ? Promise.resolve({ data: appointment })
-            : Promise.reject(new Error('Appointment not found'))
-        }
-        return Promise.reject(new Error('Unknown endpoint'))
-      })
+      )
 
       // Call refresh
       await wrapper.vm.refresh()
@@ -339,22 +353,26 @@ describe('SessionTimeline', () => {
 
         // Step 2: Simulate restoration (parent calls refresh)
         // Mock API to return the restored session
-        vi.mocked(apiClient.get).mockImplementation((url: string, config?: { params?: Record<string, unknown> }) => {
-          if (url === '/sessions' || url.includes('/sessions?')) {
-            return Promise.resolve({ data: { items: mockSessions, total: mockSessions.length } })
+        vi.mocked(apiClient.get).mockImplementation(
+          (url: string, config?: { params?: Record<string, unknown> }) => {
+            if (url === '/sessions' || url.includes('/sessions?')) {
+              return Promise.resolve({
+                data: { items: mockSessions, total: mockSessions.length },
+              })
+            }
+            if (url.includes('/appointments')) {
+              return Promise.resolve({ data: { items: mockAppointments } })
+            }
+            if (url.includes('/appointments/')) {
+              const appointmentId = url.split('/').pop()
+              const appointment = mockAppointments.find((a) => a.id === appointmentId)
+              return appointment
+                ? Promise.resolve({ data: appointment })
+                : Promise.reject(new Error('Appointment not found'))
+            }
+            return Promise.reject(new Error('Unknown endpoint'))
           }
-          if (url.includes('/appointments')) {
-            return Promise.resolve({ data: { items: mockAppointments } })
-          }
-          if (url.includes('/appointments/')) {
-            const appointmentId = url.split('/').pop()
-            const appointment = mockAppointments.find((a) => a.id === appointmentId)
-            return appointment
-              ? Promise.resolve({ data: appointment })
-              : Promise.reject(new Error('Appointment not found'))
-          }
-          return Promise.reject(new Error('Unknown endpoint'))
-        })
+        )
 
         await wrapper.vm.refresh()
         await wrapper.vm.$nextTick()

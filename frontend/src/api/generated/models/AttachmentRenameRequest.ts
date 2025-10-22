@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+
 /**
  * Request schema for renaming an attachment.
  *
@@ -13,9 +13,8 @@
  * - Duplicate filenames are rejected
  */
 export type AttachmentRenameRequest = {
-    /**
-     * New filename (extension will be preserved automatically)
-     */
-    file_name: string;
-};
-
+  /**
+   * New filename (extension will be preserved automatically)
+   */
+  file_name: string
+}

@@ -72,9 +72,7 @@ describe('FileUpload', () => {
 
       const dropZone = wrapper.find('[role="button"]')
       expect(dropZone.attributes('tabindex')).toBe('0')
-      expect(dropZone.attributes('aria-label')).toContain(
-        'Upload files'
-      )
+      expect(dropZone.attributes('aria-label')).toContain('Upload files')
     })
   })
 
@@ -202,7 +200,10 @@ describe('FileUpload', () => {
     it('shows upload progress for valid files', async () => {
       // Mock upload to return a promise that doesn't resolve immediately
       mockFileUpload.uploadFiles.mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve([{ id: 'att-1', file_name: 'test.jpg' }]), 100))
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve([{ id: 'att-1', file_name: 'test.jpg' }]), 100)
+          )
       )
 
       wrapper = mount(FileUpload, {

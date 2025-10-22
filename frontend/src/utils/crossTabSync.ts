@@ -100,7 +100,9 @@ export function createAuthChannel(): AuthChannel {
 
   if (!isSupported) {
     // Return no-op fallback for older browsers
-    console.warn('[CrossTabSync] BroadcastChannel not supported. Cross-tab sync disabled.')
+    console.warn(
+      '[CrossTabSync] BroadcastChannel not supported. Cross-tab sync disabled.'
+    )
     return {
       postLogout: () => {},
       postLogin: () => {},

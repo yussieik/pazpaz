@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+
 /**
  * Request schema for bulk downloading multiple attachments as a ZIP file.
  *
@@ -16,9 +16,8 @@
  * - Total file size limited to 100 MB
  */
 export type BulkDownloadRequest = {
-    /**
-     * List of attachment UUIDs to download (1-50 files)
-     */
-    attachment_ids: Array<string>;
-};
-
+  /**
+   * List of attachment UUIDs to download (1-50 files)
+   */
+  attachment_ids: Array<string>
+}

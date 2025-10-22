@@ -7,7 +7,10 @@
 
 import { ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
-import { getNotificationSettings, updateNotificationSettings } from '@/api/notification-settings'
+import {
+  getNotificationSettings,
+  updateNotificationSettings,
+} from '@/api/notification-settings'
 import type { NotificationSettings } from '@/types/notification-settings'
 import { useToast } from './useToast'
 
@@ -57,8 +60,12 @@ export function useNotificationSettings() {
         isInitialLoad = false
       }, 0)
     } catch (err: unknown) {
-      const apiError = err as { response?: { data?: { detail?: string } }; requestId?: string }
-      const message = apiError.response?.data?.detail || 'Failed to load notification settings'
+      const apiError = err as {
+        response?: { data?: { detail?: string } }
+        requestId?: string
+      }
+      const message =
+        apiError.response?.data?.detail || 'Failed to load notification settings'
       error.value = message
       showError(message, apiError.requestId)
     } finally {
@@ -86,8 +93,12 @@ export function useNotificationSettings() {
         isUpdatingFromServer = false
       }, 0)
     } catch (err: unknown) {
-      const apiError = err as { response?: { data?: { detail?: string } }; requestId?: string }
-      const message = apiError.response?.data?.detail || 'Failed to save notification settings'
+      const apiError = err as {
+        response?: { data?: { detail?: string } }
+        requestId?: string
+      }
+      const message =
+        apiError.response?.data?.detail || 'Failed to save notification settings'
       error.value = message
       showError(message, apiError.requestId)
     } finally {

@@ -97,7 +97,9 @@ apiClient.interceptors.response.use(
   },
   async (error: AxiosError) => {
     // Extract request_id from error responses
-    const errorData = error.response?.data as { request_id?: string; detail?: string } | undefined
+    const errorData = error.response?.data as
+      | { request_id?: string; detail?: string }
+      | undefined
     const requestId =
       errorData?.request_id || error.response?.headers?.['x-request-id'] || null
 
@@ -126,7 +128,8 @@ apiClient.interceptors.response.use(
           const parsedRetryAfter = parseInt(retryAfterHeader || '60', 10)
           const retryAfter = isNaN(parsedRetryAfter) ? 60 : parsedRetryAfter
           const endpoint = error.config?.url || 'unknown'
-          const detail = errorData?.detail || 'Too many requests. Please try again later.'
+          const detail =
+            errorData?.detail || 'Too many requests. Please try again later.'
 
           console.warn(
             `[API] 429 Rate Limit - ${endpoint} - Retry after ${retryAfter}s`,

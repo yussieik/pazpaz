@@ -138,7 +138,7 @@ async function clearAllClientSideStorage() {
                 deleteRequest.onerror = () => resolve()
                 deleteRequest.onblocked = () => resolve()
               })
-            }),
+            })
         )
       }
     } catch (error) {

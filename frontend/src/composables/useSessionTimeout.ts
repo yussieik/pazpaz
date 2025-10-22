@@ -249,7 +249,8 @@ export function useSessionTimeout(): UseSessionTimeoutReturn {
       ._sessionTimeoutInterceptor
     if (interceptorId !== undefined) {
       apiClient.interceptors.response.eject(interceptorId)
-      delete (window as { _sessionTimeoutInterceptor?: number })._sessionTimeoutInterceptor
+      delete (window as { _sessionTimeoutInterceptor?: number })
+        ._sessionTimeoutInterceptor
     }
   })
 

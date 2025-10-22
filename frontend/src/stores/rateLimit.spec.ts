@@ -265,9 +265,7 @@ describe('useRateLimitStore', () => {
       const oneHour = 3600
       store.setRateLimit('/api/v1/auth/login', oneHour)
 
-      expect(store.getRemainingSeconds('/api/v1/auth/login')).toBeGreaterThan(
-        3595
-      )
+      expect(store.getRemainingSeconds('/api/v1/auth/login')).toBeGreaterThan(3595)
     })
 
     it('handles updating existing rate limit', () => {

@@ -25,7 +25,7 @@ const showHelpAccordion = ref(false) // Track help accordion expanded state
 const isDevelopment = import.meta.env.MODE === 'development'
 const mailhogUrl = import.meta.env.VITE_MAILHOG_URL || 'http://localhost:8025'
 const showMailHogBanner = ref(
-  isDevelopment && !sessionStorage.getItem('mailhog_banner_dismissed'),
+  isDevelopment && !sessionStorage.getItem('mailhog_banner_dismissed')
 )
 
 // Email arrival detection
@@ -79,7 +79,9 @@ function handleVisibilityChange() {
           "Welcome back! The magic link should be in your inbox. Check spam if you don't see it."
         )
         hasShownReturnMessage.value = true
-        console.log(`[EmailDetection] User returned after ${Math.round(timeAway / 1000)}s`)
+        console.log(
+          `[EmailDetection] User returned after ${Math.round(timeAway / 1000)}s`
+        )
       }
     }
   }
@@ -157,7 +159,9 @@ async function requestMagicLink() {
     startResendCooldown(60)
   } catch (err: unknown) {
     // Handle specific error cases
-    const axiosError = err as { response?: { status: number; data?: { detail?: string } } }
+    const axiosError = err as {
+      response?: { status: number; data?: { detail?: string } }
+    }
     if (axiosError.response?.status === 429) {
       // Extract retry-after from error message if available
       const detail = axiosError.response.data?.detail || ''
@@ -336,7 +340,7 @@ function handleSubmit() {
                     :href="mailhogUrl"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="font-medium underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 rounded"
+                    class="rounded font-medium underline hover:no-underline focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 focus:outline-none"
                   >
                     MailHog
                   </a>
@@ -347,10 +351,15 @@ function handleSubmit() {
             <button
               @click="dismissMailHogBanner"
               type="button"
-              class="ml-3 flex-shrink-0 rounded-md p-1 text-amber-600 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
+              class="ml-3 flex-shrink-0 rounded-md p-1 text-amber-600 hover:bg-amber-100 focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 focus:outline-none"
               aria-label="Dismiss development mode banner"
             >
-              <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+              <svg
+                class="h-4 w-4"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                aria-hidden="true"
+              >
                 <path
                   fill-rule="evenodd"
                   d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
@@ -431,7 +440,7 @@ function handleSubmit() {
                 <button
                   @click="editEmail"
                   type="button"
-                  class="ml-2 text-xs font-medium text-emerald-600 underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 rounded"
+                  class="ml-2 rounded text-xs font-medium text-emerald-600 underline hover:no-underline focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 focus:outline-none"
                   :aria-label="`Edit email address ${email}`"
                 >
                   Edit
@@ -447,7 +456,7 @@ function handleSubmit() {
                   <span class="font-medium">Link expires in:</span>
                   <span
                     class="ml-2 font-mono text-sm font-bold tabular-nums"
-                    :class="{ 'text-red-600 animate-pulse': linkExpiresIn <= 60 }"
+                    :class="{ 'animate-pulse text-red-600': linkExpiresIn <= 60 }"
                   >
                     {{ formattedLinkExpiry }}
                   </span>
@@ -456,7 +465,7 @@ function handleSubmit() {
 
               <!-- Helpful Tips -->
               <div class="mt-3 space-y-1">
-                <p class="text-xs text-emerald-700 flex items-start">
+                <p class="flex items-start text-xs text-emerald-700">
                   <svg
                     class="mt-0.5 mr-1.5 h-3 w-3 flex-shrink-0"
                     fill="currentColor"
@@ -471,7 +480,7 @@ function handleSubmit() {
                   </svg>
                   <span>Check your spam folder if you don't see it</span>
                 </p>
-                <p class="text-xs text-emerald-700 flex items-start">
+                <p class="flex items-start text-xs text-emerald-700">
                   <svg
                     class="mt-0.5 mr-1.5 h-3 w-3 flex-shrink-0"
                     fill="currentColor"
@@ -495,7 +504,7 @@ function handleSubmit() {
                   <button
                     v-if="canResend"
                     @click="resendMagicLink"
-                    class="font-medium underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded"
+                    class="rounded font-medium underline hover:no-underline focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none"
                     :disabled="isResending"
                   >
                     {{ isResending ? 'Resending...' : 'Resend magic link' }}
@@ -511,7 +520,7 @@ function handleSubmit() {
                 <button
                   @click="toggleHelpAccordion"
                   type="button"
-                  class="flex w-full items-center justify-between text-left text-xs font-medium text-emerald-800 hover:text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 rounded"
+                  class="flex w-full items-center justify-between rounded text-left text-xs font-medium text-emerald-800 hover:text-emerald-900 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 focus:outline-none"
                   :aria-expanded="showHelpAccordion"
                   aria-controls="help-content"
                 >
@@ -552,8 +561,8 @@ function handleSubmit() {
                         />
                       </svg>
                       <span
-                        ><strong>Check spam folder:</strong> Magic links sometimes end up in
-                        spam or junk folders</span
+                        ><strong>Check spam folder:</strong> Magic links sometimes end
+                        up in spam or junk folders</span
                       >
                     </div>
 
@@ -576,7 +585,7 @@ function handleSubmit() {
                         <button
                           @click="editEmail"
                           type="button"
-                          class="ml-1 text-emerald-600 underline hover:no-underline focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded"
+                          class="ml-1 rounded text-emerald-600 underline hover:no-underline focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                         >
                           (edit)
                         </button></span
@@ -597,8 +606,8 @@ function handleSubmit() {
                         />
                       </svg>
                       <span
-                        ><strong>Wait a few minutes:</strong> Email delivery can take up to 5
-                        minutes</span
+                        ><strong>Wait a few minutes:</strong> Email delivery can take up
+                        to 5 minutes</span
                       >
                     </div>
 
@@ -616,8 +625,8 @@ function handleSubmit() {
                         />
                       </svg>
                       <span
-                        ><strong>Check email provider:</strong> Some email providers block
-                        automated emails. Try a different email address.</span
+                        ><strong>Check email provider:</strong> Some email providers
+                        block automated emails. Try a different email address.</span
                       >
                     </div>
 
@@ -635,12 +644,14 @@ function handleSubmit() {
                         />
                       </svg>
                       <span
-                        ><strong>Firewall/filters:</strong> Corporate email systems may block
-                        external emails</span
+                        ><strong>Firewall/filters:</strong> Corporate email systems may
+                        block external emails</span
                       >
                     </div>
 
-                    <div class="mt-3 flex items-start rounded-md bg-emerald-100 p-2 text-xs text-emerald-800">
+                    <div
+                      class="mt-3 flex items-start rounded-md bg-emerald-100 p-2 text-xs text-emerald-800"
+                    >
                       <svg
                         class="mt-0.5 mr-2 h-3.5 w-3.5 flex-shrink-0"
                         fill="currentColor"
@@ -650,13 +661,15 @@ function handleSubmit() {
                         <path
                           d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"
                         />
-                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                        <path
+                          d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"
+                        />
                       </svg>
                       <span
                         ><strong>Still having trouble?</strong> Contact
                         <a
                           href="mailto:support@pazpaz.com"
-                          class="font-medium underline hover:no-underline focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded"
+                          class="rounded font-medium underline hover:no-underline focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                           >support@pazpaz.com</a
                         ></span
                       >
@@ -711,7 +724,7 @@ function handleSubmit() {
                 'hover:border-slate-400 hover:shadow-sm',
                 'disabled:cursor-not-allowed disabled:bg-slate-100',
                 emailInputHasError
-                  ? 'border-red-300 animate-shake'
+                  ? 'animate-shake border-red-300'
                   : 'border-slate-300',
               ]"
               placeholder="you@example.com"
@@ -733,7 +746,7 @@ function handleSubmit() {
               'disabled:cursor-not-allowed disabled:bg-slate-300 disabled:hover:bg-slate-300',
               isLoading || !email
                 ? 'bg-slate-300'
-                : 'bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg transform hover:scale-102 active:scale-98',
+                : 'transform bg-emerald-600 hover:scale-102 hover:bg-emerald-700 hover:shadow-lg active:scale-98',
             ]"
           >
             <span v-if="isLoading" class="flex items-center justify-center">

@@ -46,7 +46,9 @@ describe('ConfirmationModal', () => {
         },
       })
 
-      const confirmButton = wrapper.findAll('button').find(btn => btn.text() === 'Delete')
+      const confirmButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text() === 'Delete')
       expect(confirmButton).toBeTruthy()
     })
 
@@ -58,9 +60,9 @@ describe('ConfirmationModal', () => {
         },
       })
 
-      const confirmButton = wrapper.findAll('button').find(btn =>
-        btn.classes().includes('bg-red-600')
-      )
+      const confirmButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.classes().includes('bg-red-600'))
       expect(confirmButton).toBeTruthy()
 
       // Check for warning icon
@@ -73,9 +75,9 @@ describe('ConfirmationModal', () => {
         props: defaultProps,
       })
 
-      const confirmButton = wrapper.findAll('button').find(btn =>
-        btn.classes().includes('bg-emerald-600')
-      )
+      const confirmButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.classes().includes('bg-emerald-600'))
       expect(confirmButton).toBeTruthy()
     })
   })
@@ -114,7 +116,9 @@ describe('ConfirmationModal', () => {
 
       expect(wrapper.text()).toContain('Suspension Reason')
       const textarea = wrapper.find('textarea')
-      expect(textarea.attributes('placeholder')).toBe('Why are you suspending this workspace?')
+      expect(textarea.attributes('placeholder')).toBe(
+        'Why are you suspending this workspace?'
+      )
     })
 
     it('shows required indicator when reason is required', () => {
@@ -139,9 +143,9 @@ describe('ConfirmationModal', () => {
         },
       })
 
-      const confirmButton = wrapper.findAll('button').find(btn =>
-        btn.text().includes('Confirm')
-      )
+      const confirmButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Confirm'))
       expect(confirmButton?.attributes('disabled')).toBeDefined()
     })
 
@@ -157,9 +161,9 @@ describe('ConfirmationModal', () => {
       const textarea = wrapper.find('textarea')
       await textarea.setValue('Valid reason')
 
-      const confirmButton = wrapper.findAll('button').find(btn =>
-        btn.text().includes('Confirm')
-      )
+      const confirmButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Confirm'))
       expect(confirmButton?.attributes('disabled')).toBeUndefined()
     })
   })
@@ -170,9 +174,9 @@ describe('ConfirmationModal', () => {
         props: defaultProps,
       })
 
-      const confirmButton = wrapper.findAll('button').find(btn =>
-        btn.text().includes('Confirm')
-      )
+      const confirmButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Confirm'))
       await confirmButton?.trigger('click')
 
       expect(wrapper.emitted('confirm')).toBeTruthy()
@@ -190,9 +194,9 @@ describe('ConfirmationModal', () => {
       const textarea = wrapper.find('textarea')
       await textarea.setValue('Test reason')
 
-      const confirmButton = wrapper.findAll('button').find(btn =>
-        btn.text().includes('Confirm')
-      )
+      const confirmButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Confirm'))
       await confirmButton?.trigger('click')
 
       expect(wrapper.emitted('confirm')).toBeTruthy()
@@ -204,9 +208,9 @@ describe('ConfirmationModal', () => {
         props: defaultProps,
       })
 
-      const cancelButton = wrapper.findAll('button').find(btn =>
-        btn.text() === 'Cancel'
-      )
+      const cancelButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text() === 'Cancel')
       await cancelButton?.trigger('click')
 
       expect(wrapper.emitted('cancel')).toBeTruthy()
@@ -284,7 +288,7 @@ describe('ConfirmationModal', () => {
       })
 
       // Wait for focus trap setup
-      await new Promise(resolve => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 10))
 
       const activeElement = document.activeElement
       expect(activeElement).toBeTruthy()
@@ -319,9 +323,9 @@ describe('ConfirmationModal', () => {
       const textarea = wrapper.find('textarea')
       await textarea.setValue('Test reason')
 
-      const cancelButton = wrapper.findAll('button').find(btn =>
-        btn.text() === 'Cancel'
-      )
+      const cancelButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text() === 'Cancel')
       await cancelButton?.trigger('click')
 
       // Re-open modal
@@ -343,9 +347,9 @@ describe('ConfirmationModal', () => {
       const textarea = wrapper.find('textarea')
       await textarea.setValue('Test reason')
 
-      const confirmButton = wrapper.findAll('button').find(btn =>
-        btn.text().includes('Confirm')
-      )
+      const confirmButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text().includes('Confirm'))
       await confirmButton?.trigger('click')
 
       // Re-open modal

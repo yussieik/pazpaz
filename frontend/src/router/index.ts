@@ -75,14 +75,38 @@ const router = createRouter({
         requiresAuth: true,
       },
     },
+    // Settings Routes (Nested with sidebar navigation)
     {
       path: '/settings',
-      name: 'settings',
-      component: () => import('@/views/SettingsView.vue'),
+      component: () => import('@/layouts/SettingsLayout.vue'),
+      redirect: '/settings/notifications',
       meta: {
-        title: 'Settings - PazPaz',
         requiresAuth: true,
       },
+      children: [
+        {
+          path: 'notifications',
+          name: 'settings-notifications',
+          component: () => import('@/views/settings/NotificationsView.vue'),
+          meta: {
+            title: 'Notifications - Settings - PazPaz',
+            requiresAuth: true,
+            category: 'Notifications',
+          },
+        },
+        // Future settings categories will be added here
+        // Example:
+        // {
+        //   path: 'account',
+        //   name: 'settings-account',
+        //   component: () => import('@/views/settings/AccountView.vue'),
+        //   meta: {
+        //     title: 'Account - Settings - PazPaz',
+        //     requiresAuth: true,
+        //     category: 'Account',
+        //   },
+        // },
+      ],
     },
     {
       path: '/sessions/:id',

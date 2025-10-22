@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+
 /**
  * Request schema for magic link token verification.
  *
@@ -11,9 +11,8 @@
  * - 384-bit tokens: 48 bytes base64url encoded = 64 characters
  */
 export type TokenVerifyRequest = {
-    /**
-     * Magic link token from email (384-bit entropy)
-     */
-    token: string;
-};
-
+  /**
+   * Magic link token from email (384-bit entropy)
+   */
+  token: string
+}

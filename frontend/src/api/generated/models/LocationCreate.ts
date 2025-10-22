@@ -1,8 +1,8 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
-import type { LocationType } from './LocationType';
+
+import type { LocationType } from './LocationType'
 /**
  * Schema for creating a new location.
  *
@@ -11,25 +11,24 @@ import type { LocationType } from './LocationType';
  * This prevents workspace injection vulnerabilities.
  */
 export type LocationCreate = {
-    /**
-     * Location name
-     */
-    name: string;
-    /**
-     * Type: clinic, home, or online
-     */
-    location_type: LocationType;
-    /**
-     * Physical address for clinic or home visits
-     */
-    address?: (string | null);
-    /**
-     * Additional details (room, video link, parking)
-     */
-    details?: (string | null);
-    /**
-     * Active locations appear in scheduling UI
-     */
-    is_active?: boolean;
-};
-
+  /**
+   * Location name
+   */
+  name: string
+  /**
+   * Type: clinic, home, or online
+   */
+  location_type: LocationType
+  /**
+   * Physical address for clinic or home visits
+   */
+  address?: string | null
+  /**
+   * Additional details (room, video link, parking)
+   */
+  details?: string | null
+  /**
+   * Active locations appear in scheduling UI
+   */
+  is_active?: boolean
+}

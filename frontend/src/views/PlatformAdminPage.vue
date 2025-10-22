@@ -65,7 +65,7 @@ const filteredWorkspaces = computed(() => {
 
   const query = searchQuery.value.toLowerCase()
   return platformAdmin.workspaces.value.filter(
-    w =>
+    (w) =>
       w.name.toLowerCase().includes(query) ||
       w.email.toLowerCase().includes(query) ||
       w.status.toLowerCase().includes(query)
@@ -78,7 +78,7 @@ const filteredInvitations = computed(() => {
 
   if (invitationFilter.value === 'all') return invitations
 
-  return invitations.filter(inv => {
+  return invitations.filter((inv) => {
     const expirationDate = new Date(inv.invited_at)
     expirationDate.setDate(expirationDate.getDate() + 7)
     const isExpired = expirationDate < new Date()
@@ -120,7 +120,9 @@ async function handleResendInvitation(userId: string) {
 
 // Workspace handlers
 function handleViewWorkspaceDetails(workspaceId: string) {
-  selectedWorkspace.value = platformAdmin.workspaces.value.find(w => w.id === workspaceId)
+  selectedWorkspace.value = platformAdmin.workspaces.value.find(
+    (w) => w.id === workspaceId
+  )
   showWorkspaceDetailsModal.value = true
 }
 
@@ -188,7 +190,10 @@ async function handleAddToBlacklist() {
   if (!blacklistForm.value.email || !blacklistForm.value.reason) return
 
   try {
-    await platformAdmin.addToBlacklist(blacklistForm.value.email, blacklistForm.value.reason)
+    await platformAdmin.addToBlacklist(
+      blacklistForm.value.email,
+      blacklistForm.value.reason
+    )
     blacklistForm.value = { email: '', reason: '' }
     showAddBlacklistForm.value = false
     showSuccess('Email added to blacklist')
@@ -253,14 +258,14 @@ function openInviteModal() {
     <header class="border-b border-slate-200 bg-white shadow-sm">
       <div class="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
         <!-- Tab Navigation - Horizontal scroll on mobile -->
-        <nav class="flex gap-1 overflow-x-auto scrollbar-hide" role="tablist">
+        <nav class="scrollbar-hide flex gap-1 overflow-x-auto" role="tablist">
           <button
             @click="switchTab('overview')"
             :class="[
-              'whitespace-nowrap rounded-t-lg px-4 py-2 text-sm font-semibold transition sm:px-6 sm:py-3',
+              'rounded-t-lg px-4 py-2 text-sm font-semibold whitespace-nowrap transition sm:px-6 sm:py-3',
               activeTab === 'overview'
-                ? 'bg-white text-emerald-600 border-b-2 border-emerald-600'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                ? 'border-b-2 border-emerald-600 bg-white text-emerald-600'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
             ]"
             role="tab"
             :aria-selected="activeTab === 'overview'"
@@ -270,10 +275,10 @@ function openInviteModal() {
           <button
             @click="switchTab('workspaces')"
             :class="[
-              'whitespace-nowrap rounded-t-lg px-4 py-2 text-sm font-semibold transition sm:px-6 sm:py-3',
+              'rounded-t-lg px-4 py-2 text-sm font-semibold whitespace-nowrap transition sm:px-6 sm:py-3',
               activeTab === 'workspaces'
-                ? 'bg-white text-emerald-600 border-b-2 border-emerald-600'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                ? 'border-b-2 border-emerald-600 bg-white text-emerald-600'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
             ]"
             role="tab"
             :aria-selected="activeTab === 'workspaces'"
@@ -283,10 +288,10 @@ function openInviteModal() {
           <button
             @click="switchTab('invitations')"
             :class="[
-              'whitespace-nowrap rounded-t-lg px-4 py-2 text-sm font-semibold transition sm:px-6 sm:py-3',
+              'rounded-t-lg px-4 py-2 text-sm font-semibold whitespace-nowrap transition sm:px-6 sm:py-3',
               activeTab === 'invitations'
-                ? 'bg-white text-emerald-600 border-b-2 border-emerald-600'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                ? 'border-b-2 border-emerald-600 bg-white text-emerald-600'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
             ]"
             role="tab"
             :aria-selected="activeTab === 'invitations'"
@@ -302,10 +307,10 @@ function openInviteModal() {
           <button
             @click="switchTab('blacklist')"
             :class="[
-              'whitespace-nowrap rounded-t-lg px-4 py-2 text-sm font-semibold transition sm:px-6 sm:py-3',
+              'rounded-t-lg px-4 py-2 text-sm font-semibold whitespace-nowrap transition sm:px-6 sm:py-3',
               activeTab === 'blacklist'
-                ? 'bg-white text-emerald-600 border-b-2 border-emerald-600'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                ? 'border-b-2 border-emerald-600 bg-white text-emerald-600'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
             ]"
             role="tab"
             :aria-selected="activeTab === 'blacklist'"
@@ -337,7 +342,9 @@ function openInviteModal() {
             />
           </svg>
           <div class="flex-1">
-            <p class="text-sm font-medium text-red-800">{{ platformAdmin.error.value }}</p>
+            <p class="text-sm font-medium text-red-800">
+              {{ platformAdmin.error.value }}
+            </p>
           </div>
           <button
             @click="platformAdmin.clearError"
@@ -394,27 +401,32 @@ function openInviteModal() {
 
       <!-- WORKSPACES TAB -->
       <div v-if="activeTab === 'workspaces'" role="tabpanel">
-        <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+        >
           <!-- Search - Full width on mobile, limited on desktop -->
           <div class="flex-1 sm:max-w-md">
             <input
               v-model="searchQuery"
               type="search"
               placeholder="Search workspaces..."
-              class="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              class="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             />
           </div>
           <!-- Action Button - Full width on mobile -->
           <button
             @click="openInviteModal"
-            class="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 sm:w-auto"
+            class="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none sm:w-auto"
           >
             + Invite Therapist
           </button>
         </div>
 
         <!-- Loading State -->
-        <div v-if="platformAdmin.loading.value && !platformAdmin.workspaces.value.length" class="py-12 text-center">
+        <div
+          v-if="platformAdmin.loading.value && !platformAdmin.workspaces.value.length"
+          class="py-12 text-center"
+        >
           <div
             class="inline-block h-12 w-12 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent"
           ></div>
@@ -441,7 +453,11 @@ function openInviteModal() {
           </svg>
           <h3 class="mt-4 text-lg font-medium text-slate-900">No workspaces found</h3>
           <p class="mt-2 text-sm text-slate-600">
-            {{ searchQuery ? 'Try a different search term' : 'Get started by inviting your first therapist' }}
+            {{
+              searchQuery
+                ? 'Try a different search term'
+                : 'Get started by inviting your first therapist'
+            }}
           </p>
         </div>
 
@@ -461,7 +477,9 @@ function openInviteModal() {
 
       <!-- INVITATIONS TAB -->
       <div v-if="activeTab === 'invitations'" role="tabpanel">
-        <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+        >
           <!-- Filter buttons - Wrap on mobile -->
           <div class="flex flex-wrap gap-2">
             <button
@@ -470,7 +488,7 @@ function openInviteModal() {
                 'rounded-lg px-3 py-1.5 text-sm font-medium transition',
                 invitationFilter === 'all'
                   ? 'bg-emerald-100 text-emerald-700'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
               ]"
             >
               All
@@ -481,7 +499,7 @@ function openInviteModal() {
                 'rounded-lg px-3 py-1.5 text-sm font-medium transition',
                 invitationFilter === 'active'
                   ? 'bg-emerald-100 text-emerald-700'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
               ]"
             >
               Active
@@ -492,7 +510,7 @@ function openInviteModal() {
                 'rounded-lg px-3 py-1.5 text-sm font-medium transition',
                 invitationFilter === 'expired'
                   ? 'bg-emerald-100 text-emerald-700'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
               ]"
             >
               Expired
@@ -501,14 +519,20 @@ function openInviteModal() {
           <!-- Action Button - Full width on mobile -->
           <button
             @click="openInviteModal"
-            class="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 sm:w-auto"
+            class="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none sm:w-auto"
           >
             + Invite Therapist
           </button>
         </div>
 
         <!-- Loading State -->
-        <div v-if="platformAdmin.loading.value && !platformAdmin.pendingInvitations.value.length" class="py-12 text-center">
+        <div
+          v-if="
+            platformAdmin.loading.value &&
+            !platformAdmin.pendingInvitations.value.length
+          "
+          class="py-12 text-center"
+        >
           <div
             class="inline-block h-12 w-12 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent"
           ></div>
@@ -534,10 +558,18 @@ function openInviteModal() {
             />
           </svg>
           <h3 class="mt-4 text-lg font-medium text-slate-900">
-            {{ invitationFilter === 'all' ? 'No pending invitations' : `No ${invitationFilter} invitations` }}
+            {{
+              invitationFilter === 'all'
+                ? 'No pending invitations'
+                : `No ${invitationFilter} invitations`
+            }}
           </h3>
           <p class="mt-2 text-sm text-slate-600">
-            {{ invitationFilter === 'all' ? 'Get started by inviting your first therapist' : 'Try a different filter' }}
+            {{
+              invitationFilter === 'all'
+                ? 'Get started by inviting your first therapist'
+                : 'Try a different filter'
+            }}
           </p>
         </div>
 
@@ -548,7 +580,9 @@ function openInviteModal() {
             :key="invitation.user_id"
             class="rounded-xl border border-slate-200 bg-white p-4 transition hover:shadow-md sm:p-6"
           >
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div
+              class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
+            >
               <div class="flex-1">
                 <div class="flex items-center gap-3">
                   <div
@@ -558,10 +592,14 @@ function openInviteModal() {
                     }}{{ invitation.full_name.split(' ')[1]?.[0] || '' }}
                   </div>
                   <div class="min-w-0">
-                    <h3 class="truncate text-base font-semibold text-slate-900 sm:text-lg">
+                    <h3
+                      class="truncate text-base font-semibold text-slate-900 sm:text-lg"
+                    >
                       {{ invitation.full_name }}
                     </h3>
-                    <p class="mt-1 truncate text-sm text-slate-600">{{ invitation.email }}</p>
+                    <p class="mt-1 truncate text-sm text-slate-600">
+                      {{ invitation.email }}
+                    </p>
                   </div>
                 </div>
 
@@ -570,7 +608,9 @@ function openInviteModal() {
                   {{ invitation.workspace_name }}
                 </p>
 
-                <div class="mt-3 flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4">
+                <div
+                  class="mt-3 flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4"
+                >
                   <div>
                     <span class="font-medium">Invited:</span>
                     {{ formatDate(invitation.invited_at) }}
@@ -582,7 +622,9 @@ function openInviteModal() {
                   >
                     <span class="font-medium">Expires:</span>
                     {{ calculateExpiresAt(invitation.invited_at) }}
-                    <span v-if="isExpired(invitation.invited_at)" class="ml-1">(Expired)</span>
+                    <span v-if="isExpired(invitation.invited_at)" class="ml-1"
+                      >(Expired)</span
+                    >
                   </div>
                 </div>
               </div>
@@ -591,7 +633,7 @@ function openInviteModal() {
                 <button
                   @click="handleResendInvitation(invitation.user_id)"
                   :disabled="platformAdmin.loading.value"
-                  class="w-full rounded-lg border-2 border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                  class="w-full rounded-lg border-2 border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
                   Resend
                 </button>
@@ -607,15 +649,20 @@ function openInviteModal() {
           <button
             v-if="!showAddBlacklistForm"
             @click="showAddBlacklistForm = true"
-            class="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 sm:w-auto"
+            class="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none sm:w-auto"
           >
             + Add to Blacklist
           </button>
         </div>
 
         <!-- Add to Blacklist Form -->
-        <div v-if="showAddBlacklistForm" class="mb-6 rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
-          <h3 class="mb-4 text-base font-semibold text-slate-900 sm:text-lg">Add Email to Blacklist</h3>
+        <div
+          v-if="showAddBlacklistForm"
+          class="mb-6 rounded-xl border border-slate-200 bg-white p-4 sm:p-6"
+        >
+          <h3 class="mb-4 text-base font-semibold text-slate-900 sm:text-lg">
+            Add Email to Blacklist
+          </h3>
           <div class="space-y-4">
             <div>
               <label class="mb-1 block text-sm font-medium text-slate-700">Email</label>
@@ -623,29 +670,31 @@ function openInviteModal() {
                 v-model="blacklistForm.email"
                 type="email"
                 placeholder="user@example.com"
-                class="w-full rounded-lg border border-slate-300 px-3 py-2 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               />
             </div>
             <div>
-              <label class="mb-1 block text-sm font-medium text-slate-700">Reason</label>
+              <label class="mb-1 block text-sm font-medium text-slate-700"
+                >Reason</label
+              >
               <textarea
                 v-model="blacklistForm.reason"
                 rows="3"
                 placeholder="Why is this email being blacklisted?"
-                class="w-full rounded-lg border border-slate-300 px-3 py-2 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               />
             </div>
             <div class="flex flex-col gap-3 sm:flex-row">
               <button
                 @click="showAddBlacklistForm = false"
-                class="w-full rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 sm:w-auto"
+                class="w-full rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:outline-none sm:w-auto"
               >
                 Cancel
               </button>
               <button
                 @click="handleAddToBlacklist"
                 :disabled="!blacklistForm.email || !blacklistForm.reason"
-                class="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                class="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 Add to Blacklist
               </button>
@@ -672,39 +721,54 @@ function openInviteModal() {
             />
           </svg>
           <h3 class="mt-4 text-lg font-medium text-slate-900">No blacklisted emails</h3>
-          <p class="mt-2 text-sm text-slate-600">
-            Blacklisted emails will appear here
-          </p>
+          <p class="mt-2 text-sm text-slate-600">Blacklisted emails will appear here</p>
         </div>
 
         <!-- Desktop: Blacklist Table -->
-        <div v-if="platformAdmin.blacklist.value.length > 0" class="hidden overflow-hidden rounded-xl border border-slate-200 bg-white sm:block">
+        <div
+          v-if="platformAdmin.blacklist.value.length > 0"
+          class="hidden overflow-hidden rounded-xl border border-slate-200 bg-white sm:block"
+        >
           <table class="w-full">
             <thead class="bg-slate-50">
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-600">
+                <th
+                  class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase"
+                >
                   Email
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-600">
+                <th
+                  class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase"
+                >
                   Reason
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-600">
+                <th
+                  class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase"
+                >
                   Added
                 </th>
-                <th class="px-6 py-3 text-right text-xs font-semibold uppercase text-slate-600">
+                <th
+                  class="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase"
+                >
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-200">
-              <tr v-for="entry in platformAdmin.blacklist.value" :key="entry.email" class="hover:bg-slate-50">
+              <tr
+                v-for="entry in platformAdmin.blacklist.value"
+                :key="entry.email"
+                class="hover:bg-slate-50"
+              >
                 <td class="px-6 py-4 text-sm text-slate-900">{{ entry.email }}</td>
                 <td class="px-6 py-4 text-sm text-slate-600">{{ entry.reason }}</td>
-                <td class="px-6 py-4 text-sm text-slate-600">{{ formatDate(entry.addedAt) }}</td>
+                <td class="px-6 py-4 text-sm text-slate-600">
+                  {{ formatDate(entry.addedAt) }}
+                </td>
                 <td class="px-6 py-4 text-right">
                   <button
                     @click="handleRemoveFromBlacklist(entry.email)"
-                    class="rounded-lg border border-red-600 px-3 py-1 text-sm font-medium text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                    class="rounded-lg border border-red-600 px-3 py-1 text-sm font-medium text-red-600 transition hover:bg-red-50 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none"
                   >
                     Remove
                   </button>
@@ -715,18 +779,25 @@ function openInviteModal() {
         </div>
 
         <!-- Mobile: Blacklist Cards -->
-        <div v-if="platformAdmin.blacklist.value.length > 0" class="space-y-4 sm:hidden">
+        <div
+          v-if="platformAdmin.blacklist.value.length > 0"
+          class="space-y-4 sm:hidden"
+        >
           <div
             v-for="entry in platformAdmin.blacklist.value"
             :key="entry.email"
             class="rounded-lg border border-slate-200 bg-white p-4"
           >
-            <div class="mb-2 break-words font-semibold text-slate-900">{{ entry.email }}</div>
+            <div class="mb-2 font-semibold break-words text-slate-900">
+              {{ entry.email }}
+            </div>
             <div class="mb-2 text-sm text-slate-600">{{ entry.reason }}</div>
-            <div class="mb-3 text-xs text-slate-500">{{ formatDate(entry.addedAt) }}</div>
+            <div class="mb-3 text-xs text-slate-500">
+              {{ formatDate(entry.addedAt) }}
+            </div>
             <button
               @click="handleRemoveFromBlacklist(entry.email)"
-              class="w-full rounded-lg border border-red-600 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              class="w-full rounded-lg border border-red-600 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none"
             >
               Remove
             </button>
@@ -763,7 +834,10 @@ function openInviteModal() {
       reasonPlaceholder="Explain why this workspace is being suspended..."
       :reasonRequired="true"
       @confirm="confirmSuspend"
-      @cancel="showSuspendConfirmation = false; pendingAction = null"
+      @cancel="
+        showSuspendConfirmation = false
+        pendingAction = null
+      "
     />
 
     <ConfirmationModal
@@ -773,7 +847,10 @@ function openInviteModal() {
       confirmText="Reactivate"
       confirmStyle="primary"
       @confirm="confirmReactivate"
-      @cancel="showReactivateConfirmation = false; pendingAction = null"
+      @cancel="
+        showReactivateConfirmation = false
+        pendingAction = null
+      "
     />
 
     <ConfirmationModal
@@ -787,7 +864,10 @@ function openInviteModal() {
       reasonPlaceholder="Explain why this workspace is being deleted..."
       :reasonRequired="true"
       @confirm="confirmDelete"
-      @cancel="showDeleteConfirmation = false; pendingAction = null"
+      @cancel="
+        showDeleteConfirmation = false
+        pendingAction = null
+      "
     />
 
     <ConfirmationModal
@@ -797,7 +877,10 @@ function openInviteModal() {
       confirmText="Remove"
       confirmStyle="primary"
       @confirm="confirmRemoveFromBlacklist"
-      @cancel="showRemoveBlacklistConfirmation = false; selectedBlacklistEmail = ''"
+      @cancel="
+        showRemoveBlacklistConfirmation = false
+        selectedBlacklistEmail = ''
+      "
     />
   </div>
 </template>

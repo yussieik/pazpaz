@@ -62,7 +62,7 @@ class TestGetNotificationSettings:
         assert data["notify_appointment_confirmed"] is True
         assert data["digest_enabled"] is False
         assert data["digest_time"] == "08:00"
-        assert data["digest_skip_weekends"] is True
+        assert data["digest_days"] == [1, 2, 3, 4, 5]  # Default Mon-Fri
         assert data["reminder_enabled"] is True
         assert data["reminder_minutes"] == 60
         assert data["notes_reminder_enabled"] is True
@@ -227,7 +227,7 @@ class TestUpdateNotificationSettings:
             json={
                 "digest_enabled": True,
                 "digest_time": "09:30",
-                "digest_skip_weekends": False,
+                "digest_days": [0, 1, 2, 3, 4, 5, 6],  # All days
             },
         )
 
@@ -235,7 +235,7 @@ class TestUpdateNotificationSettings:
         data = response.json()
         assert data["digest_enabled"] is True
         assert data["digest_time"] == "09:30"
-        assert data["digest_skip_weekends"] is False
+        assert data["digest_days"] == [0, 1, 2, 3, 4, 5, 6]  # All days
 
     async def test_update_reminder_settings(
         self,

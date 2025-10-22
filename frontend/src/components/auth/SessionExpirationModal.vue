@@ -13,100 +13,107 @@
           <div
             v-if="visible"
             ref="modalRef"
-            class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+            class="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
             role="alertdialog"
             tabindex="-1"
           >
-          <!-- Critical Warning Icon and Title -->
-          <div class="flex items-start mb-4">
-            <div class="flex-shrink-0">
-              <div class="flex items-center justify-center w-12 h-12 rounded-full bg-red-100">
-                <svg
-                  class="w-6 h-6 text-red-600"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                  aria-hidden="true"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-              </div>
-            </div>
-            <div class="ml-4 flex-1">
-              <h3 id="session-expiration-title" class="text-xl font-semibold text-slate-900">
-                Session Expiring
-              </h3>
-              <p class="mt-1 text-sm text-slate-600">Action required</p>
-            </div>
-          </div>
-
-          <!-- Description with Prominent Countdown -->
-          <div id="session-expiration-description" class="mb-6">
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-              <div class="text-center">
-                <p class="text-sm text-red-900 mb-2">Your session expires in:</p>
+            <!-- Critical Warning Icon and Title -->
+            <div class="mb-4 flex items-start">
+              <div class="flex-shrink-0">
                 <div
-                  class="text-4xl font-mono font-bold text-red-600 tabular-nums"
-                  :class="{ 'animate-pulse': timeRemaining <= 10 }"
+                  class="flex h-12 w-12 items-center justify-center rounded-full bg-red-100"
                 >
-                  {{ formattedTime }}
+                  <svg
+                    class="h-6 w-6 text-red-600"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
                 </div>
               </div>
+              <div class="ml-4 flex-1">
+                <h3
+                  id="session-expiration-title"
+                  class="text-xl font-semibold text-slate-900"
+                >
+                  Session Expiring
+                </h3>
+                <p class="mt-1 text-sm text-slate-600">Action required</p>
+              </div>
             </div>
 
-            <p class="text-sm text-slate-700 mb-2">
-              You will be automatically logged out to protect your patient data.
-            </p>
+            <!-- Description with Prominent Countdown -->
+            <div id="session-expiration-description" class="mb-6">
+              <div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
+                <div class="text-center">
+                  <p class="mb-2 text-sm text-red-900">Your session expires in:</p>
+                  <div
+                    class="font-mono text-4xl font-bold text-red-600 tabular-nums"
+                    :class="{ 'animate-pulse': timeRemaining <= 10 }"
+                  >
+                    {{ formattedTime }}
+                  </div>
+                </div>
+              </div>
 
-            <p
-              v-if="hasUnsavedChanges"
-              class="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3"
-            >
-              <strong>Warning:</strong> You have unsaved work that will be lost if you logout.
+              <p class="mb-2 text-sm text-slate-700">
+                You will be automatically logged out to protect your patient data.
+              </p>
+
+              <p
+                v-if="hasUnsavedChanges"
+                class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+              >
+                <strong>Warning:</strong> You have unsaved work that will be lost if you
+                logout.
+              </p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3">
+              <button
+                ref="extendButtonRef"
+                @click="handleExtend"
+                :class="[
+                  'flex-1 rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white',
+                  'transition-all duration-200 ease-in-out',
+                  'focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none',
+                  isExtending
+                    ? 'cursor-not-allowed opacity-50'
+                    : 'transform hover:scale-102 hover:bg-emerald-700 hover:shadow-lg active:scale-98',
+                ]"
+                type="button"
+                :disabled="isExtending"
+              >
+                <span v-if="!isExtending">Extend Session</span>
+                <span v-else>Extending...</span>
+              </button>
+              <button
+                @click="handleLogout"
+                :class="[
+                  'flex-1 rounded-lg bg-slate-200 px-4 py-3 font-semibold text-slate-800',
+                  'transition-all duration-200 ease-in-out',
+                  'transform hover:scale-102 hover:bg-slate-300 hover:shadow-md active:scale-98',
+                  'focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:outline-none',
+                ]"
+                type="button"
+              >
+                Logout Now
+              </button>
+            </div>
+
+            <!-- HIPAA Compliance Notice -->
+            <p class="mt-4 text-center text-xs text-slate-500">
+              Automatic session timeout is required for HIPAA compliance to protect
+              patient data.
             </p>
           </div>
-
-          <!-- Action Buttons -->
-          <div class="flex gap-3">
-            <button
-              ref="extendButtonRef"
-              @click="handleExtend"
-              :class="[
-                'flex-1 bg-emerald-600 text-white px-4 py-3 rounded-lg font-semibold',
-                'transition-all duration-200 ease-in-out',
-                'focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2',
-                isExtending
-                  ? 'cursor-not-allowed opacity-50'
-                  : 'hover:bg-emerald-700 hover:shadow-lg transform hover:scale-102 active:scale-98',
-              ]"
-              type="button"
-              :disabled="isExtending"
-            >
-              <span v-if="!isExtending">Extend Session</span>
-              <span v-else>Extending...</span>
-            </button>
-            <button
-              @click="handleLogout"
-              :class="[
-                'flex-1 bg-slate-200 text-slate-800 px-4 py-3 rounded-lg font-semibold',
-                'transition-all duration-200 ease-in-out',
-                'hover:bg-slate-300 hover:shadow-md transform hover:scale-102 active:scale-98',
-                'focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2',
-              ]"
-              type="button"
-            >
-              Logout Now
-            </button>
-          </div>
-
-          <!-- HIPAA Compliance Notice -->
-          <p class="text-xs text-slate-500 mt-4 text-center">
-            Automatic session timeout is required for HIPAA compliance to protect patient data.
-          </p>
-        </div>
         </Transition>
       </div>
     </Transition>

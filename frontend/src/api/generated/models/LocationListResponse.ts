@@ -1,16 +1,15 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
-import type { LocationResponse } from './LocationResponse';
+
+import type { LocationResponse } from './LocationResponse'
 /**
  * Schema for paginated location list response.
  */
 export type LocationListResponse = {
-    items: Array<LocationResponse>;
-    total: number;
-    page: number;
-    page_size: number;
-    total_pages: number;
-};
-
+  items: Array<LocationResponse>
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
