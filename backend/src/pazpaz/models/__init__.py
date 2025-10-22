@@ -10,6 +10,7 @@ from pazpaz.models.session import Session
 from pazpaz.models.session_attachment import SessionAttachment
 from pazpaz.models.session_version import SessionVersion
 from pazpaz.models.user import User, UserRole
+from pazpaz.models.user_notification_settings import UserNotificationSettings
 from pazpaz.models.workspace import Workspace, WorkspaceStatus
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "AuditAction",
     "ResourceType",
     "EmailBlacklist",
+    "UserNotificationSettings",
 ]

@@ -23,6 +23,7 @@ from pazpaz.db.types import EncryptedString
 
 if TYPE_CHECKING:
     from pazpaz.models.audit_event import AuditEvent
+    from pazpaz.models.user_notification_settings import UserNotificationSettings
     from pazpaz.models.workspace import Workspace
 
 
@@ -129,6 +130,12 @@ class User(Base):
     audit_events: Mapped[list[AuditEvent]] = relationship(
         "AuditEvent",
         back_populates="user",
+    )
+    notification_settings: Mapped[UserNotificationSettings | None] = relationship(
+        "UserNotificationSettings",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
 
     # Constraints

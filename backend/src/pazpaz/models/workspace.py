@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from pazpaz.models.service import Service
     from pazpaz.models.session import Session
     from pazpaz.models.user import User
+    from pazpaz.models.user_notification_settings import UserNotificationSettings
 
 
 class WorkspaceStatus(str, enum.Enum):
@@ -122,6 +123,11 @@ class Workspace(Base):
     )
     sessions: Mapped[list[Session]] = relationship(
         "Session",
+        back_populates="workspace",
+        cascade="all, delete-orphan",
+    )
+    notification_settings: Mapped[list[UserNotificationSettings]] = relationship(
+        "UserNotificationSettings",
         back_populates="workspace",
         cascade="all, delete-orphan",
     )

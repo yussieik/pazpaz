@@ -7,6 +7,7 @@ Comprehensive documentation for PazPaz database architecture, schema design, mig
 ### Core Documentation
 - [DATABASE_ARCHITECTURE_REVIEW.md](./DATABASE_ARCHITECTURE_REVIEW.md) - Complete schema analysis and recommendations
 - [SESSIONS_SCHEMA.md](./SESSIONS_SCHEMA.md) - Sessions and attachments tables (PHI encryption)
+- [NOTIFICATION_SETTINGS_SCHEMA.md](./NOTIFICATION_SETTINGS_SCHEMA.md) - User notification preferences (email, SMS, push)
 - [WEEK2_DAY1_MORNING_SESSIONS_MIGRATION_REPORT.md](./WEEK2_DAY1_MORNING_SESSIONS_MIGRATION_REPORT.md) - Session table migration details
 
 ### Related Documentation
@@ -17,18 +18,20 @@ Comprehensive documentation for PazPaz database architecture, schema design, mig
 
 ## 🗄️ Current Database Schema
 
-### Core Tables (13 total)
+### Core Tables (14 total)
 1. **workspaces** - Multi-tenant workspace isolation
 2. **users** - User accounts with role-based access
-3. **clients** - Client records (PII/PHI) with healthcare fields
-4. **appointments** - Scheduling with conflict detection
-5. **sessions** - SOAP notes with encrypted PHI (AES-256-GCM)
-6. **session_attachments** - File references for S3/MinIO storage
-7. **session_versions** - Amendment history tracking (immutable)
-8. **services** - Service types and pricing
-9. **locations** - Practice locations
-10. **audit_events** - HIPAA-compliant audit trail (append-only)
-11. **alembic_version** - Migration tracking
+3. **user_notification_settings** - Email notification preferences (one-to-one with users)
+4. **clients** - Client records (PII/PHI) with healthcare fields
+5. **appointments** - Scheduling with conflict detection
+6. **sessions** - SOAP notes with encrypted PHI (AES-256-GCM)
+7. **session_attachments** - File references for S3/MinIO storage
+8. **session_versions** - Amendment history tracking (immutable)
+9. **services** - Service types and pricing
+10. **locations** - Practice locations
+11. **audit_events** - HIPAA-compliant audit trail (append-only)
+12. **email_blacklist** - Platform-level email blocking
+13. **alembic_version** - Migration tracking
 
 ### Key Features
 - **100% PHI Encryption**: All sensitive fields use AES-256-GCM via `EncryptedString` type with versioned keys
@@ -40,7 +43,7 @@ Comprehensive documentation for PazPaz database architecture, schema design, mig
 
 ## 🚀 Migration History
 
-### Applied Migrations (Current HEAD: 92df859932f2)
+### Applied Migrations (Current HEAD: a8b3c4d5e6f7)
 1. `65ac34a08850` - Initial schema (workspaces, users, clients, appointments)
 2. `f6092aa0856d` - Add service and location entities
 3. `83680210d7d2` - Add client healthcare fields (address, medical_history, emergency contacts)
@@ -56,7 +59,14 @@ Comprehensive documentation for PazPaz database architecture, schema design, mig
 13. `ea67a34acb9c` - Add client-level attachments table
 14. `d1f764670a60` - Add workspace storage quota fields
 15. `a2341bb8aa45` - **Encrypt client PII fields (first_name, last_name, email, phone, address, medical_history, emergency contacts)**
-16. `92df859932f2` - **Encrypt client date_of_birth field** (current HEAD)
+16. `92df859932f2` - **Encrypt client date_of_birth field**
+17. `01b9ba5f6818` - Add TOTP fields to user
+18. `da1a1442ee90` - Add platform admin and invitations
+19. `c289c823d8e8` - Make audit_events workspace_id nullable
+20. `9f17cfe59bf8` - Enable citext extension
+21. `6480841e9520` - Add workspace status and blacklist table
+22. `c7aa15ce5841` - Convert email_blacklist.email to citext
+23. `a8b3c4d5e6f7` - **Add user_notification_settings table** (current HEAD)
 
 ### Running Migrations
 ```bash
@@ -191,7 +201,10 @@ All database documentation must include:
 
 ### Week 3+ Planned Features
 - **Plan of Care**: Treatment plans with goals and interventions
-- **Email Reminders**: Appointment reminder queue tables
+- **Email Queue**: Transactional email queue and delivery tracking
 - **Reporting Views**: Materialized views for analytics
 - **Full-text Search**: PostgreSQL FTS for client/note search
 - **Row-Level Security**: Database-enforced workspace isolation
+
+### Recently Completed (Week 2)
+- ✅ **User Notification Settings**: Email notification preferences with JSONB extensibility (SMS, push future)
