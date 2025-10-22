@@ -60,10 +60,33 @@ function getColor(type: string): string {
 function getIconPath(type: string): string {
   return iconPaths[type] || 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
 }
+
+// Get severity class for left border
+function getSeverityClass(type: string): string {
+  const highSeverity = ['workspace-suspended', 'workspace-deleted']
+  const mediumSeverity = ['user-blacklisted']
+
+  if (highSeverity.includes(type)) {
+    return 'border-l-red-500'
+  }
+
+  if (mediumSeverity.includes(type)) {
+    return 'border-l-amber-500'
+  }
+
+  // Low severity (default)
+  return 'border-l-slate-200'
+}
 </script>
 
 <template>
-  <div class="flex gap-3">
+  <div
+    :class="[
+      'flex gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:border-slate-300 hover:shadow-md sm:p-4',
+      'border-l-4',
+      getSeverityClass(activity.type),
+    ]"
+  >
     <!-- Icon -->
     <div
       :class="[
