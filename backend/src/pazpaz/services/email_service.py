@@ -91,6 +91,84 @@ PazPaz - Practice Management for Independent Therapists
         raise
 
 
+async def send_invitation_email(email: str, invitation_url: str) -> None:
+    """
+    Send invitation email to new therapist.
+
+    Sends email via SMTP (MailHog in development, production SMTP in prod).
+
+    Args:
+        email: Recipient email address
+        invitation_url: Full invitation URL with token
+
+    Raises:
+        Exception: If email sending fails
+    """
+    # Create email message
+    message = EmailMessage()
+    message["From"] = "PazPaz <noreply@pazpaz.app>"
+    message["To"] = email
+    message["Subject"] = "Invitation to Join PazPaz"
+
+    # Email body (plain text)
+    message.set_content(f"""
+Hello,
+
+You've been invited to join PazPaz, a practice management platform
+for independent therapists.
+
+Click the link below to accept your invitation and set up your workspace:
+
+{invitation_url}
+
+This invitation link will expire in 7 days.
+
+If you didn't expect this invitation, you can safely ignore this email.
+
+---
+PazPaz - Practice Management for Independent Therapists
+""")
+
+    # Send via SMTP
+    try:
+        async with aiosmtplib.SMTP(
+            hostname=settings.smtp_host,
+            port=settings.smtp_port,
+        ) as smtp:
+            # Authenticate if credentials provided (not needed for MailHog)
+            if settings.smtp_user:
+                await smtp.login(settings.smtp_user, settings.smtp_password)
+
+            await smtp.send_message(message)
+
+        logger.info(
+            "invitation_email_sent",
+            email=email,
+            smtp_host=settings.smtp_host,
+            smtp_port=settings.smtp_port,
+        )
+
+        # Also log to console in debug mode for convenience
+        if settings.debug:
+            logger.info(
+                "invitation_email_debug_info",
+                email=email,
+                mailhog_ui="http://localhost:8025",
+                invitation_url=invitation_url,
+            )
+
+    except Exception as e:
+        logger.error(
+            "failed_to_send_invitation_email",
+            email=email,
+            error=str(e),
+            smtp_host=settings.smtp_host,
+            smtp_port=settings.smtp_port,
+            exc_info=True,
+        )
+        raise
+
+
 async def send_welcome_email(email: str, full_name: str) -> None:
     """
     Send welcome email to new user.

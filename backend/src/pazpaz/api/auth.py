@@ -459,7 +459,7 @@ async def verify_magic_link_2fa_endpoint(
 
 @router.get(
     "/accept-invite",
-    status_code=303,
+    status_code=200,
     summary="Accept therapist invitation",
     description="""
     Accept therapist invitation and activate account via magic link.
@@ -476,11 +476,11 @@ async def verify_magic_link_2fa_endpoint(
     1. Therapist clicks invitation link in email
     2. Token verified and user activated
     3. JWT session created and cookies set
-    4. Redirect to app (logged in)
+    4. Returns success JSON with user info
 
     Error handling:
-    - Invalid/expired tokens redirect to /login with error parameter
-    - Already accepted redirects to /login with info message
+    - Invalid/expired tokens return 404/410 with error details
+    - Already accepted returns 410
     - All errors are logged server-side for security monitoring
     """,
 )
@@ -490,7 +490,7 @@ async def accept_invitation(
     response: Response = None,
     db: AsyncSession = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis),
-) -> RedirectResponse:
+) -> dict:
     """
     Accept therapist invitation and activate account.
 
@@ -537,11 +537,8 @@ async def accept_invitation(
             redis_client=redis_client,
         )
 
-        # Create redirect response
-        redirect_response = RedirectResponse(url="/", status_code=303)
-
         # Set JWT as HttpOnly cookie (XSS protection)
-        redirect_response.set_cookie(
+        response.set_cookie(
             key="access_token",
             value=jwt_token,
             httponly=True,
@@ -551,7 +548,7 @@ async def accept_invitation(
         )
 
         # Set CSRF token as cookie
-        redirect_response.set_cookie(
+        response.set_cookie(
             key="csrf_token",
             value=csrf_token,
             httponly=False,  # Allow JS to read for X-CSRF-Token header
@@ -593,28 +590,46 @@ async def accept_invitation(
             email=user.email,
         )
 
-        return redirect_response
+        return {
+            "success": True,
+            "message": "Invitation accepted successfully",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "full_name": user.full_name,
+                "workspace_id": str(user.workspace_id),
+            },
+        }
 
     except InvalidInvitationTokenError:
         logger.warning(
             "invitation_acceptance_failed_invalid_token",
             token_prefix=token[:16] if len(token) >= 16 else "short_token",
         )
-        return RedirectResponse(url="/login?error=invalid_token", status_code=303)
+        raise HTTPException(
+            status_code=404,
+            detail="Invalid invitation token",
+        )
 
     except ExpiredInvitationTokenError:
         logger.warning(
             "invitation_acceptance_failed_expired_token",
             token_prefix=token[:16] if len(token) >= 16 else "short_token",
         )
-        return RedirectResponse(url="/login?error=expired_token", status_code=303)
+        raise HTTPException(
+            status_code=410,
+            detail="This invitation has expired",
+        )
 
     except InvitationAlreadyAcceptedError:
         logger.warning(
             "invitation_acceptance_failed_already_accepted",
             token_prefix=token[:16] if len(token) >= 16 else "short_token",
         )
-        return RedirectResponse(url="/login?error=already_accepted", status_code=303)
+        raise HTTPException(
+            status_code=410,
+            detail="This invitation has already been accepted",
+        )
 
     except Exception as e:
         logger.error(
@@ -622,7 +637,10 @@ async def accept_invitation(
             error=str(e),
             exc_info=True,
         )
-        return RedirectResponse(url="/login?error=unknown", status_code=303)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to accept invitation",
+        )
 
 
 @router.get(

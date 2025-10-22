@@ -37,6 +37,15 @@ const router = createRouter({
         requiresAuth: false,
       },
     },
+    {
+      path: '/accept-invitation',
+      name: 'accept-invitation',
+      component: () => import('@/views/AcceptInvitationView.vue'),
+      meta: {
+        title: 'Accept Invitation - PazPaz',
+        requiresAuth: false,
+      },
+    },
 
     // Protected Routes (Authentication Required - PHI/PII Access)
     {

@@ -49,6 +49,15 @@ describe('Navigation Guards', () => {
             requiresAuth: false,
           },
         },
+        {
+          path: '/accept-invitation',
+          name: 'accept-invitation',
+          component: { template: '<div>Accept Invitation</div>' },
+          meta: {
+            title: 'Accept Invitation - PazPaz',
+            requiresAuth: false,
+          },
+        },
 
         // Protected routes
         {
@@ -215,6 +224,27 @@ describe('Navigation Guards', () => {
 
       expect(router.currentRoute.value.path).toBe('/auth/verify')
     })
+
+    it('should allow unauthenticated user to access /accept-invitation', async () => {
+      const authStore = useAuthStore()
+      authStore.clearUser()
+
+      await router.push('/accept-invitation')
+      await router.isReady()
+
+      expect(router.currentRoute.value.path).toBe('/accept-invitation')
+    })
+
+    it('should allow unauthenticated user to access /accept-invitation with token', async () => {
+      const authStore = useAuthStore()
+      authStore.clearUser()
+
+      await router.push('/accept-invitation?token=abc123')
+      await router.isReady()
+
+      expect(router.currentRoute.value.path).toBe('/accept-invitation')
+      expect(router.currentRoute.value.query.token).toBe('abc123')
+    })
   })
 
   describe('Authenticated Access', () => {
@@ -275,6 +305,15 @@ describe('Navigation Guards', () => {
       await router.isReady()
 
       expect(router.currentRoute.value.path).toBe('/auth/verify')
+    })
+
+    it('should allow authenticated user to access /accept-invitation (edge case)', async () => {
+      // Edge case: user is already authenticated but somehow hits invitation link
+      // Should allow access (component will handle the logic)
+      await router.push('/accept-invitation?token=abc123')
+      await router.isReady()
+
+      expect(router.currentRoute.value.path).toBe('/accept-invitation')
     })
   })
 

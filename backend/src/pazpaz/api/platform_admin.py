@@ -12,12 +12,14 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.api.dependencies.platform_admin import require_platform_admin
+from pazpaz.core.config import settings
 from pazpaz.core.logging import get_logger
 from pazpaz.db.base import get_db
 from pazpaz.models.audit_event import AuditAction, AuditEvent, ResourceType
 from pazpaz.models.email_blacklist import EmailBlacklist
 from pazpaz.models.user import User
 from pazpaz.models.workspace import Workspace, WorkspaceStatus
+from pazpaz.services.email_service import send_invitation_email
 from pazpaz.services.platform_onboarding_service import (
     DuplicateEmailError,
     InvitationNotFoundError,
@@ -247,9 +249,33 @@ async def invite_therapist(
             therapist_full_name=request_data.therapist_full_name,
         )
 
-        # Generate invitation URL
-        # In production, this would be the frontend URL
-        invitation_url = f"https://app.pazpaz.com/accept-invitation?token={token}"
+        # Generate invitation URL with frontend URL
+        invitation_url = f"{settings.frontend_url}/accept-invitation?token={token}"
+
+        # Send invitation email
+        # Handle email errors gracefully - invitation is already created
+        try:
+            await send_invitation_email(
+                email=user.email,
+                invitation_url=invitation_url,
+            )
+            logger.info(
+                "invitation_email_sent_successfully",
+                admin_id=str(admin.id),
+                user_id=str(user.id),
+                email=user.email,
+            )
+        except Exception as e:
+            # Log error but don't block the response
+            # The invitation is valid, admin can manually send the URL
+            logger.error(
+                "invitation_email_failed",
+                admin_id=str(admin.id),
+                user_id=str(user.id),
+                email=user.email,
+                error=str(e),
+                exc_info=True,
+            )
 
         logger.info(
             "therapist_invited",
@@ -345,8 +371,41 @@ async def resend_invitation(
     try:
         token = await service.resend_invitation(db=db, user_id=user_id)
 
-        # Generate invitation URL
-        invitation_url = f"https://app.pazpaz.com/accept-invitation?token={token}"
+        # Get user email for sending email
+        user_result = await db.get(User, user_id)
+        if not user_result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        # Generate invitation URL with frontend URL
+        invitation_url = f"{settings.frontend_url}/accept-invitation?token={token}"
+
+        # Send invitation email
+        # Handle email errors gracefully - invitation token is already regenerated
+        try:
+            await send_invitation_email(
+                email=user_result.email,
+                invitation_url=invitation_url,
+            )
+            logger.info(
+                "resend_invitation_email_sent_successfully",
+                admin_id=str(admin.id),
+                user_id=str(user_id),
+                email=user_result.email,
+            )
+        except Exception as e:
+            # Log error but don't block the response
+            # The new token is valid, admin can manually send the URL
+            logger.error(
+                "resend_invitation_email_failed",
+                admin_id=str(admin.id),
+                user_id=str(user_id),
+                email=user_result.email,
+                error=str(e),
+                exc_info=True,
+            )
 
         logger.info(
             "invitation_resent",

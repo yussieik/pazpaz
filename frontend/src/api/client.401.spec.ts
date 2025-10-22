@@ -309,6 +309,41 @@ describe('401 Unauthorized Handling', () => {
       expect(mockRouterPush).not.toHaveBeenCalled()
       expect(mockLogout).not.toHaveBeenCalled()
     })
+
+    it('does not redirect if on /accept-invitation page', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { pathname: '/accept-invitation' },
+        writable: true,
+        configurable: true,
+      })
+
+      const error = {
+        response: {
+          status: 401,
+          data: {},
+          headers: {},
+        },
+        config: {
+          url: '/auth/accept-invite',
+          method: 'get',
+        } as InternalAxiosRequestConfig,
+      } as AxiosError
+
+      const interceptor = apiClient.interceptors.response.handlers[0]
+      if (interceptor && interceptor.rejected) {
+        try {
+          await interceptor.rejected(error)
+        } catch (err) {
+          // Expected
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      // Should not redirect (already on accept-invitation page, which is a public auth page)
+      expect(mockRouterPush).not.toHaveBeenCalled()
+      expect(mockLogout).not.toHaveBeenCalled()
+    })
   })
 
   describe('Request ID Extraction', () => {

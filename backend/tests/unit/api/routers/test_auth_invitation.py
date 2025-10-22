@@ -26,13 +26,13 @@ pytestmark = pytest.mark.asyncio
 class TestAcceptInvitationSuccess:
     """Test successful invitation acceptance flow."""
 
-    async def test_accept_invitation_success_redirects_to_app(
+    async def test_accept_invitation_success_returns_json(
         self,
         client: AsyncClient,
         workspace_1: Workspace,
         db: AsyncSession,
     ):
-        """Valid invitation token should activate user and redirect to app."""
+        """Valid invitation token should activate user and return JSON response."""
         # Create inactive user with invitation token
         user = User(
             id=uuid.uuid4(),
@@ -72,9 +72,15 @@ class TestAcceptInvitationSuccess:
                 follow_redirects=False,
             )
 
-            # Should redirect to root
-            assert response.status_code == 303
-            assert response.headers["location"] == "/"
+            # Should return 200 OK with JSON response
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert data["message"] == "Invitation accepted successfully"
+            assert data["user"]["email"] == user.email
+            assert data["user"]["full_name"] == user.full_name
+            assert data["user"]["id"] == str(user.id)
+            assert data["user"]["workspace_id"] == str(user.workspace_id)
 
             # Verify service was called
             mock_accept.assert_called_once()
@@ -123,7 +129,7 @@ class TestAcceptInvitationSuccess:
                 follow_redirects=False,
             )
 
-            assert response.status_code == 303
+            assert response.status_code == 200
 
             # Verify JWT token is present in cookies
             assert "access_token" in response.cookies
@@ -176,7 +182,7 @@ class TestAcceptInvitationSuccess:
                 follow_redirects=False,
             )
 
-            assert response.status_code == 303
+            assert response.status_code == 200
 
             # Verify access_token cookie
             assert "access_token" in response.cookies
@@ -190,11 +196,11 @@ class TestAcceptInvitationSuccess:
 class TestAcceptInvitationErrors:
     """Test error handling for invitation acceptance."""
 
-    async def test_accept_invitation_invalid_token_redirects_to_login(
+    async def test_accept_invitation_invalid_token_returns_404(
         self,
         client: AsyncClient,
     ):
-        """Invalid token should redirect to login with error code."""
+        """Invalid token should return 404 with error detail."""
         # Mock service to raise InvalidInvitationTokenError
         with patch(
             "pazpaz.api.auth.PlatformOnboardingService.accept_invitation"
@@ -207,14 +213,16 @@ class TestAcceptInvitationErrors:
                 follow_redirects=False,
             )
 
-            assert response.status_code == 303
-            assert response.headers["location"] == "/login?error=invalid_token"
+            assert response.status_code == 404
+            data = response.json()
+            assert "detail" in data
+            assert data["detail"] == "Invalid invitation token"
 
-    async def test_accept_invitation_expired_token_redirects_to_login(
+    async def test_accept_invitation_expired_token_returns_410(
         self,
         client: AsyncClient,
     ):
-        """Expired token should redirect to login with error code."""
+        """Expired token should return 410 with error detail."""
         # Mock service to raise ExpiredInvitationTokenError
         with patch(
             "pazpaz.api.auth.PlatformOnboardingService.accept_invitation"
@@ -227,14 +235,16 @@ class TestAcceptInvitationErrors:
                 follow_redirects=False,
             )
 
-            assert response.status_code == 303
-            assert response.headers["location"] == "/login?error=expired_token"
+            assert response.status_code == 410
+            data = response.json()
+            assert "detail" in data
+            assert data["detail"] == "This invitation has expired"
 
-    async def test_accept_invitation_already_accepted_redirects_to_login(
+    async def test_accept_invitation_already_accepted_returns_410(
         self,
         client: AsyncClient,
     ):
-        """Already accepted invitation should redirect to login with info."""
+        """Already accepted invitation should return 410 with error detail."""
         # Mock service to raise InvitationAlreadyAcceptedError
         with patch(
             "pazpaz.api.auth.PlatformOnboardingService.accept_invitation"
@@ -247,8 +257,10 @@ class TestAcceptInvitationErrors:
                 follow_redirects=False,
             )
 
-            assert response.status_code == 303
-            assert response.headers["location"] == "/login?error=already_accepted"
+            assert response.status_code == 410
+            data = response.json()
+            assert "detail" in data
+            assert data["detail"] == "This invitation has already been accepted"
 
     async def test_accept_invitation_missing_token_returns_422(
         self,
@@ -264,11 +276,11 @@ class TestAcceptInvitationErrors:
         data = response.json()
         assert "detail" in data
 
-    async def test_accept_invitation_generic_error_redirects_to_login(
+    async def test_accept_invitation_generic_error_returns_500(
         self,
         client: AsyncClient,
     ):
-        """Unexpected errors should redirect to login with generic error."""
+        """Unexpected errors should return 500 with generic error detail."""
         # Mock service to raise unexpected exception
         with patch(
             "pazpaz.api.auth.PlatformOnboardingService.accept_invitation"
@@ -281,8 +293,10 @@ class TestAcceptInvitationErrors:
                 follow_redirects=False,
             )
 
-            assert response.status_code == 303
-            assert response.headers["location"] == "/login?error=unknown"
+            assert response.status_code == 500
+            data = response.json()
+            assert "detail" in data
+            assert data["detail"] == "Failed to accept invitation"
 
 
 class TestAcceptInvitationSecurity:
@@ -327,7 +341,7 @@ class TestAcceptInvitationSecurity:
                 follow_redirects=False,
             )
 
-            assert response.status_code == 303
+            assert response.status_code == 200
 
             # Check Set-Cookie headers
             set_cookie_headers = response.headers.get_list("set-cookie")
@@ -382,7 +396,7 @@ class TestAcceptInvitationSecurity:
                     follow_redirects=False,
                 )
 
-                assert response.status_code == 303
+                assert response.status_code == 200
 
                 # Check Set-Cookie headers
                 set_cookie_headers = response.headers.get_list("set-cookie")
@@ -434,7 +448,7 @@ class TestAcceptInvitationSecurity:
                 follow_redirects=False,
             )
 
-            assert response.status_code == 303
+            assert response.status_code == 200
 
             # Check Set-Cookie headers
             set_cookie_headers = response.headers.get_list("set-cookie")
@@ -462,12 +476,12 @@ class TestAcceptInvitationSecurity:
                 follow_redirects=False,
             )
 
-            assert response.status_code == 303
-            # Verify token is not in redirect URL
-            location = response.headers["location"]
-            assert sensitive_token not in location
-            # Only generic error code should be present
-            assert "error=invalid_token" in location
+            assert response.status_code == 404
+            # Verify token is not in error response
+            data = response.json()
+            assert sensitive_token not in str(data)
+            # Only generic error message should be present
+            assert data["detail"] == "Invalid invitation token"
 
     async def test_accept_invitation_audit_logging(
         self,
@@ -512,7 +526,7 @@ class TestAcceptInvitationSecurity:
                 follow_redirects=False,
             )
 
-            assert response.status_code == 303
+            assert response.status_code == 200
 
             # Verify audit event was created
             mock_audit.assert_called_once()

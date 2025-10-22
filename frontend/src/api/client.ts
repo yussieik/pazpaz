@@ -35,8 +35,9 @@ const apiClient: AxiosInstance = axios.create({
 
 /**
  * Helper function to get CSRF token from cookie
+ * Exported for use by other API clients (e.g., generated OpenAPI client)
  */
-function getCsrfToken(): string | null {
+export function getCsrfToken(): string | null {
   const match = document.cookie.match(/csrf_token=([^;]+)/)
   return match?.[1] ?? null
 }
@@ -155,7 +156,9 @@ apiClient.interceptors.response.use(
 
           // Avoid infinite loops - don't redirect if already on auth pages
           const isAuthPage =
-            currentPath === '/login' || currentPath.startsWith('/auth/')
+            currentPath === '/login' ||
+            currentPath.startsWith('/auth/') ||
+            currentPath.startsWith('/accept-invitation')
 
           if (!isAuthPage) {
             console.warn('[API] 401 Unauthorized - Session expired, logging out')

@@ -8,6 +8,7 @@ import './style.css'
 import './assets/calendar-patterns.css'
 import App from './App.vue'
 import { useAuthStore } from './stores/auth'
+import { configureApiClient } from './api/config'
 
 /**
  * Application Bootstrap
@@ -23,6 +24,9 @@ import { useAuthStore } from './stores/auth'
 
 const app = createApp(App)
 const pinia = createPinia()
+
+// Configure the generated API client (CSRF tokens, credentials, base URL)
+configureApiClient()
 
 // Configure toast notifications
 const toastOptions: PluginOptions = {
