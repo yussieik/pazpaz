@@ -1,11 +1,12 @@
 /**
  * Notification Settings Composable
  *
- * Provides reactive state and immediate save functionality for notification settings.
+ * Provides reactive state and auto-save functionality for notification settings.
  * Handles loading, saving, validation, and error states.
  */
 
 import { ref, watch } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
 import { getNotificationSettings, updateNotificationSettings } from '@/api/notification-settings'
 import type { NotificationSettings } from '@/types/notification-settings'
 import { useToast } from './useToast'
@@ -14,7 +15,7 @@ import { useToast } from './useToast'
  * Composable for managing notification settings
  *
  * Features:
- * - Immediate save on any change
+ * - Auto-save with 150ms debounce (batches rapid changes)
  * - Loading and saving states
  * - Error handling with toast notifications
  * - Optimistic updates (UI updates immediately)
@@ -22,7 +23,7 @@ import { useToast } from './useToast'
  * @example
  * const { settings, isLoading, isSaving, error, loadSettings } = useNotificationSettings()
  * await loadSettings()
- * settings.value.email_enabled = true // Saves immediately
+ * settings.value.email_enabled = true // Saves after 150ms
  */
 export function useNotificationSettings() {
   const { showError } = useToast()
@@ -87,9 +88,20 @@ export function useNotificationSettings() {
   }
 
   /**
-   * Watch settings for changes and trigger immediate save
+   * Debounced save function (150ms delay)
+   * Short debounce to batch rapid changes (like toggling master switch)
+   * while still feeling immediate to the user
+   */
+  const debouncedSave = useDebounceFn(async () => {
+    if (!isInitialLoad) {
+      await saveSettings()
+    }
+  }, 150)
+
+  /**
+   * Watch settings for changes and trigger debounced save
    * Deep watch ensures nested property changes are detected
-   * No debounce - saves immediately when a setting changes
+   * 150ms debounce batches rapid changes while feeling immediate
    * Skips initial load to prevent unnecessary API calls
    */
   watch(
@@ -97,8 +109,8 @@ export function useNotificationSettings() {
     (newSettings) => {
       // Skip save during initial load
       if (newSettings && !isInitialLoad) {
-        // Save immediately without debounce
-        saveSettings()
+        // Debounce to batch rapid changes (e.g., toggling master switch)
+        debouncedSave()
       }
     },
     { deep: true }
