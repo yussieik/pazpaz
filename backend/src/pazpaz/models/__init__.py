@@ -1,6 +1,10 @@
 """Database models."""
 
 from pazpaz.models.appointment import Appointment, AppointmentStatus, LocationType
+from pazpaz.models.appointment_reminder import (
+    AppointmentReminderSent,
+    ReminderType,
+)
 from pazpaz.models.audit_event import AuditAction, AuditEvent, ResourceType
 from pazpaz.models.client import Client
 from pazpaz.models.email_blacklist import EmailBlacklist
@@ -21,6 +25,8 @@ __all__ = [
     "Client",
     "Appointment",
     "AppointmentStatus",
+    "AppointmentReminderSent",
+    "ReminderType",
     "LocationType",
     "Service",
     "Location",

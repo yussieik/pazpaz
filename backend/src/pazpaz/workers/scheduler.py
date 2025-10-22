@@ -55,6 +55,10 @@ from pazpaz.services.notification_query_service import (
     get_users_needing_daily_digest,
     get_users_needing_session_notes_reminder,
 )
+from pazpaz.services.reminder_tracking_service import (
+    mark_reminder_sent,
+    was_reminder_sent,
+)
 from pazpaz.workers.settings import (
     HEALTH_CHECK_INTERVAL,
     JOB_TIMEOUT,
@@ -347,8 +351,8 @@ async def send_appointment_reminders(ctx: dict) -> dict:
 
     This task runs every 5 minutes to check for upcoming appointments and
     sends reminders at configured intervals (15min, 30min, 1hr, 2hr, 24hr
-    before appointment start). It prevents duplicate reminders using a
-    tracking system (to be implemented in Phase 4).
+    before appointment start). It prevents duplicate reminders using the
+    appointment_reminders_sent tracking table.
 
     Args:
         ctx: arq worker context containing database session factory
@@ -357,16 +361,18 @@ async def send_appointment_reminders(ctx: dict) -> dict:
         dict: Summary statistics
             - sent: Number of reminders sent successfully
             - errors: Number of errors encountered
+            - already_sent: Number of reminders skipped (already sent)
 
     Note:
-        Phase 3 implementation - uses simplified UTC-only approach.
-        TODO: Add deduplication tracking in Phase 4.
+        Phase 4 implementation - includes deduplication tracking.
+        Uses simplified UTC-only approach for timezone handling.
         TODO: Add proper timezone support in future phases.
     """
     logger.info("appointment_reminders_task_started")
 
     sent_count = 0
     error_count = 0
+    already_sent_count = 0
 
     try:
         # Get current time in UTC
@@ -389,6 +395,27 @@ async def send_appointment_reminders(ctx: dict) -> dict:
                     # Calculate minutes until appointment
                     time_delta = appointment.scheduled_start - current_time
                     minutes_until = int(time_delta.total_seconds() / 60)
+
+                    # Determine reminder type based on user's setting
+                    # The user.notification_settings.reminder_minutes tells us
+                    # what interval this user wants reminders for
+                    reminder_minutes = user.notification_settings.reminder_minutes
+
+                    # Check if this reminder was already sent
+                    already_sent = await was_reminder_sent(
+                        db, appointment.id, user.id, reminder_minutes
+                    )
+
+                    if already_sent:
+                        logger.info(
+                            "reminder_already_sent",
+                            appointment_id=str(appointment.id),
+                            user_id=str(user.id),
+                            reminder_minutes=reminder_minutes,
+                            minutes_until=minutes_until,
+                        )
+                        already_sent_count += 1
+                        continue
 
                     # Build email content
                     email_data = await build_appointment_reminder_email(
@@ -423,6 +450,11 @@ async def send_appointment_reminders(ctx: dict) -> dict:
                         minutes_until=minutes_until,
                     )
 
+                    # Mark reminder as sent to prevent duplicates
+                    await mark_reminder_sent(
+                        db, appointment.id, user.id, reminder_minutes
+                    )
+
                     logger.info(
                         "appointment_reminder_sent",
                         appointment_id=str(appointment.id),
@@ -430,6 +462,7 @@ async def send_appointment_reminders(ctx: dict) -> dict:
                         email=user.email,
                         client_name=appointment_data["client_name"],
                         minutes_until=minutes_until,
+                        reminder_minutes=reminder_minutes,
                     )
                     sent_count += 1
 
@@ -448,9 +481,14 @@ async def send_appointment_reminders(ctx: dict) -> dict:
             "appointment_reminders_task_completed",
             sent=sent_count,
             errors=error_count,
+            already_sent=already_sent_count,
         )
 
-        return {"sent": sent_count, "errors": error_count}
+        return {
+            "sent": sent_count,
+            "errors": error_count,
+            "already_sent": already_sent_count,
+        }
 
     except Exception as e:
         logger.error(
