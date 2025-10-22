@@ -8,7 +8,6 @@ import type { InviteTherapistRequest } from '@/api/generated'
 // Components
 import MetricCard from '@/components/platform-admin/MetricCard.vue'
 import ActivityTimeline from '@/components/platform-admin/ActivityTimeline.vue'
-import QuickActions from '@/components/platform-admin/QuickActions.vue'
 import WorkspaceCard from '@/components/platform-admin/WorkspaceCard.vue'
 import WorkspaceDetailsModal from '@/components/platform-admin/WorkspaceDetailsModal.vue'
 import CreateWorkspaceModal from '@/components/platform-admin/CreateWorkspaceModal.vue'
@@ -253,25 +252,8 @@ function openInviteModal() {
     <!-- Header -->
     <header class="border-b border-slate-200 bg-white shadow-sm">
       <div class="mx-auto max-w-7xl px-6 py-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-3xl font-bold text-slate-900">PazPaz Platform Admin</h1>
-            <p class="mt-1 text-slate-600">
-              Manage therapist onboarding and platform health
-            </p>
-          </div>
-          <div v-if="activeTab === 'workspaces'" class="w-64">
-            <input
-              v-model="searchQuery"
-              type="search"
-              placeholder="Search workspaces..."
-              class="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-        </div>
-
         <!-- Tab Navigation -->
-        <nav class="mt-6 flex gap-1" role="tablist">
+        <nav class="flex gap-1" role="tablist">
           <button
             @click="switchTab('overview')"
             :class="[
@@ -403,16 +385,6 @@ function openInviteModal() {
           />
         </div>
 
-        <!-- Quick Actions -->
-        <div class="mb-8">
-          <h2 class="mb-4 text-xl font-semibold text-slate-900">Quick Actions</h2>
-          <QuickActions
-            @invite-therapist="openInviteModal"
-            @view-workspaces="switchTab('workspaces')"
-            @view-invitations="switchTab('invitations')"
-          />
-        </div>
-
         <!-- Activity Timeline -->
         <ActivityTimeline
           :activities="platformMetrics.activity.value"
@@ -423,7 +395,14 @@ function openInviteModal() {
       <!-- WORKSPACES TAB -->
       <div v-if="activeTab === 'workspaces'" role="tabpanel">
         <div class="mb-6 flex items-center justify-between">
-          <h2 class="text-xl font-semibold text-slate-900">All Workspaces</h2>
+          <div class="flex-1 max-w-md">
+            <input
+              v-model="searchQuery"
+              type="search"
+              placeholder="Search workspaces..."
+              class="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
           <button
             @click="openInviteModal"
             class="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
@@ -482,7 +461,6 @@ function openInviteModal() {
       <div v-if="activeTab === 'invitations'" role="tabpanel">
         <div class="mb-6 flex items-center justify-between">
           <div class="flex items-center gap-4">
-            <h2 class="text-xl font-semibold text-slate-900">Pending Invitations</h2>
             <!-- Filter -->
             <div class="flex gap-2">
               <button
@@ -624,8 +602,7 @@ function openInviteModal() {
 
       <!-- BLACKLIST TAB -->
       <div v-if="activeTab === 'blacklist'" role="tabpanel">
-        <div class="mb-6 flex items-center justify-between">
-          <h2 class="text-xl font-semibold text-slate-900">Email Blacklist</h2>
+        <div class="mb-6 flex items-center justify-end">
           <button
             v-if="!showAddBlacklistForm"
             @click="showAddBlacklistForm = true"
