@@ -33,6 +33,7 @@ dependencies = [
     "argon2-cffi>=25.1.0",
     "pyotp>=2.9.0",
     "qrcode>=8.2",
+    "arq>=0.26.3",
 ]
 
 [tool.hatch.build.targets.wheel]
