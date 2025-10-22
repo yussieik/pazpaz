@@ -15,7 +15,8 @@ from pazpaz.core.security import decode_access_token
 from pazpaz.db.base import get_db
 from pazpaz.models.client import Client
 from pazpaz.models.user import User
-from pazpaz.services.auth_service import get_user_by_id, is_token_blacklisted
+from pazpaz.models.workspace import WorkspaceStatus
+from pazpaz.services.auth_service import is_token_blacklisted
 
 logger = get_logger(__name__)
 
@@ -112,8 +113,13 @@ async def get_current_user(
             detail="Invalid authentication credentials",
         ) from e
 
-    # Fetch user from database
-    user = await get_user_by_id(db, user_id)
+    # Fetch user from database with workspace relationship
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    query = select(User).where(User.id == user_id).options(selectinload(User.workspace))
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
 
     if not user:
         logger.warning(
@@ -135,6 +141,37 @@ async def get_current_user(
         raise HTTPException(
             status_code=401,
             detail="User account is inactive",
+        )
+
+    # CRITICAL SECURITY CHECK: Verify workspace status
+    # Users from SUSPENDED or DELETED workspaces cannot authenticate
+    # This provides immediate enforcement when a workspace is suspended
+    if user.workspace.status != WorkspaceStatus.ACTIVE:
+        logger.warning(
+            "authentication_failed_workspace_not_active",
+            reason="workspace_suspended_or_deleted",
+            user_id=str(user.id),
+            workspace_id=str(user.workspace_id),
+            workspace_status=user.workspace.status.value,
+        )
+
+        # User-friendly error messages based on workspace status
+        if user.workspace.status == WorkspaceStatus.SUSPENDED:
+            detail = (
+                "Your workspace has been suspended. "
+                "Please contact support for assistance."
+            )
+        elif user.workspace.status == WorkspaceStatus.DELETED:
+            detail = (
+                "Your workspace has been deleted. "
+                "Please contact support for assistance."
+            )
+        else:
+            detail = "Your workspace is not active. Please contact support."
+
+        raise HTTPException(
+            status_code=403,
+            detail=detail,
         )
 
     logger.debug(

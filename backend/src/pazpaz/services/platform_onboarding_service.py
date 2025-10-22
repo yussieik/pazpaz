@@ -274,9 +274,18 @@ class PlatformOnboardingService:
             # query the database first. Instead, we'll hash the token and query.
             import hashlib
 
+            from sqlalchemy.orm import selectinload
+
+            from pazpaz.models.workspace import WorkspaceStatus
+
             token_hash = hashlib.sha256(token.encode()).hexdigest()
 
-            query = select(User).where(User.invitation_token_hash == token_hash)
+            # Eagerly load workspace to check status
+            query = (
+                select(User)
+                .where(User.invitation_token_hash == token_hash)
+                .options(selectinload(User.workspace))
+            )
             result = await db.execute(query)
             user = result.scalar_one_or_none()
 
@@ -296,6 +305,23 @@ class PlatformOnboardingService:
             # Check if expired
             if user.invited_at and is_invitation_expired(user.invited_at):
                 raise ExpiredInvitationTokenError("Invitation has expired")
+
+            # CRITICAL SECURITY CHECK: Verify workspace status
+            # Users cannot accept invitations for SUSPENDED or DELETED workspaces
+            if user.workspace.status != WorkspaceStatus.ACTIVE:
+                logger.warning(
+                    "invitation_acceptance_failed_workspace_not_active",
+                    user_id=str(user.id),
+                    workspace_id=str(user.workspace_id),
+                    workspace_status=user.workspace.status.value,
+                )
+
+                # Create custom exception for workspace status issues
+                # This will be caught in the API endpoint and converted
+                # to appropriate HTTP response
+                raise InvalidInvitationTokenError(
+                    "This workspace is no longer active. Please contact support."
+                )
 
             # Activate user and clear token (single-use)
             user.is_active = True

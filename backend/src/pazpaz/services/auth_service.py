@@ -19,6 +19,7 @@ from pazpaz.core.logging import get_logger
 from pazpaz.core.rate_limiting import check_rate_limit_redis
 from pazpaz.core.security import create_access_token
 from pazpaz.models.user import User
+from pazpaz.models.workspace import WorkspaceStatus
 from pazpaz.services.email_service import send_magic_link_email
 
 logger = get_logger(__name__)
@@ -333,10 +334,11 @@ async def verify_magic_link_token(
     request_ip: str | None = None,
 ) -> tuple[User, str] | dict | None:
     """
-    Verify magic link token and generate JWT with brute force detection and audit logging.
+    Verify magic link token and generate JWT with brute force detection.
 
-    If user has 2FA enabled, returns a dict with status='requires_2fa' and temporary token
-    for the 2FA verification step. Otherwise returns tuple of (User, JWT token).
+    If user has 2FA enabled, returns a dict with status='requires_2fa'
+    and temporary token for the 2FA verification step. Otherwise returns
+    tuple of (User, JWT token).
 
     Args:
         token: Magic link token
@@ -346,7 +348,8 @@ async def verify_magic_link_token(
 
     Returns:
         - Tuple of (User, JWT token) if valid and 2FA not enabled
-        - Dict with {'status': 'requires_2fa', 'user_id': str, 'temp_token': str} if 2FA enabled
+        - Dict with {'status': 'requires_2fa', 'user_id': str,
+          'temp_token': str} if 2FA enabled
         - None if invalid/expired
 
     Security:
@@ -379,7 +382,10 @@ async def verify_magic_link_token(
                 )
                 raise HTTPException(
                     status_code=429,
-                    detail=f"Too many failed login attempts. Try again in {lockout_remaining} seconds.",
+                    detail=(
+                        f"Too many failed login attempts. "
+                        f"Try again in {lockout_remaining} seconds."
+                    ),
                 )
 
         # Retrieve and decrypt token data
@@ -425,7 +431,8 @@ async def verify_magic_link_token(
         # Parse token data
         try:
             user_id = uuid.UUID(token_data["user_id"])
-            workspace_id = uuid.UUID(token_data["workspace_id"])
+            # workspace_id validated but not used (kept for security validation)
+            _workspace_id = uuid.UUID(token_data["workspace_id"])
         except (KeyError, ValueError) as e:
             # Failed attempt - increment counter
             await redis_client.incr(attempt_key)
@@ -435,7 +442,12 @@ async def verify_magic_link_token(
             return None
 
         # Validate user still exists and is active
-        query = select(User).where(User.id == user_id)
+        # Eagerly load workspace to check status
+        from sqlalchemy.orm import selectinload
+
+        query = (
+            select(User).where(User.id == user_id).options(selectinload(User.workspace))
+        )
         result = await db.execute(query)
         user = result.scalar_one_or_none()
 
@@ -475,6 +487,52 @@ async def verify_magic_link_token(
                 user_id=str(user_id),
             )
             # Delete invalid token
+            token_key = f"magic_link:{token}"
+            await redis_client.delete(token_key)
+            return None
+
+        # CRITICAL SECURITY CHECK: Verify workspace status
+        # Users from SUSPENDED or DELETED workspaces cannot authenticate
+        if user.workspace.status != WorkspaceStatus.ACTIVE:
+            # Failed verification - increment counter
+            await redis_client.incr(attempt_key)
+            await redis_client.expire(attempt_key, BRUTE_FORCE_LOCKOUT_SECONDS)
+
+            # Log failed verification (workspace not active)
+            from pazpaz.models.audit_event import AuditAction, ResourceType
+            from pazpaz.services.audit_service import create_audit_event
+
+            try:
+                await create_audit_event(
+                    db=db,
+                    user_id=user.id,
+                    workspace_id=user.workspace_id,
+                    action=AuditAction.READ,
+                    resource_type=ResourceType.USER,
+                    resource_id=user.id,
+                    ip_address=request_ip,
+                    metadata={
+                        "action": "magic_link_verification_failed",
+                        "reason": "workspace_not_active",
+                        "workspace_status": user.workspace.status.value,
+                    },
+                )
+            except Exception as e:
+                logger.error(
+                    "failed_to_create_audit_event_for_workspace_not_active",
+                    error=str(e),
+                    exc_info=True,
+                )
+
+            logger.warning(
+                "magic_link_verification_failed_workspace_not_active",
+                reason="workspace_suspended_or_deleted",
+                user_id=str(user.id),
+                workspace_id=str(user.workspace_id),
+                workspace_status=user.workspace.status.value,
+            )
+
+            # Delete token (single-use even on failure)
             token_key = f"magic_link:{token}"
             await redis_client.delete(token_key)
             return None

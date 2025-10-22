@@ -8,7 +8,6 @@ from typing import Annotated
 
 import redis.asyncio as redis
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, Response
-from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.api.deps import get_current_user
@@ -368,10 +367,15 @@ async def verify_magic_link_2fa_endpoint(
     # Delete temporary token (single-use)
     await redis_client.delete(temp_token_key)
 
-    # Fetch user for JWT generation
-    from pazpaz.services.auth_service import get_user_by_id
+    # Fetch user for JWT generation with workspace relationship
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
 
-    user = await get_user_by_id(db, user_id)
+    from pazpaz.models.workspace import WorkspaceStatus
+
+    query = select(User).where(User.id == user_id).options(selectinload(User.workspace))
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
 
     if not user or not user.is_active:
         logger.warning(
@@ -381,6 +385,35 @@ async def verify_magic_link_2fa_endpoint(
         raise HTTPException(
             status_code=401,
             detail="User not found or inactive",
+        )
+
+    # CRITICAL SECURITY CHECK: Verify workspace status
+    # Users from SUSPENDED or DELETED workspaces cannot authenticate
+    if user.workspace.status != WorkspaceStatus.ACTIVE:
+        logger.warning(
+            "2fa_verification_failed_workspace_not_active",
+            user_id=str(user.id),
+            workspace_id=str(user.workspace_id),
+            workspace_status=user.workspace.status.value,
+        )
+
+        # User-friendly error messages based on workspace status
+        if user.workspace.status == WorkspaceStatus.SUSPENDED:
+            detail = (
+                "Your workspace has been suspended. "
+                "Please contact support for assistance."
+            )
+        elif user.workspace.status == WorkspaceStatus.DELETED:
+            detail = (
+                "Your workspace has been deleted. "
+                "Please contact support for assistance."
+            )
+        else:
+            detail = "Your workspace is not active. Please contact support."
+
+        raise HTTPException(
+            status_code=403,
+            detail=detail,
         )
 
     # Generate JWT
