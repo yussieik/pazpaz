@@ -33,6 +33,9 @@ export function useNotificationSettings() {
   const isSaving = ref(false)
   const error = ref<string | null>(null)
 
+  // Flag to prevent saving during initial load
+  let isInitialLoad = true
+
   /**
    * Load notification settings from API
    */
@@ -42,7 +45,14 @@ export function useNotificationSettings() {
 
     try {
       const data = await getNotificationSettings()
+      // Temporarily disable watch during initial load
+      isInitialLoad = true
       settings.value = data
+      // Re-enable watch after initial load completes
+      // Use nextTick to ensure the watch doesn't trigger on this assignment
+      setTimeout(() => {
+        isInitialLoad = false
+      }, 0)
     } catch (err: unknown) {
       const apiError = err as { response?: { data?: { detail?: string } }; requestId?: string }
       const message = apiError.response?.data?.detail || 'Failed to load notification settings'
@@ -80,11 +90,13 @@ export function useNotificationSettings() {
    * Watch settings for changes and trigger immediate save
    * Deep watch ensures nested property changes are detected
    * No debounce - saves immediately when a setting changes
+   * Skips initial load to prevent unnecessary API calls
    */
   watch(
     settings,
     (newSettings) => {
-      if (newSettings) {
+      // Skip save during initial load
+      if (newSettings && !isInitialLoad) {
         // Save immediately without debounce
         saveSettings()
       }
