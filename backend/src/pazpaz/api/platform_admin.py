@@ -1668,7 +1668,8 @@ async def add_to_blacklist(
     Raises:
         HTTPException: 400 if email already blacklisted
     """
-    email = request_data.email.lower()
+    # Normalize email: strip whitespace + lowercase
+    email = request_data.email.strip().lower()
 
     # Check if already blacklisted
     existing = await db.scalar(
@@ -1772,7 +1773,8 @@ async def remove_from_blacklist(
     Raises:
         HTTPException: 404 if email not in blacklist
     """
-    email = email.lower()
+    # Normalize email: strip whitespace + lowercase
+    email = email.strip().lower()
 
     # Find entry
     entry = await db.scalar(select(EmailBlacklist).where(EmailBlacklist.email == email))

@@ -13,17 +13,18 @@ logger = get_logger(__name__)
 
 async def is_email_blacklisted(db: AsyncSession, email: str) -> bool:
     """
-    Check if an email address is blacklisted (case-insensitive).
+    Check if an email address is blacklisted (case-insensitive, whitespace-trimmed).
 
     This function checks if the given email exists in the EmailBlacklist table.
-    Email comparison is case-insensitive (normalized to lowercase).
+    Email comparison is case-insensitive (normalized to lowercase) and
+    whitespace-trimmed to prevent bypass attacks.
 
     Security: FAILS CLOSED - if database check fails, raises exception
     to prevent blacklisted users from bypassing check.
 
     Args:
         db: Database session (async)
-        email: Email address to check
+        email: Email address to check (will be normalized)
 
     Returns:
         True if email is blacklisted, False if not
@@ -42,14 +43,15 @@ async def is_email_blacklisted(db: AsyncSession, email: str) -> bool:
         ```
 
     Security:
+        - Whitespace trimming (prevents bypass via leading/trailing spaces)
         - Case-insensitive comparison (lowercase normalization)
         - Efficient query with indexed lookup
         - No PII logged (only blacklist status)
         - FAILS CLOSED on database errors (raises RuntimeError)
     """
     try:
-        # Normalize email to lowercase for case-insensitive comparison
-        normalized_email = email.lower()
+        # Normalize email: strip whitespace + lowercase
+        normalized_email = email.strip().lower()
 
         # Query blacklist table (indexed on email column)
         result = await db.scalar(
