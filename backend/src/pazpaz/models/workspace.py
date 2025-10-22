@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import enum
 import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, Boolean, DateTime, String
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pazpaz.db.base import Base
@@ -19,6 +20,14 @@ if TYPE_CHECKING:
     from pazpaz.models.service import Service
     from pazpaz.models.session import Session
     from pazpaz.models.user import User
+
+
+class WorkspaceStatus(str, enum.Enum):
+    """Workspace status for platform admin management."""
+
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    DELETED = "deleted"
 
 
 class Workspace(Base):
@@ -38,6 +47,20 @@ class Workspace(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # Platform admin management fields
+    status: Mapped[WorkspaceStatus] = mapped_column(
+        Enum(WorkspaceStatus, native_enum=False, length=50),
+        default=WorkspaceStatus.ACTIVE,
+        nullable=False,
+        comment="Workspace status (active, suspended, deleted)",
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When workspace was soft-deleted (NULL if not deleted)",
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -101,6 +124,15 @@ class Workspace(Base):
         "Session",
         back_populates="workspace",
         cascade="all, delete-orphan",
+    )
+
+    # Indexes and constraints
+    __table_args__ = (
+        # Index for status queries (filtering by active/suspended/deleted)
+        Index("idx_workspaces_status", "status"),
+        # Index for deleted_at (filtering soft-deleted workspaces)
+        Index("idx_workspaces_deleted_at", "deleted_at"),
+        {"comment": "Therapist account context with platform admin management"},
     )
 
     @property

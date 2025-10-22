@@ -432,11 +432,12 @@ async def create_sentinel_workspace(test_db_engine):
     async with test_db_engine.connect() as conn:
         await conn.execute(
             text(f"""
-                INSERT INTO workspaces (id, name, is_active, created_at, updated_at, storage_used_bytes, storage_quota_bytes)
+                INSERT INTO workspaces (id, name, is_active, status, created_at, updated_at, storage_used_bytes, storage_quota_bytes)
                 VALUES (
                     '{UNAUTHENTICATED_WORKSPACE_ID}',
                     '[Sentinel] Unauthenticated Events',
                     true,
+                    'ACTIVE',
                     NOW(),
                     NOW(),
                     0,
@@ -494,11 +495,12 @@ async def truncate_tables(test_db_engine, create_sentinel_workspace):
             # Re-insert sentinel workspace after truncation
             await conn.execute(
                 text(f"""
-                    INSERT INTO workspaces (id, name, is_active, created_at, updated_at, storage_used_bytes, storage_quota_bytes)
+                    INSERT INTO workspaces (id, name, is_active, status, created_at, updated_at, storage_used_bytes, storage_quota_bytes)
                     VALUES (
                         '{UNAUTHENTICATED_WORKSPACE_ID}',
                         '[Sentinel] Unauthenticated Events',
                         true,
+                        'ACTIVE',
                         NOW(),
                         NOW(),
                         0,
