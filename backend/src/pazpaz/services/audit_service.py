@@ -12,6 +12,11 @@ from pazpaz.models.audit_event import AuditAction, AuditEvent, ResourceType
 
 logger = get_logger(__name__)
 
+# Sentinel workspace ID for unauthenticated events (fixed UUID)
+# Used for audit events that don't have a workspace context
+# (e.g., failed login attempts, magic link requests for non-existent emails)
+UNAUTHENTICATED_WORKSPACE_ID = uuid.UUID("00000000-0000-0000-0000-000000000000")
+
 # PII/PHI field patterns to exclude from metadata
 SENSITIVE_FIELD_PATTERNS = {
     "password",

@@ -205,39 +205,53 @@ async def request_magic_link(
     # This prevents blacklisted emails from receiving magic links (prevents enumeration)
     from pazpaz.core.blacklist import is_email_blacklisted
 
-    if await is_email_blacklisted(db, email):
-        from pazpaz.models.audit_event import AuditAction, ResourceType
-        from pazpaz.services.audit_service import create_audit_event
+    # Check blacklist (fail-closed on error)
+    try:
+        if await is_email_blacklisted(db, email):
+            from pazpaz.models.audit_event import AuditAction, ResourceType
+            from pazpaz.services.audit_service import create_audit_event
 
-        try:
-            await create_audit_event(
-                db=db,
-                user_id=None,
-                workspace_id=None,
-                action=AuditAction.READ,
-                resource_type=ResourceType.USER,
-                resource_id=None,
-                ip_address=request_ip,
-                metadata={
-                    "action": "magic_link_request_blacklisted_email",
-                    "result": "email_blacklisted",
-                },
-            )
-        except Exception as e:
-            logger.error(
-                "failed_to_create_audit_event_for_blacklisted_email",
-                error=str(e),
-                exc_info=True,
-            )
+            try:
+                await create_audit_event(
+                    db=db,
+                    user_id=None,
+                    workspace_id=None,
+                    action=AuditAction.READ,
+                    resource_type=ResourceType.USER,
+                    resource_id=None,
+                    ip_address=request_ip,
+                    metadata={
+                        "action": "magic_link_request_blacklisted_email",
+                        "result": "email_blacklisted",
+                    },
+                )
+            except Exception as e:
+                logger.error(
+                    "failed_to_create_audit_event_for_blacklisted_email",
+                    error=str(e),
+                    exc_info=True,
+                )
 
-        logger.warning(
-            "magic_link_request_blocked_blacklisted_email",
+            logger.warning(
+                "magic_link_request_blocked_blacklisted_email",
+                email=email,
+                ip=request_ip,
+            )
+            # Return success to prevent email enumeration
+            # Do NOT send magic link email
+            return
+    except RuntimeError as e:
+        # Database check failed - fail closed (block request)
+        logger.critical(
+            "blacklist_check_failed_blocking_magic_link",
             email=email,
             ip=request_ip,
+            error=str(e),
         )
-        # Return success to prevent email enumeration
-        # Do NOT send magic link email
-        return
+        raise HTTPException(
+            status_code=503,
+            detail="Service temporarily unavailable. Please try again later.",
+        ) from e
 
     # Look up user by email (eagerly load workspace to check status)
     from sqlalchemy.orm import selectinload

@@ -155,14 +155,27 @@ class PlatformOnboardingService:
         try:
             from pazpaz.core.blacklist import is_email_blacklisted
 
-            if await is_email_blacklisted(db, therapist_email):
-                logger.warning(
-                    "invitation_blocked_blacklisted_email",
+            # Check blacklist (fail-closed on error)
+            try:
+                if await is_email_blacklisted(db, therapist_email):
+                    logger.warning(
+                        "invitation_blocked_blacklisted_email",
+                        email=therapist_email,
+                    )
+                    raise EmailBlacklistedError(
+                        f"Email {therapist_email} is blacklisted and "
+                        "cannot receive invitations"
+                    )
+            except RuntimeError as e:
+                # Database check failed - fail closed
+                logger.error(
+                    "blacklist_check_failed_blocking_invitation",
                     email=therapist_email,
+                    error=str(e),
                 )
                 raise EmailBlacklistedError(
-                    f"Email {therapist_email} is blacklisted and cannot receive invitations"
-                )
+                    "Unable to verify invitation eligibility. Please try again later."
+                ) from e
 
             # Check if email already exists
             query = select(User).where(User.email == therapist_email)
@@ -319,15 +332,27 @@ class PlatformOnboardingService:
             # This prevents blacklisted emails from accepting invitations
             from pazpaz.core.blacklist import is_email_blacklisted
 
-            if await is_email_blacklisted(db, user.email):
-                logger.warning(
-                    "invitation_acceptance_blocked_blacklisted_email",
+            # Check blacklist (fail-closed on error)
+            try:
+                if await is_email_blacklisted(db, user.email):
+                    logger.warning(
+                        "invitation_acceptance_blocked_blacklisted_email",
+                        user_id=str(user.id),
+                        email=user.email,
+                    )
+                    raise InvalidInvitationTokenError(
+                        "This email address is not eligible to accept invitations"
+                    )
+            except RuntimeError as e:
+                # Database check failed - fail closed
+                logger.error(
+                    "blacklist_check_failed_blocking_acceptance",
                     user_id=str(user.id),
-                    email=user.email,
+                    error=str(e),
                 )
                 raise InvalidInvitationTokenError(
-                    "This email address is not eligible to accept invitations"
-                )
+                    "Unable to verify invitation eligibility. Please try again later."
+                ) from e
 
             # Check if already accepted
             if user.is_active:
