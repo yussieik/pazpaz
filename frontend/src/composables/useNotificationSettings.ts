@@ -36,6 +36,8 @@ export function useNotificationSettings() {
 
   // Flag to prevent saving during initial load
   let isInitialLoad = true
+  // Flag to prevent saving when updating from server response
+  let isUpdatingFromServer = false
 
   /**
    * Load notification settings from API
@@ -76,7 +78,13 @@ export function useNotificationSettings() {
     try {
       const updated = await updateNotificationSettings(settings.value)
       // Update local state with server response (in case server modified values)
+      // Set flag to prevent watch from triggering another save
+      isUpdatingFromServer = true
       settings.value = updated
+      // Clear flag after Vue's reactivity system processes the update
+      setTimeout(() => {
+        isUpdatingFromServer = false
+      }, 0)
     } catch (err: unknown) {
       const apiError = err as { response?: { data?: { detail?: string } }; requestId?: string }
       const message = apiError.response?.data?.detail || 'Failed to save notification settings'
@@ -93,7 +101,7 @@ export function useNotificationSettings() {
    * while still feeling immediate to the user
    */
   const debouncedSave = useDebounceFn(async () => {
-    if (!isInitialLoad) {
+    if (!isInitialLoad && !isUpdatingFromServer) {
       await saveSettings()
     }
   }, 150)
@@ -102,13 +110,13 @@ export function useNotificationSettings() {
    * Watch settings for changes and trigger debounced save
    * Deep watch ensures nested property changes are detected
    * 150ms debounce batches rapid changes while feeling immediate
-   * Skips initial load to prevent unnecessary API calls
+   * Skips initial load and server updates to prevent unnecessary API calls
    */
   watch(
     settings,
     (newSettings) => {
-      // Skip save during initial load
-      if (newSettings && !isInitialLoad) {
+      // Skip save during initial load or when updating from server
+      if (newSettings && !isInitialLoad && !isUpdatingFromServer) {
         // Debounce to batch rapid changes (e.g., toggling master switch)
         debouncedSave()
       }
