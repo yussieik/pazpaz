@@ -54,6 +54,10 @@ export function useAuth() {
     isLoggingOut.value = true
 
     try {
+      // Mark this tab as initiating logout to prevent "another tab" message
+      // This flag is checked before showing cross-tab logout toast
+      sessionStorage.setItem('__logout_initiated', 'true')
+
       // Broadcast logout event to other tabs BEFORE API call
       // This ensures immediate cross-tab logout even if API fails
       const channel = getAuthChannel()

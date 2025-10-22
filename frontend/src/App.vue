@@ -11,7 +11,7 @@ import { useGlobalKeyboardShortcuts } from '@/composables/useGlobalKeyboardShort
 import { useSessionTimeout } from '@/composables/useSessionTimeout'
 import { useSessionExpiration } from '@/composables/useSessionExpiration'
 import { useAuthSessionStore } from '@/stores/authSession'
-import { useAuth } from '@/composables/useAuth'
+import { useAuthStore } from '@/stores/auth'
 import { createAuthChannel } from '@/utils/crossTabSync'
 import { useToast } from '@/composables/useToast'
 
@@ -34,6 +34,7 @@ const sessionTimeout = useSessionTimeout()
 // Session expiration warnings (5-minute and 1-minute warnings)
 const sessionExpiration = useSessionExpiration()
 const authSessionStore = useAuthSessionStore()
+const authStore = useAuthStore()
 
 // Router and auth for cross-tab logout
 const router = useRouter()
@@ -70,8 +71,14 @@ onMounted(() => {
   authChannel.onLogout(async (message) => {
     console.info('[App] Received logout from another tab', message)
 
-    // Show toast notification
-    toast.showInfo('Logged out (session ended in another tab)')
+    // Check if this tab initiated the logout
+    // If so, don't show the "another tab" message
+    const isLocalLogout = sessionStorage.getItem('__logout_initiated') === 'true'
+
+    if (!isLocalLogout) {
+      // Only show toast if logout came from another tab
+      toast.showInfo('Logged out (session ended in another tab)')
+    }
 
     // Perform logout in this tab (without broadcasting again to avoid loop)
     // We redirect directly instead of calling logout() to avoid double broadcast
@@ -157,7 +164,8 @@ async function clearAllClientSideStorage() {
     <!-- Rate Limit Banner (appears at top when rate limited) -->
     <RateLimitBanner />
 
-    <AppNavigation />
+    <!-- Only show navigation when authenticated -->
+    <AppNavigation v-if="authStore.isAuthenticated" />
     <RouterView />
 
     <!-- Global Keyboard Shortcuts Help Modal -->
