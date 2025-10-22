@@ -5,16 +5,18 @@ CRITICAL SECURITY TEST: Verify that users from SUSPENDED or DELETED workspaces
 cannot authenticate via any method (magic link, 2FA, invitation).
 
 Security Requirements:
-1. Magic link login must reject SUSPENDED/DELETED workspaces
-2. 2FA verification must reject SUSPENDED/DELETED workspaces
-3. Invitation acceptance must reject SUSPENDED/DELETED workspaces
-4. get_current_user dependency must reject SUSPENDED/DELETED workspaces
-5. Existing JWT sessions must be immediately invalidated when workspace is suspended
+1. Magic link REQUEST must reject SUSPENDED/DELETED workspaces (no email sent)
+2. Magic link VERIFICATION must reject SUSPENDED/DELETED workspaces (defense-in-depth)
+3. 2FA verification must reject SUSPENDED/DELETED workspaces
+4. Invitation acceptance must reject SUSPENDED/DELETED workspaces
+5. get_current_user dependency must reject SUSPENDED/DELETED workspaces
+6. Existing JWT sessions must be immediately invalidated when workspace is suspended
 
 HIPAA Compliance:
 - Immediate enforcement of workspace suspension (no grace period)
 - Audit logging for all rejected authentication attempts
 - Clear error messages for legitimate users
+- UX improvement: Users don't receive magic links they can't use
 """
 
 from __future__ import annotations
@@ -43,7 +45,7 @@ class TestMagicLinkWorkspaceStatus:
         db_session: AsyncSession,
         redis_client,
     ):
-        """Magic link verification must reject SUSPENDED workspaces."""
+        """Magic link REQUEST must reject SUSPENDED workspaces."""
         # Create a SUSPENDED workspace
         workspace = Workspace(
             id=uuid.uuid4(),
@@ -64,31 +66,19 @@ class TestMagicLinkWorkspaceStatus:
         db_session.add(user)
         await db_session.commit()
 
-        # Request magic link
+        # Request magic link - should fail with 403 (workspace suspended)
         response = await client.post(
             "/api/v1/auth/magic-link",
             json={"email": "suspended@example.com"},
         )
-        assert response.status_code == 200
 
-        # Extract token from Redis
-        keys = await redis_client.keys("magic_link:*")
-        assert len(keys) == 1
-        token_key = keys[0].decode() if isinstance(keys[0], bytes) else keys[0]
-        token = token_key.replace("magic_link:", "")
+        # Should fail immediately at REQUEST stage (not verification)
+        assert response.status_code == 403
+        detail = response.json()["detail"]
+        assert "workspace has been suspended" in detail.lower()
+        assert "contact support" in detail.lower()
 
-        # Verify magic link - should fail with 401 (not 403, token becomes invalid)
-        response = await client.post(
-            "/api/v1/auth/verify",
-            json={"token": token},
-        )
-
-        # Should fail with 401 because the token verification failed
-        # (workspace status check happens during token verification)
-        assert response.status_code == 401
-        assert "invalid or expired" in response.json()["detail"].lower()
-
-        # Verify token was deleted (single-use even on failure)
+        # Verify NO token was created in Redis (no email sent)
         keys = await redis_client.keys("magic_link:*")
         assert len(keys) == 0
 
@@ -98,7 +88,7 @@ class TestMagicLinkWorkspaceStatus:
         db_session: AsyncSession,
         redis_client,
     ):
-        """Magic link verification must reject DELETED workspaces."""
+        """Magic link REQUEST must reject DELETED workspaces."""
         # Create a DELETED workspace
         workspace = Workspace(
             id=uuid.uuid4(),
@@ -120,27 +110,21 @@ class TestMagicLinkWorkspaceStatus:
         db_session.add(user)
         await db_session.commit()
 
-        # Request magic link
+        # Request magic link - should fail with 403 (workspace deleted)
         response = await client.post(
             "/api/v1/auth/magic-link",
             json={"email": "deleted@example.com"},
         )
-        assert response.status_code == 200
 
-        # Extract token from Redis
+        # Should fail immediately at REQUEST stage (not verification)
+        assert response.status_code == 403
+        detail = response.json()["detail"]
+        assert "workspace has been deleted" in detail.lower()
+        assert "contact support" in detail.lower()
+
+        # Verify NO token was created in Redis (no email sent)
         keys = await redis_client.keys("magic_link:*")
-        assert len(keys) == 1
-        token_key = keys[0].decode() if isinstance(keys[0], bytes) else keys[0]
-        token = token_key.replace("magic_link:", "")
-
-        # Verify magic link - should fail
-        response = await client.post(
-            "/api/v1/auth/verify",
-            json={"token": token},
-        )
-
-        assert response.status_code == 401
-        assert "invalid or expired" in response.json()["detail"].lower()
+        assert len(keys) == 0
 
     async def test_magic_link_allows_active_workspace(
         self,

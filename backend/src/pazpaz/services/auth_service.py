@@ -168,7 +168,8 @@ async def request_magic_link(
     - 384-bit entropy tokens (quantum-resistant margin)
     - Token data encrypted in Redis (defense-in-depth)
     - 10-minute expiry
-    - Audit logging for all attempts (success, failure, inactive user)
+    - Workspace status validation (rejects SUSPENDED/DELETED workspaces)
+    - Audit logging for all attempts (success, failure, inactive user, workspace status)
 
     Args:
         email: User email address
@@ -177,7 +178,7 @@ async def request_magic_link(
         request_ip: Request IP address for rate limiting
 
     Raises:
-        HTTPException: If rate limit exceeded
+        HTTPException: If rate limit exceeded or workspace is not ACTIVE
     """
     # Check rate limit by IP (3 requests per hour using sliding window)
     # FAIL CLOSED on Redis failure (security-critical)
@@ -201,8 +202,12 @@ async def request_magic_link(
             detail="Rate limit exceeded. Please try again later.",
         )
 
-    # Look up user by email
-    query = select(User).where(User.email == email)
+    # Look up user by email (eagerly load workspace to check status)
+    from sqlalchemy.orm import selectinload
+
+    query = (
+        select(User).where(User.email == email).options(selectinload(User.workspace))
+    )
     result = await db.execute(query)
     user = result.scalar_one_or_none()
 
@@ -275,6 +280,65 @@ async def request_magic_link(
         )
         # Return success to prevent user status enumeration
         return
+
+    # CRITICAL SECURITY CHECK: Verify workspace status BEFORE sending magic link
+    # Users from SUSPENDED or DELETED workspaces should not receive magic links
+    # This provides clear, early feedback instead of confusing "invalid link" errors
+    if user.workspace.status != WorkspaceStatus.ACTIVE:
+        # Log failed attempt (workspace not active)
+        from pazpaz.models.audit_event import AuditAction, ResourceType
+        from pazpaz.services.audit_service import create_audit_event
+
+        try:
+            await create_audit_event(
+                db=db,
+                user_id=user.id,
+                workspace_id=user.workspace_id,
+                action=AuditAction.READ,
+                resource_type=ResourceType.USER,
+                resource_id=user.id,
+                ip_address=request_ip,
+                metadata={
+                    "action": "magic_link_request_workspace_not_active",
+                    "workspace_status": user.workspace.status.value,
+                    "result": "workspace_not_active",
+                },
+            )
+        except Exception as e:
+            # Log error but don't fail authentication flow
+            logger.error(
+                "failed_to_create_audit_event_for_workspace_not_active",
+                error=str(e),
+                exc_info=True,
+            )
+
+        logger.warning(
+            "magic_link_request_rejected_workspace_not_active",
+            email=email,
+            user_id=str(user.id),
+            workspace_id=str(user.workspace_id),
+            workspace_status=user.workspace.status.value,
+        )
+
+        # User-friendly error messages based on workspace status
+        # These match the error messages in verify_magic_link_token for consistency
+        if user.workspace.status == WorkspaceStatus.SUSPENDED:
+            detail = (
+                "Your workspace has been suspended. "
+                "Please contact support for assistance."
+            )
+        elif user.workspace.status == WorkspaceStatus.DELETED:
+            detail = (
+                "Your workspace has been deleted. "
+                "Please contact support for assistance."
+            )
+        else:
+            detail = "Your workspace is not active. Please contact support."
+
+        raise HTTPException(
+            status_code=403,
+            detail=detail,
+        )
 
     # Generate secure token (384-bit entropy for defense-in-depth)
     # secrets.token_urlsafe(48) generates 48 bytes * 8 bits = 384 bits
