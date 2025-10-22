@@ -369,10 +369,9 @@ class TestCSRFAuthenticationFlow:
         client: AsyncClient,
     ):
         """Verify logout endpoint requires CSRF token (not exempt)."""
-        # Set valid CSRF cookie but NO header
+        # Set valid CSRF cookie (no JWT needed - logout should always work)
         csrf_token = "test-csrf-token-value"
         client.cookies.set("csrf_token", csrf_token)
-        client.cookies.set("access_token", "fake-jwt-token")
 
         # Try to logout without CSRF header
         try:
@@ -413,10 +412,9 @@ class TestCSRFAuthenticationFlow:
         db.add(user)
         await db.commit()
 
-        # Set CSRF cookie and token
+        # Set CSRF cookie (no JWT needed - logout should always work)
         csrf_token = "test-csrf-token-for-logout"
         client.cookies.set("csrf_token", csrf_token)
-        client.cookies.set("access_token", "test-jwt-token")
 
         # Logout with CSRF token in header
         response = await client.post(

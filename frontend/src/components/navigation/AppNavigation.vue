@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
 
 const route = useRoute()
 const mobileMenuOpen = ref(false)
+const { logout, isLoggingOut } = useAuth()
 
 function toggleMobileMenu() {
   mobileMenuOpen.value = !mobileMenuOpen.value
@@ -118,10 +120,14 @@ onUnmounted(() => {
 
         <!-- Right side: User menu + mobile toggle -->
         <div class="flex items-center gap-4">
-          <!-- User menu placeholder -->
-          <div class="hidden text-sm text-gray-600 md:block">
-            <span>Account</span>
-          </div>
+          <!-- Desktop logout button -->
+          <button
+            class="hidden rounded-md px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:block"
+            @click="logout"
+            :disabled="isLoggingOut"
+          >
+            {{ isLoggingOut ? 'Signing out...' : 'Sign Out' }}
+          </button>
 
           <!-- Mobile menu button -->
           <button
@@ -232,12 +238,14 @@ onUnmounted(() => {
               </RouterLink>
             </nav>
 
-            <!-- Sign out button (placeholder) -->
+            <!-- Sign out button -->
             <div class="border-t border-gray-200 p-4">
               <button
-                class="w-full rounded-md bg-gray-100 px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-200"
+                class="w-full rounded-md bg-gray-100 px-3 py-2 text-base font-medium text-gray-700 transition-colors hover:bg-gray-200 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                @click="logout"
+                :disabled="isLoggingOut"
               >
-                Sign Out
+                {{ isLoggingOut ? 'Signing out...' : 'Sign Out' }}
               </button>
             </div>
           </div>

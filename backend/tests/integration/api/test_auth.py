@@ -433,10 +433,9 @@ class TestLogout:
         self,
         client: AsyncClient,
     ):
-        """Logout should clear authentication cookie."""
-        # Set fake JWT and CSRF token cookies
+        """Logout should clear authentication cookie without requiring valid token."""
+        # Set CSRF token (no JWT token needed - logout should always work)
         csrf_token = "test-csrf-token"
-        client.cookies.set("access_token", "fake-jwt-token")
         client.cookies.set("csrf_token", csrf_token)
 
         # Logout with CSRF token in header
@@ -449,7 +448,7 @@ class TestLogout:
         data = response.json()
         assert "logged out" in data["message"].lower()
 
-        # Verify cookie is cleared
+        # Verify cookie clearing headers are present
         assert "set-cookie" in response.headers
         cookie_header = response.headers["set-cookie"]
         assert "access_token=" in cookie_header

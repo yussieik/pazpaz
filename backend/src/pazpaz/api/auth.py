@@ -132,8 +132,8 @@ async def request_magic_link_endpoint(
     Verify a magic link token and receive a JWT access token.
 
     Security features:
-    - Token MUST be sent in POST body, not URL query parameter (CWE-598 mitigation)
-    - Rate limited to 10 verification attempts per 5 minutes per IP (brute force protection)
+    - Token MUST be sent in POST body, not URL query parameter (CWE-598)
+    - Rate limited to 10 verification attempts per 5 min per IP (brute force)
     - Single-use tokens (deleted after successful verification)
     - User existence revalidated in database
     - JWT contains user_id and workspace_id for authorization
@@ -337,7 +337,8 @@ async def verify_magic_link_2fa_endpoint(
         decrypted_data = cipher.decrypt(encrypted_data_str.encode())
         temp_token_data = json.loads(decrypted_data.decode())
         user_id = uuid.UUID(temp_token_data["user_id"])
-        workspace_id = uuid.UUID(temp_token_data["workspace_id"])
+        # Workspace ID validated but not used (kept for security validation)
+        _workspace_id = uuid.UUID(temp_token_data["workspace_id"])
     except Exception as e:
         logger.error(
             "2fa_temp_token_decryption_failed",
@@ -699,7 +700,14 @@ async def logout_endpoint(
     access_token: str | None = Cookie(None),
 ) -> LogoutResponse:
     """
-    Logout user by clearing authentication cookie and blacklisting JWT with audit logging.
+    Logout user by clearing cookies and blacklisting JWT with audit logging.
+
+    Security features:
+    - Rate limited to 10 requests per minute per IP (prevents DoS)
+    - Blacklists JWT in Redis (prevents token reuse)
+    - Deletes CSRF token from Redis
+    - Fails closed on Redis errors (503 if blacklisting fails)
+    - Clears cookies with proper parameters
 
     Args:
         request: Request object (for IP extraction)
@@ -710,27 +718,56 @@ async def logout_endpoint(
 
     Returns:
         Success message
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+        HTTPException: 503 if Redis is unavailable (fail closed)
     """
+    from pazpaz.core.rate_limiting import check_rate_limit_redis
     from pazpaz.services.auth_service import blacklist_token
     from pazpaz.services.session_activity import invalidate_session_activity
 
-    # Extract client IP for audit logging
-    client_ip = request.client.host if request.client else None
+    # Extract client IP for audit logging and rate limiting
+    client_ip = request.client.host if request.client else "unknown"
+
+    # SECURITY M-2: Rate limit logout endpoint (prevents DoS)
+    # 10 requests per minute per IP
+    logout_rate_limit_key = f"logout_rate_limit:{client_ip}"
+
+    if not await check_rate_limit_redis(
+        redis_client=redis_client,
+        key=logout_rate_limit_key,
+        max_requests=10,
+        window_seconds=60,
+        fail_closed_on_error=True,  # Fail closed for auth endpoint
+    ):
+        logger.warning(
+            "logout_rate_limit_exceeded",
+            ip=client_ip,
+        )
+        raise HTTPException(
+            status_code=429,
+            detail="Too many logout requests. Please try again later.",
+        )
 
     # Blacklist the JWT token (if present)
     if access_token:
+        from pazpaz.core.security import decode_access_token
+        from pazpaz.models.audit_event import AuditAction, ResourceType
+        from pazpaz.services.audit_service import create_audit_event
+
+        # Decode token to get user info for audit logging
+        # If token is invalid, skip blacklisting (nothing to blacklist)
         try:
-            from pazpaz.core.security import decode_access_token
-            from pazpaz.models.audit_event import AuditAction, ResourceType
-            from pazpaz.services.audit_service import create_audit_event
+            payload = decode_access_token(access_token)
+            user_id = uuid.UUID(payload.get("user_id"))
+            workspace_id = uuid.UUID(payload.get("workspace_id"))
+            jti = payload.get("jti")
 
-            # Decode token to get user info for audit logging
+            # SECURITY M-4: Fail closed on Redis failure
+            # If JWT blacklisting fails, return 503 instead of 200
+            # Prevents users thinking they're logged out when token isn't blacklisted
             try:
-                payload = decode_access_token(access_token)
-                user_id = uuid.UUID(payload.get("user_id"))
-                workspace_id = uuid.UUID(payload.get("workspace_id"))
-                jti = payload.get("jti")
-
                 # Blacklist token
                 await blacklist_token(redis_client, access_token)
 
@@ -742,53 +779,94 @@ async def logout_endpoint(
                         jti=jti,
                     )
 
-                # Log logout event
+                # SECURITY M-3: Delete CSRF token from Redis
+                # Redis key format: csrf:{workspace_id}:{user_id}
+                csrf_redis_key = f"csrf:{workspace_id}:{user_id}"
                 try:
-                    await create_audit_event(
-                        db=db,
-                        user_id=user_id,
-                        workspace_id=workspace_id,
-                        action=AuditAction.UPDATE,  # Session state changed
-                        resource_type=ResourceType.USER,
-                        resource_id=user_id,
-                        ip_address=client_ip,
-                        metadata={
-                            "action": "user_logged_out",
-                            "jwt_blacklisted": True,
-                        },
-                    )
+                    await redis_client.delete(csrf_redis_key)
+                    logger.debug("csrf_token_deleted_from_redis", user_id=str(user_id))
                 except Exception as e:
-                    logger.error(
-                        "failed_to_create_audit_event_for_logout",
+                    # Log error but don't fail logout if CSRF deletion fails
+                    # JWT blacklisting is more critical
+                    logger.warning(
+                        "failed_to_delete_csrf_token_from_redis",
                         error=str(e),
-                        exc_info=True,
+                        user_id=str(user_id),
                     )
-
-                logger.info("jwt_token_blacklisted_on_logout", user_id=str(user_id))
 
             except Exception as e:
+                # SECURITY M-4: FAIL CLOSED on Redis failure
+                # If we can't blacklist the token, the user is NOT logged out
+                # Return 503 Service Unavailable instead of 200 OK
                 logger.error(
-                    "failed_to_decode_token_for_logout_audit",
+                    "logout_failed_redis_unavailable",
+                    error=str(e),
+                    user_id=str(user_id),
+                    exc_info=True,
+                )
+                raise HTTPException(
+                    status_code=503,
+                    detail="Logout failed due to system unavailability.",
+                ) from e
+
+            # Log logout event (only if blacklisting succeeded)
+            try:
+                await create_audit_event(
+                    db=db,
+                    user_id=user_id,
+                    workspace_id=workspace_id,
+                    action=AuditAction.UPDATE,  # Session state changed
+                    resource_type=ResourceType.USER,
+                    resource_id=user_id,
+                    ip_address=client_ip,
+                    metadata={
+                        "action": "user_logged_out",
+                        "jwt_blacklisted": True,
+                        "csrf_deleted": True,
+                    },
+                )
+            except Exception as e:
+                logger.error(
+                    "failed_to_create_audit_event_for_logout",
                     error=str(e),
                     exc_info=True,
                 )
-                # Still blacklist token even if decoding failed
-                await blacklist_token(redis_client, access_token)
 
+            logger.info("jwt_token_blacklisted_on_logout", user_id=str(user_id))
+
+        except HTTPException:
+            # Re-raise HTTPException (503 from fail-closed logic on valid tokens)
+            raise
         except Exception as e:
-            # Log error but don't fail logout
-            # User experience is that logout succeeds even if blacklisting fails
-            logger.error(
-                "failed_to_blacklist_token_on_logout",
+            # Token decoding failed (invalid/fake token)
+            # This is OK - just log and continue. No need to blacklist invalid tokens.
+            logger.warning(
+                "logout_with_invalid_token",
                 error=str(e),
-                exc_info=True,
+                error_type=type(e).__name__,
             )
+            # Continue to clear cookies even if token is invalid
+            # Don't fail logout for invalid tokens - they're not a security risk
 
-    # Clear authentication cookie
-    response.delete_cookie(key="access_token")
+    # Clear authentication cookie with proper parameters
+    # SECURITY: Must match set_cookie parameters for successful deletion
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        domain=None,
+        samesite="lax",
+        secure=not settings.debug,
+    )
 
-    # Clear CSRF token cookie
-    response.delete_cookie(key="csrf_token")
+    # Clear CSRF token cookie with proper parameters
+    # SECURITY: Must match set_cookie parameters for successful deletion
+    response.delete_cookie(
+        key="csrf_token",
+        path="/",
+        domain=None,
+        samesite="strict",
+        secure=not settings.debug,
+    )
 
     logger.info("user_logged_out")
 
