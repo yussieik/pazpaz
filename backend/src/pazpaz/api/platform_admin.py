@@ -613,13 +613,23 @@ class ActivityResponse(BaseModel):
                     "description": "New workspace created",
                     "metadata": {}
                 }
-            ]
+            ],
+            "total_count": 247,
+            "has_more": true,
+            "displayed_count": 20
         }
         ```
     """
 
     activities: list[Activity] = Field(
         default_factory=list, description="Recent platform activities"
+    )
+    total_count: int = Field(..., description="Total number of events in last 90 days")
+    has_more: bool = Field(
+        ..., description="Whether more events are available beyond current page"
+    )
+    displayed_count: int = Field(
+        ..., description="Number of events in current response"
     )
 
 
@@ -907,15 +917,26 @@ async def get_metrics(
     response_model=ActivityResponse,
     summary="Get recent platform activity",
     description="""
-    Get recent platform activity from audit events.
+    Get recent platform activity from audit events (last 90 days).
 
     Query Parameters:
-    - limit: Number of activities to return (default 50, max 100)
+    - limit: Number of activities to return per page (default 20, min 1, max 100)
+    - offset: Number of activities to skip for pagination (default 0, min 0)
 
     Returns recent audit events related to:
     - Workspace creation/suspension/deletion
     - User invitations accepted
     - Blacklist changes
+
+    Response includes:
+    - activities: List of activity events
+    - total_count: Total number of events in last 90 days
+    - has_more: Whether more events exist beyond current page
+    - displayed_count: Number of events in current response
+
+    Data Retention:
+    - Only shows events from last 90 days
+    - Events are ordered by timestamp (newest first)
 
     Security:
     - Requires platform admin authentication
@@ -924,40 +945,56 @@ async def get_metrics(
     Error Responses:
     - 401: Not authenticated
     - 403: Not platform admin
-    - 422: Invalid limit parameter
+    - 422: Invalid limit or offset parameter
     """,
 )
 async def get_activity(
     db: Annotated[AsyncSession, Depends(get_db)],
     admin: Annotated[User, Depends(require_platform_admin)],
-    limit: int = Query(default=50, ge=1, le=100, description="Number of activities"),
+    limit: int = Query(
+        default=20, ge=1, le=100, description="Number of activities per page"
+    ),
+    offset: int = Query(default=0, ge=0, description="Number of activities to skip"),
 ) -> ActivityResponse:
     """
-    Get recent platform activity.
+    Get recent platform activity with pagination.
 
-    Fetches recent audit events and formats them as activity feed.
+    Fetches recent audit events (last 90 days) and formats them as activity feed.
 
     Args:
         db: Database session (injected)
         admin: Authenticated platform admin (injected)
-        limit: Number of activities to return (1-100)
+        limit: Number of activities to return per page (1-100)
+        offset: Number of activities to skip (0+)
 
     Returns:
-        ActivityResponse with recent activities
+        ActivityResponse with paginated activities and metadata
     """
-    # Query recent audit events related to platform admin actions
+    # Calculate 90-day cutoff
+    ninety_days_ago = datetime.now(UTC) - timedelta(days=90)
+
+    # Base filter conditions
+    base_conditions = and_(
+        AuditEvent.resource_type.in_(
+            [
+                ResourceType.WORKSPACE,
+                ResourceType.USER,
+            ]
+        ),
+        AuditEvent.created_at >= ninety_days_ago,
+    )
+
+    # Count total matching events (for total_count)
+    count_query = select(func.count(AuditEvent.id)).where(base_conditions)
+    total_count = await db.scalar(count_query) or 0
+
+    # Query paginated audit events
     query = (
         select(AuditEvent)
-        .where(
-            AuditEvent.resource_type.in_(
-                [
-                    ResourceType.WORKSPACE,
-                    ResourceType.USER,
-                ]
-            )
-        )
+        .where(base_conditions)
         .order_by(AuditEvent.created_at.desc())
         .limit(limit)
+        .offset(offset)
     )
 
     result = await db.execute(query)
@@ -989,14 +1026,26 @@ async def get_activity(
             )
         )
 
+    # Calculate pagination metadata
+    displayed_count = len(activities)
+    has_more = (offset + displayed_count) < total_count
+
     logger.info(
         "platform_activity_retrieved",
         admin_id=str(admin.id),
-        count=len(activities),
+        displayed_count=displayed_count,
+        total_count=total_count,
         limit=limit,
+        offset=offset,
+        has_more=has_more,
     )
 
-    return ActivityResponse(activities=activities)
+    return ActivityResponse(
+        activities=activities,
+        total_count=total_count,
+        has_more=has_more,
+        displayed_count=displayed_count,
+    )
 
 
 def _format_activity_description(event: AuditEvent) -> str:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -294,7 +294,7 @@ class TestActivityEndpoint:
         workspace_1: Workspace,
         db: AsyncSession,
     ):
-        """Activity endpoint returns recent audit events."""
+        """Activity endpoint returns recent audit events with pagination metadata."""
         # Create some audit events
         from pazpaz.models.audit_event import AuditAction, ResourceType
 
@@ -322,8 +322,16 @@ class TestActivityEndpoint:
         assert response.status_code == 200
         data = response.json()
 
+        # Check structure
         assert "activities" in data
+        assert "total_count" in data
+        assert "has_more" in data
+        assert "displayed_count" in data
+
         assert isinstance(data["activities"], list)
+        assert isinstance(data["total_count"], int)
+        assert isinstance(data["has_more"], bool)
+        assert isinstance(data["displayed_count"], int)
 
         if data["activities"]:
             activity = data["activities"][0]
@@ -376,6 +384,288 @@ class TestActivityEndpoint:
             headers=headers,
         )
         assert response.status_code == 422
+
+    async def test_activity_pagination_with_no_events(
+        self,
+        client: AsyncClient,
+        platform_admin_user: User,
+        db: AsyncSession,
+    ):
+        """Activity endpoint returns empty list when no events exist."""
+        # Don't create any events, just query
+        response = await client.get(
+            "/api/v1/platform-admin/activity",
+            headers=get_auth_headers(
+                workspace_id=platform_admin_user.workspace_id,
+                user_id=platform_admin_user.id,
+                email=platform_admin_user.email,
+            ),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["activities"] == []
+        assert data["total_count"] == 0
+        assert data["has_more"] is False
+        assert data["displayed_count"] == 0
+
+    async def test_activity_pagination_with_exactly_20_events(
+        self,
+        client: AsyncClient,
+        platform_admin_user: User,
+        workspace_1: Workspace,
+        db: AsyncSession,
+    ):
+        """Activity endpoint with exactly 20 events (default limit)."""
+        from pazpaz.models.audit_event import AuditAction, ResourceType
+
+        # Create exactly 20 events
+        for i in range(20):
+            event = AuditEvent(
+                workspace_id=workspace_1.id,
+                user_id=platform_admin_user.id,
+                event_type="workspace.created",
+                action=AuditAction.CREATE,
+                resource_type=ResourceType.WORKSPACE,
+                resource_id=str(workspace_1.id),
+                event_metadata={"workspace_name": f"Workspace {i}"},
+            )
+            db.add(event)
+        await db.commit()
+
+        response = await client.get(
+            "/api/v1/platform-admin/activity",
+            headers=get_auth_headers(
+                workspace_id=platform_admin_user.workspace_id,
+                user_id=platform_admin_user.id,
+                email=platform_admin_user.email,
+            ),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["displayed_count"] == 20
+        assert data["total_count"] >= 20
+        # has_more depends on whether other tests created events
+        assert len(data["activities"]) == 20
+
+    async def test_activity_pagination_with_50_events(
+        self,
+        client: AsyncClient,
+        platform_admin_user: User,
+        workspace_1: Workspace,
+        db: AsyncSession,
+    ):
+        """Activity endpoint pagination with 50 events."""
+        from pazpaz.models.audit_event import AuditAction, ResourceType
+
+        # Create 50 events
+        for i in range(50):
+            event = AuditEvent(
+                workspace_id=workspace_1.id,
+                user_id=platform_admin_user.id,
+                event_type="workspace.created",
+                action=AuditAction.CREATE,
+                resource_type=ResourceType.WORKSPACE,
+                resource_id=str(workspace_1.id),
+                event_metadata={"workspace_name": f"Workspace {i}"},
+            )
+            db.add(event)
+        await db.commit()
+
+        # First page (default limit=20)
+        response = await client.get(
+            "/api/v1/platform-admin/activity",
+            headers=get_auth_headers(
+                workspace_id=platform_admin_user.workspace_id,
+                user_id=platform_admin_user.id,
+                email=platform_admin_user.email,
+            ),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["displayed_count"] == 20
+        assert data["total_count"] >= 50
+        assert data["has_more"] is True
+        assert len(data["activities"]) == 20
+
+    async def test_activity_pagination_offset_and_limit(
+        self,
+        client: AsyncClient,
+        platform_admin_user: User,
+        workspace_1: Workspace,
+        db: AsyncSession,
+    ):
+        """Activity endpoint pagination with offset and limit combinations."""
+        from pazpaz.models.audit_event import AuditAction, ResourceType
+
+        # Create 50 events
+        for i in range(50):
+            event = AuditEvent(
+                workspace_id=workspace_1.id,
+                user_id=platform_admin_user.id,
+                event_type="workspace.created",
+                action=AuditAction.CREATE,
+                resource_type=ResourceType.WORKSPACE,
+                resource_id=str(workspace_1.id),
+                event_metadata={"workspace_name": f"Workspace {i}"},
+            )
+            db.add(event)
+        await db.commit()
+
+        headers = get_auth_headers(
+            workspace_id=platform_admin_user.workspace_id,
+            user_id=platform_admin_user.id,
+            email=platform_admin_user.email,
+        )
+
+        # Page 1: offset=0, limit=20
+        response = await client.get(
+            "/api/v1/platform-admin/activity?limit=20&offset=0",
+            headers=headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["displayed_count"] == 20
+        assert data["has_more"] is True
+
+        # Page 2: offset=20, limit=20
+        response = await client.get(
+            "/api/v1/platform-admin/activity?limit=20&offset=20",
+            headers=headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["displayed_count"] == 20
+        assert data["has_more"] is True
+
+        # Page 3: offset=40, limit=20 (only 10 left)
+        response = await client.get(
+            "/api/v1/platform-admin/activity?limit=20&offset=40",
+            headers=headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["displayed_count"] >= 10
+        # has_more depends on total count from all tests
+
+    async def test_activity_pagination_90_day_filter(
+        self,
+        client: AsyncClient,
+        platform_admin_user: User,
+        workspace_1: Workspace,
+        db: AsyncSession,
+    ):
+        """Activity endpoint filters events older than 90 days."""
+        from pazpaz.models.audit_event import AuditAction, ResourceType
+
+        # Create event older than 90 days
+        old_event = AuditEvent(
+            workspace_id=workspace_1.id,
+            user_id=platform_admin_user.id,
+            event_type="workspace.created",
+            action=AuditAction.CREATE,
+            resource_type=ResourceType.WORKSPACE,
+            resource_id=str(workspace_1.id),
+            event_metadata={"workspace_name": "Old Workspace"},
+            created_at=datetime.now(UTC) - timedelta(days=91),
+        )
+        db.add(old_event)
+
+        # Create recent event
+        recent_event = AuditEvent(
+            workspace_id=workspace_1.id,
+            user_id=platform_admin_user.id,
+            event_type="workspace.created",
+            action=AuditAction.CREATE,
+            resource_type=ResourceType.WORKSPACE,
+            resource_id=str(workspace_1.id),
+            event_metadata={"workspace_name": "Recent Workspace"},
+        )
+        db.add(recent_event)
+        await db.commit()
+
+        response = await client.get(
+            "/api/v1/platform-admin/activity",
+            headers=get_auth_headers(
+                workspace_id=platform_admin_user.workspace_id,
+                user_id=platform_admin_user.id,
+                email=platform_admin_user.email,
+            ),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Old event should not be in results
+        workspace_names = [
+            act.get("metadata", {}).get("workspace_name") for act in data["activities"]
+        ]
+        assert "Old Workspace" not in workspace_names
+        # Recent event might be in results (depends on total count and pagination)
+
+    async def test_activity_pagination_invalid_offset(
+        self,
+        client: AsyncClient,
+        platform_admin_user: User,
+    ):
+        """Activity endpoint rejects negative offset."""
+        headers = get_auth_headers(
+            workspace_id=platform_admin_user.workspace_id,
+            user_id=platform_admin_user.id,
+            email=platform_admin_user.email,
+        )
+
+        response = await client.get(
+            "/api/v1/platform-admin/activity?offset=-1",
+            headers=headers,
+        )
+        assert response.status_code == 422
+
+    async def test_activity_pagination_default_values(
+        self,
+        client: AsyncClient,
+        platform_admin_user: User,
+        workspace_1: Workspace,
+        db: AsyncSession,
+    ):
+        """Activity endpoint uses default limit=20 and offset=0."""
+        from pazpaz.models.audit_event import AuditAction, ResourceType
+
+        # Create 5 events
+        for i in range(5):
+            event = AuditEvent(
+                workspace_id=workspace_1.id,
+                user_id=platform_admin_user.id,
+                event_type="workspace.created",
+                action=AuditAction.CREATE,
+                resource_type=ResourceType.WORKSPACE,
+                resource_id=str(workspace_1.id),
+                event_metadata={"workspace_name": f"Workspace {i}"},
+            )
+            db.add(event)
+        await db.commit()
+
+        # Request without parameters (should use defaults)
+        response = await client.get(
+            "/api/v1/platform-admin/activity",
+            headers=get_auth_headers(
+                workspace_id=platform_admin_user.workspace_id,
+                user_id=platform_admin_user.id,
+                email=platform_admin_user.email,
+            ),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should return at most 20 (default limit)
+        assert data["displayed_count"] <= 20
+        assert len(data["activities"]) <= 20
 
 
 # ============================================================================
