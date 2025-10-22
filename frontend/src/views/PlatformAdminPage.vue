@@ -835,8 +835,8 @@ function openInviteModal() {
       :reasonRequired="true"
       @confirm="confirmSuspend"
       @cancel="
-        showSuspendConfirmation = false
-        pendingAction = null
+        showSuspendConfirmation = false;
+        pendingAction = null;
       "
     />
 
@@ -848,8 +848,8 @@ function openInviteModal() {
       confirmStyle="primary"
       @confirm="confirmReactivate"
       @cancel="
-        showReactivateConfirmation = false
-        pendingAction = null
+        showReactivateConfirmation = false;
+        pendingAction = null;
       "
     />
 
@@ -865,8 +865,8 @@ function openInviteModal() {
       :reasonRequired="true"
       @confirm="confirmDelete"
       @cancel="
-        showDeleteConfirmation = false
-        pendingAction = null
+        showDeleteConfirmation = false;
+        pendingAction = null;
       "
     />
 
@@ -878,8 +878,8 @@ function openInviteModal() {
       confirmStyle="primary"
       @confirm="confirmRemoveFromBlacklist"
       @cancel="
-        showRemoveBlacklistConfirmation = false
-        selectedBlacklistEmail = ''
+        showRemoveBlacklistConfirmation = false;
+        selectedBlacklistEmail = '';
       "
     />
   </div>
