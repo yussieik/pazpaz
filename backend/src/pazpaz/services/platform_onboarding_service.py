@@ -212,6 +212,19 @@ class PlatformOnboardingService:
             )
             db.add(user)
 
+            # Flush to get user ID for notification settings
+            await db.flush()
+
+            # Create default notification settings for new user
+            from pazpaz.models.user_notification_settings import UserNotificationSettings
+
+            notification_settings = UserNotificationSettings(
+                user_id=user.id,
+                workspace_id=workspace.id,
+                # Server defaults will handle all other fields
+            )
+            db.add(notification_settings)
+
             # Commit transaction
             await db.commit()
             await db.refresh(workspace)

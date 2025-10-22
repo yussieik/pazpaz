@@ -8,6 +8,7 @@ from pazpaz.api.auth import router as auth_router
 from pazpaz.api.client_attachments import router as client_attachments_router
 from pazpaz.api.clients import router as clients_router
 from pazpaz.api.locations import router as locations_router
+from pazpaz.api.notification_settings import router as notification_settings_router
 from pazpaz.api.platform_admin import router as platform_admin_router
 from pazpaz.api.services import router as services_router
 from pazpaz.api.session_attachments import router as session_attachments_router
@@ -31,4 +32,5 @@ api_router.include_router(client_attachments_router)
 api_router.include_router(services_router)
 api_router.include_router(locations_router)
 api_router.include_router(workspaces_router)
+api_router.include_router(notification_settings_router)
 api_router.include_router(audit_router)
