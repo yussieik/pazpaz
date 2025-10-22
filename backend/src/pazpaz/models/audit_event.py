@@ -55,9 +55,14 @@ class AuditEvent(Base):
 
     Key Features:
     - Immutable: Cannot be updated or deleted (enforced by database triggers)
-    - Workspace-scoped: All events belong to a workspace
+    - Workspace-scoped: Most events belong to a workspace (NULL for system-level events)
     - Flexible metadata: JSONB column for additional context (NO PII/PHI)
     - Optimized indexes: Fast queries for compliance reporting
+
+    System-Level Events (workspace_id=NULL):
+    - Blacklisted email login attempts
+    - Failed authentication before workspace lookup
+    - Platform admin actions not tied to specific workspace
 
     IMPORTANT: This table is append-only. Updates and deletes are prevented
     at the database level to ensure audit trail integrity.
@@ -74,12 +79,12 @@ class AuditEvent(Base):
     )
 
     # Foreign keys
-    workspace_id: Mapped[uuid.UUID] = mapped_column(
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
-        comment="Workspace this event belongs to (workspace scoping)",
+        comment="Workspace context (NULL for system-level events)",
     )
 
     user_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -151,7 +156,7 @@ class AuditEvent(Base):
     )
 
     # Relationships
-    workspace: Mapped[Workspace] = relationship(
+    workspace: Mapped[Workspace | None] = relationship(
         "Workspace",
         back_populates="audit_events",
     )

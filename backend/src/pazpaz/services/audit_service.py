@@ -12,10 +12,6 @@ from pazpaz.models.audit_event import AuditAction, AuditEvent, ResourceType
 
 logger = get_logger(__name__)
 
-# Sentinel workspace ID for unauthenticated audit events (failed login attempts)
-# This UUID is reserved and should never be used for a real workspace
-UNAUTHENTICATED_WORKSPACE_ID = uuid.UUID("00000000-0000-0000-0000-000000000000")
-
 # PII/PHI field patterns to exclude from metadata
 SENSITIVE_FIELD_PATTERNS = {
     "password",
@@ -108,7 +104,7 @@ async def create_audit_event(
     Args:
         db: Database session (for async insert)
         user_id: User who performed the action (None for system events)
-        workspace_id: Workspace context (required for all events)
+        workspace_id: Workspace context (None for system-level events)
         action: Type of action (CREATE, READ, UPDATE, DELETE, etc.)
         resource_type: Type of resource (Client, Session, Appointment, etc.)
         resource_id: ID of specific resource being acted upon (optional)
@@ -122,9 +118,9 @@ async def create_audit_event(
     Raises:
         ValueError: If resource_type is not a valid ResourceType enum value
 
-    Example:
+    Examples:
         ```python
-        # Manual audit log for PHI access
+        # Workspace-scoped audit log for PHI access
         await create_audit_event(
             db=db,
             user_id=current_user.id,
@@ -135,6 +131,18 @@ async def create_audit_event(
             ip_address=request.client.host,
             user_agent=request.headers.get("user-agent"),
             metadata={"query_params": {"include_inactive": True}},
+        )
+
+        # System-level audit log (no workspace context)
+        await create_audit_event(
+            db=db,
+            user_id=None,
+            workspace_id=None,  # System-level event
+            action=AuditAction.READ,
+            resource_type=ResourceType.USER,
+            resource_id=None,
+            ip_address=request.client.host,
+            metadata={"action": "blacklist_block", "email": "blocked@example.com"},
         )
         ```
     """
@@ -162,13 +170,10 @@ async def create_audit_event(
     # Format: "resource.action" (e.g., "client.read", "session.create")
     event_type = f"{resource_type_enum.value.lower()}.{action.value.lower()}"
 
-    # Use sentinel workspace ID for unauthenticated events
-    # This allows us to track failed authentication attempts without a workspace context
-    effective_workspace_id = workspace_id or UNAUTHENTICATED_WORKSPACE_ID
-
     # Create audit event
+    # workspace_id can be None for system-level events (blacklist blocks, etc.)
     audit_event = AuditEvent(
-        workspace_id=effective_workspace_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         event_type=event_type,
         resource_type=resource_type_enum.value,
