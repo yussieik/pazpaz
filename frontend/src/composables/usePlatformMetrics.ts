@@ -10,6 +10,18 @@ export interface PlatformMetrics {
   blacklistedUsers: number
 }
 
+export interface ActivityResponse {
+  activities: Array<{
+    type: string
+    timestamp: string
+    description: string
+    metadata?: Record<string, unknown>
+  }>
+  total_count: number
+  has_more: boolean
+  displayed_count: number
+}
+
 /**
  * Composable for platform metrics and activity tracking
  *
@@ -31,6 +43,13 @@ export function usePlatformMetrics() {
 
   const loading = ref(false)
   const error = ref<string | null>(null)
+
+  // Pagination state
+  const totalCount = ref(0)
+  const hasMore = ref(false)
+  const displayedCount = ref(0)
+  const offset = ref(0)
+  const limit = 20 // Default page size
 
   /**
    * Fetch platform metrics from backend
@@ -71,37 +90,56 @@ export function usePlatformMetrics() {
   /**
    * Fetch recent platform activity from backend
    *
-   * GET /api/v1/platform-admin/activity?limit=50
+   * GET /api/v1/platform-admin/activity?limit=20&offset=0
+   *
+   * Supports pagination with offset-based loading.
+   * Default limit is 20 events per page.
+   * 90-day retention filter applied automatically by backend.
    *
    * Error responses:
    * - 401: Not authenticated
    * - 403: Not platform admin
-   * - 422: Invalid limit parameter
+   * - 422: Invalid limit/offset parameters
+   *
+   * @param reset - If true, resets pagination and replaces activities. If false, appends to existing list.
    */
-  async function fetchActivity(limit = 50): Promise<void> {
+  async function fetchActivity(reset = true): Promise<void> {
     loading.value = true
     error.value = null
 
     try {
-      const response = await apiClient.get<{
-        activities: Array<{
-          type: string
-          timestamp: string
-          description: string
-          metadata?: Record<string, unknown>
-        }>
-      }>('/platform-admin/activity', {
-        params: { limit },
+      // Reset offset if starting fresh
+      if (reset) {
+        offset.value = 0
+      }
+
+      const response = await apiClient.get<ActivityResponse>('/platform-admin/activity', {
+        params: {
+          limit,
+          offset: offset.value,
+        },
       })
 
       // Transform API response to Activity format
-      activity.value = response.data.activities.map((item, index) => ({
-        id: String(index + 1),
+      const newActivities = response.data.activities.map((item, index) => ({
+        id: `${offset.value + index + 1}`,
         type: item.type,
         timestamp: formatTimestamp(item.timestamp),
         description: item.description,
         metadata: item.metadata,
       }))
+
+      // Replace or append activities based on reset flag
+      if (reset) {
+        activity.value = newActivities
+      } else {
+        activity.value = [...activity.value, ...newActivities]
+      }
+
+      // Update pagination metadata
+      totalCount.value = response.data.total_count
+      hasMore.value = response.data.has_more
+      displayedCount.value = activity.value.length
     } catch (err) {
       const axiosError = err as AxiosError<{ detail?: string }>
       error.value = axiosError.response?.data?.detail || 'Failed to load activity'
@@ -109,6 +147,19 @@ export function usePlatformMetrics() {
     } finally {
       loading.value = false
     }
+  }
+
+  /**
+   * Load more activities (next page)
+   *
+   * Increments offset by limit and appends next batch of activities.
+   * Updates displayedCount and hasMore based on backend response.
+   */
+  async function loadMore(): Promise<void> {
+    if (!hasMore.value || loading.value) return
+
+    offset.value += limit
+    await fetchActivity(false) // false = append mode
   }
 
   /**
@@ -143,8 +194,14 @@ export function usePlatformMetrics() {
     loading,
     error,
 
+    // Pagination state
+    totalCount,
+    hasMore,
+    displayedCount,
+
     // Methods
     fetchMetrics,
     fetchActivity,
+    loadMore,
   }
 }

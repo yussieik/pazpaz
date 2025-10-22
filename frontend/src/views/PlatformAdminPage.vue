@@ -396,6 +396,10 @@ function openInviteModal() {
         <ActivityTimeline
           :activities="platformMetrics.activity.value"
           :loading="platformMetrics.loading.value"
+          :total-count="platformMetrics.totalCount.value"
+          :has-more="platformMetrics.hasMore.value"
+          :displayed-count="platformMetrics.displayedCount.value"
+          @load-more="platformMetrics.loadMore"
         />
       </div>
 

@@ -4,11 +4,21 @@ import ActivityItem, { type Activity } from './ActivityItem.vue'
 interface Props {
   activities: Activity[]
   loading?: boolean
+  totalCount?: number
+  hasMore?: boolean
+  displayedCount?: number
 }
 
 withDefaults(defineProps<Props>(), {
   loading: false,
+  totalCount: 0,
+  hasMore: false,
+  displayedCount: 0,
 })
+
+const emit = defineEmits<{
+  loadMore: []
+}>()
 </script>
 
 <template>
@@ -52,12 +62,57 @@ withDefaults(defineProps<Props>(), {
     </div>
 
     <!-- Activity List -->
-    <div v-else class="space-y-4">
-      <ActivityItem
-        v-for="activity in activities"
-        :key="activity.id"
-        :activity="activity"
-      />
+    <div v-else>
+      <div class="space-y-4">
+        <ActivityItem
+          v-for="activity in activities"
+          :key="activity.id"
+          :activity="activity"
+        />
+      </div>
+
+      <!-- Load More Button -->
+      <button
+        v-if="hasMore"
+        @click="emit('loadMore')"
+        :disabled="loading"
+        class="mt-6 w-full rounded-lg border-2 border-emerald-600 bg-white px-4 py-3 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        aria-label="Load more activity events"
+      >
+        <span v-if="loading" class="flex items-center justify-center gap-2">
+          <svg
+            class="h-4 w-4 animate-spin"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          Loading...
+        </span>
+        <span v-else>Load More (20 older events)</span>
+      </button>
+
+      <!-- Progress Indicator -->
+      <p
+        v-if="totalCount > 0"
+        class="mt-3 text-center text-xs text-slate-500 sm:text-sm"
+      >
+        Showing {{ displayedCount }} of {{ totalCount }} events from the last 90 days
+      </p>
     </div>
   </div>
 </template>
