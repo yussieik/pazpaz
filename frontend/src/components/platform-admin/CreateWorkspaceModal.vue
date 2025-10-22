@@ -110,14 +110,14 @@ function handleTabKey(e: KeyboardEvent) {
 
 <template>
   <div
-    class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black"
+    class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black p-4"
     @click.self="handleClose"
     @keydown="handleTabKey"
     role="dialog"
     aria-modal="true"
     aria-labelledby="invite-modal-title"
   >
-    <div ref="modalRef" class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+    <div ref="modalRef" class="w-full max-w-md rounded-lg bg-white p-4 shadow-xl sm:p-6">
       <!-- Header -->
       <div class="mb-4 flex items-center justify-between">
         <h2 id="invite-modal-title" class="text-xl font-semibold text-slate-900">
@@ -309,7 +309,7 @@ function handleTabKey(e: KeyboardEvent) {
         </div>
 
         <!-- Actions -->
-        <div class="flex space-x-3 pt-4">
+        <div class="flex flex-col gap-3 pt-4 sm:flex-row sm:space-x-3 sm:gap-0">
           <button
             type="button"
             @click="handleClose"

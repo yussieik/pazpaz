@@ -251,13 +251,13 @@ function openInviteModal() {
   <div class="min-h-screen bg-slate-50">
     <!-- Header -->
     <header class="border-b border-slate-200 bg-white shadow-sm">
-      <div class="mx-auto max-w-7xl px-6 py-6">
-        <!-- Tab Navigation -->
-        <nav class="flex gap-1" role="tablist">
+      <div class="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
+        <!-- Tab Navigation - Horizontal scroll on mobile -->
+        <nav class="flex gap-1 overflow-x-auto scrollbar-hide" role="tablist">
           <button
             @click="switchTab('overview')"
             :class="[
-              'rounded-t-lg px-6 py-3 font-semibold transition',
+              'whitespace-nowrap rounded-t-lg px-4 py-2 text-sm font-semibold transition sm:px-6 sm:py-3',
               activeTab === 'overview'
                 ? 'bg-white text-emerald-600 border-b-2 border-emerald-600'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -270,7 +270,7 @@ function openInviteModal() {
           <button
             @click="switchTab('workspaces')"
             :class="[
-              'rounded-t-lg px-6 py-3 font-semibold transition',
+              'whitespace-nowrap rounded-t-lg px-4 py-2 text-sm font-semibold transition sm:px-6 sm:py-3',
               activeTab === 'workspaces'
                 ? 'bg-white text-emerald-600 border-b-2 border-emerald-600'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -283,7 +283,7 @@ function openInviteModal() {
           <button
             @click="switchTab('invitations')"
             :class="[
-              'rounded-t-lg px-6 py-3 font-semibold transition',
+              'whitespace-nowrap rounded-t-lg px-4 py-2 text-sm font-semibold transition sm:px-6 sm:py-3',
               activeTab === 'invitations'
                 ? 'bg-white text-emerald-600 border-b-2 border-emerald-600'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -302,7 +302,7 @@ function openInviteModal() {
           <button
             @click="switchTab('blacklist')"
             :class="[
-              'rounded-t-lg px-6 py-3 font-semibold transition',
+              'whitespace-nowrap rounded-t-lg px-4 py-2 text-sm font-semibold transition sm:px-6 sm:py-3',
               activeTab === 'blacklist'
                 ? 'bg-white text-emerald-600 border-b-2 border-emerald-600'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -317,7 +317,7 @@ function openInviteModal() {
     </header>
 
     <!-- Main Content -->
-    <main class="mx-auto max-w-7xl px-6 py-8">
+    <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
       <!-- Error Message (Global) -->
       <div
         v-if="platformAdmin.error.value"
@@ -358,7 +358,7 @@ function openInviteModal() {
       <!-- OVERVIEW TAB -->
       <div v-if="activeTab === 'overview'" role="tabpanel">
         <!-- Metrics Grid -->
-        <div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
           <MetricCard
             title="Total Workspaces"
             :value="platformMetrics.metrics.value.totalWorkspaces"
@@ -394,8 +394,9 @@ function openInviteModal() {
 
       <!-- WORKSPACES TAB -->
       <div v-if="activeTab === 'workspaces'" role="tabpanel">
-        <div class="mb-6 flex items-center justify-between">
-          <div class="flex-1 max-w-md">
+        <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <!-- Search - Full width on mobile, limited on desktop -->
+          <div class="flex-1 sm:max-w-md">
             <input
               v-model="searchQuery"
               type="search"
@@ -403,9 +404,10 @@ function openInviteModal() {
               class="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
+          <!-- Action Button - Full width on mobile -->
           <button
             @click="openInviteModal"
-            class="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            class="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 sm:w-auto"
           >
             + Invite Therapist
           </button>
@@ -459,48 +461,47 @@ function openInviteModal() {
 
       <!-- INVITATIONS TAB -->
       <div v-if="activeTab === 'invitations'" role="tabpanel">
-        <div class="mb-6 flex items-center justify-between">
-          <div class="flex items-center gap-4">
-            <!-- Filter -->
-            <div class="flex gap-2">
-              <button
-                @click="invitationFilter = 'all'"
-                :class="[
-                  'rounded-lg px-3 py-1 text-sm font-medium transition',
-                  invitationFilter === 'all'
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                ]"
-              >
-                All
-              </button>
-              <button
-                @click="invitationFilter = 'active'"
-                :class="[
-                  'rounded-lg px-3 py-1 text-sm font-medium transition',
-                  invitationFilter === 'active'
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                ]"
-              >
-                Active
-              </button>
-              <button
-                @click="invitationFilter = 'expired'"
-                :class="[
-                  'rounded-lg px-3 py-1 text-sm font-medium transition',
-                  invitationFilter === 'expired'
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                ]"
-              >
-                Expired
-              </button>
-            </div>
+        <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <!-- Filter buttons - Wrap on mobile -->
+          <div class="flex flex-wrap gap-2">
+            <button
+              @click="invitationFilter = 'all'"
+              :class="[
+                'rounded-lg px-3 py-1.5 text-sm font-medium transition',
+                invitationFilter === 'all'
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              ]"
+            >
+              All
+            </button>
+            <button
+              @click="invitationFilter = 'active'"
+              :class="[
+                'rounded-lg px-3 py-1.5 text-sm font-medium transition',
+                invitationFilter === 'active'
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              ]"
+            >
+              Active
+            </button>
+            <button
+              @click="invitationFilter = 'expired'"
+              :class="[
+                'rounded-lg px-3 py-1.5 text-sm font-medium transition',
+                invitationFilter === 'expired'
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              ]"
+            >
+              Expired
+            </button>
           </div>
+          <!-- Action Button - Full width on mobile -->
           <button
             @click="openInviteModal"
-            class="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            class="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 sm:w-auto"
           >
             + Invite Therapist
           </button>
@@ -545,22 +546,22 @@ function openInviteModal() {
           <div
             v-for="invitation in filteredInvitations"
             :key="invitation.user_id"
-            class="rounded-xl border border-slate-200 bg-white p-6 transition hover:shadow-md"
+            class="rounded-xl border border-slate-200 bg-white p-4 transition hover:shadow-md sm:p-6"
           >
-            <div class="flex items-start justify-between">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div class="flex-1">
                 <div class="flex items-center gap-3">
                   <div
-                    class="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-lg font-semibold text-emerald-700"
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-base font-semibold text-emerald-700 sm:h-12 sm:w-12 sm:text-lg"
                   >
                     {{ invitation.full_name.split(' ')[0]?.[0] || 'T'
                     }}{{ invitation.full_name.split(' ')[1]?.[0] || '' }}
                   </div>
-                  <div>
-                    <h3 class="text-lg font-semibold text-slate-900">
+                  <div class="min-w-0">
+                    <h3 class="truncate text-base font-semibold text-slate-900 sm:text-lg">
                       {{ invitation.full_name }}
                     </h3>
-                    <p class="mt-1 text-sm text-slate-600">{{ invitation.email }}</p>
+                    <p class="mt-1 truncate text-sm text-slate-600">{{ invitation.email }}</p>
                   </div>
                 </div>
 
@@ -569,7 +570,7 @@ function openInviteModal() {
                   {{ invitation.workspace_name }}
                 </p>
 
-                <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                <div class="mt-3 flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4">
                   <div>
                     <span class="font-medium">Invited:</span>
                     {{ formatDate(invitation.invited_at) }}
@@ -586,11 +587,11 @@ function openInviteModal() {
                 </div>
               </div>
 
-              <div class="ml-4">
+              <div class="w-full sm:ml-4 sm:w-auto">
                 <button
                   @click="handleResendInvitation(invitation.user_id)"
                   :disabled="platformAdmin.loading.value"
-                  class="rounded-lg border-2 border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  class="w-full rounded-lg border-2 border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
                   Resend
                 </button>
@@ -606,15 +607,15 @@ function openInviteModal() {
           <button
             v-if="!showAddBlacklistForm"
             @click="showAddBlacklistForm = true"
-            class="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            class="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 sm:w-auto"
           >
             + Add to Blacklist
           </button>
         </div>
 
         <!-- Add to Blacklist Form -->
-        <div v-if="showAddBlacklistForm" class="mb-6 rounded-xl border border-slate-200 bg-white p-6">
-          <h3 class="mb-4 text-lg font-semibold text-slate-900">Add Email to Blacklist</h3>
+        <div v-if="showAddBlacklistForm" class="mb-6 rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+          <h3 class="mb-4 text-base font-semibold text-slate-900 sm:text-lg">Add Email to Blacklist</h3>
           <div class="space-y-4">
             <div>
               <label class="mb-1 block text-sm font-medium text-slate-700">Email</label>
@@ -634,17 +635,17 @@ function openInviteModal() {
                 class="w-full rounded-lg border border-slate-300 px-3 py-2 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
-            <div class="flex gap-3">
+            <div class="flex flex-col gap-3 sm:flex-row">
               <button
                 @click="showAddBlacklistForm = false"
-                class="rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                class="w-full rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 sm:w-auto"
               >
                 Cancel
               </button>
               <button
                 @click="handleAddToBlacklist"
                 :disabled="!blacklistForm.email || !blacklistForm.reason"
-                class="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                class="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 Add to Blacklist
               </button>
@@ -676,8 +677,8 @@ function openInviteModal() {
           </p>
         </div>
 
-        <!-- Blacklist Table -->
-        <div v-else class="rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <!-- Desktop: Blacklist Table -->
+        <div v-else class="hidden overflow-hidden rounded-xl border border-slate-200 bg-white sm:block">
           <table class="w-full">
             <thead class="bg-slate-50">
               <tr>
@@ -711,6 +712,25 @@ function openInviteModal() {
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Mobile: Blacklist Cards -->
+        <div v-else class="space-y-4 sm:hidden">
+          <div
+            v-for="entry in platformAdmin.blacklist.value"
+            :key="entry.email"
+            class="rounded-lg border border-slate-200 bg-white p-4"
+          >
+            <div class="mb-2 break-words font-semibold text-slate-900">{{ entry.email }}</div>
+            <div class="mb-2 text-sm text-slate-600">{{ entry.reason }}</div>
+            <div class="mb-3 text-xs text-slate-500">{{ formatDate(entry.addedAt) }}</div>
+            <button
+              @click="handleRemoveFromBlacklist(entry.email)"
+              class="w-full rounded-lg border border-red-600 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+            >
+              Remove
+            </button>
+          </div>
         </div>
       </div>
     </main>
@@ -783,6 +803,16 @@ function openInviteModal() {
 </template>
 
 <style scoped>
+/* Hide scrollbar for tab navigation on mobile */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .transition,
   .animate-spin {

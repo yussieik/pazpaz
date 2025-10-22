@@ -110,14 +110,14 @@ const confirmButtonClass = props.confirmStyle === 'danger'
   <Transition name="modal">
     <div
       v-if="visible"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
       @click.self="handleCancel"
       @keydown="handleTabKey"
       role="dialog"
       aria-modal="true"
       :aria-labelledby="`modal-title-${title}`"
     >
-      <div ref="modalRef" class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+      <div ref="modalRef" class="w-full max-w-md rounded-xl bg-white p-4 shadow-xl sm:p-6">
         <!-- Header -->
         <div class="mb-4 flex items-start justify-between">
           <div class="flex items-center">
@@ -191,7 +191,7 @@ const confirmButtonClass = props.confirmStyle === 'danger'
         </div>
 
         <!-- Actions -->
-        <div class="flex space-x-3">
+        <div class="flex flex-col gap-3 sm:flex-row sm:space-x-3 sm:gap-0">
           <button
             type="button"
             @click="handleCancel"
