@@ -212,7 +212,6 @@ async def build_daily_digest_email(
     appointments = list(result.scalars().all())
 
     # Fetch related data
-    await db.refresh(appointments[0].client) if appointments else None
     for appt in appointments:
         await db.refresh(appt, ["client", "service", "location"])
 
