@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import apiClient from '@/api/client'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
+const toast = useToast()
 
 const email = ref('')
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 const success = ref(false)
 const emailInputRef = ref<HTMLInputElement | null>(null)
+const emailInputHasError = ref(false) // Track validation errors for shake animation
 
 // Enhanced waiting experience state
 const linkExpiresIn = ref(15 * 60) // 15 minutes in seconds
@@ -24,6 +27,11 @@ const mailhogUrl = import.meta.env.VITE_MAILHOG_URL || 'http://localhost:8025'
 const showMailHogBanner = ref(
   isDevelopment && !sessionStorage.getItem('mailhog_banner_dismissed'),
 )
+
+// Email arrival detection
+const hasLeftTab = ref(false)
+const timeLeftTab = ref<number | null>(null)
+const hasShownReturnMessage = ref(false)
 
 let countdownInterval: ReturnType<typeof setInterval> | null = null
 let cooldownInterval: ReturnType<typeof setInterval> | null = null
@@ -49,6 +57,45 @@ const canResend = computed(() => {
   return success.value && resendCooldown.value <= 0 && !isResending.value
 })
 
+/**
+ * Handle tab visibility change for email arrival detection
+ */
+function handleVisibilityChange() {
+  if (document.hidden) {
+    // User left tab
+    if (success.value && !hasLeftTab.value) {
+      hasLeftTab.value = true
+      timeLeftTab.value = Date.now()
+      console.log('[EmailDetection] User left tab to check email')
+    }
+  } else {
+    // User returned to tab
+    if (hasLeftTab.value && !hasShownReturnMessage.value && timeLeftTab.value) {
+      const timeAway = Date.now() - timeLeftTab.value
+
+      // Only show if away for 10+ seconds
+      if (timeAway > 10000) {
+        toast.showInfo(
+          "Welcome back! The magic link should be in your inbox. Check spam if you don't see it."
+        )
+        hasShownReturnMessage.value = true
+        console.log(`[EmailDetection] User returned after ${Math.round(timeAway / 1000)}s`)
+      }
+    }
+  }
+}
+
+/**
+ * Reset email detection state when new magic link requested
+ */
+watch(success, (newValue) => {
+  if (newValue) {
+    hasLeftTab.value = false
+    timeLeftTab.value = null
+    hasShownReturnMessage.value = false
+  }
+})
+
 onMounted(() => {
   // Focus email input on mount for keyboard-first UX
   emailInputRef.value?.focus()
@@ -57,6 +104,9 @@ onMounted(() => {
   if (route.query.error === 'invalid_link') {
     error.value = 'Invalid or expired magic link. Please request a new one.'
   }
+
+  // Set up visibility change listener for email arrival detection
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
@@ -69,17 +119,26 @@ onUnmounted(() => {
     clearInterval(cooldownInterval)
     cooldownInterval = null
   }
+
+  // Cleanup visibility listener
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 
 async function requestMagicLink() {
   // Client-side validation
   if (!email.value || !email.value.includes('@')) {
     error.value = 'Please enter a valid email address'
+    emailInputHasError.value = true
+    // Reset shake animation after it completes
+    setTimeout(() => {
+      emailInputHasError.value = false
+    }, 400)
     return
   }
 
   isLoading.value = true
   error.value = null
+  emailInputHasError.value = false
   success.value = false
 
   try {
@@ -645,7 +704,16 @@ function handleSubmit() {
               autocomplete="email"
               required
               :disabled="isLoading"
-              class="block w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
+              :class="[
+                'block w-full rounded-lg border px-4 py-3 text-slate-900 placeholder-slate-400',
+                'transition-all duration-200 ease-in-out',
+                'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none',
+                'hover:border-slate-400 hover:shadow-sm',
+                'disabled:cursor-not-allowed disabled:bg-slate-100',
+                emailInputHasError
+                  ? 'border-red-300 animate-shake'
+                  : 'border-slate-300',
+              ]"
               placeholder="you@example.com"
               aria-required="true"
               aria-describedby="email-description"
@@ -658,7 +726,15 @@ function handleSubmit() {
           <button
             type="submit"
             :disabled="isLoading || !email"
-            class="w-full rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white transition hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-300"
+            :class="[
+              'w-full rounded-lg px-4 py-3 font-semibold text-white',
+              'transition-all duration-200 ease-in-out',
+              'focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none',
+              'disabled:cursor-not-allowed disabled:bg-slate-300 disabled:hover:bg-slate-300',
+              isLoading || !email
+                ? 'bg-slate-300'
+                : 'bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg transform hover:scale-102 active:scale-98',
+            ]"
           >
             <span v-if="isLoading" class="flex items-center justify-center">
               <svg
@@ -707,17 +783,19 @@ function handleSubmit() {
 </template>
 
 <style scoped>
-/* Checkmark scale-in animation */
+/* Checkmark bounce-in animation (enhanced) */
 .checkmark-scale-enter-active {
-  transition: transform 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
 .checkmark-scale-enter-from {
   transform: scale(0);
+  opacity: 0;
 }
 
 .checkmark-scale-enter-to {
   transform: scale(1);
+  opacity: 1;
 }
 
 /* Pulse animation for expiring countdown */
@@ -779,7 +857,8 @@ function handleSubmit() {
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .checkmark-scale-enter-active {
-    transition-duration: 1ms;
+    animation: none;
+    transition: opacity 1ms;
   }
 
   .animate-pulse {
@@ -794,6 +873,19 @@ function handleSubmit() {
   .banner-fade-enter-active,
   .banner-fade-leave-active {
     transition-duration: 1ms;
+  }
+
+  button {
+    transform: none !important;
+  }
+
+  button:hover,
+  button:active {
+    transform: none !important;
+  }
+
+  input {
+    animation: none !important;
   }
 }
 </style>

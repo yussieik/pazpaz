@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <Transition name="modal-fade">
+    <Transition name="modal-backdrop">
       <div
         v-if="visible"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
@@ -11,12 +11,14 @@
         @click.self="handleCancel"
         @keydown.esc="handleCancel"
       >
-        <div
-          ref="modalRef"
-          class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
-          role="alertdialog"
-          tabindex="-1"
-        >
+        <Transition name="modal-content">
+          <div
+            v-if="visible"
+            ref="modalRef"
+            class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+            role="alertdialog"
+            tabindex="-1"
+          >
           <!-- Warning Icon and Title -->
           <div class="flex items-start mb-4">
             <svg
@@ -73,14 +75,26 @@
             <button
               ref="cancelButtonRef"
               @click="handleCancel"
-              class="flex-1 bg-emerald-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-colors"
+              :class="[
+                'flex-1 bg-emerald-600 text-white px-4 py-2.5 rounded-lg font-medium',
+                'transition-all duration-200 ease-in-out',
+                'hover:bg-emerald-700 hover:shadow-lg transform hover:scale-102 active:scale-98',
+                'focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2',
+              ]"
               type="button"
             >
               Cancel
             </button>
             <button
               @click="handleLogout"
-              class="flex-1 bg-slate-200 text-slate-800 px-4 py-2.5 rounded-lg font-medium hover:bg-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-colors"
+              :class="[
+                'flex-1 bg-slate-200 text-slate-800 px-4 py-2.5 rounded-lg font-medium',
+                'transition-all duration-200 ease-in-out',
+                'focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2',
+                isLoggingOut
+                  ? 'cursor-not-allowed opacity-50'
+                  : 'hover:bg-slate-300 hover:shadow-md transform hover:scale-102 active:scale-98',
+              ]"
               type="button"
               :disabled="isLoggingOut"
             >
@@ -96,6 +110,7 @@
             For HIPAA compliance, all local data is cleared on logout.
           </p>
         </div>
+        </Transition>
       </div>
     </Transition>
   </Teleport>
@@ -195,22 +210,65 @@ watch(
 </script>
 
 <style scoped>
-/* Modal fade transition */
-.modal-fade-enter-active,
-.modal-fade-leave-active {
+/* Backdrop fade transition */
+.modal-backdrop-enter-active {
   transition: opacity 200ms ease-out;
 }
 
-.modal-fade-enter-from,
-.modal-fade-leave-to {
+.modal-backdrop-leave-active {
+  transition: opacity 150ms ease-in;
+}
+
+.modal-backdrop-enter-from,
+.modal-backdrop-leave-to {
+  opacity: 0;
+}
+
+/* Content scale and fade transition (staggered after backdrop) */
+.modal-content-enter-active {
+  transition:
+    transform 300ms ease-out 50ms,
+    opacity 300ms ease-out 50ms;
+}
+
+.modal-content-leave-active {
+  transition:
+    transform 200ms ease-in,
+    opacity 200ms ease-in;
+}
+
+.modal-content-enter-from {
+  transform: scale(0.95);
+  opacity: 0;
+}
+
+.modal-content-leave-to {
+  transform: scale(0.95);
   opacity: 0;
 }
 
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
-  .modal-fade-enter-active,
-  .modal-fade-leave-active {
+  .modal-backdrop-enter-active,
+  .modal-backdrop-leave-active,
+  .modal-content-enter-active,
+  .modal-content-leave-active {
     transition-duration: 1ms;
+    transition-delay: 0ms;
+  }
+
+  .modal-content-enter-from,
+  .modal-content-leave-to {
+    transform: none;
+  }
+
+  button {
+    transform: none !important;
+  }
+
+  button:hover,
+  button:active {
+    transform: none !important;
   }
 }
 </style>

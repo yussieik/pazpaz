@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <Transition name="modal-fade">
+    <Transition name="modal-backdrop">
       <div
         v-if="visible"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -9,12 +9,14 @@
         aria-labelledby="session-expiration-title"
         aria-describedby="session-expiration-description"
       >
-        <div
-          ref="modalRef"
-          class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
-          role="alertdialog"
-          tabindex="-1"
-        >
+        <Transition name="modal-slide-down">
+          <div
+            v-if="visible"
+            ref="modalRef"
+            class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+            role="alertdialog"
+            tabindex="-1"
+          >
           <!-- Critical Warning Icon and Title -->
           <div class="flex items-start mb-4">
             <div class="flex-shrink-0">
@@ -72,7 +74,14 @@
             <button
               ref="extendButtonRef"
               @click="handleExtend"
-              class="flex-1 bg-emerald-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-colors"
+              :class="[
+                'flex-1 bg-emerald-600 text-white px-4 py-3 rounded-lg font-semibold',
+                'transition-all duration-200 ease-in-out',
+                'focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2',
+                isExtending
+                  ? 'cursor-not-allowed opacity-50'
+                  : 'hover:bg-emerald-700 hover:shadow-lg transform hover:scale-102 active:scale-98',
+              ]"
               type="button"
               :disabled="isExtending"
             >
@@ -81,7 +90,12 @@
             </button>
             <button
               @click="handleLogout"
-              class="flex-1 bg-slate-200 text-slate-800 px-4 py-3 rounded-lg font-semibold hover:bg-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-colors"
+              :class="[
+                'flex-1 bg-slate-200 text-slate-800 px-4 py-3 rounded-lg font-semibold',
+                'transition-all duration-200 ease-in-out',
+                'hover:bg-slate-300 hover:shadow-md transform hover:scale-102 active:scale-98',
+                'focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2',
+              ]"
               type="button"
             >
               Logout Now
@@ -93,6 +107,7 @@
             Automatic session timeout is required for HIPAA compliance to protect patient data.
           </p>
         </div>
+        </Transition>
       </div>
     </Transition>
   </Teleport>
@@ -191,14 +206,40 @@ watch(
 </script>
 
 <style scoped>
-/* Modal fade transition */
-.modal-fade-enter-active,
-.modal-fade-leave-active {
+/* Backdrop fade transition */
+.modal-backdrop-enter-active {
   transition: opacity 250ms ease-out;
 }
 
-.modal-fade-enter-from,
-.modal-fade-leave-to {
+.modal-backdrop-leave-active {
+  transition: opacity 200ms ease-in;
+}
+
+.modal-backdrop-enter-from,
+.modal-backdrop-leave-to {
+  opacity: 0;
+}
+
+/* Modal slide-down transition (urgent appearance) */
+.modal-slide-down-enter-active {
+  transition:
+    transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1) 50ms,
+    opacity 350ms ease-out 50ms;
+}
+
+.modal-slide-down-leave-active {
+  transition:
+    transform 250ms ease-in,
+    opacity 250ms ease-in;
+}
+
+.modal-slide-down-enter-from {
+  transform: translateY(-20px) scale(0.95);
+  opacity: 0;
+}
+
+.modal-slide-down-leave-to {
+  transform: translateY(10px) scale(0.95);
   opacity: 0;
 }
 
@@ -219,13 +260,30 @@ watch(
 
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
-  .modal-fade-enter-active,
-  .modal-fade-leave-active {
+  .modal-backdrop-enter-active,
+  .modal-backdrop-leave-active,
+  .modal-slide-down-enter-active,
+  .modal-slide-down-leave-active {
     transition-duration: 1ms;
+    transition-delay: 0ms;
+  }
+
+  .modal-slide-down-enter-from,
+  .modal-slide-down-leave-to {
+    transform: none;
   }
 
   .animate-pulse {
     animation: none;
+  }
+
+  button {
+    transform: none !important;
+  }
+
+  button:hover,
+  button:active {
+    transform: none !important;
   }
 }
 </style>
