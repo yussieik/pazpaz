@@ -94,7 +94,7 @@ jobs:
           ENCRYPTION_MASTER_KEY: test_key_for_ci_only_32_bytes_long!!
           SECRET_KEY: test_secret_for_ci_only_must_be_long_enough
           JWT_SECRET_KEY: test_jwt_secret_for_ci_only
-          ENVIRONMENT: test
+          ENVIRONMENT: local
           DEBUG: false
           CORS_ORIGINS: '["http://localhost:3000"]'
           SESSION_SECRET_KEY: test_session_secret_for_ci_only
@@ -238,7 +238,7 @@ jobs:
           REDIS_URL: "redis://localhost:6379/0"
           ENCRYPTION_MASTER_KEY: "test_key_for_openapi_generation"
           SECRET_KEY: "test_secret_for_openapi_generation"
-          ENVIRONMENT: "test"
+          ENVIRONMENT: "local"
           STORAGE_BACKEND: "filesystem"
           STORAGE_PATH: "/tmp/test_storage"
         run: |
@@ -462,7 +462,7 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           ENCRYPTION_MASTER_KEY: test_key_for_ci_only_32_bytes_long!!
           SECRET_KEY: test_secret_for_ci_only
-          ENVIRONMENT: test
+          ENVIRONMENT: local
         run: |
           echo "Running performance tests..."
           uv run pytest tests/test_performance.py -v -m performance --tb=short || {
