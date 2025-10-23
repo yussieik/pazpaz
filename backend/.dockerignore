@@ -1,0 +1,280 @@
+# Backend .dockerignore for PazPaz
+# Optimized for production Docker builds
+# Created: 2025-10-23
+
+# ===========================================
+# Python-specific
+# ===========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ===========================================
+# Virtual Environments
+# ===========================================
+.venv/
+venv/
+ENV/
+env/
+.env.venv
+.env.local
+.env.*.local
+
+# ===========================================
+# Testing & Coverage
+# ===========================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+nosetests.xml
+pytest.xml
+pytest_cache/
+# Include tests directory - not needed in production
+tests/
+test_*.py
+*_test.py
+
+# ===========================================
+# Development & Debug
+# ===========================================
+*.log
+*.pot
+*.mo
+*.pid
+instance/
+.webassets-cache
+.scrapy
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+.python-version
+__pypackages__/
+celerybeat-schedule
+celerybeat.pid
+*.sage.py
+
+# ===========================================
+# Linting & Type Checking
+# ===========================================
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# ===========================================
+# Environment & Configuration
+# ===========================================
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+# Allow .env.example for reference
+!.env.example
+
+# ===========================================
+# Database Files
+# ===========================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-shm
+*.db-wal
+
+# ===========================================
+# IDE & Editor Files
+# ===========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.sublime-project
+.vim/
+
+# ===========================================
+# OS-specific Files
+# ===========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===========================================
+# Documentation
+# ===========================================
+docs/
+*.md
+# Keep README.md as it's required by hatchling build
+!README.md
+
+# ===========================================
+# Security Sensitive Files
+# ===========================================
+# SSL Certificates
+certs/
+*.pem
+*.key
+*.cert
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# SSH Keys
+*.pub
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+
+# Other secrets
+secrets/
+.secrets/
+*.secret
+*.private
+
+# ===========================================
+# Development Scripts & Tools
+# ===========================================
+scripts/
+dev_login.py
+seed_dev_data.py
+start_backend.sh
+
+# ===========================================
+# CI/CD & Version Control
+# ===========================================
+.git/
+.gitignore
+.gitattributes
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+azure-pipelines.yml
+Jenkinsfile
+
+# ===========================================
+# Docker Files (nested builds)
+# ===========================================
+docker-compose.yml
+docker-compose.*.yml
+Dockerfile*
+.dockerignore
+
+# ===========================================
+# Backup & Temporary Files
+# ===========================================
+*.backup
+*.bak
+*.tmp
+*.temp
+*.orig
+*.old
+*.cache
+tmp/
+temp/
+backups/
+
+# ===========================================
+# Logs & Output
+# ===========================================
+logs/
+*.log
+*.out
+*.err
+output/
+
+# ===========================================
+# Package Manager Specific
+# ===========================================
+# Poetry
+poetry.lock
+poetry.toml
+
+# Pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Pipenv
+Pipfile
+Pipfile.lock
+
+# PDM
+.pdm.toml
+.pdm-python
+.pdm-build/
+
+# PEP 582
+__pypackages__/
+
+# ===========================================
+# Miscellaneous
+# ===========================================
+*.pid
+*.seed
+*.pid.lock
+.spyderproject
+.spyproject
+.ropeproject
+/site
+.venv.bak/
+
+# Backend-specific directory (appears to be nested)
+backend/
+
+# Local environment scripts
+local_*.py
+local_*.sh
+
+# Performance test data
+performance_*.json
+benchmark_*.txt
+
+# Migration backups
+alembic/versions/*.bak
+
+# End of .dockerignore
