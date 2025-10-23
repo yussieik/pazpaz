@@ -91,6 +91,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/pazpaz_test
           REDIS_URL: redis://localhost:6379/0
+          DB_SSL_ENABLED: false
           ENCRYPTION_MASTER_KEY: test_key_for_ci_only_32_bytes_long!!
           SECRET_KEY: test_secret_for_ci_only_must_be_long_enough
           JWT_SECRET_KEY: test_jwt_secret_for_ci_only
@@ -460,6 +461,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/pazpaz_test
           REDIS_URL: redis://localhost:6379/0
+          DB_SSL_ENABLED: false
           ENCRYPTION_MASTER_KEY: test_key_for_ci_only_32_bytes_long!!
           SECRET_KEY: test_secret_for_ci_only
           ENVIRONMENT: local
