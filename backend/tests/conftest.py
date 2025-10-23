@@ -580,11 +580,10 @@ async def redis_client() -> AsyncGenerator[redis.Redis]:
     IMPORTANT: Creates a fresh connection pool for each test to avoid event loop
     binding issues when tests run sequentially in the same session.
     """
-    from pazpaz.core.config import settings
-
-    # Use settings.redis_password which loads from .env file
-    # Replace database 0 with database 1 for testing
-    redis_url = f"redis://:{settings.redis_password}@localhost:6379/1"
+    # Use TEST_REDIS_URL from environment (configured at module level, line 59)
+    # In CI: redis://localhost:6379/0 (no password)
+    # Locally: redis://:<password>@localhost:6379/1
+    redis_url = TEST_REDIS_URL
 
     # Create a NEW connection pool for each test
     # This ensures the connection is bound to the current event loop
