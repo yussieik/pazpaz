@@ -43,15 +43,20 @@ if not os.getenv("ENCRYPTION_MASTER_KEY"):
     load_dotenv(dotenv_path=env_path)
 
 # Test database URL - use separate test database
-# Get password from environment (should match running Docker container)
-TEST_DB_PASSWORD = os.getenv(
-    "POSTGRES_PASSWORD", "7ZkNSVfvKEbFi2D0uNFoPJzv8sXAYiGaSnXGbRWEoY"
-)
-TEST_DATABASE_URL = (
-    f"postgresql+asyncpg://pazpaz:{TEST_DB_PASSWORD}@localhost:5432/pazpaz_test"
-)
-# Use database 1 for tests
-TEST_REDIS_URL = "redis://localhost:6379/1"
+# In CI, use DATABASE_URL from environment (already configured correctly)
+# Locally, build URL with local credentials
+TEST_DATABASE_URL = os.getenv("DATABASE_URL")
+if not TEST_DATABASE_URL:
+    # Get password from environment (should match running Docker container)
+    TEST_DB_PASSWORD = os.getenv(
+        "POSTGRES_PASSWORD", "7ZkNSVfvKEbFi2D0uNFoPJzv8sXAYiGaSnXGbRWEoY"
+    )
+    TEST_DATABASE_URL = (
+        f"postgresql+asyncpg://pazpaz:{TEST_DB_PASSWORD}@localhost:5432/pazpaz_test"
+    )
+
+# Redis URL - use environment variable if set (for CI), otherwise use local default
+TEST_REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/1")
 
 
 # ============================================================================
