@@ -1,0 +1,361 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ============================================================================
+  # Test & Quality Checks
+  # ============================================================================
+  test:
+    name: Test & Quality Checks
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        id: eslint
+        run: npm run lint:check
+        continue-on-error: true
+
+      - name: Run Prettier format check
+        id: prettier
+        run: npm run format:check
+        continue-on-error: true
+
+      - name: Run TypeScript type checking
+        id: typecheck
+        run: npm run type-check
+        continue-on-error: true
+
+      - name: Run Vitest unit tests
+        id: vitest
+        run: npm run test:unit
+        continue-on-error: true
+
+      - name: Generate test coverage
+        id: coverage
+        if: steps.vitest.outcome == 'success'
+        run: npm run test:coverage
+        continue-on-error: true
+
+      - name: Upload coverage reports
+        if: steps.coverage.outcome == 'success'
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./frontend/coverage/coverage-final.json
+          flags: frontend
+          name: frontend-coverage
+        continue-on-error: true
+
+      - name: Build production bundle
+        id: build
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Check build output size
+        if: steps.build.outcome == 'success'
+        run: |
+          echo "Build output size:"
+          du -sh dist/
+          echo ""
+          echo "Largest files in dist:"
+          find dist -type f -exec du -h {} + | sort -rh | head -10
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: steps.build.outcome == 'success'
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 7
+
+      - name: Quality Check Summary
+        if: always()
+        run: |
+          echo "## Quality Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ESLint | ${{ steps.eslint.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Prettier | ${{ steps.prettier.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| TypeScript | ${{ steps.typecheck.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | ${{ steps.vitest.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ steps.build.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+
+          # Fail job if any required check failed
+          if [[ "${{ steps.eslint.outcome }}" != "success" ]] || \
+             [[ "${{ steps.prettier.outcome }}" != "success" ]] || \
+             [[ "${{ steps.typecheck.outcome }}" != "success" ]] || \
+             [[ "${{ steps.vitest.outcome }}" != "success" ]] || \
+             [[ "${{ steps.build.outcome }}" != "success" ]]; then
+            echo ""
+            echo "⚠️ One or more quality checks failed. Please review the errors above."
+            exit 1
+          fi
+
+  # ============================================================================
+  # Security Scanning
+  # ============================================================================
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies for audit
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run npm audit
+        id: npm-audit
+        working-directory: ./frontend
+        run: |
+          npm audit --audit-level=moderate --json > audit-report.json || true
+          cat audit-report.json | jq '.'
+
+          # Parse audit results
+          CRITICAL=$(cat audit-report.json | jq '.metadata.vulnerabilities.critical // 0')
+          HIGH=$(cat audit-report.json | jq '.metadata.vulnerabilities.high // 0')
+          MODERATE=$(cat audit-report.json | jq '.metadata.vulnerabilities.moderate // 0')
+          LOW=$(cat audit-report.json | jq '.metadata.vulnerabilities.low // 0')
+
+          echo "## NPM Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
+          echo "| High | $HIGH |" >> $GITHUB_STEP_SUMMARY
+          echo "| Moderate | $MODERATE |" >> $GITHUB_STEP_SUMMARY
+          echo "| Low | $LOW |" >> $GITHUB_STEP_SUMMARY
+
+          # Fail if critical or high vulnerabilities exist
+          if [[ $CRITICAL -gt 0 ]] || [[ $HIGH -gt 0 ]]; then
+            echo ""
+            echo "❌ Critical or High severity vulnerabilities found!"
+            echo "Run 'npm audit fix' to attempt automatic fixes."
+            exit 1
+          elif [[ $MODERATE -gt 0 ]]; then
+            echo ""
+            echo "⚠️ Moderate severity vulnerabilities found. Please review."
+          else
+            echo ""
+            echo "✅ No significant vulnerabilities found."
+          fi
+        continue-on-error: true
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: frontend/audit-report.json
+          retention-days: 30
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: './frontend'
+          severity: 'CRITICAL,HIGH'
+          format: 'sarif'
+          output: 'trivy-results-frontend.sarif'
+          skip-dirs: 'node_modules,dist,coverage,.nuxt'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results-frontend.sarif'
+          category: 'trivy-frontend'
+        continue-on-error: true
+
+      - name: Run Trivy in table format for summary
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: './frontend'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          format: 'table'
+          skip-dirs: 'node_modules,dist,coverage,.nuxt'
+        continue-on-error: true
+
+  # ============================================================================
+  # Dependency License Check
+  # ============================================================================
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check licenses
+        run: |
+          npx license-checker --production --summary --excludePrivatePackages > license-summary.txt || true
+          echo "## License Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat license-summary.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        continue-on-error: true
+
+  # ============================================================================
+  # Bundle Size Analysis (for PRs)
+  # ============================================================================
+  bundle-analysis:
+    name: Bundle Size Analysis
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install and build PR version
+        run: |
+          npm ci
+          npm run build
+          echo "PR_SIZE=$(du -sb dist | cut -f1)" >> $GITHUB_ENV
+          mv dist dist-pr
+
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+
+      - name: Install and build base version
+        run: |
+          npm ci
+          npm run build
+          echo "BASE_SIZE=$(du -sb dist | cut -f1)" >> $GITHUB_ENV
+        continue-on-error: true
+
+      - name: Compare bundle sizes
+        if: env.BASE_SIZE
+        run: |
+          echo "## Bundle Size Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Base | $(numfmt --to=iec-i --suffix=B ${{ env.BASE_SIZE }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| PR | $(numfmt --to=iec-i --suffix=B ${{ env.PR_SIZE }}) |" >> $GITHUB_STEP_SUMMARY
+
+          DIFF=$((PR_SIZE - BASE_SIZE))
+          if [[ $DIFF -gt 0 ]]; then
+            echo "| Change | +$(numfmt --to=iec-i --suffix=B $DIFF) 📈 |" >> $GITHUB_STEP_SUMMARY
+          elif [[ $DIFF -lt 0 ]]; then
+            echo "| Change | $(numfmt --to=iec-i --suffix=B $DIFF) 📉 |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Change | No change |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Warn if bundle size increased significantly (>10%)
+          if [[ $BASE_SIZE -gt 0 ]]; then
+            PERCENT=$((DIFF * 100 / BASE_SIZE))
+            if [[ $PERCENT -gt 10 ]]; then
+              echo ""
+              echo "⚠️ Bundle size increased by more than 10%!"
+            fi
+          fi
+        continue-on-error: true
+
+  # ============================================================================
+  # CI Success Gate
+  # ============================================================================
+  ci-success:
+    name: CI Success Gate
+    runs-on: ubuntu-latest
+    needs: [test, security, license-check]
+    if: always()
+
+    steps:
+      - name: Check all required jobs
+        run: |
+          echo "## CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Test & Quality | ${{ needs.test.result == 'success' && '✅ Passed' || needs.test.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security | ${{ needs.security.result == 'success' && '✅ Passed' || needs.security.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| License Check | ${{ needs.license-check.result == 'success' && '✅ Passed' || needs.license-check.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+
+          # Check if any required jobs failed
+          if [[ "${{ needs.test.result }}" == "failure" ]] || \
+             [[ "${{ needs.security.result }}" == "failure" ]]; then
+            echo ""
+            echo "❌ One or more required jobs failed. Please review the errors above."
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ All required CI checks passed successfully!"
