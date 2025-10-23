@@ -69,4 +69,9 @@ logs/
 .cursor/rules/byterover-rules.mdc
 .kiro/steering/byterover-rules.md
 .qoder/rules/byterover-rules.md
-.augment/rules/byterover-rules.md.env.prod
+.augment/rules/byterover-rules.md
+
+# MCP Configuration (contains GitHub token)
+.mcp.json
+
+.env.prod
