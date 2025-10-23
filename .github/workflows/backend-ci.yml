@@ -49,6 +49,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          redis-server --protected-mode no
         ports:
           - 6379:6379
 
@@ -433,6 +434,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          redis-server --protected-mode no
         ports:
           - 6379:6379
 
