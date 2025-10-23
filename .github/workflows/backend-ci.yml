@@ -43,9 +43,9 @@ jobs:
           - 5432:5432
 
       redis:
-        # Use bitnami/redis which supports ALLOW_EMPTY_PASSWORD env var
-        # Official redis:7-alpine requires complex Docker options to disable auth
-        image: bitnami/redis:7.0
+        # Use bitnami/redis with ALLOW_EMPTY_PASSWORD to disable auth requirement
+        # Bitnami images use 'latest' tag for latest stable version
+        image: bitnami/redis:latest
         env:
           ALLOW_EMPTY_PASSWORD: yes
         options: >-
@@ -431,9 +431,9 @@ jobs:
           - 5432:5432
 
       redis:
-        # Use bitnami/redis which supports ALLOW_EMPTY_PASSWORD env var
-        # Official redis:7-alpine requires complex Docker options to disable auth
-        image: bitnami/redis:7.0
+        # Use bitnami/redis with ALLOW_EMPTY_PASSWORD to disable auth requirement
+        # Bitnami images use 'latest' tag for latest stable version
+        image: bitnami/redis:latest
         env:
           ALLOW_EMPTY_PASSWORD: yes
         options: >-
