@@ -96,9 +96,9 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/pazpaz_test
           REDIS_URL: redis://localhost:6379/0
           DB_SSL_ENABLED: false
-          ENCRYPTION_MASTER_KEY: test_key_for_ci_only_32_bytes_long!!
-          SECRET_KEY: test_secret_for_ci_only_must_be_long_enough
-          JWT_SECRET_KEY: test_jwt_secret_for_ci_only
+          ENCRYPTION_MASTER_KEY: ${{ secrets.CI_ENCRYPTION_KEY || 'dGVzdF9rZXlfZm9yX2NpX2V4YWN0bHlfMzJfYnl0ZXM=' }}
+          SECRET_KEY: ${{ secrets.CI_SECRET_KEY || 'test_secret_for_ci_only_must_be_long_enough_to_pass_validation_checks' }}
+          JWT_SECRET_KEY: ${{ secrets.CI_JWT_SECRET_KEY || 'test_jwt_secret_for_ci_only_long_enough' }}
           ENVIRONMENT: local
           DEBUG: false
           CORS_ORIGINS: '["http://localhost:3000"]'
@@ -120,8 +120,7 @@ jobs:
             --cov-report=html \
             --cov-fail-under=35 \
             -v \
-            --tb=long \
-            -x \
+            --tb=short \
             --strict-markers \
             -m "not performance and not quarterly_drill"
 
@@ -471,8 +470,8 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/pazpaz_test
           REDIS_URL: redis://localhost:6379/0
           DB_SSL_ENABLED: false
-          ENCRYPTION_MASTER_KEY: test_key_for_ci_only_32_bytes_long!!
-          SECRET_KEY: test_secret_for_ci_only
+          ENCRYPTION_MASTER_KEY: ${{ secrets.CI_ENCRYPTION_KEY || 'dGVzdF9rZXlfZm9yX2NpX2V4YWN0bHlfMzJfYnl0ZXM=' }}
+          SECRET_KEY: ${{ secrets.CI_SECRET_KEY || 'test_secret_for_ci_only_must_be_long_enough_to_pass_validation_checks' }}
           ENVIRONMENT: local
         run: |
           echo "Running performance tests..."
