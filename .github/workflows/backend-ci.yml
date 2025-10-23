@@ -120,7 +120,8 @@ jobs:
             --cov-report=html \
             --cov-fail-under=35 \
             -v \
-            --tb=short \
+            --tb=long \
+            -x \
             --strict-markers \
             -m "not performance and not quarterly_drill"
 
