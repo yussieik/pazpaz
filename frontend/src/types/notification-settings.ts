@@ -78,6 +78,28 @@ export interface NotificationSettings {
   digest_days: number[]
 
   /**
+   * Tomorrow's Digest
+   */
+
+  /**
+   * Enable tomorrow's digest email
+   */
+  tomorrow_digest_enabled: boolean
+
+  /**
+   * Time to send tomorrow's digest (HH:MM format, 24-hour)
+   * Example: "20:00", "18:30"
+   * Null if tomorrow's digest is disabled
+   */
+  tomorrow_digest_time: string | null
+
+  /**
+   * Days of the week to send tomorrow's digest (0=Sunday, 1=Monday, ..., 6=Saturday)
+   * Default: [0, 1, 2, 3, 4] (Sunday-Thursday, for Mon-Fri workweek)
+   */
+  tomorrow_digest_days: number[]
+
+  /**
    * Appointment Reminders
    */
 
@@ -135,6 +157,9 @@ export interface NotificationSettingsUpdate {
   digest_enabled?: boolean
   digest_time?: string | null
   digest_days?: number[]
+  tomorrow_digest_enabled?: boolean
+  tomorrow_digest_time?: string | null
+  tomorrow_digest_days?: number[]
   reminder_enabled?: boolean
   reminder_minutes?: number | null
   notes_reminder_enabled?: boolean

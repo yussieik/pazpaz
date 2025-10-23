@@ -46,14 +46,14 @@ const weekDays = [
 ]
 
 /**
- * Check if a specific day is selected
+ * Check if a specific day is selected for today's digest
  */
 function isDaySelected(dayValue: number): boolean {
   return settings.value?.digest_days?.includes(dayValue) ?? false
 }
 
 /**
- * Toggle day selection
+ * Toggle day selection for today's digest
  * Prevents removing the last day (at least one day must be selected)
  */
 function toggleDay(dayValue: number): void {
@@ -78,7 +78,7 @@ function toggleDay(dayValue: number): void {
 }
 
 /**
- * Select weekdays only (Monday-Friday)
+ * Select weekdays only (Monday-Friday) for today's digest
  */
 function selectWeekdays(): void {
   if (!settings.value) return
@@ -86,11 +86,60 @@ function selectWeekdays(): void {
 }
 
 /**
- * Select all days (Sunday-Saturday)
+ * Select all days (Sunday-Saturday) for today's digest
  */
 function selectAllDays(): void {
   if (!settings.value) return
   settings.value.digest_days = [0, 1, 2, 3, 4, 5, 6]
+}
+
+/**
+ * Check if a specific day is selected for tomorrow's digest
+ */
+function isTomorrowDaySelected(dayValue: number): boolean {
+  return settings.value?.tomorrow_digest_days?.includes(dayValue) ?? false
+}
+
+/**
+ * Toggle day selection for tomorrow's digest
+ * Prevents removing the last day (at least one day must be selected)
+ */
+function toggleTomorrowDay(dayValue: number): void {
+  if (!settings.value) return
+
+  const days = [...(settings.value.tomorrow_digest_days || [])]
+  const index = days.indexOf(dayValue)
+
+  if (index === -1) {
+    // Add day
+    days.push(dayValue)
+    days.sort((a, b) => a - b) // Keep sorted
+  } else {
+    // Remove day (but prevent removing last day)
+    if (days.length > 1) {
+      days.splice(index, 1)
+    }
+    // If trying to remove last day, do nothing
+  }
+
+  settings.value.tomorrow_digest_days = days
+}
+
+/**
+ * Select weekdays only (Sunday-Thursday) for tomorrow's digest
+ * Sunday-Thursday sends digest for Monday-Friday
+ */
+function selectTomorrowWeekdays(): void {
+  if (!settings.value) return
+  settings.value.tomorrow_digest_days = [0, 1, 2, 3, 4]
+}
+
+/**
+ * Select all days (Sunday-Saturday) for tomorrow's digest
+ */
+function selectTomorrowAllDays(): void {
+  if (!settings.value) return
+  settings.value.tomorrow_digest_days = [0, 1, 2, 3, 4, 5, 6]
 }
 </script>
 
@@ -170,16 +219,16 @@ function selectAllDays(): void {
         v-if="showSettingsContainer"
         class="space-y-8 transition-opacity duration-200"
       >
-        <!-- Daily Digest Group -->
+        <!-- Today's Schedule Group -->
         <SettingsCard
-          title="Daily Digest"
+          title="Today's Schedule"
           description="Receive a morning summary of today's appointments"
           :expanded="settings.digest_enabled"
         >
           <template #toggle>
             <ToggleSwitch
               v-model="settings.digest_enabled"
-              label="Enable daily digest"
+              label="Enable today's schedule digest"
             />
           </template>
 
@@ -258,6 +307,100 @@ function selectAllDays(): void {
                     />
                   </svg>
                   <span>Select at least one day to receive the daily digest</span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </SettingsCard>
+
+        <!-- Tomorrow's Schedule Group -->
+        <SettingsCard
+          title="Tomorrow's Schedule"
+          description="Receive an evening preview of tomorrow's appointments"
+          :expanded="settings.tomorrow_digest_enabled"
+        >
+          <template #toggle>
+            <ToggleSwitch
+              v-model="settings.tomorrow_digest_enabled"
+              label="Enable tomorrow's schedule digest"
+            />
+          </template>
+
+          <template #content>
+            <div class="space-y-4">
+              <!-- Send Time -->
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <label class="text-sm font-medium text-slate-900">Send at</label>
+                <input
+                  v-model="settings.tomorrow_digest_time"
+                  type="time"
+                  class="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
+                />
+              </div>
+
+              <!-- Day Selector -->
+              <div class="flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                  <label class="text-sm font-medium text-slate-900">Send on</label>
+
+                  <!-- Quick Actions -->
+                  <div class="flex gap-2 text-xs">
+                    <button
+                      type="button"
+                      class="text-emerald-600 hover:text-emerald-700 focus:underline focus:outline-none"
+                      @click="selectTomorrowWeekdays"
+                    >
+                      Weekdays only
+                    </button>
+                    <span class="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      class="text-emerald-600 hover:text-emerald-700 focus:underline focus:outline-none"
+                      @click="selectTomorrowAllDays"
+                    >
+                      Every day
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Day Toggle Buttons -->
+                <div class="grid grid-cols-7 gap-2">
+                  <button
+                    v-for="day in weekDays"
+                    :key="day.value"
+                    type="button"
+                    :class="[
+                      'flex h-10 items-center justify-center rounded-md border text-sm font-medium transition-colors',
+                      'focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none',
+                      isTomorrowDaySelected(day.value)
+                        ? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50',
+                    ]"
+                    :aria-label="`${day.label}, ${isTomorrowDaySelected(day.value) ? 'selected' : 'not selected'}`"
+                    @click="toggleTomorrowDay(day.value)"
+                  >
+                    <span class="hidden sm:inline">{{ day.label }}</span>
+                    <span class="sm:hidden">{{ day.shortLabel }}</span>
+                  </button>
+                </div>
+
+                <!-- Warning State (no days selected) -->
+                <div
+                  v-if="settings.tomorrow_digest_days?.length === 0"
+                  class="flex items-start gap-2 rounded-md bg-amber-50 p-3 text-sm text-amber-800"
+                >
+                  <svg
+                    class="h-5 w-5 flex-shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  <span>Select at least one day to receive the tomorrow's digest</span>
                 </div>
               </div>
             </div>
