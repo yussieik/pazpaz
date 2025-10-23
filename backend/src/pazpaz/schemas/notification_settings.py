@@ -45,7 +45,7 @@ class NotificationSettingsResponse(BaseModel):
         description="Send email when client confirms appointment",
     )
 
-    # Daily digest settings
+    # Daily digest settings (today's schedule)
     digest_enabled: bool = Field(
         ...,
         description="Enable daily digest email (opt-in)",
@@ -60,6 +60,23 @@ class NotificationSettingsResponse(BaseModel):
         min_length=1,
         description="Days of week to send digest (0=Sunday, 1=Monday, ..., 6=Saturday)",
         examples=[[1, 2, 3, 4, 5], [1, 3, 5], [0, 1, 2, 3, 4, 5, 6]],
+    )
+
+    # Tomorrow's digest settings (tomorrow's schedule)
+    tomorrow_digest_enabled: bool = Field(
+        ...,
+        description="Enable tomorrow's schedule digest email (opt-in)",
+    )
+    tomorrow_digest_time: str | None = Field(
+        None,
+        description="Time to send tomorrow's digest in HH:MM format (24-hour, workspace timezone)",
+        examples=["20:00", "19:30"],
+    )
+    tomorrow_digest_days: list[int] = Field(
+        ...,
+        min_length=1,
+        description="Days of week to send tomorrow's digest (0=Sunday, 1=Monday, ..., 6=Saturday)",
+        examples=[[0, 1, 2, 3, 4], [1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5, 6]],
     )
 
     # Appointment reminder settings
@@ -128,7 +145,7 @@ class NotificationSettingsUpdate(BaseModel):
         description="Send email when client confirms appointment",
     )
 
-    # Daily digest settings
+    # Daily digest settings (today's schedule)
     digest_enabled: bool | None = Field(
         None,
         description="Enable daily digest email (opt-in)",
@@ -143,6 +160,23 @@ class NotificationSettingsUpdate(BaseModel):
         min_length=1,
         description="Days of week to send digest (0=Sunday, 1=Monday, ..., 6=Saturday)",
         examples=[[1, 2, 3, 4, 5], [1, 3, 5], [0, 1, 2, 3, 4, 5, 6]],
+    )
+
+    # Tomorrow's digest settings (tomorrow's schedule)
+    tomorrow_digest_enabled: bool | None = Field(
+        None,
+        description="Enable tomorrow's schedule digest email (opt-in)",
+    )
+    tomorrow_digest_time: str | None = Field(
+        None,
+        description="Time to send tomorrow's digest in HH:MM format (24-hour, workspace timezone)",
+        examples=["20:00", "19:30"],
+    )
+    tomorrow_digest_days: list[int] | None = Field(
+        None,
+        min_length=1,
+        description="Days of week to send tomorrow's digest (0=Sunday, 1=Monday, ..., 6=Saturday)",
+        examples=[[0, 1, 2, 3, 4], [1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5, 6]],
     )
 
     # Appointment reminder settings
@@ -173,7 +207,7 @@ class NotificationSettingsUpdate(BaseModel):
         description="Future notification preferences (SMS, push, quiet hours, etc.)",
     )
 
-    @field_validator("digest_time", "notes_reminder_time")
+    @field_validator("digest_time", "tomorrow_digest_time", "notes_reminder_time")
     @classmethod
     def validate_time_format(cls, v: str | None) -> str | None:
         """
@@ -233,11 +267,11 @@ class NotificationSettingsUpdate(BaseModel):
 
         return v
 
-    @field_validator("digest_days")
+    @field_validator("digest_days", "tomorrow_digest_days")
     @classmethod
     def validate_digest_days(cls, v: list[int] | None) -> list[int] | None:
         """
-        Validate digest_days array contains valid day numbers.
+        Validate digest_days and tomorrow_digest_days arrays contain valid day numbers.
 
         Args:
             v: List of day numbers to validate (0=Sunday, 6=Saturday)

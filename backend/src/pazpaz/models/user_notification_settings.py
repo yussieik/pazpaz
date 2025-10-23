@@ -123,7 +123,7 @@ class UserNotificationSettings(Base):
         comment="Send email when client confirms appointment",
     )
 
-    # Daily digest settings
+    # Daily digest settings (today's schedule)
     digest_enabled: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -143,6 +143,28 @@ class UserNotificationSettings(Base):
         nullable=False,
         server_default=text("'{1,2,3,4,5}'"),
         comment="Days of week to send digest (0=Sunday, 1=Monday, ..., 6=Saturday)",
+    )
+
+    # Tomorrow's digest settings (tomorrow's schedule)
+    tomorrow_digest_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("false"),
+        comment="Enable tomorrow's schedule digest email (opt-in)",
+    )
+
+    tomorrow_digest_time: Mapped[str | None] = mapped_column(
+        String(5),
+        nullable=True,
+        server_default=text("'20:00'"),
+        comment="Time to send tomorrow's digest in HH:MM format (24-hour, workspace timezone)",
+    )
+
+    tomorrow_digest_days: Mapped[list[int]] = mapped_column(
+        ARRAY(Integer),
+        nullable=False,
+        server_default=text("'{0,1,2,3,4}'"),
+        comment="Days of week to send tomorrow's digest (0=Sunday, 1=Monday, ..., 6=Saturday)",
     )
 
     # Appointment reminder settings
@@ -228,6 +250,10 @@ class UserNotificationSettings(Base):
             name="ck_digest_time_format",
         ),
         CheckConstraint(
+            "tomorrow_digest_time IS NULL OR tomorrow_digest_time ~ '^([0-1][0-9]|2[0-3]):[0-5][0-9]$'",
+            name="ck_tomorrow_digest_time_format",
+        ),
+        CheckConstraint(
             "notes_reminder_time IS NULL OR notes_reminder_time ~ '^([0-1][0-9]|2[0-3]):[0-5][0-9]$'",
             name="ck_notes_reminder_time_format",
         ),
@@ -252,6 +278,15 @@ class UserNotificationSettings(Base):
             "digest_enabled",
             "digest_time",
             postgresql_where=text("email_enabled = true AND digest_enabled = true"),
+        ),
+        # Partial index for tomorrow's digest batch queries (background jobs)
+        Index(
+            "idx_user_notification_settings_tomorrow_digest",
+            "tomorrow_digest_enabled",
+            "tomorrow_digest_time",
+            postgresql_where=text(
+                "email_enabled = true AND tomorrow_digest_enabled = true"
+            ),
         ),
         # Partial index for appointment reminder batch queries (background jobs)
         Index(
@@ -359,6 +394,12 @@ class UserNotificationSettings(Base):
                 f"digest_time must be in HH:MM format (00:00 to 23:59), got: {self.digest_time}"
             )
 
+        # Validate tomorrow_digest_time format
+        if not self.is_valid_time_format(self.tomorrow_digest_time):
+            errors.append(
+                f"tomorrow_digest_time must be in HH:MM format (00:00 to 23:59), got: {self.tomorrow_digest_time}"
+            )
+
         # Validate notes_reminder_time format
         if not self.is_valid_time_format(self.notes_reminder_time):
             errors.append(
@@ -416,6 +457,30 @@ class UserNotificationSettings(Base):
             False
         """
         return self.email_enabled and self.digest_enabled
+
+    @property
+    def should_send_tomorrow_digest(self) -> bool:
+        """
+        Check if tomorrow's digest should be sent.
+
+        Returns:
+            True if email_enabled AND tomorrow_digest_enabled, False otherwise
+
+        Examples:
+            >>> settings = UserNotificationSettings(
+            ...     email_enabled=True,
+            ...     tomorrow_digest_enabled=True
+            ... )
+            >>> settings.should_send_tomorrow_digest
+            True
+            >>> settings = UserNotificationSettings(
+            ...     email_enabled=False,
+            ...     tomorrow_digest_enabled=True
+            ... )
+            >>> settings.should_send_tomorrow_digest
+            False
+        """
+        return self.email_enabled and self.tomorrow_digest_enabled
 
     @property
     def should_send_reminder(self) -> bool:
