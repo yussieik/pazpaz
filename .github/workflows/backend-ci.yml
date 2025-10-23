@@ -43,7 +43,11 @@ jobs:
           - 5432:5432
 
       redis:
-        image: redis:7-alpine
+        # Use bitnami/redis which supports ALLOW_EMPTY_PASSWORD env var
+        # Official redis:7-alpine requires complex Docker options to disable auth
+        image: bitnami/redis:7.0
+        env:
+          ALLOW_EMPTY_PASSWORD: yes
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -51,9 +55,6 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-        # Override Redis command to disable protected mode for CI testing
-        # Protected mode blocks connections without auth in Redis 6.0+
-        cmd: ["redis-server", "--protected-mode", "no"]
 
     defaults:
       run:
@@ -430,7 +431,11 @@ jobs:
           - 5432:5432
 
       redis:
-        image: redis:7-alpine
+        # Use bitnami/redis which supports ALLOW_EMPTY_PASSWORD env var
+        # Official redis:7-alpine requires complex Docker options to disable auth
+        image: bitnami/redis:7.0
+        env:
+          ALLOW_EMPTY_PASSWORD: yes
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -438,9 +443,6 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-        # Override Redis command to disable protected mode for CI testing
-        # Protected mode blocks connections without auth in Redis 6.0+
-        cmd: ["redis-server", "--protected-mode", "no"]
 
     defaults:
       run:
