@@ -234,13 +234,13 @@ jobs:
 
       - name: Generate OpenAPI specification
         env:
-          DATABASE_URL: sqlite+aiosqlite:///:memory:
-          REDIS_URL: redis://localhost:6379/0
-          ENCRYPTION_MASTER_KEY: test_key_for_openapi_generation
-          SECRET_KEY: test_secret_for_openapi_generation
-          ENVIRONMENT: test
-          STORAGE_BACKEND: filesystem
-          STORAGE_PATH: /tmp/test_storage
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          REDIS_URL: "redis://localhost:6379/0"
+          ENCRYPTION_MASTER_KEY: "test_key_for_openapi_generation"
+          SECRET_KEY: "test_secret_for_openapi_generation"
+          ENVIRONMENT: "test"
+          STORAGE_BACKEND: "filesystem"
+          STORAGE_PATH: "/tmp/test_storage"
         run: |
           cat > generate_openapi.py << 'EOF'
           import json
