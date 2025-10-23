@@ -1,0 +1,195 @@
+version: 2
+updates:
+  # ============================================================================
+  # Backend Python Dependencies
+  # ============================================================================
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    # Limit number of open PRs to avoid overwhelming the team
+    open-pull-requests-limit: 5
+    # Reviewer assignment - update with actual GitHub username
+    reviewers:
+      # - "lead-developer"    # Uncomment and replace with actual username
+      # - "backend-team"      # Uncomment if you have a backend team
+    # Labels for easy filtering and automation
+    labels:
+      - "dependencies"
+      - "backend"
+      - "automated"
+    # Use conventional commit format for consistency
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+    # Group updates for better PR management
+    groups:
+      # Group all minor and patch updates together
+      python-minor:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Ignore specific dependencies if needed
+    ignore:
+      # Example: Ignore major updates for critical packages
+      # - dependency-name: "sqlalchemy"
+      #   update-types: ["version-update:semver-major"]
+      # - dependency-name: "fastapi"
+      #   update-types: ["version-update:semver-major"]
+    # Security updates should be prioritized
+    allow:
+      - dependency-type: "all"
+
+  # ============================================================================
+  # Frontend npm Dependencies
+  # ============================================================================
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      # - "lead-developer"    # Uncomment and replace with actual username
+      # - "frontend-team"     # Uncomment if you have a frontend team
+    labels:
+      - "dependencies"
+      - "frontend"
+      - "automated"
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+    # Version strategy for npm
+    versioning-strategy: "increase"
+    # Group updates for better PR management
+    groups:
+      # Group Vue and related ecosystem updates
+      vue-ecosystem:
+        patterns:
+          - "vue*"
+          - "@vue/*"
+          - "pinia"
+          - "vue-router"
+      # Group development dependencies
+      dev-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group testing dependencies
+      testing:
+        patterns:
+          - "*test*"
+          - "*vitest*"
+          - "@testing-library/*"
+      # Group build tools
+      build-tools:
+        patterns:
+          - "vite*"
+          - "@vitejs/*"
+          - "typescript"
+          - "prettier"
+          - "eslint*"
+    # Ignore specific dependencies if needed
+    ignore:
+      # Example: Don't update major versions automatically
+      # - dependency-name: "vue"
+      #   update-types: ["version-update:semver-major"]
+      # - dependency-name: "typescript"
+      #   update-types: ["version-update:semver-major"]
+
+  # ============================================================================
+  # GitHub Actions
+  # ============================================================================
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      # - "devops-team"       # Uncomment and replace with actual username/team
+      # - "lead-developer"    # Uncomment and replace with actual username
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "automated"
+      - "ci-cd"
+    commit-message:
+      prefix: "ci(deps)"
+      include: "scope"
+    # Group all action updates together
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # ============================================================================
+  # Docker Base Images (Optional - uncomment if using Dockerfile)
+  # ============================================================================
+  # - package-ecosystem: "docker"
+  #   directory: "/backend"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "sunday"
+  #     time: "06:00"
+  #   open-pull-requests-limit: 2
+  #   reviewers:
+  #     - "devops-team"
+  #   labels:
+  #     - "dependencies"
+  #     - "docker"
+  #     - "automated"
+  #   commit-message:
+  #     prefix: "build(docker)"
+  #     include: "scope"
+
+# Configuration Notes:
+#
+# 1. REVIEWERS: Update the 'reviewers' field with actual GitHub usernames or team names
+#    - Individual: "username"
+#    - Team: "org/team-name" or just "team-name" if in same org
+#
+# 2. SCHEDULE: Current configuration runs weekly on Mondays at 9 AM UTC
+#    - Adjust timing based on team's timezone and working hours
+#    - Consider running security updates more frequently (daily)
+#
+# 3. PR LIMITS: Set to 5 per ecosystem to avoid overwhelming the team
+#    - Adjust based on team capacity and update frequency
+#
+# 4. GROUPING: Minor and patch updates are grouped to reduce PR noise
+#    - Major updates come individually for careful review
+#
+# 5. SECURITY UPDATES: Dependabot also creates immediate PRs for security vulnerabilities
+#    - These bypass the schedule and PR limits
+#    - Review and merge security updates as priority
+#
+# 6. VERSIONING STRATEGY:
+#    - "increase": Only create PRs for newer versions (npm default)
+#    - "widen": Update version requirements to include new version (for ranges)
+#    - "auto": Let Dependabot decide
+#
+# 7. COMMIT MESSAGES: Using conventional commits format
+#    - build(deps): for production dependencies
+#    - build(deps-dev): for development dependencies
+#    - ci(deps): for GitHub Actions
+#
+# 8. IGNORING UPDATES:
+#    - Add specific packages to 'ignore' if manual control is needed
+#    - Common for major framework updates that need planning
+#
+# 9. AUTO-MERGE: Can be configured with GitHub's auto-merge feature
+#    - Set up branch protection to require CI passing
+#    - Enable auto-merge for Dependabot PRs with passing tests
+#
+# For more configuration options, see:
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
