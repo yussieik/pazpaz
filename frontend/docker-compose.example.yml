@@ -1,0 +1,99 @@
+# Docker Compose example for PazPaz Frontend in production
+# This shows how to use the frontend container with the production nginx config
+
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pazpaz/frontend:latest
+    container_name: pazpaz-frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Use production nginx config that includes API proxy
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      # SSL certificates (from Let's Encrypt or other)
+      - ./ssl/certs:/etc/nginx/ssl:ro
+      # Custom error pages (optional)
+      - ./error-pages:/usr/share/nginx/html/errors:ro
+    environment:
+      - NGINX_HOST=pazpaz.com
+      - NGINX_PORT=80
+    restart: unless-stopped
+    networks:
+      - pazpaz-network
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  api:
+    image: pazpaz/backend:latest
+    container_name: pazpaz-backend
+    expose:
+      - "8000"
+    environment:
+      - DATABASE_URL=postgresql://pazpaz:${DB_PASSWORD}@db:5432/pazpaz
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=production
+    networks:
+      - pazpaz-network
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:16-alpine
+    container_name: pazpaz-postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=pazpaz
+      - POSTGRES_USER=pazpaz
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    networks:
+      - pazpaz-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  redis:
+    image: redis:7-alpine
+    container_name: pazpaz-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - pazpaz-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+networks:
+  pazpaz-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

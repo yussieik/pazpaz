@@ -1,0 +1,103 @@
+# .dockerignore for PazPaz Frontend
+# Reduces build context size and prevents sensitive files from being included
+
+# Dependencies and build artifacts
+node_modules/
+dist/
+.vite/
+coverage/
+.nuxt/
+.output/
+
+# Development and test files
+*.log
+*.test.js
+*.spec.js
+*.test.ts
+*.spec.ts
+tests/
+test/
+__tests__/
+__mocks__/
+.vitest/
+
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+Thumbs.db
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+docs/
+*.md
+
+# Environment and secrets (NEVER include these)
+.env
+.env.*
+!.env.example
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+*.cert
+
+# CI/CD
+.github/
+.gitlab/
+.circleci/
+.travis.yml
+.drone.yml
+Jenkinsfile
+
+# Docker files (don't need these in build context)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Package manager files (we copy these explicitly)
+.npm/
+.yarn/
+.pnpm-store/
+yarn-error.log
+pnpm-debug.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+.cache/
+
+# Build and configuration that we don't need
+.prettierignore
+.eslintignore
+.eslintcache
+.stylelintignore
+tsconfig.tsbuildinfo
+
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.directory
+.Trash-*
