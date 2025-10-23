@@ -1,0 +1,532 @@
+# Production Docker Compose Configuration for PazPaz
+# HIPAA-compliant with network isolation and security hardening
+#
+# Network Architecture:
+# - frontend: Public-facing network (nginx only)
+# - backend: Internal API network (nginx, api, arq-worker)
+# - database: Internal data network (api, arq-worker, db, redis, minio)
+#
+# Security Features:
+# - Network isolation with internal networks
+# - No database ports exposed to host
+# - SSL/TLS termination at nginx
+# - Health checks for all services
+# - Resource limits for stability
+# - Non-root users where possible
+
+version: '3.8'
+
+services:
+  # =============================================================================
+  # NGINX - Reverse Proxy and Static File Server
+  # =============================================================================
+  # Serves frontend static files and proxies API/WebSocket requests
+  # The ONLY service exposed to the host network
+  nginx:
+    image: nginx:stable-alpine
+    container_name: pazpaz-nginx
+    networks:
+      - frontend  # Public-facing network
+      - backend   # Internal network to reach API
+    ports:
+      - "80:80"     # HTTP (will redirect to HTTPS in production)
+      - "443:443"   # HTTPS with SSL/TLS
+    volumes:
+      # Nginx configuration (production version)
+      - ./frontend/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      # Frontend static files (built Vue app)
+      - frontend_dist:/usr/share/nginx/html:ro
+      # SSL certificates (Let's Encrypt or custom)
+      - ./certs/ssl:/etc/nginx/certs:ro
+      # Let's Encrypt challenge directory
+      - ./certs/acme-challenge:/var/www/acme-challenge:ro
+      # Custom error pages
+      - ./frontend/error-pages:/usr/share/nginx/error-pages:ro
+    environment:
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+      - API_HOST=api
+      - API_PORT=8000
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 128M
+    labels:
+      - "app=pazpaz"
+      - "component=proxy"
+      - "environment=production"
+      - "version=${VERSION:-latest}"
+
+  # =============================================================================
+  # API - FastAPI Backend Service
+  # =============================================================================
+  # Handles all business logic, authentication, and data operations
+  # NOT exposed to host - only accessible through nginx
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - VERSION=${VERSION:-latest}
+    image: pazpaz/api:${VERSION:-latest}
+    container_name: pazpaz-api
+    networks:
+      - backend   # Internal network for nginx communication
+      - database  # Internal network for database access
+    # NO ports exposed to host - security by design
+    env_file:
+      - .env.prod
+    environment:
+      # Database connection (using service names)
+      - DATABASE_URL=postgresql+asyncpg://pazpaz:${POSTGRES_PASSWORD}@db:5432/pazpaz
+      - DB_SSL_ENABLED=true
+      - DB_SSL_MODE=require
+      - DB_SSL_CERT_PATH=/app/certs/client-cert.pem
+      - DB_SSL_KEY_PATH=/app/certs/client-key.pem
+      - DB_SSL_CA_PATH=/app/certs/ca-cert.pem
+
+      # Redis connection
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+
+      # MinIO/S3 configuration
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-pazpaz-attachments}
+      - S3_REGION=${S3_REGION:-us-east-1}
+      - S3_USE_SSL=false  # Internal network, SSL at edge
+
+      # Application settings
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - FRONTEND_URL=${FRONTEND_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENCRYPTION_MASTER_KEY=${ENCRYPTION_MASTER_KEY}
+
+      # Email configuration
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_USE_TLS=${SMTP_USE_TLS:-true}
+      - EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL}
+
+      # Security settings
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
+
+      # Performance settings
+      - WORKERS=4
+      - MAX_CONNECTIONS=100
+    volumes:
+      # SSL certificates for database connection
+      - ./backend/certs:/app/certs:ro
+      # Temporary upload directory
+      - api_temp:/tmp/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+    labels:
+      - "app=pazpaz"
+      - "component=api"
+      - "environment=production"
+      - "version=${VERSION:-latest}"
+
+  # =============================================================================
+  # ARQ Worker - Background Task Processor
+  # =============================================================================
+  # Handles scheduled tasks, email notifications, and async jobs
+  # Uses same image as API but runs different command
+  arq-worker:
+    image: pazpaz/api:${VERSION:-latest}
+    container_name: pazpaz-arq-worker
+    command: ["uv", "run", "arq", "pazpaz.workers.scheduler.WorkerSettings"]
+    networks:
+      - backend   # For potential API communication
+      - database  # For database and Redis access
+    # NO ports exposed to host
+    env_file:
+      - .env.prod
+    environment:
+      # Database connection (same as API)
+      - DATABASE_URL=postgresql+asyncpg://pazpaz:${POSTGRES_PASSWORD}@db:5432/pazpaz
+      - DB_SSL_ENABLED=true
+      - DB_SSL_MODE=require
+      - DB_SSL_CERT_PATH=/app/certs/client-cert.pem
+      - DB_SSL_KEY_PATH=/app/certs/client-key.pem
+      - DB_SSL_CA_PATH=/app/certs/ca-cert.pem
+
+      # Redis connection (task queue)
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+
+      # Email configuration
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_USE_TLS=${SMTP_USE_TLS:-true}
+      - EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL}
+
+      # Application settings
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - FRONTEND_URL=${FRONTEND_URL}
+      - ENCRYPTION_MASTER_KEY=${ENCRYPTION_MASTER_KEY}
+    volumes:
+      # SSL certificates for database connection
+      - ./backend/certs:/app/certs:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "arq"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    labels:
+      - "app=pazpaz"
+      - "component=worker"
+      - "environment=production"
+      - "version=${VERSION:-latest}"
+
+  # =============================================================================
+  # PostgreSQL Database
+  # =============================================================================
+  # Primary data store with SSL enabled and proper backup configuration
+  # ISOLATED in database network - NOT exposed to host
+  db:
+    image: postgres:16-alpine
+    container_name: pazpaz-db
+    networks:
+      - database  # Internal database network only
+    # NO ports exposed to host - security requirement
+    environment:
+      - POSTGRES_USER=pazpaz
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=pazpaz
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --lc-collate=en_US.utf8 --lc-ctype=en_US.utf8
+      # SSL configuration
+      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
+    volumes:
+      # Data persistence
+      - postgres_data:/var/lib/postgresql/data
+      # SSL certificates
+      - ./backend/certs:/var/lib/postgresql/certs:ro
+      # Custom initialization scripts
+      - ./backend/scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+      # Backup directory
+      - postgres_backups:/backups
+      # Custom postgresql.conf for production tuning
+      - ./backend/config/postgresql.prod.conf:/etc/postgresql/postgresql.conf:ro
+    command: >
+      postgres
+      -c ssl=on
+      -c ssl_cert_file=/var/lib/postgresql/certs/server-cert.pem
+      -c ssl_key_file=/var/lib/postgresql/certs/server-key.pem
+      -c ssl_ca_file=/var/lib/postgresql/certs/ca-cert.pem
+      -c shared_preload_libraries='pg_stat_statements'
+      -c pg_stat_statements.track=all
+      -c log_statement='all'
+      -c log_duration=on
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pazpaz -d pazpaz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    labels:
+      - "app=pazpaz"
+      - "component=database"
+      - "environment=production"
+      - "backup=daily"
+
+  # =============================================================================
+  # Redis - Cache and Message Queue
+  # =============================================================================
+  # Used for session storage, caching, and ARQ task queue
+  # ISOLATED in database network - NOT exposed to host
+  redis:
+    image: redis:7-alpine
+    container_name: pazpaz-redis
+    networks:
+      - database  # Internal database network only
+    # NO ports exposed to host
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --tcp-backlog 511
+      --timeout 0
+      --tcp-keepalive 300
+      --databases 16
+      --loglevel notice
+      --logfile ""
+    volumes:
+      # Data persistence
+      - redis_data:/data
+      # Custom configuration
+      - ./backend/config/redis.prod.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    labels:
+      - "app=pazpaz"
+      - "component=cache"
+      - "environment=production"
+
+  # =============================================================================
+  # MinIO - S3-Compatible Object Storage
+  # =============================================================================
+  # Stores file attachments with encryption at rest
+  # ISOLATED in database network - NOT exposed to host
+  minio:
+    image: minio/minio:latest
+    container_name: pazpaz-minio
+    networks:
+      - database  # Internal database network only
+    # NO ports exposed to host - access only through API
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${S3_ACCESS_KEY}
+      - MINIO_ROOT_PASSWORD=${S3_SECRET_KEY}
+      # Server-side encryption with KMS
+      - MINIO_KMS_SECRET_KEY=pazpaz-minio-key:${MINIO_ENCRYPTION_KEY}
+      # Performance tuning
+      - MINIO_CACHE_DRIVES=/cache
+      - MINIO_CACHE_EXCLUDE="*.pdf"
+      - MINIO_CACHE_QUOTA=80
+      - MINIO_CACHE_WATERMARK_LOW=70
+      - MINIO_CACHE_WATERMARK_HIGH=90
+      # Security settings
+      - MINIO_BROWSER=off  # Disable web console in production
+      - MINIO_PROMETHEUS_AUTH_TYPE=public  # For monitoring
+    volumes:
+      # Data persistence
+      - minio_data:/data
+      # Cache directory
+      - minio_cache:/cache
+      # Configuration
+      - ./backend/config/minio:/root/.minio:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    labels:
+      - "app=pazpaz"
+      - "component=storage"
+      - "environment=production"
+      - "encryption=at-rest"
+
+  # =============================================================================
+  # Frontend Builder (Optional - for deployment convenience)
+  # =============================================================================
+  # Builds frontend and copies dist to shared volume
+  # Runs once during deployment then exits
+  frontend-builder:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: builder
+      args:
+        - VERSION=${VERSION:-latest}
+    container_name: pazpaz-frontend-builder
+    volumes:
+      - frontend_dist:/app/dist
+    command: ["sh", "-c", "cp -r /app/dist/* /app/dist/"]
+    labels:
+      - "app=pazpaz"
+      - "component=frontend-builder"
+      - "environment=production"
+      - "version=${VERSION:-latest}"
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+# Named volumes for data persistence and sharing
+volumes:
+  # Database data
+  postgres_data:
+    driver: local
+    labels:
+      - "app=pazpaz"
+      - "type=database"
+      - "backup=required"
+
+  # Database backups
+  postgres_backups:
+    driver: local
+    labels:
+      - "app=pazpaz"
+      - "type=backup"
+
+  # Redis persistence
+  redis_data:
+    driver: local
+    labels:
+      - "app=pazpaz"
+      - "type=cache"
+
+  # MinIO object storage
+  minio_data:
+    driver: local
+    labels:
+      - "app=pazpaz"
+      - "type=storage"
+      - "backup=required"
+
+  # MinIO cache
+  minio_cache:
+    driver: local
+    labels:
+      - "app=pazpaz"
+      - "type=cache"
+
+  # Frontend distribution files
+  frontend_dist:
+    driver: local
+    labels:
+      - "app=pazpaz"
+      - "type=static"
+
+  # API temporary files
+  api_temp:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "size=100m,uid=1000,gid=1000"
+    labels:
+      - "app=pazpaz"
+      - "type=temp"
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+# Three-tier network architecture for security isolation
+networks:
+  # Public-facing network (only nginx)
+  frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+    labels:
+      - "app=pazpaz"
+      - "zone=public"
+      - "description=Public-facing network for nginx only"
+
+  # Internal API network (nginx, api, workers)
+  backend:
+    driver: bridge
+    internal: true  # NOT accessible from host
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+    labels:
+      - "app=pazpaz"
+      - "zone=internal"
+      - "description=Internal network for API communication"
+
+  # Internal database network (api, workers, databases)
+  database:
+    driver: bridge
+    internal: true  # NOT accessible from host
+    ipam:
+      config:
+        - subnet: 172.22.0.0/24
+    labels:
+      - "app=pazpaz"
+      - "zone=restricted"
+      - "description=Restricted network for database access"
