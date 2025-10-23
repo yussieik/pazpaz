@@ -189,7 +189,16 @@ def ensure_docker_services():
 
     This runs once per test session and doesn't stop services after tests
     (allows reuse across test runs for faster iteration).
+
+    In CI environments, this fixture skips Docker service management since
+    services should be pre-configured (e.g., via GitHub Actions services).
     """
+    # Skip Docker service management in CI - services are pre-configured
+    if os.getenv("CI") == "true":
+        print("ℹ Running in CI environment - skipping Docker service management")
+        yield
+        return
+
     required_services = {
         "minio": ("MinIO (S3 storage)", True),  # (description, required)
         "clamav": ("ClamAV (virus scanning)", False),  # Optional on ARM64
