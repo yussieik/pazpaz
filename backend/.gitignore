@@ -4,8 +4,15 @@
 !.env.example
 *.key
 *.pem
-*secret*
-*SECRET*
+# Ignore secret value files, but NOT code files like secrets_manager.py
+*.secret
+*.secrets
+.secret
+.secrets
+secret.txt
+secrets.txt
+SECRET.txt
+SECRETS.txt
 
 # Python
 __pycache__/
