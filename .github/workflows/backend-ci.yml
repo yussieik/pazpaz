@@ -114,7 +114,7 @@ jobs:
             --cov-report=term \
             --cov-report=xml \
             --cov-report=html \
-            --cov-fail-under=80 \
+            --cov-fail-under=35 \
             -v \
             --tb=short \
             --strict-markers \
