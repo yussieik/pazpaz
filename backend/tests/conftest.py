@@ -731,6 +731,7 @@ async def workspace_1(db_session: AsyncSession) -> Workspace:
         name="Test Workspace 1",
         storage_quota_bytes=10 * 1024 * 1024 * 1024,  # 10 GB (explicit default)
         storage_used_bytes=0,  # Explicitly set to 0
+        timezone="UTC",  # Default timezone for tests
     )
     workspace = await db_session.merge(workspace)
     await db_session.commit()

@@ -152,6 +152,7 @@ async def build_daily_digest_email(
     db: AsyncSession,
     user: User,
     digest_date: date,
+    digest_type: str = "today",
 ) -> dict[str, str]:
     """
     Build email content for daily digest.
@@ -162,7 +163,8 @@ async def build_daily_digest_email(
     Args:
         db: Async database session
         user: User to send digest to
-        digest_date: Date to build digest for (typically today)
+        digest_date: Date to build digest for (typically today or tomorrow)
+        digest_type: Type of digest - "today" or "tomorrow" (default: "today")
 
     Returns:
         Dict with keys: subject, body, to
@@ -171,7 +173,10 @@ async def build_daily_digest_email(
         >>> from datetime import date
         >>> email = await build_daily_digest_email(db, user, date(2025, 10, 22))
         >>> print(email["subject"])
-        Your schedule for Tuesday, October 22, 2025
+        Your schedule for today, Tuesday, October 22, 2025
+        >>> email = await build_daily_digest_email(db, user, date(2025, 10, 23), "tomorrow")
+        >>> print(email["subject"])
+        Your schedule for tomorrow, Wednesday, October 23, 2025
 
     Notes:
         - Shows appointments for specified date
@@ -179,6 +184,7 @@ async def build_daily_digest_email(
         - Gracefully handles no appointments
         - Links to calendar view
         - Times are shown in appointment's timezone (stored as UTC)
+        - Subject and body adjust based on digest_type
     """
     from datetime import datetime, time
 
@@ -221,12 +227,16 @@ async def build_daily_digest_email(
         "daily_digest_built",
         user_id=str(user.id),
         digest_date=digest_date.isoformat(),
+        digest_type=digest_type,
         appointment_count=appointment_count,
     )
 
     # Format date for subject
     formatted_date = digest_date.strftime("%A, %B %d, %Y")
-    subject = f"Your schedule for {formatted_date}"
+
+    # Add digest type prefix to subject
+    time_prefix = "today" if digest_type == "today" else "tomorrow"
+    subject = f"Your schedule for {time_prefix}, {formatted_date}"
 
     # Build email body
     calendar_url = f"{settings.frontend_url}/calendar"
@@ -270,10 +280,17 @@ PazPaz - Practice Management for Independent Therapists
 
         appointments_text = "\n".join(appointment_lines)
 
+        # Adjust greeting based on digest type
         if appointment_count == 1:
-            greeting = f"You have 1 appointment scheduled for {formatted_date}:"
+            if digest_type == "today":
+                greeting = f"You have 1 appointment scheduled for today, {formatted_date}:"
+            else:
+                greeting = f"You have 1 appointment scheduled for tomorrow, {formatted_date}:"
         else:
-            greeting = f"You have {appointment_count} appointments scheduled for {formatted_date}:"
+            if digest_type == "today":
+                greeting = f"You have {appointment_count} appointments scheduled for today, {formatted_date}:"
+            else:
+                greeting = f"You have {appointment_count} appointments scheduled for tomorrow, {formatted_date}:"
 
         body = f"""Hello {user.full_name},
 

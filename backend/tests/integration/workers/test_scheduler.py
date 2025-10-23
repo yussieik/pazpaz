@@ -121,9 +121,10 @@ class TestSchedulerTasks:
             # Verify result structure
             assert "sent" in result
             assert "errors" in result
-            assert "skipped_weekend" in result
+            assert "timezones_checked" in result
             assert isinstance(result["sent"], int)
             assert isinstance(result["errors"], int)
+            assert isinstance(result["timezones_checked"], int)
 
     async def test_appointment_reminders_executes(
         self, db_session, workspace_1, test_user_ws1, sample_client_ws1

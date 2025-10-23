@@ -228,6 +228,92 @@ async def get_users_needing_daily_digest(
     return users
 
 
+async def get_users_needing_tomorrow_digest(
+    db: AsyncSession,
+    current_time: time,
+    current_day: int,
+    timezone: str,
+) -> list[User]:
+    """
+    Query users who need tomorrow's digest emails at the specified time in a specific timezone.
+
+    Finds users where:
+    - tomorrow_digest_enabled=True
+    - email_enabled=True
+    - tomorrow_digest_time matches current_time (hour:minute)
+    - workspace.timezone matches the specified timezone
+    - current_day is in user's tomorrow_digest_days array
+
+    Args:
+        db: Async database session
+        current_time: Current local time in the specified timezone (HH:MM format)
+        current_day: Day of week in the specified timezone (0=Sunday, 1=Monday, ..., 6=Saturday)
+        timezone: IANA timezone name (e.g., 'Asia/Jerusalem', 'America/New_York')
+
+    Returns:
+        List of User objects with notification_settings and workspace preloaded
+
+    Example:
+        >>> # Sunday at 20:00 in Israel timezone for Monday's schedule
+        >>> users = await get_users_needing_tomorrow_digest(
+        ...     db, time(20, 0), 0, "Asia/Jerusalem"
+        ... )
+        >>> for user in users:
+        ...     print(f"Send tomorrow's digest to {user.email}")
+
+    Notes:
+        - Respects workspace timezone for accurate digest delivery
+        - Filters by tomorrow_digest_days array (0=Sunday, 6=Saturday)
+        - Uses partial index for efficient filtering
+        - Defaults to UTC if workspace.timezone is NULL
+        - Day numbering: current_day is 0=Sunday (not tomorrow's day)
+    """
+    # Format time as HH:MM string for database comparison
+    time_str = current_time.strftime("%H:%M")
+
+    logger.debug(
+        "querying_tomorrow_digest",
+        current_time=time_str,
+        current_day=current_day,
+        timezone=timezone,
+    )
+
+    # Build query filtering by tomorrow_digest_days array
+    # Use PostgreSQL's @> operator to check if array contains the current day
+    conditions = [
+        UserNotificationSettings.email_enabled == True,  # noqa: E712
+        UserNotificationSettings.tomorrow_digest_enabled == True,  # noqa: E712
+        UserNotificationSettings.tomorrow_digest_time == time_str,
+        Workspace.timezone == timezone,
+        # Check if current_day is in tomorrow_digest_days array
+        UserNotificationSettings.tomorrow_digest_days.contains([current_day]),
+    ]
+
+    stmt = (
+        select(User)
+        .join(UserNotificationSettings, User.id == UserNotificationSettings.user_id)
+        .join(Workspace, User.workspace_id == Workspace.id)
+        .where(and_(*conditions))
+        .options(
+            joinedload(User.notification_settings),
+            joinedload(User.workspace),
+        )
+    )
+
+    result = await db.execute(stmt)
+    users = list(result.scalars().unique().all())
+
+    logger.info(
+        "tomorrow_digest_query_complete",
+        current_time=time_str,
+        current_day=current_day,
+        timezone=timezone,
+        user_count=len(users),
+    )
+
+    return users
+
+
 async def get_appointments_needing_reminders(
     db: AsyncSession,
     current_time: datetime,
