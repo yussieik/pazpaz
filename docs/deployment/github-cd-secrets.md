@@ -1,6 +1,32 @@
 # GitHub Actions CD Secrets Configuration
 
-This document provides detailed instructions for configuring the required GitHub Secrets for the PazPaz continuous deployment pipeline.
+This document provides detailed instructions for configuring the required GitHub Secrets and Variables for the PazPaz continuous deployment pipeline.
+
+## Repository Variables
+
+These are non-secret configuration values that control workflow features. Set these in **Settings → Secrets and variables → Actions → Variables**.
+
+### Optional Feature Toggles
+
+- **`ENABLE_SLACK_NOTIFICATIONS`** (default: unset/false)
+  - Set to `true` to enable Slack notifications for deployments
+  - Only set this if you have configured `SLACK_WEBHOOK_URL` secret
+  - Without this variable, Slack notification step will be skipped
+
+- **`ENABLE_SENTRY_RELEASES`** (default: unset/false)
+  - Set to `true` to enable Sentry release tracking
+  - Only set this if you have configured `SENTRY_AUTH_TOKEN` secret
+  - Without this variable, Sentry release step will be skipped
+
+**How to set variables:**
+```bash
+# Using GitHub CLI
+gh variable set ENABLE_SLACK_NOTIFICATIONS --body "true"
+gh variable set ENABLE_SENTRY_RELEASES --body "true"
+
+# Or via GitHub UI:
+# Settings → Secrets and variables → Actions → Variables tab → New repository variable
+```
 
 ## Required Secrets
 
