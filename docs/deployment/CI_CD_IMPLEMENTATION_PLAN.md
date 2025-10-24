@@ -259,11 +259,11 @@
 
 **Objective:** Create production-ready Docker Compose with network isolation, Nginx reverse proxy, and security hardening.
 **Duration:** 3-4 hours (enhanced with network isolation and security)
-**Status:** ⏳ Not Started
+**Status:** ⏳ In Progress (Tasks 3.1-3.9 Complete)
 
 ### Production Docker Compose (Network Isolated)
 
-- [ ] **3.1** Create `docker-compose.prod.yml` with network isolation **[devops-infrastructure-specialist]**
+- [x] **3.1** Create `docker-compose.prod.yml` with network isolation **[devops-infrastructure-specialist]**
   ```yaml
   networks:
     frontend:      # Public-facing (Nginx only)
@@ -273,7 +273,7 @@
       internal: true  # Internal only (PostgreSQL, Redis)
   ```
 
-- [ ] **3.2** Configure production API service **[devops-infrastructure-specialist]**
+- [x] **3.2** Configure production API service **[devops-infrastructure-specialist]**
   - Use image from ghcr.io (not local build)
   - Set `ENVIRONMENT=production`
   - Mount `.env.production` file (secrets)
@@ -282,43 +282,50 @@
   - Set resource limits (CPU: 2.0, Memory: 2G)
   - Connect to `backend` and `database` networks
   - Add dependency on db/redis with health condition
+  - ✅ **Completed:** Configured in docker-compose.prod.yml
+  - ✅ **Commit:** e82a42b - feat(infra): implement production docker-compose with network isolation
 
-- [ ] **3.3** Configure production ARQ worker service **[devops-infrastructure-specialist]**
+- [x] **3.3** Configure production ARQ worker service **[devops-infrastructure-specialist]**
   - Use same image as API
   - Different command: `uv run arq pazpaz.workers.scheduler.WorkerSettings`
   - Same environment variables as API
   - Connect to `backend` and `database` networks
   - Resource limits (CPU: 1.0, Memory: 512M)
+  - ✅ **Completed:** Configured in docker-compose.prod.yml
 
-- [ ] **3.4** Configure production database **[devops-infrastructure-specialist]**
+- [x] **3.4** Configure production database **[devops-infrastructure-specialist]**
   - PostgreSQL 16 with persistent volume
   - Enable SSL/TLS (production requirement)
   - Strong password via environment variable
   - Connect to `database` network only (isolated)
   - Health check with SSL validation
   - Backup volume mounted: `/backups`
+  - ✅ **Completed:** PostgreSQL 16-alpine with SSL/TLS configured
 
-- [ ] **3.5** Configure production Redis **[devops-infrastructure-specialist]**
+- [x] **3.5** Configure production Redis **[devops-infrastructure-specialist]**
   - Persistent storage enabled (AOF + RDB)
   - Password authentication required
   - Memory limits configured (512MB)
   - Connect to `database` network only
   - Eviction policy: `allkeys-lru`
+  - ✅ **Completed:** Redis 7-alpine with persistence and authentication
 
-- [ ] **3.6** Configure MinIO for production **[devops-infrastructure-specialist]**
+- [x] **3.6** Configure MinIO for production **[devops-infrastructure-specialist]**
   - Enable HTTPS (required for HIPAA)
   - Strong credentials via environment
   - Server-side encryption enabled
   - Connect to `backend` network only
   - Resource limits (CPU: 1.0, Memory: 1G)
+  - ✅ **Completed:** MinIO with SSE-KMS encryption
 
-- [ ] **3.7** Configure ClamAV for production **[devops-infrastructure-specialist]**
+- [x] **3.7** Configure ClamAV for production **[devops-infrastructure-specialist]**
   - Resource limits (CPU: 2.0, Memory: 3G) - increased from 2G
   - Automatic virus definition updates
   - Connect to `backend` network only
   - Health check with proper timeout (60s)
+  - ✅ **Completed:** ClamAV service with auto-updates
 
-- [ ] **3.8** Add log rotation to all services **[devops-infrastructure-specialist]**
+- [x] **3.8** Add log rotation to all services **[devops-infrastructure-specialist]**
   ```yaml
   logging:
     driver: "json-file"
@@ -326,13 +333,15 @@
       max-size: "10m"
       max-file: "3"
   ```
+  - ✅ **Completed:** Applied to all services
 
-- [ ] **3.9** Add centralized backup and log volumes **[devops-infrastructure-specialist]**
+- [x] **3.9** Add centralized backup and log volumes **[devops-infrastructure-specialist]**
   ```yaml
   volumes:
     postgres_backup:/backups
     app_logs:/var/log/pazpaz
   ```
+  - ✅ **Completed:** All volumes configured (postgres_data, postgres_backup, redis_data, minio_data, app_logs)
 
 ### Nginx Reverse Proxy
 
