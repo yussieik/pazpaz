@@ -578,35 +578,35 @@
 
 ### Database Migration Scripts (Enhanced Safety)
 
-- [ ] **4.12** Create `scripts/migrate.sh` with safety checks **[devops-infrastructure-specialist]**
-  ```bash
-  #!/bin/bash
-  # Pre-migration snapshot
-  pg_dump -Fc pazpaz > /backups/pre-migration-$(date +%s).dump
+- [x] **4.12** Create `scripts/migrate.sh` with safety checks **[devops-infrastructure-specialist]**
+  - ✅ **Completed:** 28KB production-safe migration script
+  - Pre-migration database snapshot (pg_dump -Fc format)
+  - Migration SQL generation for review (alembic upgrade head --sql)
+  - Test migration on copy database (pazpaz_test_migration) before production
+  - 300-second timeout for migrations (configurable with --timeout)
+  - Docker environment auto-detection for containerized deployments
+  - Comprehensive logging with timestamps to /opt/pazpaz/logs/
+  - Integration with Alembic (backend/alembic.ini, backend/alembic/versions/)
+  - ✅ **Commit:** feat(deployment): add production-safe database migration scripts
 
-  # Generate migration SQL (dry-run)
-  alembic upgrade head --sql > /tmp/migration.sql
+- [x] **4.13** Add migration rollback capability **[devops-infrastructure-specialist]**
+  - ✅ Tracks current Alembic revision before migration
+  - ✅ Two-tier rollback strategy:
+    1. Primary: Alembic downgrade to previous revision
+    2. Fallback: Full database restore from pre-migration backup
+  - ✅ Tests rollback on copy database first
+  - ✅ Automatic rollback on migration failure
+  - ✅ Manual rollback: ./migrate.sh downgrade -1
+  - ✅ Comprehensive rollback logging and audit trail
 
-  # Test migration on copy
-  createdb pazpaz_test_migration
-  pg_restore -d pazpaz_test_migration /backups/pre-migration-*.dump
-  psql -d pazpaz_test_migration < /tmp/migration.sql
-
-  # Apply with timeout
-  timeout 300 alembic upgrade head || rollback
-  ```
-
-- [ ] **4.13** Add migration rollback capability **[devops-infrastructure-specialist]**
-  - Track Alembic revision before migration
-  - Create rollback script
-  - Test rollback procedure
-  - Document rollback steps
-
-- [ ] **4.14** Add migration validation **[devops-infrastructure-specialist]**
-  - Verify migration succeeded
-  - Check database integrity
-  - Run post-migration tests
-  - Log migration details
+- [x] **4.14** Add migration validation **[devops-infrastructure-specialist]**
+  - ✅ Verifies migration success via alembic_version table
+  - ✅ Schema validation (checks critical tables: workspaces, users, clients, etc.)
+  - ✅ Foreign key constraint integrity verification
+  - ✅ Post-migration query tests
+  - ✅ Migration report generation for audit trail
+  - ✅ Standalone validation command: ./migrate.sh validate
+  - ✅ Documentation: docs/deployment/database-migrations.md
 
 ### Secrets Management
 
