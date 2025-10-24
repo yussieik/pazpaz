@@ -946,6 +946,7 @@ jobs:
             --cache-to type=gha,mode=max \
             --tag pazpaz/nginx:test \
             --file nginx/Dockerfile \
+            --load \
             nginx/
 
       - name: Test Docker Compose build (dry run)
