@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Too Many Requests | PazPaz</title>
+    <title>404 - Page Not Found | PazPaz</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(135deg, #ff9a56 0%, #ff6b6b 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #333;
             min-height: 100vh;
             display: flex;
@@ -27,7 +27,7 @@
         .error-code {
             font-size: 120px;
             font-weight: 700;
-            background: linear-gradient(135deg, #ff9a56, #ff6b6b);
+            background: linear-gradient(135deg, #667eea, #764ba2);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 10px;
@@ -42,19 +42,27 @@
             line-height: 1.6;
             margin-bottom: 30px;
         }
-        .wait-message {
-            font-size: 14px;
-            color: #999;
-            margin-top: 20px;
+        a {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 500;
+            transition: transform 0.3s;
+        }
+        a:hover {
+            transform: translateY(-2px);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="error-code">429</div>
-        <h1>Too Many Requests</h1>
-        <p>You've sent too many requests in a short period. Please wait a moment before trying again.</p>
-        <p class="wait-message">This limit helps us maintain quality service for all users.</p>
+        <div class="error-code">404</div>
+        <h1>Page Not Found</h1>
+        <p>The page you're looking for doesn't exist or has been moved.</p>
+        <a href="/">Return to Home</a>
     </div>
 </body>
 </html>

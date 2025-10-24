@@ -1,0 +1,2 @@
+# This directory contains custom error pages for Nginx
+# Add HTML files here for custom error responses (e.g., 404.html, 500.html)

@@ -35,8 +35,8 @@ RUN mkdir -p /var/log/nginx && \
 # Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Copy custom error pages (optional - create these for better UX)
-COPY error-pages/* /usr/share/nginx/html/errors/ 2>/dev/null || :
+# Copy custom error pages (now that directory exists with .gitkeep)
+COPY error-pages /usr/share/nginx/html/errors/
 
 # Create a health check file
 RUN echo "healthy" > /usr/share/nginx/html/health
