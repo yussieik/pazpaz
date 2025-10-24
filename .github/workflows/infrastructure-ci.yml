@@ -332,6 +332,16 @@ jobs:
             -out /etc/letsencrypt/live/example.com/fullchain.pem \
             -subj "/CN=test"
 
+      - name: Add dummy hosts for upstream validation
+        run: |
+          echo "📝 Adding dummy hosts for nginx upstream validation..."
+          # nginx.conf references these Docker service names as upstreams
+          # Add them to /etc/hosts so nginx can resolve them during validation
+          echo "127.0.0.1 api" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 frontend" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 minio" | sudo tee -a /etc/hosts
+          echo "✅ Dummy hosts added for CI validation"
+
       - name: Validate nginx.conf syntax
         run: |
           echo "🔍 Validating nginx.conf..."

@@ -58,25 +58,27 @@ log_info() {
 
 # Check if environment file exists
 check_env_file() {
-    if [ ! -f ".env.production" ]; then
-        log_error ".env.production file not found!"
+    local env_file="${1:-.env.production}"
+    if [ ! -f "$env_file" ]; then
+        log_error "$env_file file not found!"
         echo ""
         echo "To create a production environment file:"
-        echo "  1. Copy the template: cp .env.production.example .env.production"
-        echo "  2. Edit .env.production and replace all CHANGE_ME values"
+        echo "  1. Copy the template: cp .env.production.example $env_file"
+        echo "  2. Edit $env_file and replace all CHANGE_ME values"
         echo "  3. Generate secure values using the commands in the comments"
         echo "  4. Run this script again to validate"
         exit 1
     fi
-    log_success "Found .env.production file"
+    log_success "Found $env_file file"
 }
 
 # Load environment variables (without executing them in current shell)
 load_env_file() {
+    local env_file="${1:-.env.production}"
     # Create a temporary file to store variable names and values
     local temp_file=$(mktemp)
 
-    # Parse .env.production file, handling comments and empty lines
+    # Parse environment file, handling comments and empty lines
     while IFS= read -r line; do
         # Skip comments and empty lines
         [[ "$line" =~ ^#.*$ ]] && continue
@@ -95,7 +97,7 @@ load_env_file() {
 
             echo "${var_name}=${var_value}" >> "$temp_file"
         fi
-    done < ".env.production"
+    done < "$env_file"
 
     echo "$temp_file"
 }
@@ -290,17 +292,20 @@ check_domain_format() {
 # =============================================================================
 
 main() {
+    # Accept optional environment file path as first argument
+    local env_file="${1:-.env.production}"
+
     echo "================================================================================"
     echo "                    PazPaz Production Environment Validator"
     echo "================================================================================"
     echo ""
 
-    # Step 1: Check if .env.production exists
-    check_env_file
+    # Step 1: Check if environment file exists
+    check_env_file "$env_file"
 
     # Step 2: Load environment variables
     log_info "Loading environment variables..."
-    ENV_TEMP_FILE=$(load_env_file)
+    ENV_TEMP_FILE=$(load_env_file "$env_file")
 
     # Step 3: Check all required variables
     echo ""
