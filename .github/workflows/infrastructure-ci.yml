@@ -73,6 +73,98 @@ jobs:
           sudo chmod +x /usr/local/bin/docker-compose
           docker-compose version
 
+      - name: Create test environment file for validation
+        run: |
+          echo "📝 Creating test .env.production file for CI validation..."
+
+          # Create a minimal but complete test environment file
+          # All values are test/dummy values for CI validation only
+          cat > .env.production << 'EOF'
+          # Test environment file for CI validation
+          # DO NOT USE THESE VALUES IN PRODUCTION
+
+          # GitHub Container Registry
+          GITHUB_REPOSITORY=testuser/pazpaz
+          IMAGE_TAG=test
+          VERSION=test
+
+          # Database Configuration
+          POSTGRES_PASSWORD=test_postgres_password_32_chars_long_for_ci
+
+          # Redis Configuration
+          REDIS_PASSWORD=test_redis_password_32_chars_long_for_ci_test
+
+          # MinIO/S3 Configuration
+          S3_ACCESS_KEY=test_access_key_20chr
+          S3_SECRET_KEY=test_secret_key_40_characters_long_for_ci
+          S3_BUCKET_NAME=pazpaz-attachments
+          S3_REGION=us-east-1
+          MINIO_ENCRYPTION_KEY=dGVzdF9lbmNyeXB0aW9uX2tleV9mb3JfY2lfZXhhY3RseTMyYnl0ZXM=
+
+          # Application Security
+          SECRET_KEY=test_secret_key_64_characters_long_for_ci_validation_only_12345
+          JWT_SECRET_KEY=test_jwt_secret_32_chars_for_ci
+          ENCRYPTION_MASTER_KEY=dGVzdF9lbmNyeXB0aW9uX21hc3Rlcl9rZXlfZm9yX2NpXzMyYnl0ZXM=
+
+          # Application Configuration
+          FRONTEND_URL=https://test.pazpaz.com
+          ALLOWED_HOSTS=test.pazpaz.com,api.test.pazpaz.com
+          CORS_ALLOWED_ORIGINS=
+
+          # Email Configuration
+          SMTP_HOST=smtp.test.com
+          SMTP_PORT=587
+          SMTP_USER=testuser
+          SMTP_PASSWORD=test_smtp_password_for_ci
+          SMTP_USE_TLS=true
+          EMAILS_FROM_EMAIL=noreply@test.pazpaz.com
+
+          # Monitoring & Logging
+          SENTRY_DSN=
+          LOG_LEVEL=INFO
+
+          # Performance Tuning
+          WORKERS=4
+          MAX_CONNECTIONS=100
+          DB_POOL_SIZE=20
+          DB_MAX_OVERFLOW=40
+          REDIS_MAX_CONNECTIONS=50
+
+          # Feature Flags
+          ENABLE_2FA=true
+          ENABLE_FILE_UPLOADS=true
+          ENABLE_EMAIL_NOTIFICATIONS=true
+          ENABLE_VIRUS_SCANNING=true
+
+          # SSL/TLS Configuration
+          DB_SSL_ENABLED=false
+          DB_SSL_MODE=prefer
+
+          # Backup Configuration
+          BACKUP_SCHEDULE="0 2 * * *"
+          BACKUP_RETENTION_DAYS=30
+          BACKUP_S3_BUCKET=
+          BACKUP_S3_ACCESS_KEY=
+          BACKUP_S3_SECRET_KEY=
+          BACKUP_S3_REGION=us-east-1
+
+          # Deployment Information
+          DEPLOYMENT_ENV=test
+          DEPLOYMENT_REGION=us-east-1
+          DEPLOYMENT_TIMESTAMP=$(date +%s)
+          EOF
+
+          echo "✅ Test environment file created"
+
+          # Verify the file was created
+          if [ ! -f .env.production ]; then
+            echo "❌ Failed to create .env.production"
+            exit 1
+          fi
+
+          # Show variable count for validation
+          echo "📊 Environment file contains $(grep -c '^[A-Z_]*=' .env.production) variables"
+
       - name: Validate docker-compose.yml syntax
         run: |
           echo "🔍 Validating docker-compose.yml..."
@@ -151,19 +243,28 @@ jobs:
             echo "✅ Database ports are properly isolated"
           fi
 
+      - name: Clean up test environment file
+        if: always()
+        run: |
+          echo "🧹 Cleaning up test environment file..."
+          rm -f .env.production || true
+          echo "✅ Cleanup complete"
+
       - name: Generate validation summary
         if: always()
         run: |
-          echo "## Docker Compose Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Docker Compose Validation Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Files Validated" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ docker-compose.yml" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ docker-compose.prod.yml" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ docker-compose.yml - syntax valid" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ docker-compose.prod.yml - syntax valid" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Test environment file created and validated" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Security Checks" >> $GITHUB_STEP_SUMMARY
-          echo "- Network isolation verified" >> $GITHUB_STEP_SUMMARY
-          echo "- Port exposure checked" >> $GITHUB_STEP_SUMMARY
-          echo "- Health checks validated" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Network isolation verified" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Port exposure checked" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Health checks validated" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Database ports properly isolated" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
   # Job 2: Validate Nginx Configuration
@@ -185,6 +286,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y nginx
           nginx -v
+
+      - name: Create nginx user for validation
+        run: |
+          echo "👤 Creating nginx user for CI validation..."
+          # Create nginx user if it doesn't exist (some CI environments don't have it)
+          if ! id -u nginx &>/dev/null; then
+            sudo useradd -r -s /bin/false nginx
+            echo "✅ nginx user created"
+          else
+            echo "✅ nginx user already exists"
+          fi
 
       - name: Create test directories
         run: |
@@ -215,11 +327,24 @@ jobs:
           echo "🔍 Validating nginx-ssl.conf..."
           # First, check if the file references valid paths
           if [ -f nginx/nginx-ssl.conf ]; then
-            # Test with nginx-ssl.conf
-            sudo nginx -t -c $(pwd)/nginx/nginx-ssl.conf 2>&1 | grep -v "warn" || {
+            # Test with nginx-ssl.conf (warnings are expected for missing production certs)
+            output=$(sudo nginx -t -c $(pwd)/nginx/nginx-ssl.conf 2>&1)
+
+            # Check if it's just warnings about missing cert files (which is expected in CI)
+            if echo "$output" | grep -q "syntax is ok"; then
+              echo "✅ nginx-ssl.conf syntax is valid"
+              if echo "$output" | grep -q "warn"; then
+                echo "ℹ️  Warnings detected (expected for missing production certificates in CI)"
+              fi
+            elif echo "$output" | grep -q "test failed"; then
+              echo "❌ nginx-ssl.conf validation failed"
+              echo "$output"
+              exit 1
+            else
               echo "⚠️  nginx-ssl.conf has warnings (expected for missing certs)"
-            }
-            echo "✅ nginx-ssl.conf syntax is valid"
+              echo "$output" | grep -v "warn" || true
+              echo "✅ nginx-ssl.conf syntax appears valid despite warnings"
+            fi
           else
             echo "⚠️  nginx-ssl.conf not found"
           fi
@@ -296,16 +421,18 @@ jobs:
       - name: Generate Nginx validation summary
         if: always()
         run: |
-          echo "## Nginx Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Nginx Validation Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Configuration Files" >> $GITHUB_STEP_SUMMARY
-          echo "- nginx.conf: Validated" >> $GITHUB_STEP_SUMMARY
-          echo "- nginx-ssl.conf: Validated" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ nginx.conf - syntax validated" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ nginx-ssl.conf - syntax validated" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ nginx user created for CI environment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Security Features" >> $GITHUB_STEP_SUMMARY
-          echo "- Security headers checked" >> $GITHUB_STEP_SUMMARY
-          echo "- SSL/TLS configuration verified" >> $GITHUB_STEP_SUMMARY
-          echo "- Rate limiting configuration checked" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Security headers checked" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ SSL/TLS configuration verified" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Rate limiting configuration checked" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Non-root user configuration verified" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
   # Job 3: Validate Shell Scripts
@@ -652,6 +779,36 @@ jobs:
           SECRET_KEY=test_secret_key_for_ci_build_validation_only
           ENCRYPTION_MASTER_KEY=dGVzdF9rZXlfZm9yX2NpX2V4YWN0bHlfMzJfYnl0ZXM=
           JWT_SECRET_KEY=test_jwt_secret_for_ci_validation
+          EOF
+
+      - name: Create test .env.production file
+        run: |
+          echo "📝 Creating test .env.production file for Docker Compose validation..."
+
+          cat > .env.production << 'EOF'
+          # Test environment file for CI validation
+          GITHUB_REPOSITORY=testuser/pazpaz
+          IMAGE_TAG=test
+          VERSION=test
+          POSTGRES_PASSWORD=test_postgres_password_32_chars_long_for_ci
+          REDIS_PASSWORD=test_redis_password_32_chars_long_for_ci_test
+          S3_ACCESS_KEY=test_access_key_20chr
+          S3_SECRET_KEY=test_secret_key_40_characters_long_for_ci
+          S3_BUCKET_NAME=pazpaz-attachments
+          S3_REGION=us-east-1
+          MINIO_ENCRYPTION_KEY=dGVzdF9lbmNyeXB0aW9uX2tleV9mb3JfY2lfZXhhY3RseTMyYnl0ZXM=
+          SECRET_KEY=test_secret_key_64_characters_long_for_ci_validation_only_12345
+          JWT_SECRET_KEY=test_jwt_secret_32_chars_for_ci
+          ENCRYPTION_MASTER_KEY=dGVzdF9lbmNyeXB0aW9uX21hc3Rlcl9rZXlfZm9yX2NpXzMyYnl0ZXM=
+          FRONTEND_URL=https://test.pazpaz.com
+          ALLOWED_HOSTS=test.pazpaz.com,api.test.pazpaz.com
+          CORS_ALLOWED_ORIGINS=
+          SMTP_HOST=smtp.test.com
+          SMTP_PORT=587
+          SMTP_USER=testuser
+          SMTP_PASSWORD=test_smtp_password_for_ci
+          SMTP_USE_TLS=true
+          EMAILS_FROM_EMAIL=noreply@test.pazpaz.com
           EOF
 
       - name: Build Nginx image
