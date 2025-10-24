@@ -91,6 +91,14 @@ jobs:
           uv sync --dev
           uv pip install mypy safety
 
+      - name: Run ruff format check
+        run: |
+          uv run ruff format --check src/ tests/
+
+      - name: Run ruff linting
+        run: |
+          uv run ruff check src/ tests/
+
       - name: Run pytest with coverage
         env:
           DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/pazpaz_test
@@ -160,14 +168,6 @@ jobs:
           # If we couldn't parse results, use pytest's exit code
           echo "Could not parse test results, using pytest exit code: $PYTEST_EXIT_CODE"
           exit $PYTEST_EXIT_CODE
-
-      - name: Run ruff format check
-        run: |
-          uv run ruff format --check src/ tests/
-
-      - name: Run ruff linting
-        run: |
-          uv run ruff check src/ tests/
 
       - name: Run mypy type checking
         run: |
