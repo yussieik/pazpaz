@@ -406,19 +406,29 @@
 
 ### Environment Configuration
 
-- [ ] **3.17** Create `.env.production.example` with complete documentation **[devops-infrastructure-specialist]**
+- [x] **3.17** Create `.env.production.example` with complete documentation **[devops-infrastructure-specialist]**
   - Include all required variables
   - Document generation commands for each secret
   - Add validation requirements
   - Include example values (non-sensitive)
+  - ✅ **Completed:** Comprehensive template with 133 lines, all variables documented
+  - Added JWT_SECRET_KEY, fixed MinIO credential requirements
+  - ✅ **Commit:** ec7ec33
 
-- [ ] **3.18** Create `scripts/validate-env.sh` **[devops-infrastructure-specialist]**
+- [x] **3.18** Create `scripts/validate-env.sh` **[devops-infrastructure-specialist]**
   - Validate all required secrets are present
   - Check secret strength requirements
   - Verify formatting (base64, etc.)
   - Exit with clear error messages
+  - ✅ **Completed:** 638-line validation script with comprehensive checks
+  - Secret strength validation, format checking, example value detection
+  - Colored output, exit codes for CI/CD, HIPAA-compliant
+  - ✅ **Commit:** ec7ec33
 
-- [ ] **3.19** Add `.env.production` to `.gitignore` **[devops-infrastructure-specialist]**
+- [x] **3.19** Add `.env.production` to `.gitignore` **[devops-infrastructure-specialist]**
+  - ✅ **Completed:** Added explicit entry with security warning
+  - Already covered by `.env.*` pattern, added for clarity
+  - ✅ **Commit:** ec7ec33
 
 ### Local Production Testing
 
