@@ -267,12 +267,12 @@ When modifying Nginx:
 ## Recent Updates
 
 ### October 24, 2024
-- ✅ **Fixed CI Validation Errors**:
-  - Added automatic creation of test `.env.production` file with all required variables
-  - Fixed nginx user creation for Ubuntu CI runners
-  - Improved nginx-ssl.conf validation to handle expected warnings
-  - Added cleanup steps for test environment files
-  - Enhanced validation summaries with clearer pass/fail indicators
+- ✅ **Fixed Critical CI Validation Errors** (See [CI Troubleshooting Guide](./ci-troubleshooting.md)):
+  - **sed delimiter fix:** Changed from `|` to `#` for URLs in environment file replacements
+  - **nginx user handling:** Added conditional validation for environments without nginx user
+  - **Network validation:** Fixed grep patterns to properly parse docker-compose.yml networks
+  - **Enhanced cleanup:** Added `.env.test` to cleanup steps
+  - **Better error handling:** Added fallback methods for all validation steps
 
 ## Future Enhancements
 

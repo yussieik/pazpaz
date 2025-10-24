@@ -204,14 +204,30 @@ jobs:
           fi
 
           # Verify internal networks are defined
+          # First, let's see what docker-compose config outputs for debugging (optional)
+          echo "📊 Checking network definitions in docker-compose.prod.yml..."
+
           for network in frontend backend database; do
-            if docker-compose -f docker-compose.prod.yml config | grep -q "networks:.*$network"; then
+            # Check if network is defined in the networks section at the end of the file
+            # Networks are defined at the root level with proper indentation
+            if grep -q "^  ${network}:" docker-compose.prod.yml && \
+               sed -n '/^networks:/,/^[a-z]/p' docker-compose.prod.yml | grep -q "^  ${network}:"; then
               echo "✅ Network '$network' is defined"
             else
-              echo "❌ Required network '$network' is missing"
-              exit 1
+              # Alternative check: Use docker-compose config and parse the YAML output
+              if docker-compose -f docker-compose.prod.yml config 2>/dev/null | \
+                 sed -n '/^networks:/,/^[a-z]/p' | grep -q "  ${network}:"; then
+                echo "✅ Network '$network' is defined (via docker-compose config)"
+              else
+                echo "❌ Required network '$network' is missing"
+                echo "Debug: Showing networks section from docker-compose.prod.yml:"
+                sed -n '/^networks:/,/^$/p' docker-compose.prod.yml | head -20
+                exit 1
+              fi
             fi
           done
+
+          echo "✅ All required networks are properly defined"
 
       - name: Validate health checks
         run: |
@@ -248,6 +264,7 @@ jobs:
         run: |
           echo "🧹 Cleaning up test environment file..."
           rm -f .env.production || true
+          rm -f .env.test || true
           echo "✅ Cleanup complete"
 
       - name: Generate validation summary
@@ -289,11 +306,13 @@ jobs:
 
       - name: Create nginx user for validation
         run: |
-          echo "👤 Creating nginx user for CI validation..."
+          echo "👤 Checking nginx user for CI validation..."
           # Create nginx user if it doesn't exist (some CI environments don't have it)
           if ! id -u nginx &>/dev/null; then
-            sudo useradd -r -s /bin/false nginx
-            echo "✅ nginx user created"
+            echo "ℹ️ nginx user does not exist, creating..."
+            sudo useradd -r -s /bin/false nginx || {
+              echo "⚠️  Failed to create nginx user, will test without user directive"
+            }
           else
             echo "✅ nginx user already exists"
           fi
@@ -316,19 +335,40 @@ jobs:
       - name: Validate nginx.conf syntax
         run: |
           echo "🔍 Validating nginx.conf..."
-          sudo nginx -t -c $(pwd)/nginx/nginx.conf || {
-            echo "❌ nginx.conf validation failed"
-            exit 1
-          }
-          echo "✅ nginx.conf is valid"
+
+          # First check if nginx user exists
+          if id -u nginx &>/dev/null; then
+            echo "✅ nginx user exists, testing with original config"
+            sudo nginx -t -c $(pwd)/nginx/nginx.conf || {
+              echo "❌ nginx.conf validation failed"
+              exit 1
+            }
+          else
+            echo "⚠️  nginx user not available, testing without user directive"
+            # Create a temporary config without the user directive for CI testing
+            grep -v "^user nginx;" nginx/nginx.conf > /tmp/nginx-test.conf
+            sudo nginx -t -c /tmp/nginx-test.conf || {
+              echo "❌ nginx.conf validation failed"
+              exit 1
+            }
+          fi
+          echo "✅ nginx.conf syntax is valid"
 
       - name: Validate nginx-ssl.conf syntax
         run: |
           echo "🔍 Validating nginx-ssl.conf..."
           # First, check if the file references valid paths
           if [ -f nginx/nginx-ssl.conf ]; then
-            # Test with nginx-ssl.conf (warnings are expected for missing production certs)
-            output=$(sudo nginx -t -c $(pwd)/nginx/nginx-ssl.conf 2>&1)
+            # Check if nginx user exists and prepare config accordingly
+            if id -u nginx &>/dev/null; then
+              echo "✅ nginx user exists, testing with original SSL config"
+              output=$(sudo nginx -t -c $(pwd)/nginx/nginx-ssl.conf 2>&1)
+            else
+              echo "⚠️  nginx user not available, testing SSL config without user directive"
+              # Create a temporary config without the user directive for CI testing
+              grep -v "^user nginx;" nginx/nginx-ssl.conf > /tmp/nginx-ssl-test.conf
+              output=$(sudo nginx -t -c /tmp/nginx-ssl-test.conf 2>&1)
+            fi
 
             # Check if it's just warnings about missing cert files (which is expected in CI)
             if echo "$output" | grep -q "syntax is ok"; then
@@ -635,15 +675,16 @@ jobs:
           cp .env.production.example .env.test
 
           # Replace example values with test values
+          # Use # as delimiter for sed to avoid conflicts with URLs containing /
           sed -i 's/your-database-password/test_password/g' .env.test
           sed -i 's/your-redis-password/test_redis_password/g' .env.test
           sed -i 's/your-secret-key-.*-chars/test_secret_key_that_is_at_least_32_characters_long_for_testing/g' .env.test
           sed -i 's/base64-encoded-32-byte-key/dGVzdF9rZXlfZm9yX2NpX2V4YWN0bHlfMzJfYnl0ZXM=/g' .env.test
           sed -i 's/your-jwt-secret/test_jwt_secret_for_ci_validation/g' .env.test
           sed -i 's/your-session-secret/test_session_secret_for_ci_validation/g' .env.test
-          sed -i 's/your-sentry-dsn/https://test@sentry.io/123456/g' .env.test
+          sed -i 's#your-sentry-dsn#https://test@sentry.io/123456#g' .env.test
           sed -i 's/your-smtp-password/test_smtp_password/g' .env.test
-          sed -i 's|your-s3-endpoint|http://minio:9000|g' .env.test
+          sed -i 's#your-s3-endpoint#http://minio:9000#g' .env.test
           sed -i 's/your-s3-access-key/test_s3_access_key/g' .env.test
           sed -i 's/your-s3-secret-key/test_s3_secret_key/g' .env.test
 
