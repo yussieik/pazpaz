@@ -345,8 +345,8 @@
 
 ### Nginx Reverse Proxy
 
-- [ ] **3.10** Create `nginx/` directory in project root **[devops-infrastructure-specialist]**
-- [ ] **3.11** Create `nginx/nginx.conf` with security hardening **[devops-infrastructure-specialist]**
+- [x] **3.10** Create `nginx/` directory in project root **[devops-infrastructure-specialist]** ✅
+- [x] **3.11** Create `nginx/nginx.conf` with security hardening **[devops-infrastructure-specialist]** ✅
   - Proxy frontend requests to frontend container
   - Proxy `/api/*` to backend API (port 8000)
   - Proxy `/ws/*` to backend WebSocket (port 8000)
@@ -365,14 +365,14 @@
   - Request timeout: 60s
   - Buffer sizes configured
 
-- [ ] **3.12** Create `nginx/Dockerfile` **[devops-infrastructure-specialist]**
+- [x] **3.12** Create `nginx/Dockerfile` **[devops-infrastructure-specialist]** ✅
   - Base: `nginx:alpine`
   - Copy custom nginx.conf
   - Copy SSL certificate paths (Let's Encrypt)
   - Expose ports 80, 443
   - Non-root user
 
-- [ ] **3.13** Add Nginx service to `docker-compose.prod.yml` **[devops-infrastructure-specialist]**
+- [x] **3.13** Add Nginx service to `docker-compose.prod.yml` **[devops-infrastructure-specialist]** ✅
   - Ports: 80:80, 443:443
   - Volumes: SSL certificates, nginx config, logs
   - Depends on: api, frontend
