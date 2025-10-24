@@ -25,21 +25,33 @@ The workflow runs automatically when:
 
 **Purpose**: Ensures Docker Compose files are syntactically correct and follow security best practices.
 
+**Test Environment Setup**:
+- Creates temporary `.env.production` file with test values for CI validation
+- All environment variables use dummy/test values (never real secrets)
+- Test file is automatically cleaned up after validation
+
 **Validations**:
 - ✅ Syntax validation for `docker-compose.yml` and `docker-compose.prod.yml`
 - ✅ Required network isolation (frontend, backend, database networks)
 - ✅ Health checks for critical services (api, db, redis, nginx)
 - ✅ Port exposure verification (only nginx should expose ports in production)
 - ✅ Database isolation (no exposed database ports in production)
+- ✅ All required environment variables present and valid
 
 **Key Security Checks**:
 - Ensures database ports are NOT exposed to host
 - Verifies proper network segmentation
 - Validates health check configurations
+- Confirms test environment file contains no real secrets
 
 ### 2. Validate Nginx Configuration
 
 **Purpose**: Validates Nginx reverse proxy configuration for syntax and security.
+
+**CI Environment Setup**:
+- Creates `nginx` user if not present (required for `user nginx;` directive)
+- Sets up test directories and dummy SSL certificates for validation
+- Handles both `nginx.conf` and `nginx-ssl.conf` configurations
 
 **Validations**:
 - ✅ Nginx configuration syntax (`nginx -t`)
@@ -47,12 +59,14 @@ The workflow runs automatically when:
 - ✅ SSL/TLS configuration (TLS 1.2+ only)
 - ✅ Rate limiting configuration
 - ✅ Dockerfile best practices
+- ✅ User directive validation (`user nginx;`)
 
 **Security Features Checked**:
 - Strong SSL protocols (TLS 1.2 and 1.3)
 - Security headers implementation
 - Rate limiting for DDoS protection
 - Non-root user in Docker container
+- Proper user permissions for nginx process
 
 ### 3. Validate Shell Scripts
 
@@ -139,15 +153,24 @@ All jobs must pass for the workflow to succeed:
 
 ### Common Issues
 
-**Docker Compose Validation Fails**:
+**Docker Compose Validation Fails with "env file not found"**:
+- **Issue**: Missing `.env.production` file in CI environment
+- **Solution**: The workflow now automatically creates a test `.env.production` with dummy values
+- **Local Test**:
 ```bash
-# Check syntax locally
+# Create test environment file locally
+cp .env.production.example .env.production
+# Edit with test values, then validate
 docker-compose -f docker-compose.prod.yml config
 ```
 
-**Nginx Configuration Error**:
+**Nginx Configuration Error "getpwnam('nginx') failed"**:
+- **Issue**: Ubuntu CI runners don't have nginx user by default
+- **Solution**: The workflow now creates the nginx user before validation
+- **Local Test**:
 ```bash
-# Test nginx config locally
+# Test nginx config locally (may need sudo)
+sudo useradd -r -s /bin/false nginx  # Create user if missing
 nginx -t -c /path/to/nginx.conf
 ```
 
@@ -155,12 +178,23 @@ nginx -t -c /path/to/nginx.conf
 ```bash
 # Run shellcheck locally
 shellcheck scripts/*.sh
+# Exclude specific warnings if acceptable
+shellcheck -e SC2086,SC2181 scripts/*.sh
 ```
 
 **Environment Validation Fails**:
 ```bash
 # Test validation script
 ./scripts/validate-env.sh .env.production.example
+```
+
+**Missing Environment Variables**:
+- **Issue**: Docker Compose references variables not in `.env.production`
+- **Solution**: Add all required variables to test environment file in CI
+- **Check Required Variables**:
+```bash
+# Find all variable references in docker-compose
+grep -oE '\$\{[A-Z_]+[^}]*\}' docker-compose.prod.yml | sort -u
 ```
 
 ### Manual Workflow Trigger
@@ -230,6 +264,16 @@ When modifying Nginx:
 3. Maintain SSL/TLS best practices
 4. Update rate limiting if needed
 
+## Recent Updates
+
+### October 24, 2024
+- ✅ **Fixed CI Validation Errors**:
+  - Added automatic creation of test `.env.production` file with all required variables
+  - Fixed nginx user creation for Ubuntu CI runners
+  - Improved nginx-ssl.conf validation to handle expected warnings
+  - Added cleanup steps for test environment files
+  - Enhanced validation summaries with clearer pass/fail indicators
+
 ## Future Enhancements
 
 Planned improvements:
@@ -239,3 +283,8 @@ Planned improvements:
 - [ ] Integrate with security scanning platform
 - [ ] Add performance benchmarking for Nginx
 - [ ] Implement automated rollback testing
+
+---
+
+**Last Updated:** October 24, 2024
+**Status:** Production-Ready
