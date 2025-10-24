@@ -54,11 +54,10 @@ class TestSchedulerTasks:
         await db_session.commit()
 
         # Mock email sending and time
-        with patch(
-            "pazpaz.workers.scheduler.send_session_notes_reminder"
-        ) as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_session_notes_reminder") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             mock_datetime.now.return_value = datetime(
                 2025, 10, 22, 18, 0, 0, tzinfo=UTC
             )
@@ -106,9 +105,10 @@ class TestSchedulerTasks:
         await db_session.commit()
 
         # Mock email sending and time
-        with patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             mock_now = datetime(2025, 10, 22, 8, 0, 0, tzinfo=UTC)
             mock_datetime.now.return_value = mock_now
             mock_datetime.combine = datetime.combine
@@ -157,11 +157,10 @@ class TestSchedulerTasks:
         await db_session.commit()
 
         # Mock email sending and time
-        with patch(
-            "pazpaz.workers.scheduler.send_appointment_reminder"
-        ) as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_appointment_reminder") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             mock_datetime.now.return_value = now
 
             # Run task - should not raise exceptions
@@ -177,9 +176,7 @@ class TestSchedulerTasks:
         """Test that tasks handle no matching users/appointments gracefully."""
         # Run all tasks with no matching data
         with patch("pazpaz.workers.scheduler.datetime") as mock_datetime:
-            mock_datetime.now.return_value = datetime(
-                2025, 10, 22, 3, 0, 0, tzinfo=UTC
-            )
+            mock_datetime.now.return_value = datetime(2025, 10, 22, 3, 0, 0, tzinfo=UTC)
 
             # All should return zero sent
             result_notes = await send_session_notes_reminders({})
@@ -232,11 +229,10 @@ class TestAppointmentReminderDeduplication:
         await db_session.refresh(sample_client_ws1)
 
         # Mock email sending
-        with patch(
-            "pazpaz.workers.scheduler.send_appointment_reminder"
-        ) as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_appointment_reminder") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             mock_datetime.now.return_value = now
 
             # First run - should send reminder
@@ -295,11 +291,10 @@ class TestAppointmentReminderDeduplication:
         await db_session.refresh(appointment)
         await db_session.refresh(sample_client_ws1)
 
-        with patch(
-            "pazpaz.workers.scheduler.send_appointment_reminder"
-        ) as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_appointment_reminder") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             mock_datetime.now.return_value = now
 
             # Send 60-minute reminder
@@ -389,11 +384,10 @@ class TestAppointmentReminderDeduplication:
         await db_session.refresh(appointment)
         await db_session.refresh(sample_client_ws1)
 
-        with patch(
-            "pazpaz.workers.scheduler.send_appointment_reminder"
-        ) as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_appointment_reminder") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             mock_datetime.now.return_value = now
 
             # First run - should send to both users

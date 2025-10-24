@@ -295,11 +295,7 @@ class UserNotificationSettings(Base):
             "reminder_minutes",
             postgresql_where=text("email_enabled = true AND reminder_enabled = true"),
         ),
-        {
-            "comment": (
-                "User notification preferences with hybrid typed/JSONB approach"
-            )
-        },
+        {"comment": ("User notification preferences with hybrid typed/JSONB approach")},
     )
 
     def __repr__(self) -> str:

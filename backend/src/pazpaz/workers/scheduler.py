@@ -455,7 +455,6 @@ async def send_daily_digests(ctx: dict) -> dict:
                     total_sent += tomorrow_sent
                     total_errors += tomorrow_errors
 
-
                 except Exception as e:
                     # Log timezone-specific error but continue processing other timezones
                     logger.error(

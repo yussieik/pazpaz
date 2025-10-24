@@ -473,7 +473,10 @@ class TestUpdateNotificationSettings:
 
         # Should return 401 for missing authentication
         # Note: Without access_token cookie, authentication fails before CSRF check
-        assert response.status_code in [401, 403]  # Both are acceptable for unauthenticated requests
+        assert response.status_code in [
+            401,
+            403,
+        ]  # Both are acceptable for unauthenticated requests
 
     async def test_update_requires_csrf_token(
         self,

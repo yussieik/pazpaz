@@ -20,7 +20,10 @@ class TestSecretKeyValidation:
             Settings()
 
         error_str = str(exc_info.value)
-        assert "insufficient entropy" in error_str or "cryptographically random" in error_str
+        assert (
+            "insufficient entropy" in error_str
+            or "cryptographically random" in error_str
+        )
 
     def test_secret_key_weak_pattern(self, monkeypatch):
         """Verify SECRET_KEY cannot be weak (all same character)."""

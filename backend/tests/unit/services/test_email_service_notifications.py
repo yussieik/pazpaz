@@ -292,7 +292,10 @@ class TestSendAppointmentReminder:
             )
             message1440 = mock_smtp_instance.send_message.call_args[0][0]
             # 24 hours is too far out, should be generic
-            assert ("hour" in message1440["Subject"] or "reminder" in message1440["Subject"].lower())
+            assert (
+                "hour" in message1440["Subject"]
+                or "reminder" in message1440["Subject"].lower()
+            )
 
     @pytest.mark.asyncio
     async def test_handles_missing_optional_fields(self):

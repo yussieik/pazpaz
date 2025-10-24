@@ -79,10 +79,12 @@ async def get_notification_settings(
 
     try:
         # Get or create settings (ensures settings always exist)
-        settings = await notification_settings_service.get_or_create_notification_settings(
-            db=db,
-            user_id=current_user.id,
-            workspace_id=current_user.workspace_id,
+        settings = (
+            await notification_settings_service.get_or_create_notification_settings(
+                db=db,
+                user_id=current_user.id,
+                workspace_id=current_user.workspace_id,
+            )
         )
 
         logger.info(

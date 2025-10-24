@@ -283,9 +283,13 @@ PazPaz - Practice Management for Independent Therapists
         # Adjust greeting based on digest type
         if appointment_count == 1:
             if digest_type == "today":
-                greeting = f"You have 1 appointment scheduled for today, {formatted_date}:"
+                greeting = (
+                    f"You have 1 appointment scheduled for today, {formatted_date}:"
+                )
             else:
-                greeting = f"You have 1 appointment scheduled for tomorrow, {formatted_date}:"
+                greeting = (
+                    f"You have 1 appointment scheduled for tomorrow, {formatted_date}:"
+                )
         else:
             if digest_type == "today":
                 greeting = f"You have {appointment_count} appointments scheduled for today, {formatted_date}:"

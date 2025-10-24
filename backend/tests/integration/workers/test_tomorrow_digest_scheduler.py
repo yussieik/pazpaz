@@ -52,9 +52,10 @@ class TestTomorrowDigestScheduler:
         await db_session.commit()
 
         # Mock email sending and time to 20:00
-        with patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             mock_now = datetime(2025, 10, 22, 20, 0, 0, tzinfo=UTC)
             mock_datetime.now.return_value = mock_now
             mock_datetime.combine = datetime.combine
@@ -122,9 +123,10 @@ class TestTomorrowDigestScheduler:
         await db_session.commit()
 
         # Mock email sending
-        with patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             mock_now = datetime(2025, 10, 22, 20, 0, 0, tzinfo=UTC)
             mock_datetime.now.return_value = mock_now
             mock_datetime.combine = datetime.combine
@@ -174,9 +176,10 @@ class TestTomorrowDigestScheduler:
         await db_session.commit()
 
         # Mock time to 20:00
-        with patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             mock_now = datetime(2025, 10, 22, 20, 0, 0, tzinfo=UTC)
             mock_datetime.now.return_value = mock_now
             mock_datetime.combine = datetime.combine
@@ -227,9 +230,10 @@ class TestTomorrowDigestScheduler:
         await db_session.commit()
 
         # Test on Saturday (day 6) - should NOT send
-        with patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             # Saturday, October 25, 2025 at 20:00
             mock_now = datetime(2025, 10, 25, 20, 0, 0, tzinfo=UTC)
             mock_datetime.now.return_value = mock_now
@@ -295,9 +299,10 @@ class TestTomorrowDigestScheduler:
         await db_session.commit()
 
         # Test at 08:00 - should send today's digest
-        with patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             mock_now = datetime(2025, 10, 22, 8, 0, 0, tzinfo=UTC)
             mock_datetime.now.return_value = mock_now
             mock_datetime.combine = datetime.combine
@@ -313,9 +318,10 @@ class TestTomorrowDigestScheduler:
             assert "22" in date_str  # Today is Oct 22
 
         # Test at 20:00 - should send tomorrow's digest
-        with patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             mock_now = datetime(2025, 10, 22, 20, 0, 0, tzinfo=UTC)
             mock_datetime.now.return_value = mock_now
             mock_datetime.combine = datetime.combine
@@ -375,9 +381,10 @@ class TestTomorrowDigestScheduler:
         await db_session.commit()
 
         # Test at 20:00 (tomorrow's digest time) - should NOT send
-        with patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             mock_now = datetime(2025, 10, 22, 20, 0, 0, tzinfo=UTC)
             mock_datetime.now.return_value = mock_now
             mock_datetime.combine = datetime.combine
@@ -427,9 +434,10 @@ class TestTomorrowDigestScheduler:
         await db_session.commit()
 
         # Test at 20:00 - should send tomorrow's digest
-        with patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             mock_now = datetime(2025, 10, 22, 20, 0, 0, tzinfo=UTC)
             mock_datetime.now.return_value = mock_now
             mock_datetime.combine = datetime.combine
@@ -464,9 +472,10 @@ class TestTomorrowDigestScheduler:
         # No appointments created - tomorrow is empty
 
         # Test at 20:00 - should send digest with "no appointments" message
-        with patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             mock_now = datetime(2025, 10, 22, 20, 0, 0, tzinfo=UTC)
             mock_datetime.now.return_value = mock_now
             mock_datetime.combine = datetime.combine
@@ -502,9 +511,10 @@ class TestTomorrowDigestScheduler:
         await db_session.commit()
 
         # Test at both 08:00 and 20:00 - neither should send
-        with patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             # Test at 08:00
             mock_now = datetime(2025, 10, 22, 8, 0, 0, tzinfo=UTC)
             mock_datetime.now.return_value = mock_now
@@ -516,9 +526,10 @@ class TestTomorrowDigestScheduler:
             # Should not send (master toggle off)
             assert result["sent"] == 0
 
-        with patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send, patch(
-            "pazpaz.workers.scheduler.datetime"
-        ) as mock_datetime:
+        with (
+            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
             # Test at 20:00
             mock_now = datetime(2025, 10, 22, 20, 0, 0, tzinfo=UTC)
             mock_datetime.now.return_value = mock_now

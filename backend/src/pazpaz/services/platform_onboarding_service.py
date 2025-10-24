@@ -216,7 +216,9 @@ class PlatformOnboardingService:
             await db.flush()
 
             # Create default notification settings for new user
-            from pazpaz.models.user_notification_settings import UserNotificationSettings
+            from pazpaz.models.user_notification_settings import (
+                UserNotificationSettings,
+            )
 
             notification_settings = UserNotificationSettings(
                 user_id=user.id,
