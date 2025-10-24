@@ -575,7 +575,7 @@ jobs:
           fi
 
       - name: Send Slack notification
-        if: secrets.SLACK_WEBHOOK_URL != ''
+        if: vars.ENABLE_SLACK_NOTIFICATIONS == 'true'
         continue-on-error: true
         run: |
           PAYLOAD=$(cat << EOF
@@ -623,7 +623,7 @@ jobs:
             "${{ secrets.SLACK_WEBHOOK_URL }}"
 
       - name: Create Sentry release
-        if: needs.deploy.result == 'success' && secrets.SENTRY_AUTH_TOKEN != ''
+        if: needs.deploy.result == 'success' && vars.ENABLE_SENTRY_RELEASES == 'true'
         continue-on-error: true
         run: |
           # Install Sentry CLI
