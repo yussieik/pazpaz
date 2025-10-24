@@ -3,8 +3,8 @@
 #
 # Network Architecture:
 # - frontend: Public-facing network (nginx only)
-# - backend: Internal API network (nginx, api, arq-worker)
-# - database: Internal data network (api, arq-worker, db, redis, minio)
+# - backend: Internal API network (nginx, api, arq-worker, minio, clamav)
+# - database: Internal data network (api, arq-worker, db, redis)
 #
 # Security Features:
 # - Network isolation with internal networks
@@ -12,6 +12,7 @@
 # - SSL/TLS termination at nginx
 # - Health checks for all services
 # - Resource limits for stability
+# - Log rotation for all services
 # - Non-root users where possible
 
 version: '3.8'
@@ -56,6 +57,11 @@ services:
       retries: 3
       start_period: 10s
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -71,25 +77,25 @@ services:
       - "version=${VERSION:-latest}"
 
   # =============================================================================
-  # API - FastAPI Backend Service
+  # API - FastAPI Backend Service (Task 3.2)
   # =============================================================================
   # Handles all business logic, authentication, and data operations
   # NOT exposed to host - only accessible through nginx
   api:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        - VERSION=${VERSION:-latest}
-    image: pazpaz/api:${VERSION:-latest}
+    # Use image from ghcr.io registry
+    image: ghcr.io/${GITHUB_REPOSITORY:-yourusername/pazpaz}/backend:${IMAGE_TAG:-latest}
     container_name: pazpaz-api
     networks:
       - backend   # Internal network for nginx communication
       - database  # Internal network for database access
     # NO ports exposed to host - security by design
     env_file:
-      - .env.prod
+      - .env.production
     environment:
+      # Production environment
+      - ENVIRONMENT=production
+      - DEBUG=false
+
       # Database connection (using service names)
       - DATABASE_URL=postgresql+asyncpg://pazpaz:${POSTGRES_PASSWORD}@db:5432/pazpaz
       - DB_SSL_ENABLED=true
@@ -101,7 +107,7 @@ services:
       # Redis connection
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
 
-      # MinIO/S3 configuration
+      # MinIO/S3 configuration (internal network, no SSL needed internally)
       - S3_ENDPOINT_URL=http://minio:9000
       - S3_ACCESS_KEY=${S3_ACCESS_KEY}
       - S3_SECRET_KEY=${S3_SECRET_KEY}
@@ -109,9 +115,11 @@ services:
       - S3_REGION=${S3_REGION:-us-east-1}
       - S3_USE_SSL=false  # Internal network, SSL at edge
 
+      # ClamAV configuration
+      - CLAMAV_HOST=clamav
+      - CLAMAV_PORT=3310
+
       # Application settings
-      - ENVIRONMENT=production
-      - DEBUG=false
       - FRONTEND_URL=${FRONTEND_URL}
       - SECRET_KEY=${SECRET_KEY}
       - ENCRYPTION_MASTER_KEY=${ENCRYPTION_MASTER_KEY}
@@ -136,12 +144,16 @@ services:
       - ./backend/certs:/app/certs:ro
       # Temporary upload directory
       - api_temp:/tmp/uploads
+      # Application logs
+      - app_logs:/app/logs
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      clamav:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -150,10 +162,15 @@ services:
       retries: 3
       start_period: 30s
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
-          cpus: '4.0'
+          cpus: '2.0'
           memory: 2G
         reservations:
           cpus: '1.0'
@@ -165,12 +182,13 @@ services:
       - "version=${VERSION:-latest}"
 
   # =============================================================================
-  # ARQ Worker - Background Task Processor
+  # ARQ Worker - Background Task Processor (Task 3.3)
   # =============================================================================
   # Handles scheduled tasks, email notifications, and async jobs
   # Uses same image as API but runs different command
   arq-worker:
-    image: pazpaz/api:${VERSION:-latest}
+    # Use same image as API
+    image: ghcr.io/${GITHUB_REPOSITORY:-yourusername/pazpaz}/backend:${IMAGE_TAG:-latest}
     container_name: pazpaz-arq-worker
     command: ["uv", "run", "arq", "pazpaz.workers.scheduler.WorkerSettings"]
     networks:
@@ -178,8 +196,12 @@ services:
       - database  # For database and Redis access
     # NO ports exposed to host
     env_file:
-      - .env.prod
+      - .env.production
     environment:
+      # Production environment
+      - ENVIRONMENT=production
+      - DEBUG=false
+
       # Database connection (same as API)
       - DATABASE_URL=postgresql+asyncpg://pazpaz:${POSTGRES_PASSWORD}@db:5432/pazpaz
       - DB_SSL_ENABLED=true
@@ -201,13 +223,13 @@ services:
       - EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL}
 
       # Application settings
-      - ENVIRONMENT=production
-      - DEBUG=false
       - FRONTEND_URL=${FRONTEND_URL}
       - ENCRYPTION_MASTER_KEY=${ENCRYPTION_MASTER_KEY}
     volumes:
       # SSL certificates for database connection
       - ./backend/certs:/app/certs:ro
+      # Application logs
+      - app_logs:/app/logs
     depends_on:
       db:
         condition: service_healthy
@@ -220,11 +242,16 @@ services:
       retries: 3
       start_period: 10s
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: 1G
+          cpus: '1.0'
+          memory: 512M
         reservations:
           cpus: '0.5'
           memory: 256M
@@ -235,7 +262,7 @@ services:
       - "version=${VERSION:-latest}"
 
   # =============================================================================
-  # PostgreSQL Database
+  # PostgreSQL Database (Task 3.4)
   # =============================================================================
   # Primary data store with SSL enabled and proper backup configuration
   # ISOLATED in database network - NOT exposed to host
@@ -260,7 +287,7 @@ services:
       # Custom initialization scripts
       - ./backend/scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
       # Backup directory
-      - postgres_backups:/backups
+      - postgres_backup:/backups
       # Custom postgresql.conf for production tuning
       - ./backend/config/postgresql.prod.conf:/etc/postgresql/postgresql.conf:ro
     command: >
@@ -283,17 +310,22 @@ services:
       -c random_page_cost=1.1
       -c effective_io_concurrency=200
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pazpaz -d pazpaz"]
+      test: ["CMD-SHELL", "pg_isready -U pazpaz -d pazpaz && psql -U pazpaz -d pazpaz -c 'SELECT 1' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
-          cpus: '4.0'
-          memory: 4G
+          cpus: '2.0'
+          memory: 2G
         reservations:
           cpus: '1.0'
           memory: 1G
@@ -304,7 +336,7 @@ services:
       - "backup=daily"
 
   # =============================================================================
-  # Redis - Cache and Message Queue
+  # Redis - Cache and Message Queue (Task 3.5)
   # =============================================================================
   # Used for session storage, caching, and ARQ task queue
   # ISOLATED in database network - NOT exposed to host
@@ -321,6 +353,7 @@ services:
       --maxmemory-policy allkeys-lru
       --appendonly yes
       --appendfsync everysec
+      --aof-use-rdb-preamble yes
       --save 900 1
       --save 300 10
       --save 60 10000
@@ -331,7 +364,7 @@ services:
       --loglevel notice
       --logfile ""
     volumes:
-      # Data persistence
+      # Data persistence - both AOF and RDB
       - redis_data:/data
       # Custom configuration
       - ./backend/config/redis.prod.conf:/usr/local/etc/redis/redis.conf:ro
@@ -342,11 +375,16 @@ services:
       retries: 3
       start_period: 10s
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: 1G
+          cpus: '1.0'
+          memory: 512M
         reservations:
           cpus: '0.5'
           memory: 256M
@@ -356,22 +394,25 @@ services:
       - "environment=production"
 
   # =============================================================================
-  # MinIO - S3-Compatible Object Storage
+  # MinIO - S3-Compatible Object Storage (Task 3.6)
   # =============================================================================
   # Stores file attachments with encryption at rest
-  # ISOLATED in database network - NOT exposed to host
+  # ISOLATED in backend network - NOT exposed to host
   minio:
     image: minio/minio:latest
     container_name: pazpaz-minio
     networks:
-      - database  # Internal database network only
+      - backend  # Internal backend network (accessible by API)
     # NO ports exposed to host - access only through API
     command: server /data --console-address ":9001"
     environment:
       - MINIO_ROOT_USER=${S3_ACCESS_KEY}
       - MINIO_ROOT_PASSWORD=${S3_SECRET_KEY}
-      # Server-side encryption with KMS
+      # Server-side encryption with KMS (HIPAA requirement)
       - MINIO_KMS_SECRET_KEY=pazpaz-minio-key:${MINIO_ENCRYPTION_KEY}
+      # Enable HTTPS for production (HIPAA requirement)
+      - MINIO_SERVER_URL=https://minio.pazpaz.local:9000
+      - MINIO_BROWSER_REDIRECT_URL=https://minio.pazpaz.local:9001
       # Performance tuning
       - MINIO_CACHE_DRIVES=/cache
       - MINIO_CACHE_EXCLUDE="*.pdf"
@@ -386,6 +427,8 @@ services:
       - minio_data:/data
       # Cache directory
       - minio_cache:/cache
+      # SSL certificates for HTTPS
+      - ./backend/certs/minio:/root/.minio/certs:ro
       # Configuration
       - ./backend/config/minio:/root/.minio:ro
     healthcheck:
@@ -395,11 +438,16 @@ services:
       retries: 3
       start_period: 30s
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: 2G
+          cpus: '1.0'
+          memory: 1G
         reservations:
           cpus: '0.5'
           memory: 512M
@@ -410,21 +458,68 @@ services:
       - "encryption=at-rest"
 
   # =============================================================================
+  # ClamAV - Antivirus Scanner (Task 3.7)
+  # =============================================================================
+  # Scans uploaded files for viruses and malware
+  # ISOLATED in backend network - only accessible by API
+  clamav:
+    image: clamav/clamav:latest
+    container_name: pazpaz-clamav
+    networks:
+      - backend  # Internal backend network only
+    # NO ports exposed to host - internal access only
+    volumes:
+      # Virus definitions database
+      - clamav_data:/var/lib/clamav
+      # Configuration
+      - ./backend/config/clamav/clamd.conf:/etc/clamav/clamd.conf:ro
+      - ./backend/config/clamav/freshclam.conf:/etc/clamav/freshclam.conf:ro
+    environment:
+      # Automatic virus definition updates
+      - CLAMAV_NO_FRESHCLAMD=false
+      - FRESHCLAM_DELAY=3600  # Update every hour
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "3"]
+      interval: 30s
+      timeout: 60s  # ClamAV can be slow
+      retries: 3
+      start_period: 60s  # ClamAV needs time to download virus definitions
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 3G  # ClamAV needs significant memory for virus definitions
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    labels:
+      - "app=pazpaz"
+      - "component=antivirus"
+      - "environment=production"
+      - "auto-update=enabled"
+
+  # =============================================================================
   # Frontend Builder (Optional - for deployment convenience)
   # =============================================================================
   # Builds frontend and copies dist to shared volume
   # Runs once during deployment then exits
   frontend-builder:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: builder
-      args:
-        - VERSION=${VERSION:-latest}
+    image: ghcr.io/${GITHUB_REPOSITORY:-yourusername/pazpaz}/frontend:${IMAGE_TAG:-latest}
     container_name: pazpaz-frontend-builder
     volumes:
       - frontend_dist:/app/dist
     command: ["sh", "-c", "cp -r /app/dist/* /app/dist/"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     labels:
       - "app=pazpaz"
       - "component=frontend-builder"
@@ -432,7 +527,7 @@ services:
       - "version=${VERSION:-latest}"
 
 # =============================================================================
-# VOLUMES
+# VOLUMES (Task 3.9)
 # =============================================================================
 # Named volumes for data persistence and sharing
 volumes:
@@ -445,7 +540,7 @@ volumes:
       - "backup=required"
 
   # Database backups
-  postgres_backups:
+  postgres_backup:
     driver: local
     labels:
       - "app=pazpaz"
@@ -473,6 +568,14 @@ volumes:
       - "app=pazpaz"
       - "type=cache"
 
+  # ClamAV virus definitions
+  clamav_data:
+    driver: local
+    labels:
+      - "app=pazpaz"
+      - "type=antivirus"
+      - "auto-update=true"
+
   # Frontend distribution files
   frontend_dist:
     driver: local
@@ -491,8 +594,16 @@ volumes:
       - "app=pazpaz"
       - "type=temp"
 
+  # Application logs (Task 3.8)
+  app_logs:
+    driver: local
+    labels:
+      - "app=pazpaz"
+      - "type=logs"
+      - "rotation=enabled"
+
 # =============================================================================
-# NETWORKS
+# NETWORKS (Task 3.1)
 # =============================================================================
 # Three-tier network architecture for security isolation
 networks:
@@ -507,10 +618,10 @@ networks:
       - "zone=public"
       - "description=Public-facing network for nginx only"
 
-  # Internal API network (nginx, api, workers)
+  # Internal API network (nginx, api, workers, minio, clamav)
   backend:
     driver: bridge
-    internal: true  # NOT accessible from host
+    internal: true  # NOT accessible from host - CRITICAL SECURITY FEATURE
     ipam:
       config:
         - subnet: 172.21.0.0/24
@@ -522,7 +633,7 @@ networks:
   # Internal database network (api, workers, databases)
   database:
     driver: bridge
-    internal: true  # NOT accessible from host
+    internal: true  # NOT accessible from host - CRITICAL SECURITY FEATURE
     ipam:
       config:
         - subnet: 172.22.0.0/24
