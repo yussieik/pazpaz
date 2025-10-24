@@ -14,11 +14,13 @@ Infrastructure, deployment, and production operations documentation.
 - **[Production Deployment Checklist](PRODUCTION_DEPLOYMENT_CHECKLIST.md)** - Complete pre-deployment verification checklist
 - **[Infrastructure Security Checklist](INFRASTRUCTURE_SECURITY_CHECKLIST.md)** - Security baseline requirements for HIPAA compliance
 
-### CI/CD Pipeline (Phase 2 Complete)
+### CI/CD Pipeline (Phase 3 Complete)
 
 - **[CI/CD Implementation Plan](CI_CD_IMPLEMENTATION_PLAN.md)** - Complete 5-phase deployment plan
 - **[Docker CI Builds](DOCKER_CI_BUILDS.md)** - Automated Docker image builds with security scanning
+- **[Infrastructure CI](infrastructure-ci.md)** - Infrastructure validation workflow for Docker, Nginx, and scripts
 - **Backend CI Workflow** - `.github/workflows/backend-ci.yml` - Automated testing, linting, security scanning, and Docker builds
+- **Infrastructure CI Workflow** - `.github/workflows/infrastructure-ci.yml` - Docker Compose, Nginx, and script validation
 
 ### Coming Soon
 
