@@ -8,14 +8,20 @@ Infrastructure, deployment, and production operations documentation.
 
 - **[GitHub Secrets Configuration](GITHUB_SECRETS.md)** - Complete GitHub Secrets setup guide for CI/CD and production deployment
 - **[Docker Security](DOCKER_SECURITY.md)** - Hardened container configuration for HIPAA compliance
+- **[Docker CI Builds](DOCKER_CI_BUILDS.md)** - Automated Docker image building in GitHub Actions with GHCR
 - **[AWS IAM Roles](AWS_IAM_ROLES.md)** - IAM role configuration for ECS tasks (task execution role, application role)
 - **[AWS Secrets Manager](AWS_SECRETS_MANAGER.md)** - Centralized secret management (encryption keys, database credentials, JWT secrets)
 - **[Production Deployment Checklist](PRODUCTION_DEPLOYMENT_CHECKLIST.md)** - Complete pre-deployment verification checklist
 - **[Infrastructure Security Checklist](INFRASTRUCTURE_SECURITY_CHECKLIST.md)** - Security baseline requirements for HIPAA compliance
 
-### Coming in Week 5
+### CI/CD Pipeline (Phase 2 Complete)
 
-- **CI/CD Pipeline** - GitHub Actions, deployment automation
+- **[CI/CD Implementation Plan](CI_CD_IMPLEMENTATION_PLAN.md)** - Complete 5-phase deployment plan
+- **[Docker CI Builds](DOCKER_CI_BUILDS.md)** - Automated Docker image builds with security scanning
+- **Backend CI Workflow** - `.github/workflows/backend-ci.yml` - Automated testing, linting, security scanning, and Docker builds
+
+### Coming Soon
+
 - **Environment Configuration** - Production, staging, development setup
 - **Database Migrations** - Alembic migration deployment procedures
 - **Monitoring & Alerting** - Logging, metrics, alerts configuration (CloudWatch/Datadog)
