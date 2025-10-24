@@ -485,7 +485,8 @@
 
 **Objective:** Automate safe, zero-downtime deployments with rollback capability.
 **Duration:** 3-4 hours (enhanced with blue-green deployment and safety checks)
-**Status:** ⏳ Not Started
+**Status:** ✅ COMPLETED (2025-10-24)
+**Responsible Agent:** devops-infrastructure-specialist
 
 ### Server Setup (One-Time)
 
@@ -757,38 +758,59 @@
 
 ### Backup & Disaster Recovery
 
-- [ ] **4.30** Set up automated database backups **[devops-infrastructure-specialist]**
-  ```bash
-  # scripts/backup-db.sh
-  #!/bin/bash
-  pg_dump -Fc pazpaz > /backups/pazpaz-$(date +%Y%m%d-%H%M%S).dump
-  # Upload to off-site storage (S3/Spaces)
-  # Clean up old backups
-  ```
+- [x] **4.30** Set up automated database backups **[devops-infrastructure-specialist]**
+  - ✅ scripts/backup-db.sh (14KB): Comprehensive backup automation
+  - ✅ Compressed PostgreSQL backups (pg_dump -Fc format)
+  - ✅ GPG encryption for HIPAA compliance
+  - ✅ Automatic upload to S3/DigitalOcean Spaces
+  - ✅ Backup integrity verification before upload
+  - ✅ Local cleanup of old backups
+  - ✅ Slack/Email notifications on failure
+  - ✅ Performance metrics and logging
+  - ✅ Support for daily/weekly/monthly backup types
+  - ✅ **Commit:** feat(deployment): add comprehensive backup and disaster recovery system
 
-- [ ] **4.31** Configure backup cron job **[devops-infrastructure-specialist]**
-  ```bash
-  # Daily at 2 AM
-  0 2 * * * /opt/pazpaz/scripts/backup-db.sh
-  ```
+- [x] **4.31** Configure backup cron job **[devops-infrastructure-specialist]**
+  - ✅ scripts/install-backup-cron.sh (15KB): Automated cron setup
+  - ✅ Daily backups at 2 AM UTC
+  - ✅ Weekly full backups on Sundays at 3 AM
+  - ✅ Monthly archives on 1st at 4 AM
+  - ✅ Automated backup testing (first Sunday of month)
+  - ✅ Log rotation configuration
+  - ✅ Dry-run mode for safety
 
-- [ ] **4.32** Set up automated backup testing **[devops-infrastructure-specialist]**
-  - Monthly restore test (first Sunday)
-  - Verify backup integrity
-  - Document restore procedure
-  - Test restore time
+- [x] **4.32** Set up automated backup testing **[devops-infrastructure-specialist]**
+  - ✅ scripts/test-backup-restore.sh (17KB): Restore verification
+  - ✅ Monthly automated restore tests
+  - ✅ Backup integrity verification
+  - ✅ Restore time measurement
+  - ✅ Data validation (table counts, referential integrity)
+  - ✅ Critical table existence checks
+  - ✅ JSON report generation
+  - ✅ Full validation mode for comprehensive testing
 
-- [ ] **4.33** Configure backup retention **[devops-infrastructure-specialist]**
-  - Keep daily backups for 7 days
-  - Keep weekly backups for 4 weeks
-  - Keep monthly backups for 12 months
-  - Automate cleanup
+- [x] **4.33** Configure backup retention **[devops-infrastructure-specialist]**
+  - ✅ scripts/backup-cleanup.sh (17KB): GFS rotation
+  - ✅ Grandfather-Father-Son retention scheme
+  - ✅ Keep daily backups for 7 days (local + S3)
+  - ✅ Keep weekly backups for 28 days (local + S3)
+  - ✅ Keep monthly backups for 365 days (local + S3)
+  - ✅ S3 lifecycle policy configuration
+  - ✅ Disk space monitoring and alerts
+  - ✅ Automate cleanup with dry-run mode
 
-- [ ] **4.34** Document disaster recovery procedures **[devops-infrastructure-specialist]**
-  - Server failure recovery
-  - Database corruption recovery
-  - Security breach response
-  - Data loss scenarios
+- [x] **4.34** Document disaster recovery procedures **[devops-infrastructure-specialist]**
+  - ✅ docs/deployment/disaster-recovery.md (15KB)
+  - ✅ Recovery objectives: RTO 2 hours, RPO 24 hours
+  - ✅ Five disaster scenarios with procedures:
+    * Database corruption recovery
+    * Complete server failure recovery
+    * Security breach response
+    * Data corruption recovery
+    * Network failure mitigation
+  - ✅ Testing and validation procedures
+  - ✅ Emergency contact information
+  - ✅ HIPAA compliance notes
 
 ### SSL/TLS Certificate Setup
 
