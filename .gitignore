@@ -9,7 +9,6 @@ venv/
 .venv/
 ENV/
 backend/.venv/
-backend/uv.lock
 *.egg-info/
 .pytest_cache/
 .coverage
