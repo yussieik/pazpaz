@@ -273,6 +273,10 @@ When modifying Nginx:
   - **Network validation:** Fixed grep patterns to properly parse docker-compose.yml networks
   - **Enhanced cleanup:** Added `.env.test` to cleanup steps
   - **Better error handling:** Added fallback methods for all validation steps
+  - **nginx-ssl.conf certificates:** Generate self-signed certificates in CI and substitute ${DOMAIN_NAME} placeholders
+  - **Environment variable checks:** Updated to check actual variables from .env.production.example (POSTGRES_PASSWORD, REDIS_PASSWORD, etc.)
+  - **Docker COPY fix:** Created nginx/error-pages/ directory with custom error pages, removed shell syntax from COPY command
+- ✅ **All Infrastructure CI Jobs Passing** - Workflow validated and production-ready
 
 ## Future Enhancements
 

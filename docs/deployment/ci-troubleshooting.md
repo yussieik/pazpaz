@@ -286,6 +286,47 @@ fi
    - Added fallback with docker-compose config parsing
    - Added debug output for troubleshooting
 
+4. **nginx-ssl.conf certificate paths**
+   - Problem: Nginx treated `${DOMAIN_NAME}` as literal string, not variable substitution
+   - Solution: Generate self-signed certificates and use sed to substitute placeholders in CI:
+   ```bash
+   # Create certificate directories
+   sudo mkdir -p /etc/letsencrypt/live/example.com
+
+   # Generate self-signed certificates for validation
+   sudo openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
+     -keyout /etc/letsencrypt/live/example.com/privkey.pem \
+     -out /etc/letsencrypt/live/example.com/fullchain.pem \
+     -subj "/CN=example.com"
+
+   # Substitute ${DOMAIN_NAME} placeholder
+   sed 's/\${DOMAIN_NAME}/example.com/g' nginx/nginx-ssl.conf > /tmp/nginx-ssl-test.conf
+   sudo nginx -t -c /tmp/nginx-ssl-test.conf
+   ```
+
+5. **Environment variable names mismatch**
+   - Problem: Workflow checked for `DATABASE_URL`, `REDIS_URL`, `ENVIRONMENT`, `DEBUG` which don't exist in `.env.production.example`
+   - Solution: Updated to check actual variable names:
+   ```bash
+   # Wrong variables (don't exist in template)
+   DATABASE_URL, REDIS_URL, ENVIRONMENT, DEBUG
+
+   # Correct variables (exist in template)
+   POSTGRES_PASSWORD, REDIS_PASSWORD, FRONTEND_URL, LOG_LEVEL
+   ```
+
+6. **Docker COPY command syntax error**
+   - Problem: `COPY error-pages/* /usr/share/nginx/html/errors/ 2>/dev/null || :` failed - Docker doesn't support shell syntax in COPY
+   - Solution: Created `nginx/error-pages/` directory with `.gitkeep` and custom error pages (404.html, 50x.html, 429.html):
+   ```dockerfile
+   # Before (broken - shell syntax not supported)
+   COPY error-pages/* /usr/share/nginx/html/errors/ 2>/dev/null || :
+
+   # After (working - simple directory copy)
+   COPY error-pages /usr/share/nginx/html/errors/
+   ```
+   - Affected: nginx/Dockerfile and Docker Build Test job
+
 ## Getting Help
 
 If you encounter issues not covered here:
