@@ -642,7 +642,7 @@ async def accept_invitation(
         raise HTTPException(
             status_code=404,
             detail="Invalid invitation token",
-        )
+        ) from None
 
     except ExpiredInvitationTokenError:
         logger.warning(
@@ -652,7 +652,7 @@ async def accept_invitation(
         raise HTTPException(
             status_code=410,
             detail="This invitation has expired",
-        )
+        ) from None
 
     except InvitationAlreadyAcceptedError:
         logger.warning(
@@ -662,7 +662,7 @@ async def accept_invitation(
         raise HTTPException(
             status_code=410,
             detail="This invitation has already been accepted",
-        )
+        ) from None
 
     except Exception as e:
         logger.error(
@@ -673,7 +673,7 @@ async def accept_invitation(
         raise HTTPException(
             status_code=500,
             detail="Failed to accept invitation",
-        )
+        ) from e
 
 
 @router.get(

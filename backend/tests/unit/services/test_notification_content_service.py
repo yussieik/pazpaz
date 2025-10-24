@@ -90,7 +90,7 @@ class TestBuildSessionNotesReminderEmail:
     ):
         """Test building email when user has draft sessions."""
         # Create 3 draft sessions
-        for i in range(3):
+        for _i in range(3):
             session = Session(
                 workspace_id=user.workspace_id,
                 client_id=client.id,

@@ -6,7 +6,7 @@ They use MailHog in the test environment for actual email delivery testing.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 

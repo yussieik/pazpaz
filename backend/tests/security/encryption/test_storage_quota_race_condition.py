@@ -455,8 +455,8 @@ class TestUploadEndpointIntegration:
         assert response.status_code == 201
 
         # Verify quota incremented exactly once
-        await db_session.refresh(test_workspace)
-        file_size = len(b"Hello World" * 100)
+        await db.refresh(test_workspace)
+        len(b"Hello World" * 100)
         assert test_workspace.storage_used_bytes > initial_usage
         # Note: File size will be different due to EXIF stripping
 
@@ -490,7 +490,7 @@ class TestUploadEndpointIntegration:
         assert response.status_code == 500
 
         # Verify quota NOT incremented (rollback successful)
-        await db_session.refresh(test_workspace)
+        await db.refresh(test_workspace)
         assert test_workspace.storage_used_bytes == initial_usage
 
     @pytest.mark.skip(
@@ -522,7 +522,7 @@ class TestUploadEndpointIntegration:
         assert "quota exceeded" in response.json()["detail"].lower()
 
         # Verify quota unchanged
-        await db_session.refresh(test_workspace)
+        await db.refresh(test_workspace)
         assert test_workspace.storage_used_bytes == 50
 
 
@@ -560,7 +560,7 @@ class TestDeleteEndpointIntegration:
         assert response.status_code == 204
 
         # Verify quota decremented
-        await db_session.refresh(test_workspace)
+        await db.refresh(test_workspace)
         assert test_workspace.storage_used_bytes == initial_usage - file_size
 
     @pytest.mark.skip(
@@ -592,7 +592,7 @@ class TestDeleteEndpointIntegration:
         assert response.status_code == 404
 
         # Verify quota unchanged
-        await db_session.refresh(test_workspace)
+        await db.refresh(test_workspace)
         assert test_workspace.storage_used_bytes == initial_usage
 
 

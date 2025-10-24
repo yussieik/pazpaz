@@ -110,7 +110,7 @@ class TestInputValidationSecurity:
 
         # Create deeply nested JSON (1000 levels)
         nested_json = {"value": "malicious"}
-        for i in range(1000):
+        for _i in range(1000):
             nested_json = {"nested": nested_json}
 
         # Add required fields for client creation

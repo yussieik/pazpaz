@@ -99,6 +99,11 @@ jobs:
         run: |
           uv run ruff check src/ tests/
 
+      - name: Run mypy type checking
+        run: |
+          uv run mypy src/pazpaz --ignore-missing-imports --no-strict-optional --no-warn-unused-ignores || true
+        continue-on-error: true
+
       - name: Run pytest with coverage
         env:
           DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/pazpaz_test
@@ -168,11 +173,6 @@ jobs:
           # If we couldn't parse results, use pytest's exit code
           echo "Could not parse test results, using pytest exit code: $PYTEST_EXIT_CODE"
           exit $PYTEST_EXIT_CODE
-
-      - name: Run mypy type checking
-        run: |
-          uv run mypy src/pazpaz --ignore-missing-imports --no-strict-optional --no-warn-unused-ignores || true
-        continue-on-error: true
 
       - name: Run safety security audit
         run: |

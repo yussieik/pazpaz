@@ -186,7 +186,7 @@ async def build_daily_digest_email(
         - Times are shown in appointment's timezone (stored as UTC)
         - Subject and body adjust based on digest_type
     """
-    from datetime import datetime, time
+    from datetime import time
 
     from pazpaz.models.appointment import AppointmentStatus
 
@@ -349,7 +349,6 @@ async def build_appointment_reminder_email(
         - Links to appointment details
         - Handles missing client/service/location gracefully
     """
-    from datetime import datetime
 
     logger.debug(
         "building_appointment_reminder",

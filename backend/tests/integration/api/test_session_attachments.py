@@ -329,7 +329,7 @@ class TestUploadAttachment:
         )
 
         assert response.status_code == status.HTTP_201_CREATED
-        attachment_id = uuid.UUID(response.json()["id"])
+        uuid.UUID(response.json()["id"])
 
         # Verify audit event created
         result = await db_session.execute(
@@ -1063,7 +1063,7 @@ class TestDownloadAttachment:
             .order_by(AuditEvent.created_at.desc())
             .limit(1)
         )
-        audit_event = result.scalar_one_or_none()
+        result.scalar_one_or_none()
         # Note: Audit event may be created by middleware, not endpoint
         # This test verifies audit logging happens, regardless of source
 
@@ -1260,7 +1260,7 @@ class TestDeleteAttachment:
             .order_by(AuditEvent.created_at.desc())
             .limit(1)
         )
-        audit_event = result.scalar_one_or_none()
+        result.scalar_one_or_none()
         # Note: Audit event may be created by middleware
 
     # Edge Cases
@@ -1497,7 +1497,7 @@ class TestIntegrationWorkflow:
 
         # Create a file large enough to exceed 50 MB when added to existing files
         # If we have ~8 MB so far, create a 43 MB file to exceed 50 MB limit
-        remaining = 50 * 1024 * 1024 - total_size + (1 * 1024 * 1024)  # 1 MB over limit
+        50 * 1024 * 1024 - total_size + (1 * 1024 * 1024)  # 1 MB over limit
 
         # Create mock DB records with large file sizes instead of uploading massive real files
         # This is more practical than uploading 43 MB of actual image data

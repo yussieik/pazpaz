@@ -443,7 +443,7 @@ async def create_sentinel_workspace(test_db_engine):
     """
     from pazpaz.services.audit_service import UNAUTHENTICATED_WORKSPACE_ID
 
-    async_session_maker = async_sessionmaker(
+    async_sessionmaker(
         test_db_engine,
         class_=AsyncSession,
         expire_on_commit=False,

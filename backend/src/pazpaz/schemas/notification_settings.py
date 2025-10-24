@@ -303,4 +303,4 @@ class NotificationSettingsUpdate(BaseModel):
             )
 
         # Remove duplicates and sort
-        return sorted(list(set(v)))
+        return sorted(set(v))

@@ -212,7 +212,7 @@ class TestPerformanceImpact:
         times = []
         for _ in range(50):
             start = time.time()
-            response = await client_with_csrf.post(
+            await client_with_csrf.post(
                 "/api/v1/health",
                 json={"test": "data"},
             )

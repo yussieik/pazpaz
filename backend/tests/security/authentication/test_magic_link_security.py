@@ -387,7 +387,7 @@ class TestVerifyEndpointRateLimiting:
         successful_requests = 0
         rate_limited_requests = 0
 
-        for i in range(15):
+        for _i in range(15):
             token = secrets.token_urlsafe(48)
             response = await client.post(
                 "/api/v1/auth/verify",

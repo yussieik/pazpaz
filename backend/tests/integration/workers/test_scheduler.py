@@ -106,7 +106,7 @@ class TestSchedulerTasks:
 
         # Mock email sending and time
         with (
-            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.send_daily_digest"),
             patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
         ):
             mock_now = datetime(2025, 10, 22, 8, 0, 0, tzinfo=UTC)
@@ -158,7 +158,7 @@ class TestSchedulerTasks:
 
         # Mock email sending and time
         with (
-            patch("pazpaz.workers.scheduler.send_appointment_reminder") as mock_send,
+            patch("pazpaz.workers.scheduler.send_appointment_reminder"),
             patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
         ):
             mock_datetime.now.return_value = now
@@ -292,7 +292,7 @@ class TestAppointmentReminderDeduplication:
         await db_session.refresh(sample_client_ws1)
 
         with (
-            patch("pazpaz.workers.scheduler.send_appointment_reminder") as mock_send,
+            patch("pazpaz.workers.scheduler.send_appointment_reminder"),
             patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
         ):
             mock_datetime.now.return_value = now
@@ -385,7 +385,7 @@ class TestAppointmentReminderDeduplication:
         await db_session.refresh(sample_client_ws1)
 
         with (
-            patch("pazpaz.workers.scheduler.send_appointment_reminder") as mock_send,
+            patch("pazpaz.workers.scheduler.send_appointment_reminder"),
             patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
         ):
             mock_datetime.now.return_value = now

@@ -492,7 +492,7 @@ class TestPUTPATCHDELETE:
         client: AsyncClient,
     ):
         """Verify DELETE requests without body don't require Content-Type."""
-        response = await client.delete("/api/v1/sessions/test-uuid")
+        await client.delete("/api/v1/sessions/test-uuid")
 
         # Should NOT be rejected with 415 (may be 404 or other error)
         # Note: DELETE typically doesn't have a body, but some might

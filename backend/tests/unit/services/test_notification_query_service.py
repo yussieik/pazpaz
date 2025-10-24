@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime, time, timedelta
 
 import pytest
@@ -11,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from pazpaz.models.appointment import Appointment, AppointmentStatus, LocationType
 from pazpaz.models.client import Client
-from pazpaz.models.session import Session
 from pazpaz.models.user import User, UserRole
 from pazpaz.models.user_notification_settings import UserNotificationSettings
 from pazpaz.models.workspace import Workspace

@@ -33,7 +33,8 @@ Usage:
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+import contextlib
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
@@ -73,6 +74,7 @@ from pazpaz.workers.settings import (
 
 if TYPE_CHECKING:
     from arq.cron import CronJob
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = get_logger(__name__)
 
@@ -170,10 +172,10 @@ async def send_session_notes_reminders(ctx: dict) -> dict:
                                 parts = email_data["subject"].split()
                                 for i, part in enumerate(parts):
                                     if part == "have" and i + 1 < len(parts):
-                                        try:
+                                        with contextlib.suppress(
+                                            ValueError, IndexError
+                                        ):
                                             draft_count = int(parts[i + 1])
-                                        except (ValueError, IndexError):
-                                            pass
 
                             # Send email via email service
                             from pazpaz.core.config import settings
@@ -296,14 +298,15 @@ async def _send_digest_for_date(
             )
 
             # Parse appointments from email body to get count
-            appointment_count = email_data["body"].count("  •")
+            email_data["body"].count("  •")
 
             # Format date string for email service
             date_str = digest_date.strftime("%A, %B %d, %Y")
 
             # Query appointments for the email service
-            from pazpaz.models.appointment import Appointment, AppointmentStatus
             from sqlalchemy import and_, select
+
+            from pazpaz.models.appointment import Appointment, AppointmentStatus
 
             start_of_day = datetime.combine(digest_date, datetime.min.time())
             end_of_day = datetime.combine(digest_date, datetime.max.time())
@@ -560,9 +563,7 @@ async def send_appointment_reminders(ctx: dict) -> dict:
                         continue
 
                     # Build email content
-                    email_data = await build_appointment_reminder_email(
-                        db, appointment, user
-                    )
+                    await build_appointment_reminder_email(db, appointment, user)
 
                     # Format appointment data for email service
                     appointment_data = {

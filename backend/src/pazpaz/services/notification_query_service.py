@@ -191,8 +191,6 @@ async def get_users_needing_daily_digest(
 
     # Build query filtering by digest_days array
     # Use PostgreSQL's @> operator to check if array contains the current day
-    from sqlalchemy import cast, type_coerce
-    from sqlalchemy.dialects.postgresql import ARRAY
 
     conditions = [
         UserNotificationSettings.email_enabled == True,  # noqa: E712

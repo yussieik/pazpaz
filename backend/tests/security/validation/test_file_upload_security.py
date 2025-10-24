@@ -388,7 +388,6 @@ class TestDecompressionBombs:
         """
         # Create image with huge claimed dimensions
         # (PIL will reject this during creation, so we test validation limit)
-        max_pixels = 50_000_000
 
         # Test case: Image just under limit (should pass)
         width = 7071

@@ -151,7 +151,7 @@ class TestBulkDownload:
         """Test duplicate filenames are renamed with counter (e.g., file (2).jpg)."""
         # Create 3 attachments with the same filename
         attachments = []
-        for i in range(3):
+        for _i in range(3):
             attachment = SessionAttachment(
                 session_id=None,
                 client_id=sample_client_ws1.id,

@@ -579,7 +579,7 @@ def test_decrypt_corrupted_versioned_data():
     )
 
     plaintext = "test data"
-    encrypted_data = encrypt_field_versioned(plaintext, key_version="v1")
+    encrypt_field_versioned(plaintext, key_version="v1")
 
     # Corrupt the ciphertext (tamper with string format)
     # Original format: "v1:base64_ciphertext"

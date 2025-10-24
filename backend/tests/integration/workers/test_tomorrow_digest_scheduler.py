@@ -9,7 +9,6 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 
 from pazpaz.models.appointment import Appointment, AppointmentStatus, LocationType
 from pazpaz.models.user_notification_settings import UserNotificationSettings
@@ -242,7 +241,7 @@ class TestTomorrowDigestScheduler:
             mock_datetime.max = datetime.max
 
             # Run task
-            result = await send_daily_digests({})
+            await send_daily_digests({})
 
             # Should not send on Saturday
             if mock_send.called:
@@ -391,7 +390,7 @@ class TestTomorrowDigestScheduler:
             mock_datetime.min = datetime.min
             mock_datetime.max = datetime.max
 
-            result = await send_daily_digests({})
+            await send_daily_digests({})
 
             # Should not send at 20:00 (tomorrow's time)
             # Check if any call was for tomorrow's date
@@ -512,7 +511,7 @@ class TestTomorrowDigestScheduler:
 
         # Test at both 08:00 and 20:00 - neither should send
         with (
-            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.send_daily_digest"),
             patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
         ):
             # Test at 08:00
@@ -527,7 +526,7 @@ class TestTomorrowDigestScheduler:
             assert result["sent"] == 0
 
         with (
-            patch("pazpaz.workers.scheduler.send_daily_digest") as mock_send,
+            patch("pazpaz.workers.scheduler.send_daily_digest"),
             patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
         ):
             # Test at 20:00

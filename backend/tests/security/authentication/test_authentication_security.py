@@ -334,7 +334,7 @@ class TestAuthenticationSecurity:
         # Test Case 2: Try sequential guessing (should be rate-limited)
         # Make 20 rapid verification attempts
         responses = []
-        for i in range(20):
+        for _i in range(20):
             response = await client.post(
                 "/api/v1/auth/verify",
                 json={"token": str(uuid.uuid4())},
