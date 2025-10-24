@@ -610,29 +610,49 @@
 
 ### Secrets Management
 
-- [ ] **4.15** Create `scripts/generate-secrets.sh` **[devops-infrastructure-specialist]**
-  - Generate all required secrets
-  - Validate secret strength
-  - Output to `.env.production`
-  - Set proper permissions (600)
+- [x] **4.15** Create `scripts/generate-secrets.sh` **[devops-infrastructure-specialist]**
+  - ✅ **Completed in Phase 0** (October 23)
+  - Scripts: generate-secrets.sh (9KB), validate-secrets.sh (11KB)
+  - Generates all required secrets with proper strength
+  - Outputs to .env.production with 600 permissions
+  - Validates secret format and strength
 
-- [ ] **4.16** Create `scripts/rotate-secrets.sh` **[devops-infrastructure-specialist]**
-  ```bash
-  #!/bin/bash
-  # Rotate database password
-  NEW_PASS=$(openssl rand -base64 32)
-  psql -c "ALTER USER pazpaz PASSWORD '$NEW_PASS'"
-  sed -i "s/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$NEW_PASS/" .env.production
-  docker-compose restart api arq-worker
-  ```
+- [x] **4.16** Create `scripts/rotate-secrets.sh` **[devops-infrastructure-specialist]**
+  - ✅ **Completed:** 29KB zero-downtime rotation script
+  - Supports individual or batch rotation (--all, --postgres, --redis, --s3, --jwt)
+  - Blue-green deployment for service restarts
+  - Automatic .env.production backup before rotation
+  - Health check validation after rotation
+  - Automatic rollback on failure
+  - Rotates: PostgreSQL, Redis, MinIO/S3, JWT, SECRET_KEY, SMTP
+  - NEVER rotates: ENCRYPTION_MASTER_KEY, MINIO_ENCRYPTION_KEY
+  - Dry-run mode for testing
+  - ✅ **Commit:** feat(deployment): add comprehensive secrets rotation system
 
-- [ ] **4.17** Document secret rotation schedule **[devops-infrastructure-specialist]**
+- [x] **4.17** Document secret rotation schedule **[devops-infrastructure-specialist]**
+  - ✅ docs/deployment/secrets-rotation-schedule.md (11KB)
   - Database credentials: 90 days
-  - S3 credentials: 180 days
-  - Encryption keys: Never (require migration)
+  - Redis password: 90 days
+  - S3/MinIO credentials: 180 days
   - JWT secret: 90 days
+  - SECRET_KEY: 90 days
+  - SMTP password: 180 days
+  - Encryption keys: Never rotate (requires data migration)
+  - Includes HIPAA compliance notes (NIST 800-66, PCI-DSS)
+  - Emergency rotation procedures
+  - Rollback procedures
 
-- [ ] **4.18** Set up automated secret rotation reminders **[devops-infrastructure-specialist]**
+- [x] **4.18** Set up automated secret rotation reminders **[devops-infrastructure-specialist]**
+  - ✅ scripts/check-secret-age.sh (19KB) monitoring script
+  - Checks age against rotation schedule
+  - 30-day warning before rotation due (configurable)
+  - JSON output for monitoring integration
+  - Compliance report generation
+  - Exit codes: 0=OK, 1=Warning, 2=Overdue
+  - Slack webhook integration
+  - ✅ .github/workflows/secret-rotation-reminder.yml
+  - Monthly automated checks (1st at 9 AM UTC)
+  - Creates GitHub issues when rotation needed
 
 ### GitHub Actions CD Workflow
 
