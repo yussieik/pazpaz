@@ -34,11 +34,17 @@ This directory contains the production-ready Nginx configuration for PazPaz, ser
 
 ```
 nginx/
-├── nginx.conf          # Main Nginx configuration
+├── nginx.conf          # Main Nginx configuration (HTTP)
+├── nginx-ssl.conf      # SSL-enabled configuration template
+├── enable-ssl.sh       # Script to activate SSL configuration
 ├── Dockerfile          # Docker image for Nginx
-├── error-pages/        # Custom error pages
+├── errors/             # Custom error pages
+│   ├── 400.html       # Bad Request
+│   ├── 401.html       # Unauthorized
+│   ├── 403.html       # Forbidden
+│   ├── 404.html       # Not Found
 │   ├── 429.html       # Rate limit exceeded
-│   └── 50x.html       # Server errors
+│   └── 50x.html       # Server errors (500, 502, 503, 504)
 └── README.md          # This file
 ```
 
@@ -52,12 +58,37 @@ It is the ONLY service with exposed ports (80, 443) to the host system.
 
 ## SSL/TLS Configuration
 
-The configuration is prepared for SSL certificates but currently runs on HTTP. To enable HTTPS:
+### Files
+- **nginx.conf** - Default HTTP configuration
+- **nginx-ssl.conf** - SSL-enabled configuration template
+- **enable-ssl.sh** - Script to activate SSL after certificates are obtained
 
-1. Obtain SSL certificates (Let's Encrypt recommended)
-2. Mount certificates to `/etc/letsencrypt/`
-3. Uncomment the HTTPS server block in `nginx.conf`
-4. Update the HTTP server to redirect to HTTPS
+### Setup Process
+
+1. **Obtain SSL certificates**:
+   ```bash
+   sudo ./scripts/setup-ssl.sh
+   ```
+
+2. **Enable SSL configuration**:
+   ```bash
+   ./nginx/enable-ssl.sh
+   ```
+
+3. **Reload Nginx**:
+   ```bash
+   docker-compose -f docker-compose.prod.yml exec nginx nginx -s reload
+   ```
+
+### SSL Features
+- TLS 1.2+ only (HIPAA compliant)
+- Strong cipher suites with Perfect Forward Secrecy
+- OCSP stapling for certificate validation
+- HSTS with preload support
+- Automatic renewal via Let's Encrypt
+- DH parameters for enhanced security
+
+For detailed SSL management, see [SSL Certificate Management Guide](../docs/deployment/SSL_CERTIFICATE_MANAGEMENT.md)
 
 ## Health Check
 
@@ -117,6 +148,11 @@ Monitor the following metrics:
 3. **Connection refused**: Network configuration issue
    - Verify nginx is on both frontend and backend networks
    - Check service dependencies are healthy
+
+4. **Platform-specific warnings** (development only):
+   - **macOS**: `use epoll` directive will fail - it's Linux-specific and commented out
+   - **User directive warning**: Safe to ignore on non-root development systems
+   - These warnings don't occur in production Docker containers
 
 ### Debug Commands
 
