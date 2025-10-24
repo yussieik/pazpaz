@@ -6,6 +6,8 @@ Infrastructure, deployment, and production operations documentation.
 
 ### Production-Ready Documentation
 
+- **[GitHub Secrets Configuration](GITHUB_SECRETS.md)** - Complete GitHub Secrets setup guide for CI/CD and production deployment
+- **[Docker Security](DOCKER_SECURITY.md)** - Hardened container configuration for HIPAA compliance
 - **[AWS IAM Roles](AWS_IAM_ROLES.md)** - IAM role configuration for ECS tasks (task execution role, application role)
 - **[AWS Secrets Manager](AWS_SECRETS_MANAGER.md)** - Centralized secret management (encryption keys, database credentials, JWT secrets)
 - **[Production Deployment Checklist](PRODUCTION_DEPLOYMENT_CHECKLIST.md)** - Complete pre-deployment verification checklist
@@ -81,7 +83,22 @@ This includes:
 
 ## 🔍 Quick Reference
 
-### Secret Management
+### GitHub Secrets Validation
+```bash
+# Validate secrets configuration locally
+python3 scripts/validate-secrets.py
+
+# Validate production secrets
+export PROD_ENCRYPTION_MASTER_KEY="your-key-here"
+export PROD_SECRET_KEY="your-secret-here"
+export PROD_JWT_SECRET_KEY="your-jwt-secret-here"
+python3 scripts/validate-secrets.py --env production
+
+# Run GitHub Actions validation workflow
+gh workflow run validate-secrets.yml
+```
+
+### Secret Management (AWS)
 ```bash
 # List all PazPaz secrets
 aws secretsmanager list-secrets --filters Key=name,Values=pazpaz/ --region us-east-1
