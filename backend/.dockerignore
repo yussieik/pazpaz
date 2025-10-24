@@ -251,6 +251,9 @@ Pipfile.lock
 # PEP 582
 __pypackages__/
 
+# UV - KEEP uv.lock for reproducible builds
+!uv.lock
+
 # ===========================================
 # Miscellaneous
 # ===========================================
