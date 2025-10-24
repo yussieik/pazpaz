@@ -134,9 +134,11 @@ jobs:
             SUMMARY=$(grep "= .* passed" pytest_output.txt | tail -1)
             echo "Test Summary: $SUMMARY"
 
-            # Extract passed and failed counts
-            PASSED=$(echo "$SUMMARY" | grep -oP '\d+(?= passed)' || echo "0")
-            FAILED=$(echo "$SUMMARY" | grep -oP '\d+(?= failed)' || echo "0")
+            # Extract passed and failed counts (using sed instead of grep -oP for compatibility)
+            PASSED=$(echo "$SUMMARY" | sed -n 's/.* \([0-9]\+\) passed.*/\1/p')
+            FAILED=$(echo "$SUMMARY" | sed -n 's/.* \([0-9]\+\) failed.*/\1/p')
+            [ -z "$PASSED" ] && PASSED=0
+            [ -z "$FAILED" ] && FAILED=0
             TOTAL=$((PASSED + FAILED))
 
             if [ "$TOTAL" -gt 0 ]; then
