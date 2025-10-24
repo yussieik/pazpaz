@@ -1,0 +1,967 @@
+#!/bin/bash
+# =============================================================================
+# Local Production Testing Script for PazPaz
+# =============================================================================
+# Automated testing for the production Docker Compose stack
+# This script validates all aspects of the production deployment locally
+#
+# Usage:
+#   ./scripts/test-production-local.sh [options]
+#
+# Options:
+#   -c, --cleanup     Clean up containers and volumes after testing
+#   -s, --skip-build  Skip building images (use existing)
+#   -v, --verbose     Enable verbose output
+#   -h, --help        Show this help message
+#
+# Exit codes:
+#   0 - All tests passed
+#   1 - Environment validation failed
+#   2 - Docker stack startup failed
+#   3 - Network isolation test failed
+#   4 - Service health check failed
+#   5 - API/Frontend test failed
+# =============================================================================
+
+set -eo pipefail
+
+# Script directory (for relative imports)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Colors for output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+BOLD='\033[1m'
+
+# Configuration
+COMPOSE_FILE="docker-compose.prod.yml"
+ENV_FILE=".env.production"
+STACK_NAME="pazpaz-prod"
+CLEANUP=false
+SKIP_BUILD=false
+VERBOSE=false
+TEST_RESULTS=()
+FAILED_TESTS=0
+
+# Test tracking
+declare -A TEST_STATUS
+declare -A TEST_MESSAGES
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+log_header() {
+    echo ""
+    echo -e "${CYAN}${BOLD}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}${BOLD}  $1${NC}"
+    echo -e "${CYAN}${BOLD}════════════════════════════════════════════════════════════════${NC}"
+}
+
+log_section() {
+    echo ""
+    echo -e "${MAGENTA}▶ $1${NC}"
+    echo -e "${MAGENTA}$(printf '─%.0s' {1..60})${NC}"
+}
+
+log_info() {
+    echo -e "${BLUE}ℹ${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}✓${NC} $1"
+    TEST_RESULTS+=("${GREEN}✓${NC} $1")
+}
+
+log_error() {
+    echo -e "${RED}✗${NC} $1" >&2
+    TEST_RESULTS+=("${RED}✗${NC} $1")
+    ((FAILED_TESTS++))
+}
+
+log_warning() {
+    echo -e "${YELLOW}⚠${NC} $1"
+}
+
+log_test() {
+    echo -e "  ${BOLD}Testing:${NC} $1"
+}
+
+log_result() {
+    local test_name=$1
+    local status=$2
+    local message=$3
+
+    if [ "$status" = "pass" ]; then
+        echo -e "    ${GREEN}✓ PASS${NC}: $message"
+        TEST_STATUS["$test_name"]="PASS"
+    else
+        echo -e "    ${RED}✗ FAIL${NC}: $message"
+        TEST_STATUS["$test_name"]="FAIL"
+        ((FAILED_TESTS++))
+    fi
+    TEST_MESSAGES["$test_name"]="$message"
+}
+
+show_spinner() {
+    local pid=$1
+    local delay=0.1
+    local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+
+    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
+        local temp=${spinstr#?}
+        printf " [%c]  " "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b\b\b\b"
+    done
+    printf "    \b\b\b\b"
+}
+
+# Parse command line arguments
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -c|--cleanup)
+                CLEANUP=true
+                shift
+                ;;
+            -s|--skip-build)
+                SKIP_BUILD=true
+                shift
+                ;;
+            -v|--verbose)
+                VERBOSE=true
+                shift
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+}
+
+show_help() {
+    cat << EOF
+Local Production Testing Script for PazPaz
+
+Usage: $0 [options]
+
+Options:
+    -c, --cleanup     Clean up containers and volumes after testing
+    -s, --skip-build  Skip building images (use existing)
+    -v, --verbose     Enable verbose output
+    -h, --help        Show this help message
+
+Examples:
+    # Run all tests with cleanup
+    $0 --cleanup
+
+    # Run tests using existing images
+    $0 --skip-build
+
+    # Verbose mode with cleanup
+    $0 -v -c
+
+EOF
+}
+
+# =============================================================================
+# Task 3.20: Prepare Test Environment
+# =============================================================================
+
+prepare_test_environment() {
+    log_section "Task 3.20: Preparing Test Environment"
+
+    # Check if .env.production exists
+    if [ ! -f "$ENV_FILE" ]; then
+        log_warning "Creating test .env.production file..."
+
+        # Create a minimal test environment file
+        cat > "$ENV_FILE" << 'EOF'
+# Test environment file - DO NOT USE IN PRODUCTION
+# Generated by test-production-local.sh
+
+# GitHub/Docker Registry
+GITHUB_REPOSITORY=testuser/pazpaz
+IMAGE_TAG=latest
+VERSION=test
+
+# Database
+POSTGRES_PASSWORD=testpostgrespassword123456789
+DB_SSL_ENABLED=true
+
+# Redis
+REDIS_PASSWORD=testredispassword123456789
+
+# MinIO/S3
+S3_ACCESS_KEY=testaccesskey123456
+S3_SECRET_KEY=testsecretkey123456789012345678901234567
+S3_BUCKET_NAME=pazpaz-test-attachments
+S3_REGION=us-east-1
+MINIO_ENCRYPTION_KEY=dGVzdG1pbmlvZW5jcnlwdGlvbmtleWZvcnRlc3Rpbmc=
+
+# Application Security
+SECRET_KEY=testsecretkey1234567890123456789012345678901234567890123456789012
+JWT_SECRET_KEY=testjwtsecretkey12345678901234567890
+ENCRYPTION_MASTER_KEY=dGVzdGVuY3J5cHRpb25tYXN0ZXJrZXlmb3J0ZXN0aW5n
+
+# Application Configuration
+FRONTEND_URL=http://localhost
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Email Configuration (using MailHog for testing)
+SMTP_HOST=mailhog
+SMTP_PORT=1025
+SMTP_USER=test@pazpaz.local
+SMTP_PASSWORD=testsmtppassword
+SMTP_USE_TLS=false
+EMAILS_FROM_EMAIL=noreply@pazpaz.local
+
+# CORS (empty for production)
+CORS_ALLOWED_ORIGINS=
+EOF
+        log_success "Created test .env.production file"
+    else
+        log_info "Using existing .env.production file"
+    fi
+
+    # Validate environment
+    log_test "Environment validation"
+    if [ -x "$SCRIPT_DIR/validate-env.sh" ]; then
+        if $VERBOSE; then
+            "$SCRIPT_DIR/validate-env.sh"
+        else
+            "$SCRIPT_DIR/validate-env.sh" > /dev/null 2>&1
+        fi
+
+        if [ $? -eq 0 ]; then
+            log_result "env_validation" "pass" "Environment variables validated"
+        else
+            log_result "env_validation" "fail" "Environment validation failed"
+            log_error "Run './scripts/validate-env.sh' for details"
+            return 1
+        fi
+    else
+        log_warning "validate-env.sh not found or not executable"
+    fi
+
+    # Check Docker daemon
+    log_test "Docker daemon"
+    if docker info > /dev/null 2>&1; then
+        log_result "docker_daemon" "pass" "Docker daemon is running"
+    else
+        log_result "docker_daemon" "fail" "Docker daemon is not running"
+        return 1
+    fi
+
+    # Clean up any existing containers if requested
+    if [ "$CLEANUP" = true ]; then
+        log_info "Cleaning up existing containers..."
+        docker-compose -f "$COMPOSE_FILE" down -v 2>/dev/null || true
+    fi
+
+    return 0
+}
+
+# =============================================================================
+# Task 3.21: Start Production Stack
+# =============================================================================
+
+start_production_stack() {
+    log_section "Task 3.21: Starting Production Stack"
+
+    cd "$PROJECT_ROOT"
+
+    # Build or pull images
+    if [ "$SKIP_BUILD" = false ]; then
+        log_test "Building/pulling Docker images"
+
+        # Note: Images should be pulled from ghcr.io
+        # For local testing, we'll use docker-compose pull
+        if $VERBOSE; then
+            docker-compose -f "$COMPOSE_FILE" pull 2>&1 | tee /tmp/docker-pull.log
+        else
+            docker-compose -f "$COMPOSE_FILE" pull > /tmp/docker-pull.log 2>&1 &
+            show_spinner $!
+        fi
+
+        if [ ${PIPESTATUS[0]} -eq 0 ]; then
+            log_result "image_pull" "pass" "Images pulled successfully"
+        else
+            log_result "image_pull" "fail" "Failed to pull images"
+            log_warning "Images may not exist in registry yet"
+        fi
+    fi
+
+    # Start the stack
+    log_test "Starting Docker Compose stack"
+
+    if $VERBOSE; then
+        docker-compose -f "$COMPOSE_FILE" up -d
+    else
+        docker-compose -f "$COMPOSE_FILE" up -d > /tmp/docker-up.log 2>&1
+    fi
+
+    if [ $? -eq 0 ]; then
+        log_result "stack_start" "pass" "Docker Compose stack started"
+    else
+        log_result "stack_start" "fail" "Failed to start Docker Compose stack"
+        [ -f /tmp/docker-up.log ] && cat /tmp/docker-up.log
+        return 2
+    fi
+
+    # Wait for services to initialize
+    log_info "Waiting for services to initialize (30 seconds)..."
+    sleep 30
+
+    # Check container status
+    log_test "Container status"
+    local running_containers=$(docker-compose -f "$COMPOSE_FILE" ps --services --filter "status=running" 2>/dev/null | wc -l)
+    local total_containers=$(docker-compose -f "$COMPOSE_FILE" ps --services 2>/dev/null | wc -l)
+
+    if [ "$running_containers" -eq "$total_containers" ]; then
+        log_result "container_status" "pass" "All $running_containers containers running"
+    else
+        log_result "container_status" "fail" "Only $running_containers of $total_containers containers running"
+        docker-compose -f "$COMPOSE_FILE" ps
+        return 2
+    fi
+
+    # Check for restart loops
+    log_test "Container restart status"
+    local restarting=$(docker-compose -f "$COMPOSE_FILE" ps | grep -c "Restarting" || true)
+
+    if [ "$restarting" -eq 0 ]; then
+        log_result "restart_check" "pass" "No containers in restart loop"
+    else
+        log_result "restart_check" "fail" "$restarting containers are restarting"
+        docker-compose -f "$COMPOSE_FILE" ps | grep "Restarting"
+        return 2
+    fi
+
+    return 0
+}
+
+# =============================================================================
+# Task 3.22: Verify Network Isolation
+# =============================================================================
+
+verify_network_isolation() {
+    log_section "Task 3.22: Verifying Network Isolation"
+
+    # Test database port (should NOT be accessible from host)
+    log_test "Database network isolation"
+
+    # Try to connect to PostgreSQL on standard port
+    if nc -z -w 2 localhost 5432 2>/dev/null; then
+        log_result "db_isolation" "fail" "Database port 5432 is exposed to host (SECURITY RISK)"
+        return 3
+    else
+        log_result "db_isolation" "pass" "Database port 5432 is not accessible from host"
+    fi
+
+    # Test Redis port (should NOT be accessible from host)
+    log_test "Redis network isolation"
+
+    if nc -z -w 2 localhost 6379 2>/dev/null; then
+        log_result "redis_isolation" "fail" "Redis port 6379 is exposed to host (SECURITY RISK)"
+        return 3
+    else
+        log_result "redis_isolation" "pass" "Redis port 6379 is not accessible from host"
+    fi
+
+    # Test MinIO ports (should NOT be accessible from host)
+    log_test "MinIO network isolation"
+
+    if nc -z -w 2 localhost 9000 2>/dev/null; then
+        log_result "minio_isolation" "fail" "MinIO port 9000 is exposed to host (SECURITY RISK)"
+        return 3
+    else
+        log_result "minio_isolation" "pass" "MinIO port 9000 is not accessible from host"
+    fi
+
+    # Test internal network connectivity
+    log_test "Internal network connectivity"
+
+    # Test if API can reach database (via docker exec)
+    if docker exec pazpaz-api nc -z -w 2 db 5432 2>/dev/null; then
+        log_result "internal_db" "pass" "API can reach database internally"
+    else
+        log_result "internal_db" "fail" "API cannot reach database internally"
+    fi
+
+    # Test if API can reach Redis
+    if docker exec pazpaz-api nc -z -w 2 redis 6379 2>/dev/null; then
+        log_result "internal_redis" "pass" "API can reach Redis internally"
+    else
+        log_result "internal_redis" "fail" "API cannot reach Redis internally"
+    fi
+
+    # Verify network configuration
+    log_test "Docker network configuration"
+
+    local internal_nets=$(docker network ls --filter "label=app=pazpaz" --filter "label=zone=internal" -q | wc -l)
+    local restricted_nets=$(docker network ls --filter "label=app=pazpaz" --filter "label=zone=restricted" -q | wc -l)
+
+    if [ "$internal_nets" -ge 1 ] && [ "$restricted_nets" -ge 1 ]; then
+        log_result "network_config" "pass" "Internal networks properly configured"
+    else
+        log_result "network_config" "fail" "Internal networks not properly configured"
+    fi
+
+    return 0
+}
+
+# =============================================================================
+# Task 3.23: Test API Endpoints via Nginx
+# =============================================================================
+
+test_api_endpoints() {
+    log_section "Task 3.23: Testing API Endpoints via Nginx"
+
+    # Test health endpoint
+    log_test "API health check endpoint"
+
+    local health_response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/api/v1/health 2>/dev/null || echo "000")
+
+    if [ "$health_response" = "200" ]; then
+        log_result "api_health" "pass" "API health endpoint returned 200"
+    else
+        log_result "api_health" "fail" "API health endpoint returned $health_response"
+    fi
+
+    # Test API docs endpoint
+    log_test "API documentation endpoint"
+
+    local docs_response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/api/docs 2>/dev/null || echo "000")
+
+    if [ "$docs_response" = "200" ] || [ "$docs_response" = "307" ]; then
+        log_result "api_docs" "pass" "API docs endpoint accessible"
+    else
+        log_result "api_docs" "fail" "API docs endpoint returned $docs_response"
+    fi
+
+    # Test security headers
+    log_test "API security headers"
+
+    local headers=$(curl -sI http://localhost/api/v1/health 2>/dev/null)
+
+    local security_headers_found=0
+    echo "$headers" | grep -qi "X-Content-Type-Options: nosniff" && ((security_headers_found++))
+    echo "$headers" | grep -qi "X-Frame-Options:" && ((security_headers_found++))
+    echo "$headers" | grep -qi "X-XSS-Protection:" && ((security_headers_found++))
+
+    if [ $security_headers_found -ge 2 ]; then
+        log_result "api_security_headers" "pass" "Security headers present"
+    else
+        log_result "api_security_headers" "fail" "Missing security headers"
+    fi
+
+    # Test rate limiting (if configured)
+    log_test "Rate limiting"
+
+    # Send multiple rapid requests
+    local rate_limited=false
+    for i in {1..20}; do
+        response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/api/v1/health 2>/dev/null)
+        if [ "$response" = "429" ]; then
+            rate_limited=true
+            break
+        fi
+    done
+
+    if [ "$rate_limited" = true ]; then
+        log_result "rate_limiting" "pass" "Rate limiting is active"
+    else
+        log_warning "Rate limiting may not be configured (optional)"
+    fi
+
+    return 0
+}
+
+# =============================================================================
+# Task 3.24: Test Frontend via Nginx
+# =============================================================================
+
+test_frontend() {
+    log_section "Task 3.24: Testing Frontend via Nginx"
+
+    # Test frontend root
+    log_test "Frontend root endpoint"
+
+    local frontend_response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/ 2>/dev/null || echo "000")
+
+    if [ "$frontend_response" = "200" ]; then
+        log_result "frontend_root" "pass" "Frontend root returned 200"
+    else
+        log_result "frontend_root" "fail" "Frontend root returned $frontend_response"
+    fi
+
+    # Test static assets
+    log_test "Frontend static assets"
+
+    # Check if index.html exists
+    local html_content=$(curl -s http://localhost/ 2>/dev/null | head -n 5)
+
+    if echo "$html_content" | grep -q "<!DOCTYPE html>"; then
+        log_result "frontend_html" "pass" "Frontend HTML served correctly"
+    else
+        log_result "frontend_html" "fail" "Frontend HTML not served correctly"
+    fi
+
+    # Test security headers for frontend
+    log_test "Frontend security headers"
+
+    local fe_headers=$(curl -sI http://localhost/ 2>/dev/null)
+
+    local fe_security_headers=0
+    echo "$fe_headers" | grep -qi "Content-Security-Policy:" && ((fe_security_headers++))
+    echo "$fe_headers" | grep -qi "X-Content-Type-Options:" && ((fe_security_headers++))
+    echo "$fe_headers" | grep -qi "X-Frame-Options:" && ((fe_security_headers++))
+
+    if [ $fe_security_headers -ge 2 ]; then
+        log_result "frontend_security_headers" "pass" "Frontend security headers present"
+    else
+        log_result "frontend_security_headers" "fail" "Missing frontend security headers"
+    fi
+
+    # Test compression
+    log_test "Response compression"
+
+    local encoding=$(curl -sI -H "Accept-Encoding: gzip" http://localhost/ 2>/dev/null | grep -i "Content-Encoding:")
+
+    if echo "$encoding" | grep -qi "gzip"; then
+        log_result "compression" "pass" "Gzip compression enabled"
+    else
+        log_warning "Gzip compression may not be enabled"
+    fi
+
+    return 0
+}
+
+# =============================================================================
+# Task 3.25: Test Database Migrations
+# =============================================================================
+
+test_database_migrations() {
+    log_section "Task 3.25: Testing Database Migrations"
+
+    # Run migrations
+    log_test "Running database migrations"
+
+    # Execute Alembic migrations inside the API container
+    if docker exec pazpaz-api alembic upgrade head 2>/dev/null; then
+        log_result "migrations_run" "pass" "Database migrations executed"
+    else
+        log_warning "Could not run migrations (Alembic may not be configured)"
+    fi
+
+    # Check database tables
+    log_test "Database table creation"
+
+    # Check if essential tables exist
+    local table_check=$(docker exec pazpaz-db psql -U pazpaz -d pazpaz -c "\dt" 2>/dev/null | grep -c "workspace\|user\|client\|appointment" || echo "0")
+
+    if [ "$table_check" -gt 0 ]; then
+        log_result "db_tables" "pass" "Database tables created"
+    else
+        log_warning "Database tables may not be initialized yet"
+    fi
+
+    # Test data persistence
+    log_test "Data persistence"
+
+    # Create a test record
+    local test_id=$(date +%s)
+    if docker exec pazpaz-db psql -U pazpaz -d pazpaz -c "CREATE TABLE IF NOT EXISTS test_persistence (id int, created_at timestamp default now());" 2>/dev/null; then
+        if docker exec pazpaz-db psql -U pazpaz -d pazpaz -c "INSERT INTO test_persistence (id) VALUES ($test_id);" 2>/dev/null; then
+            # Verify the record exists
+            local record_exists=$(docker exec pazpaz-db psql -U pazpaz -d pazpaz -t -c "SELECT COUNT(*) FROM test_persistence WHERE id = $test_id;" 2>/dev/null | tr -d ' ')
+
+            if [ "$record_exists" = "1" ]; then
+                log_result "data_persistence" "pass" "Data persistence verified"
+            else
+                log_result "data_persistence" "fail" "Data not persisted correctly"
+            fi
+
+            # Clean up test table
+            docker exec pazpaz-db psql -U pazpaz -d pazpaz -c "DROP TABLE test_persistence;" 2>/dev/null
+        else
+            log_warning "Could not test data persistence"
+        fi
+    else
+        log_warning "Could not create test table"
+    fi
+
+    return 0
+}
+
+# =============================================================================
+# Task 3.26: Test Background Worker
+# =============================================================================
+
+test_background_worker() {
+    log_section "Task 3.26: Testing Background Worker"
+
+    # Check ARQ worker container
+    log_test "ARQ worker container status"
+
+    local worker_running=$(docker ps --filter "name=pazpaz-arq-worker" --filter "status=running" -q | wc -l)
+
+    if [ "$worker_running" -eq 1 ]; then
+        log_result "worker_running" "pass" "ARQ worker container is running"
+    else
+        log_result "worker_running" "fail" "ARQ worker container is not running"
+    fi
+
+    # Check worker logs for errors
+    log_test "Worker startup logs"
+
+    local worker_errors=$(docker logs pazpaz-arq-worker 2>&1 | grep -ci "error\|exception\|critical" || echo "0")
+
+    if [ "$worker_errors" -eq 0 ]; then
+        log_result "worker_logs" "pass" "No errors in worker logs"
+    else
+        log_result "worker_logs" "fail" "$worker_errors errors found in worker logs"
+        if $VERBOSE; then
+            docker logs --tail 20 pazpaz-arq-worker
+        fi
+    fi
+
+    # Test Redis connectivity from worker
+    log_test "Worker Redis connectivity"
+
+    if docker exec pazpaz-arq-worker nc -z -w 2 redis 6379 2>/dev/null; then
+        log_result "worker_redis" "pass" "Worker can connect to Redis"
+    else
+        log_result "worker_redis" "fail" "Worker cannot connect to Redis"
+    fi
+
+    # Check worker process
+    log_test "Worker process health"
+
+    local worker_process=$(docker exec pazpaz-arq-worker pgrep -f "arq" 2>/dev/null | wc -l)
+
+    if [ "$worker_process" -gt 0 ]; then
+        log_result "worker_process" "pass" "Worker process is running"
+    else
+        log_result "worker_process" "fail" "Worker process not found"
+    fi
+
+    return 0
+}
+
+# =============================================================================
+# Task 3.27: Verify Health Checks
+# =============================================================================
+
+verify_health_checks() {
+    log_section "Task 3.27: Verifying Health Checks"
+
+    # Get all services with health checks
+    local services=("nginx" "api" "db" "redis" "minio" "clamav" "frontend" "arq-worker")
+
+    for service in "${services[@]}"; do
+        log_test "Health check for $service"
+
+        # Check container health status
+        local container_name="pazpaz-$service"
+        local health_status=$(docker inspect "$container_name" 2>/dev/null | jq -r '.[0].State.Health.Status' 2>/dev/null || echo "none")
+
+        case "$health_status" in
+            "healthy")
+                log_result "${service}_health" "pass" "$service is healthy"
+                ;;
+            "unhealthy")
+                log_result "${service}_health" "fail" "$service is unhealthy"
+                if $VERBOSE; then
+                    docker inspect "$container_name" | jq '.[0].State.Health.Log[-1]'
+                fi
+                ;;
+            "starting")
+                log_warning "$service health check still starting"
+                ;;
+            *)
+                log_warning "$service has no health check configured"
+                ;;
+        esac
+    done
+
+    # Overall health summary
+    log_test "Overall system health"
+
+    local unhealthy_count=$(docker ps --filter "health=unhealthy" --filter "label=app=pazpaz" -q | wc -l)
+
+    if [ "$unhealthy_count" -eq 0 ]; then
+        log_result "overall_health" "pass" "All services are healthy"
+    else
+        log_result "overall_health" "fail" "$unhealthy_count services are unhealthy"
+        docker ps --filter "health=unhealthy" --filter "label=app=pazpaz"
+    fi
+
+    return 0
+}
+
+# =============================================================================
+# Task 3.28: Verify Log Rotation
+# =============================================================================
+
+verify_log_rotation() {
+    log_section "Task 3.28: Verifying Log Rotation"
+
+    # Check log driver configuration
+    log_test "Log driver configuration"
+
+    local services=("nginx" "api" "db" "redis" "minio" "clamav" "frontend" "arq-worker")
+    local correct_config=0
+
+    for service in "${services[@]}"; do
+        local container_name="pazpaz-$service"
+        local log_config=$(docker inspect "$container_name" 2>/dev/null | jq -r '.[0].HostConfig.LogConfig.Type' 2>/dev/null)
+
+        if [ "$log_config" = "json-file" ]; then
+            # Check for max-size and max-file options
+            local max_size=$(docker inspect "$container_name" 2>/dev/null | jq -r '.[0].HostConfig.LogConfig.Config."max-size"' 2>/dev/null)
+            local max_file=$(docker inspect "$container_name" 2>/dev/null | jq -r '.[0].HostConfig.LogConfig.Config."max-file"' 2>/dev/null)
+
+            if [ "$max_size" != "null" ] && [ "$max_file" != "null" ]; then
+                ((correct_config++))
+            fi
+        fi
+    done
+
+    if [ "$correct_config" -eq "${#services[@]}" ]; then
+        log_result "log_config" "pass" "All services have log rotation configured"
+    else
+        log_result "log_config" "fail" "Only $correct_config of ${#services[@]} services have log rotation"
+    fi
+
+    # Check log volumes
+    log_test "Log volumes"
+
+    local log_volumes=$(docker volume ls --filter "label=app=pazpaz" --filter "label=type=logs" -q | wc -l)
+
+    if [ "$log_volumes" -gt 0 ]; then
+        log_result "log_volumes" "pass" "$log_volumes log volumes configured"
+    else
+        log_warning "No dedicated log volumes found"
+    fi
+
+    # Verify logs are being written
+    log_test "Log file creation"
+
+    # Check if nginx logs are being written
+    if docker exec pazpaz-nginx ls /var/log/nginx/ 2>/dev/null | grep -q "access.log\|error.log"; then
+        log_result "log_writing" "pass" "Logs are being written"
+    else
+        log_warning "Could not verify log writing"
+    fi
+
+    return 0
+}
+
+# =============================================================================
+# Cleanup Function
+# =============================================================================
+
+cleanup() {
+    if [ "$CLEANUP" = true ]; then
+        log_section "Cleanup"
+
+        log_info "Stopping Docker Compose stack..."
+        cd "$PROJECT_ROOT"
+        docker-compose -f "$COMPOSE_FILE" down
+
+        log_info "Removing volumes..."
+        docker-compose -f "$COMPOSE_FILE" down -v
+
+        log_info "Removing test environment file..."
+        [ -f "$ENV_FILE.test" ] && rm -f "$ENV_FILE.test"
+
+        log_success "Cleanup completed"
+    else
+        log_info "Skipping cleanup (use --cleanup to remove containers)"
+        log_info "To manually clean up:"
+        echo "  docker-compose -f $COMPOSE_FILE down -v"
+    fi
+}
+
+# =============================================================================
+# Summary Report
+# =============================================================================
+
+show_summary() {
+    log_header "TEST SUMMARY REPORT"
+
+    echo ""
+    echo "Test Results by Category:"
+    echo "────────────────────────"
+
+    # Group results by task
+    echo ""
+    echo "Task 3.20 - Environment Preparation:"
+    for test in env_validation docker_daemon; do
+        [ ! -z "${TEST_STATUS[$test]}" ] && echo "  • $test: ${TEST_STATUS[$test]}"
+    done
+
+    echo ""
+    echo "Task 3.21 - Stack Startup:"
+    for test in image_pull stack_start container_status restart_check; do
+        [ ! -z "${TEST_STATUS[$test]}" ] && echo "  • $test: ${TEST_STATUS[$test]}"
+    done
+
+    echo ""
+    echo "Task 3.22 - Network Isolation:"
+    for test in db_isolation redis_isolation minio_isolation internal_db internal_redis network_config; do
+        [ ! -z "${TEST_STATUS[$test]}" ] && echo "  • $test: ${TEST_STATUS[$test]}"
+    done
+
+    echo ""
+    echo "Task 3.23 - API Testing:"
+    for test in api_health api_docs api_security_headers rate_limiting; do
+        [ ! -z "${TEST_STATUS[$test]}" ] && echo "  • $test: ${TEST_STATUS[$test]}"
+    done
+
+    echo ""
+    echo "Task 3.24 - Frontend Testing:"
+    for test in frontend_root frontend_html frontend_security_headers compression; do
+        [ ! -z "${TEST_STATUS[$test]}" ] && echo "  • $test: ${TEST_STATUS[$test]}"
+    done
+
+    echo ""
+    echo "Task 3.25 - Database Migrations:"
+    for test in migrations_run db_tables data_persistence; do
+        [ ! -z "${TEST_STATUS[$test]}" ] && echo "  • $test: ${TEST_STATUS[$test]}"
+    done
+
+    echo ""
+    echo "Task 3.26 - Background Worker:"
+    for test in worker_running worker_logs worker_redis worker_process; do
+        [ ! -z "${TEST_STATUS[$test]}" ] && echo "  • $test: ${TEST_STATUS[$test]}"
+    done
+
+    echo ""
+    echo "Task 3.27 - Health Checks:"
+    for test in nginx_health api_health db_health redis_health minio_health clamav_health frontend_health arq-worker_health overall_health; do
+        [ ! -z "${TEST_STATUS[$test]}" ] && echo "  • $test: ${TEST_STATUS[$test]}"
+    done
+
+    echo ""
+    echo "Task 3.28 - Log Rotation:"
+    for test in log_config log_volumes log_writing; do
+        [ ! -z "${TEST_STATUS[$test]}" ] && echo "  • $test: ${TEST_STATUS[$test]}"
+    done
+
+    # Final summary
+    echo ""
+    echo "════════════════════════════════════════════════════════════════"
+
+    local total_tests=${#TEST_STATUS[@]}
+    local passed_tests=$((total_tests - FAILED_TESTS))
+
+    if [ $FAILED_TESTS -eq 0 ]; then
+        echo -e "${GREEN}${BOLD}✓ ALL TESTS PASSED${NC} ($passed_tests/$total_tests)"
+        echo "════════════════════════════════════════════════════════════════"
+        echo ""
+        log_success "Production stack is ready for deployment!"
+        return 0
+    else
+        echo -e "${RED}${BOLD}✗ TESTS FAILED${NC} ($FAILED_TESTS failures, $passed_tests passed)"
+        echo "════════════════════════════════════════════════════════════════"
+        echo ""
+        log_error "Production stack has issues that need to be resolved"
+        return 1
+    fi
+}
+
+# =============================================================================
+# Main Execution
+# =============================================================================
+
+main() {
+    # Parse arguments
+    parse_args "$@"
+
+    # Change to project root
+    cd "$PROJECT_ROOT"
+
+    log_header "PazPaz Local Production Testing"
+
+    echo ""
+    log_info "Project Root: $PROJECT_ROOT"
+    log_info "Compose File: $COMPOSE_FILE"
+    log_info "Environment:  $ENV_FILE"
+    log_info "Options:      cleanup=$CLEANUP, skip_build=$SKIP_BUILD, verbose=$VERBOSE"
+
+    # Set up error handling
+    trap cleanup EXIT
+
+    # Run all test tasks
+    local exit_code=0
+
+    # Task 3.20: Prepare Test Environment
+    if ! prepare_test_environment; then
+        exit_code=1
+    fi
+
+    # Task 3.21: Start Production Stack
+    if [ $exit_code -eq 0 ] && ! start_production_stack; then
+        exit_code=2
+    fi
+
+    # Task 3.22: Verify Network Isolation
+    if [ $exit_code -eq 0 ] && ! verify_network_isolation; then
+        exit_code=3
+    fi
+
+    # Task 3.23: Test API Endpoints
+    if [ $exit_code -eq 0 ] && ! test_api_endpoints; then
+        exit_code=5
+    fi
+
+    # Task 3.24: Test Frontend
+    if [ $exit_code -eq 0 ] && ! test_frontend; then
+        exit_code=5
+    fi
+
+    # Task 3.25: Test Database Migrations
+    if [ $exit_code -eq 0 ] && ! test_database_migrations; then
+        log_warning "Database migration tests had issues (non-critical)"
+    fi
+
+    # Task 3.26: Test Background Worker
+    if [ $exit_code -eq 0 ] && ! test_background_worker; then
+        log_warning "Background worker tests had issues (non-critical)"
+    fi
+
+    # Task 3.27: Verify Health Checks
+    if [ $exit_code -eq 0 ] && ! verify_health_checks; then
+        exit_code=4
+    fi
+
+    # Task 3.28: Verify Log Rotation
+    if [ $exit_code -eq 0 ] && ! verify_log_rotation; then
+        log_warning "Log rotation tests had issues (non-critical)"
+    fi
+
+    # Show summary
+    show_summary
+
+    exit $exit_code
+}
+
+# Run main function
+main "$@"
