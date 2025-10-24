@@ -656,43 +656,63 @@
 
 ### GitHub Actions CD Workflow
 
-- [ ] **4.19** Create `.github/workflows/deploy-production.yml` **[devops-infrastructure-specialist]**
-- [ ] **4.20** Configure workflow trigger **[devops-infrastructure-specialist]**
-  - Manual trigger (`workflow_dispatch`)
-  - Optional: Auto-deploy on tag push (v*.*.*)
+- [x] **4.19** Create `.github/workflows/deploy-production.yml` **[devops-infrastructure-specialist]**
+  - ✅ **Completed:** 26KB comprehensive CD pipeline (700+ lines)
+  - Blue-green deployment via deploy.sh
+  - SSH-based deployment to production servers
+  - Pre-deployment validation, main deployment, post-deployment checks
+  - Automatic rollback on failure
+  - ✅ **Commit:** feat(deployment): add GitHub Actions CD workflow for production
 
-- [ ] **4.21** Add GitHub Secrets to repository **[devops-infrastructure-specialist]**
-  - `SSH_PRIVATE_KEY` (server SSH key)
-  - `SSH_HOST` (server IP address)
-  - `SSH_USER` (deployment user)
-  - `GHCR_TOKEN` (GitHub Container Registry token)
-  - Document all secrets in repository README
+- [x] **4.20** Configure workflow trigger **[devops-infrastructure-specialist]**
+  - ✅ Manual trigger (workflow_dispatch) with options:
+    * Environment selection (production/staging)
+    * Image tag specification
+    * Skip migrations/health checks options
+    * Dry run mode, force deployment
+  - ✅ Automatic deployment on version tags (v*.*.*)
+  - ✅ Concurrency control (1 deployment at a time)
 
-- [ ] **4.22** Add deployment job steps **[devops-infrastructure-specialist]**
-  1. Checkout code
-  2. Set up SSH key
-  3. Copy docker-compose.prod.yml to server
-  4. Copy deployment scripts to server
-  5. SSH to server and run deploy.sh
-  6. Monitor deployment logs in real-time
-  7. Run post-deployment smoke tests
-  8. Run health checks (retry 3 times)
+- [x] **4.21** Add GitHub Secrets to repository **[devops-infrastructure-specialist]**
+  - ✅ docs/deployment/github-cd-secrets.md (9.6KB)
+  - ✅ SSH_PRIVATE_KEY, SSH_HOST, SSH_USER, SSH_PORT, DOMAIN
+  - ✅ Optional: GHCR_TOKEN, SLACK_WEBHOOK_URL, SENTRY_AUTH_TOKEN
+  - ✅ Step-by-step setup instructions with commands
+  - ✅ Security best practices and rotation schedule
+  - ✅ Quick setup script (scripts/test-cd-workflow.sh)
 
-- [ ] **4.23** Add deployment smoke tests **[devops-infrastructure-specialist]**
-  ```yaml
-  - name: Run smoke tests
-    run: |
-      curl -f https://${{ secrets.DOMAIN }}/api/v1/health
-      curl -f https://${{ secrets.DOMAIN }}
-      # Test critical user flow
-  ```
+- [x] **4.22** Add deployment job steps **[devops-infrastructure-specialist]**
+  - ✅ Pre-deployment: Secrets validation, CI status, image verification
+  - ✅ SSH configuration with connection pooling
+  - ✅ Server environment verification
+  - ✅ File deployment via tar archive
+  - ✅ Container registry authentication
+  - ✅ Database migrations with backup
+  - ✅ Blue-green deployment execution
+  - ✅ Deployment metrics and monitoring
 
-- [ ] **4.24** Add deployment notification step **[devops-infrastructure-specialist]**
-  - Success: Send notification (Discord/Slack/Email)
-  - Failure: Send alert with logs
-  - Include deployment metadata
+- [x] **4.23** Add deployment smoke tests **[devops-infrastructure-specialist]**
+  - ✅ API health endpoint (with retries and timeout)
+  - ✅ Frontend accessibility check
+  - ✅ SSL certificate validation
+  - ✅ Database connectivity via SSH
+  - ✅ Redis connectivity test
+  - ✅ All with proper error handling
 
-- [ ] **4.25** Add deployment status badge to README **[devops-infrastructure-specialist]**
+- [x] **4.24** Add deployment notification step **[devops-infrastructure-specialist]**
+  - ✅ Slack webhook notifications with rich formatting
+  - ✅ Sentry release tracking for error monitoring
+  - ✅ GitHub deployment status API updates
+  - ✅ Success/failure status with deployment details
+  - ✅ Direct links to workflow logs
+  - ✅ Deployment metadata (environment, version, duration, trigger)
+
+- [x] **4.25** Add deployment status badge to README **[devops-infrastructure-specialist]**
+  - ✅ Updated README.md with CI/CD badges
+  - ✅ Deploy Production workflow badge
+  - ✅ Deployment section with quick instructions
+  - ✅ Manual and automatic deployment commands
+  - ✅ Rollback procedures, first-time setup guide
 
 ### Monitoring & Logging
 
