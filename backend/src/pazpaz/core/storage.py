@@ -207,7 +207,22 @@ def get_s3_client():
             signature_version="s3v4",  # Use signature version 4 for security
         )
 
-        # Create S3 client
+        # Determine SSL certificate verification setting
+        # For self-signed MinIO certificates, we need to specify the CA bundle path
+        verify_ssl: bool | str = True  # Default: use system CA certificates
+
+        if settings.s3_ca_cert_path and use_ssl:
+            # Use custom CA certificate for self-signed MinIO certificates
+            # This enables SSL/TLS encryption while trusting our self-signed CA
+            verify_ssl = settings.s3_ca_cert_path
+            logger.info(
+                "s3_custom_ca_configured",
+                ca_path=settings.s3_ca_cert_path,
+                endpoint=settings.s3_endpoint_url,
+                message="Using custom CA certificate for S3/MinIO SSL verification",
+            )
+
+        # Create S3 client with SSL verification
         client = boto3.client(
             "s3",
             endpoint_url=settings.s3_endpoint_url,
@@ -216,6 +231,7 @@ def get_s3_client():
             region_name=settings.s3_region,
             config=config,
             use_ssl=use_ssl,
+            verify=verify_ssl,  # CA bundle for self-signed certificates
         )
 
         logger.info(

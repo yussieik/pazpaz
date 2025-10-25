@@ -529,6 +529,10 @@ class Settings(BaseSettings):
         default="us-east-1",
         description="S3 region (MinIO uses us-east-1 by default)",
     )
+    s3_ca_cert_path: str | None = Field(
+        default=None,
+        description="Path to CA certificate for S3/MinIO SSL verification (self-signed certificates)",
+    )
 
     @field_validator("s3_endpoint_url")
     @classmethod
