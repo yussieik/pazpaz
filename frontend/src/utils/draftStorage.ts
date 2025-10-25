@@ -44,7 +44,7 @@ async function getDB(): Promise<IDBPDatabase> {
           const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
           // Index by expiration for efficient cleanup
           store.createIndex('expiresAt', 'expiresAt')
-          console.info('[DraftStorage] Created IndexedDB store:', STORE_NAME)
+          console.debug('[DraftStorage] Created IndexedDB store:', STORE_NAME)
         }
       },
     })
@@ -71,7 +71,7 @@ export async function saveDraft(
     }
 
     await db.put(STORE_NAME, draftWithTimestamp)
-    console.info(`[DraftStorage] Saved draft for session: ${draft.id}`)
+    console.debug(`[DraftStorage] Saved draft for session: ${draft.id}`)
     return true
   } catch (error) {
     console.error('[DraftStorage] Failed to save draft:', error)
@@ -97,12 +97,12 @@ export async function getDraft(sessionId: string): Promise<SOAPNoteDraft | null>
     // Check if draft has expired
     const now = new Date()
     if (new Date(draft.expiresAt) < now) {
-      console.info(`[DraftStorage] Draft expired, deleting: ${sessionId}`)
+      console.debug(`[DraftStorage] Draft expired, deleting: ${sessionId}`)
       await db.delete(STORE_NAME, sessionId)
       return null
     }
 
-    console.info(`[DraftStorage] Retrieved draft for session: ${sessionId}`)
+    console.debug(`[DraftStorage] Retrieved draft for session: ${sessionId}`)
     return draft
   } catch (error) {
     console.error('[DraftStorage] Failed to get draft:', error)
@@ -120,7 +120,7 @@ export async function deleteDraft(sessionId: string): Promise<boolean> {
   try {
     const db = await getDB()
     await db.delete(STORE_NAME, sessionId)
-    console.info(`[DraftStorage] Deleted draft for session: ${sessionId}`)
+    console.debug(`[DraftStorage] Deleted draft for session: ${sessionId}`)
     return true
   } catch (error) {
     console.error('[DraftStorage] Failed to delete draft:', error)
@@ -149,7 +149,7 @@ export async function getAllDrafts(): Promise<SOAPNoteDraft[]> {
       return true
     })
 
-    console.info(
+    console.debug(
       `[DraftStorage] Retrieved ${activeDrafts.length} active drafts (${allDrafts.length - activeDrafts.length} expired)`
     )
     return activeDrafts
@@ -197,7 +197,7 @@ export async function clearAllDrafts(): Promise<boolean> {
     await tx.objectStore(STORE_NAME).clear()
     await tx.done
 
-    console.info('[DraftStorage] Cleared all drafts (logout cleanup)')
+    console.debug('[DraftStorage] Cleared all drafts (logout cleanup)')
     return true
   } catch (error) {
     console.error('[DraftStorage] Failed to clear all drafts:', error)
@@ -230,7 +230,7 @@ export async function cleanupExpiredDrafts(): Promise<number> {
     await Promise.all(deletePromises)
 
     if (deletedCount > 0) {
-      console.info(`[DraftStorage] Cleaned up ${deletedCount} expired drafts`)
+      console.debug(`[DraftStorage] Cleaned up ${deletedCount} expired drafts`)
     }
 
     return deletedCount

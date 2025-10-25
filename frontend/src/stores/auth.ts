@@ -42,7 +42,7 @@ function clearAllBackups(): void {
   }
 
   if (cleared > 0) {
-    console.info(`[SecureBackup] Cleared ${cleared} backup(s) on logout`)
+    console.debug(`[SecureBackup] Cleared ${cleared} backup(s) on logout`)
   }
 }
 
@@ -61,11 +61,11 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await apiClient.get('/auth/me')
       user.value = response.data
-      console.info('[Auth] User authenticated:', user.value?.id)
+      console.debug('[Auth] User authenticated:', user.value?.id)
     } catch (error) {
       // Not authenticated or session expired
       if ((error as { response?: { status?: number } }).response?.status === 401) {
-        console.info('[Auth] No active session')
+        console.debug('[Auth] No active session')
       } else {
         console.error('[Auth] Failed to check authentication:', error)
       }
@@ -84,7 +84,7 @@ export const useAuthStore = defineStore('auth', () => {
    * 4. Does NOT redirect (caller handles redirect)
    */
   async function logout(): Promise<void> {
-    console.info('[Auth] Logging out...')
+    console.debug('[Auth] Logging out...')
 
     try {
       // Call backend logout endpoint (invalidates JWT)
@@ -99,7 +99,7 @@ export const useAuthStore = defineStore('auth', () => {
       // Clear encrypted session backups from localStorage
       try {
         clearAllBackups()
-        console.info('[Auth] Cleared encrypted backups')
+        console.debug('[Auth] Cleared encrypted backups')
       } catch (error) {
         console.error('[Auth] Failed to clear backups:', error)
       }
@@ -107,7 +107,7 @@ export const useAuthStore = defineStore('auth', () => {
       // Clear any cached data in other stores
       // (Add here if you have other stores that need clearing)
 
-      console.info('[Auth] Logout complete')
+      console.debug('[Auth] Logout complete')
     }
   }
 

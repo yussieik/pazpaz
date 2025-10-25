@@ -113,12 +113,15 @@ export function usePlatformMetrics() {
         offset.value = 0
       }
 
-      const response = await apiClient.get<ActivityResponse>('/platform-admin/activity', {
-        params: {
-          limit,
-          offset: offset.value,
-        },
-      })
+      const response = await apiClient.get<ActivityResponse>(
+        '/platform-admin/activity',
+        {
+          params: {
+            limit,
+            offset: offset.value,
+          },
+        }
+      )
 
       // Transform API response to Activity format
       const newActivities = response.data.activities.map((item, index) => ({

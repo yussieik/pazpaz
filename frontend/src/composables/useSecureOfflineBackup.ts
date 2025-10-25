@@ -195,7 +195,7 @@ export function useSecureOfflineBackup() {
     try {
       const encrypted = await encryptDraft(draft, version, keyMaterial)
       localStorage.setItem(`session_${sessionId}_backup`, JSON.stringify(encrypted))
-      console.info(`[SecureBackup] Encrypted backup saved for session ${sessionId}`)
+      console.debug(`[SecureBackup] Encrypted backup saved for session ${sessionId}`)
     } catch (error) {
       console.error('[SecureBackup] Encryption failed:', error)
       // Don't block autosave if encryption fails
@@ -256,7 +256,7 @@ export function useSecureOfflineBackup() {
 
       // Clear localStorage after successful sync
       localStorage.removeItem(`session_${sessionId}_backup`)
-      console.info(`[SecureBackup] Synced backup to server for session ${sessionId}`)
+      console.debug(`[SecureBackup] Synced backup to server for session ${sessionId}`)
       return true
     } catch (error) {
       console.error('[SecureBackup] Sync failed:', error)

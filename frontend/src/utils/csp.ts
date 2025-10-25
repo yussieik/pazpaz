@@ -90,10 +90,10 @@ let nonceRetrievalAttempted = false
  * ```typescript
  * const nonce = getCspNonce()
  * if (nonce) {
- *   console.log('Nonce available:', nonce)
+ *   console.debug('Nonce available:', nonce)
  *   // Use nonce for dynamic script injection
  * } else {
- *   console.log('No nonce (development mode or CSP disabled)')
+ *   console.debug('No nonce (development mode or CSP disabled)')
  * }
  * ```
  */
@@ -152,9 +152,9 @@ export function resetCspNonceCache(): void {
  * @example
  * ```typescript
  * if (hasCspNonce()) {
- *   console.log('Running in production with strict CSP')
+ *   console.debug('Running in production with strict CSP')
  * } else {
- *   console.log('Running in development mode')
+ *   console.debug('Running in development mode')
  * }
  * ```
  */

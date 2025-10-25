@@ -145,7 +145,7 @@ export function useSessionTimeout(): UseSessionTimeoutReturn {
       // Reset timers to extend session
       resetTimers()
 
-      console.info('[SessionTimeout] Session refreshed successfully')
+      console.debug('[SessionTimeout] Session refreshed successfully')
     } catch (error) {
       console.error('[SessionTimeout] Failed to refresh session:', error)
 
@@ -161,7 +161,7 @@ export function useSessionTimeout(): UseSessionTimeoutReturn {
    * Logs out user and redirects to login page with expired message
    */
   async function handleTimeout(): Promise<void> {
-    console.info('[SessionTimeout] Session expired, logging out')
+    console.debug('[SessionTimeout] Session expired, logging out')
 
     // Clear all timers
     if (warningTimer) clearTimeout(warningTimer)
@@ -196,7 +196,7 @@ export function useSessionTimeout(): UseSessionTimeoutReturn {
       return
     }
 
-    console.info('[SessionTimeout] Initializing session timeout tracking')
+    console.debug('[SessionTimeout] Initializing session timeout tracking')
 
     // Start timers
     resetTimers()
@@ -230,7 +230,7 @@ export function useSessionTimeout(): UseSessionTimeoutReturn {
    * Cleanup on unmount
    */
   onUnmounted(() => {
-    console.info('[SessionTimeout] Cleaning up session timeout tracking')
+    console.debug('[SessionTimeout] Cleaning up session timeout tracking')
 
     // Remove event listeners
     window.removeEventListener('click', trackActivity)

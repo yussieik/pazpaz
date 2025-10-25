@@ -69,7 +69,7 @@ onMounted(() => {
 
   // Listen for logout events from other tabs
   authChannel.onLogout(async (message) => {
-    console.info('[App] Received logout from another tab', message)
+    console.debug('[App] Received logout from another tab', message)
 
     // Check if this tab initiated the logout
     // If so, don't show the "another tab" message
@@ -88,7 +88,7 @@ onMounted(() => {
 
   // Optional: Listen for session extension events to keep all tabs in sync
   authChannel.onSessionExtended((message) => {
-    console.info('[App] Session extended in another tab', message)
+    console.debug('[App] Session extended in another tab', message)
     // Could update session expiration timers here if needed
   })
 })

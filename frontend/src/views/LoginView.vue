@@ -66,7 +66,7 @@ function handleVisibilityChange() {
     if (success.value && !hasLeftTab.value) {
       hasLeftTab.value = true
       timeLeftTab.value = Date.now()
-      console.log('[EmailDetection] User left tab to check email')
+      console.debug('[EmailDetection] User left tab to check email')
     }
   } else {
     // User returned to tab
@@ -79,7 +79,7 @@ function handleVisibilityChange() {
           "Welcome back! The magic link should be in your inbox. Check spam if you don't see it."
         )
         hasShownReturnMessage.value = true
-        console.log(
+        console.debug(
           `[EmailDetection] User returned after ${Math.round(timeAway / 1000)}s`
         )
       }

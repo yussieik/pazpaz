@@ -91,7 +91,7 @@ describe('useSessionTimeout', () => {
 
       const wrapper = mount(TestComponent, { global: { plugins: [pinia] } })
 
-      expect(console.info).toHaveBeenCalledWith(
+      expect(console.debug).toHaveBeenCalledWith(
         '[SessionTimeout] Initializing session timeout tracking'
       )
 
@@ -104,7 +104,7 @@ describe('useSessionTimeout', () => {
 
       mount(TestComponent, { global: { plugins: [pinia] } })
 
-      expect(console.info).not.toHaveBeenCalledWith(
+      expect(console.debug).not.toHaveBeenCalledWith(
         '[SessionTimeout] Initializing session timeout tracking'
       )
     })
@@ -258,7 +258,7 @@ describe('useSessionTimeout', () => {
 
       expect(apiClient.post).toHaveBeenCalledWith('/auth/session/refresh')
       expect(result.showWarning).toBe(false)
-      expect(console.info).toHaveBeenCalledWith(
+      expect(console.debug).toHaveBeenCalledWith(
         '[SessionTimeout] Session refreshed successfully'
       )
 
@@ -360,7 +360,7 @@ describe('useSessionTimeout', () => {
       vi.advanceTimersByTime(15 * 60 * 1000)
       await nextTick()
 
-      expect(console.info).toHaveBeenCalledWith(
+      expect(console.debug).toHaveBeenCalledWith(
         '[SessionTimeout] Session expired, logging out'
       )
       expect(authStore.logout).toHaveBeenCalled()
@@ -539,7 +539,7 @@ describe('useSessionTimeout', () => {
       const wrapper = mount(TestComponent, { global: { plugins: [pinia] } })
       wrapper.unmount()
 
-      expect(console.info).toHaveBeenCalledWith(
+      expect(console.debug).toHaveBeenCalledWith(
         '[SessionTimeout] Cleaning up session timeout tracking'
       )
       expect(removeEventListenerSpy).toHaveBeenCalledWith('click', expect.any(Function))

@@ -76,7 +76,7 @@ const emit = defineEmits<{
         v-if="hasMore"
         @click="emit('loadMore')"
         :disabled="loading"
-        class="mt-6 w-full rounded-lg border-2 border-emerald-600 bg-white px-4 py-3 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        class="mt-6 w-full rounded-lg border-2 border-emerald-600 bg-white px-4 py-3 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Load more activity events"
       >
         <span v-if="loading" class="flex items-center justify-center gap-2">

@@ -32,7 +32,7 @@ export const useAuthSessionStore = defineStore('authSession', () => {
    */
   function trackUnsavedChange(key: string, description: string) {
     unsavedItems.value.set(key, description)
-    console.info(`[AuthSession] Tracking unsaved change: ${description}`)
+    console.debug(`[AuthSession] Tracking unsaved change: ${description}`)
   }
 
   /**
@@ -44,7 +44,7 @@ export const useAuthSessionStore = defineStore('authSession', () => {
     const description = unsavedItems.value.get(key)
     if (description) {
       unsavedItems.value.delete(key)
-      console.info(`[AuthSession] Cleared unsaved change: ${description}`)
+      console.debug(`[AuthSession] Cleared unsaved change: ${description}`)
     }
   }
 
@@ -55,7 +55,7 @@ export const useAuthSessionStore = defineStore('authSession', () => {
     const count = unsavedItems.value.size
     unsavedItems.value.clear()
     if (count > 0) {
-      console.info(`[AuthSession] Cleared ${count} unsaved changes`)
+      console.debug(`[AuthSession] Cleared ${count} unsaved changes`)
     }
   }
 
@@ -66,7 +66,7 @@ export const useAuthSessionStore = defineStore('authSession', () => {
    */
   function setSessionExpiry(expiresAt: Date) {
     sessionExpiresAt.value = expiresAt
-    console.info(`[AuthSession] Session expires at: ${expiresAt.toLocaleTimeString()}`)
+    console.debug(`[AuthSession] Session expires at: ${expiresAt.toLocaleTimeString()}`)
   }
 
   /**
@@ -112,7 +112,7 @@ export const useAuthSessionStore = defineStore('authSession', () => {
       })
 
       if (draftDescriptions.length > 0) {
-        console.info(
+        console.debug(
           `[AuthSession] Synced ${draftDescriptions.length} drafts from IndexedDB`
         )
       }
@@ -127,7 +127,7 @@ export const useAuthSessionStore = defineStore('authSession', () => {
   function resetSession() {
     sessionExpiresAt.value = null
     clearAllUnsavedChanges()
-    console.info('[AuthSession] Session state reset')
+    console.debug('[AuthSession] Session state reset')
   }
 
   return {

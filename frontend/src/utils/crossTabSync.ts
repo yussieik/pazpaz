@@ -170,7 +170,7 @@ export function createAuthChannel(): AuthChannel {
         tabId,
       }
       channel.postMessage(message)
-      console.info('[CrossTabSync] Posted logout message', message)
+      console.debug('[CrossTabSync] Posted logout message', message)
     },
 
     postLogin(userId?: string, workspaceId?: string) {
@@ -182,7 +182,7 @@ export function createAuthChannel(): AuthChannel {
         tabId,
       }
       channel.postMessage(message)
-      console.info('[CrossTabSync] Posted login message', message)
+      console.debug('[CrossTabSync] Posted login message', message)
     },
 
     postSessionExtended(userId?: string, workspaceId?: string) {
@@ -194,7 +194,7 @@ export function createAuthChannel(): AuthChannel {
         tabId,
       }
       channel.postMessage(message)
-      console.info('[CrossTabSync] Posted session extended message', message)
+      console.debug('[CrossTabSync] Posted session extended message', message)
     },
 
     onLogout(handler: AuthMessageHandler) {
@@ -212,7 +212,7 @@ export function createAuthChannel(): AuthChannel {
     close() {
       channel.removeEventListener('message', handleMessage)
       channel.close()
-      console.info('[CrossTabSync] Channel closed')
+      console.debug('[CrossTabSync] Channel closed')
     },
 
     isSupported: true,

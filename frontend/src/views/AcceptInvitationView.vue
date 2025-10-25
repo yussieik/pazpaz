@@ -35,7 +35,7 @@ onMounted(async () => {
       // Update auth store with user data from response
       if (response.data.user) {
         authStore.setUser(response.data.user)
-        console.info('[AcceptInvitation] User authenticated:', response.data.user.id)
+        console.debug('[AcceptInvitation] User authenticated:', response.data.user.id)
       }
 
       // Redirect to home page after 2 seconds

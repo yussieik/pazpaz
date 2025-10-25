@@ -61,7 +61,7 @@ export function useSessionExpiration() {
 
     // Session has expired - auto logout
     if (authSessionStore.isSessionExpired()) {
-      console.info('[SessionExpiration] Session expired, logging out')
+      console.debug('[SessionExpiration] Session expired, logging out')
       handleExpiredSession()
       return
     }
@@ -70,7 +70,7 @@ export function useSessionExpiration() {
     if (remaining <= ONE_MINUTE_IN_SECONDS) {
       showModal.value = true
       showBanner.value = false
-      console.info('[SessionExpiration] Showing 1-minute warning modal')
+      console.debug('[SessionExpiration] Showing 1-minute warning modal')
       return
     }
 
@@ -78,7 +78,7 @@ export function useSessionExpiration() {
     if (remaining <= FIVE_MINUTES_IN_SECONDS) {
       showBanner.value = true
       showModal.value = false
-      console.info('[SessionExpiration] Showing 5-minute warning banner')
+      console.debug('[SessionExpiration] Showing 5-minute warning banner')
       return
     }
 
@@ -111,7 +111,7 @@ export function useSessionExpiration() {
       showBanner.value = false
       showModal.value = false
 
-      console.info('[SessionExpiration] Session extended successfully')
+      console.debug('[SessionExpiration] Session extended successfully')
       return true
     } catch (error) {
       console.error('[SessionExpiration] Failed to extend session:', error)
@@ -130,7 +130,7 @@ export function useSessionExpiration() {
    */
   function dismissBanner() {
     showBanner.value = false
-    console.info('[SessionExpiration] Banner dismissed by user')
+    console.debug('[SessionExpiration] Banner dismissed by user')
   }
 
   /**
@@ -170,7 +170,7 @@ export function useSessionExpiration() {
   onMounted(() => {
     // Start checking session expiration every 10 seconds
     checkInterval = setInterval(checkSessionExpiration, CHECK_INTERVAL_MS)
-    console.info('[SessionExpiration] Started session expiration monitoring')
+    console.debug('[SessionExpiration] Started session expiration monitoring')
 
     // Run initial check immediately
     checkSessionExpiration()
@@ -183,7 +183,7 @@ export function useSessionExpiration() {
     if (checkInterval) {
       clearInterval(checkInterval)
       checkInterval = null
-      console.info('[SessionExpiration] Stopped session expiration monitoring')
+      console.debug('[SessionExpiration] Stopped session expiration monitoring')
     }
   })
 

@@ -101,7 +101,7 @@ export function useAuth() {
       try {
         const localStorageKeysCount = localStorage.length
         localStorage.clear()
-        console.info(`[Auth] Cleared localStorage (${localStorageKeysCount} keys)`)
+        console.debug(`[Auth] Cleared localStorage (${localStorageKeysCount} keys)`)
       } catch (error) {
         console.error('[Auth] Failed to clear localStorage:', error)
       }
@@ -110,7 +110,7 @@ export function useAuth() {
       try {
         const sessionStorageKeysCount = sessionStorage.length
         sessionStorage.clear()
-        console.info(`[Auth] Cleared sessionStorage (${sessionStorageKeysCount} keys)`)
+        console.debug(`[Auth] Cleared sessionStorage (${sessionStorageKeysCount} keys)`)
       } catch (error) {
         console.error('[Auth] Failed to clear sessionStorage:', error)
       }
@@ -119,7 +119,7 @@ export function useAuth() {
       try {
         const draftsCleared = await clearAllDrafts()
         if (draftsCleared) {
-          console.info('[Auth] Cleared SOAP note drafts from IndexedDB')
+          console.debug('[Auth] Cleared SOAP note drafts from IndexedDB')
         }
       } catch (error) {
         console.error('[Auth] Failed to clear SOAP note drafts:', error)
@@ -135,7 +135,7 @@ export function useAuth() {
               return new Promise<void>((resolve, reject) => {
                 const deleteRequest = window.indexedDB.deleteDatabase(db.name!)
                 deleteRequest.onsuccess = () => {
-                  console.info(`[Auth] Deleted IndexedDB: ${db.name}`)
+                  console.debug(`[Auth] Deleted IndexedDB: ${db.name}`)
                   resolve()
                 }
                 deleteRequest.onerror = () => {
@@ -151,7 +151,7 @@ export function useAuth() {
             })
 
           await Promise.allSettled(deletePromises)
-          console.info(`[Auth] Cleared IndexedDB (${databases.length} databases)`)
+          console.debug(`[Auth] Cleared IndexedDB (${databases.length} databases)`)
         }
       } catch (error) {
         console.error('[Auth] Failed to clear IndexedDB:', error)
@@ -176,12 +176,12 @@ export function useAuth() {
         const clientsStore = useClientsStore()
         clientsStore.clearClients()
 
-        console.info('[Auth] Reset all Pinia stores')
+        console.debug('[Auth] Reset all Pinia stores')
       } catch (error) {
         console.error('[Auth] Failed to reset Pinia stores:', error)
       }
 
-      console.info('[Auth] Client-side storage cleanup complete')
+      console.debug('[Auth] Client-side storage cleanup complete')
     } catch (error) {
       console.error('[Auth] Client-side storage cleanup failed:', error)
       // Don't throw - logout should still succeed

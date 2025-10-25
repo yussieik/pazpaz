@@ -109,13 +109,13 @@ export function useAutosave<T = Record<string, unknown>>(
    */
   const handleOnline = () => {
     isOnline.value = true
-    console.info('[Autosave] Network connection restored')
+    console.debug('[Autosave] Network connection restored')
 
     // Auto-sync when coming back online
     if (sessionId) {
       syncToServer(sessionId).then((synced) => {
         if (synced) {
-          console.info('[Autosave] Auto-synced offline changes to server')
+          console.debug('[Autosave] Auto-synced offline changes to server')
         }
       })
     }
@@ -183,7 +183,7 @@ export function useAutosave<T = Record<string, unknown>>(
         }
       } else {
         // Offline: backup exists, show offline indicator
-        console.info('[Autosave] Offline - changes saved to encrypted localStorage')
+        console.debug('[Autosave] Offline - changes saved to encrypted localStorage')
       }
     } catch (error) {
       console.error('Autosave failed:', error)
@@ -223,7 +223,7 @@ export function useAutosave<T = Record<string, unknown>>(
 
       // Don't throw error - we have a local backup
       if (!isOnline.value) {
-        console.info(
+        console.debug(
           '[Autosave] Network error caught - changes preserved in local backup'
         )
       } else {

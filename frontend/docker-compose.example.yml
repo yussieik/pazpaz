@@ -11,8 +11,8 @@ services:
     image: pazpaz/frontend:latest
     container_name: pazpaz-frontend
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     volumes:
       # Use production nginx config that includes API proxy
       - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
@@ -29,7 +29,15 @@ services:
     depends_on:
       - api
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:80/health',
+        ]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -47,7 +55,7 @@ services:
     image: pazpaz/backend:latest
     container_name: pazpaz-backend
     expose:
-      - "8000"
+      - '8000'
     environment:
       - DATABASE_URL=postgresql://pazpaz:${DB_PASSWORD}@db:5432/pazpaz
       - REDIS_URL=redis://redis:6379

@@ -521,7 +521,7 @@ describe.skip('Security Headers E2E Verification', () => {
       }
 
       // Log report for debugging
-      console.log('Security Headers Report:', JSON.stringify(report, null, 2))
+      console.debug('Security Headers Report:', JSON.stringify(report, null, 2))
 
       // Verify all required headers are present
       expect(report['X-Frame-Options']).toBe('DENY')

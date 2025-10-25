@@ -32,7 +32,7 @@ onMounted(async () => {
     // Set user in auth store from verification response
     if (response.data?.user) {
       authStore.setUser(response.data.user)
-      console.info('[AuthVerify] User authenticated:', response.data.user.id)
+      console.debug('[AuthVerify] User authenticated:', response.data.user.id)
     }
 
     // Get redirect URL from query params (set by login page or route guard)

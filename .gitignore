@@ -76,3 +76,12 @@ logs/
 .mcp.json
 
 .env.prod
+
+# Deployment artifacts
+*.tar.gz
+*.backup
+*.backup-*
+scripts/*.backup*
+
+# Temporary deployment files
+pazpaz-deploy.tar.gz

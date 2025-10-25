@@ -72,7 +72,7 @@ authStore.initializeAuth().finally(() => {
   app.use(router)
   app.mount('#app')
 
-  console.info('[App] Mounted with authentication state:', {
+  console.debug('[App] Mounted with authentication state:', {
     isAuthenticated: authStore.isAuthenticated,
     userId: authStore.user?.id,
   })
