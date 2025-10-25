@@ -66,6 +66,7 @@ export function useClientListKeyboard(
 
     // Screen reader announcement
     const client = filteredClients.value[index]
+    if (!client) return
     const position = index + 1
     const total = filteredClients.value.length
     announce(`Client ${position} of ${total}: ${client.full_name}`)
@@ -176,7 +177,9 @@ export function useClientListKeyboard(
       setTimeout(() => {
         focusClient(index)
         const client = filteredClients.value[index]
-        announce(`Returned to ${client.full_name}`)
+        if (client) {
+          announce(`Returned to ${client.full_name}`)
+        }
       }, 100)
     }
   }

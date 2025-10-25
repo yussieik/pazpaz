@@ -57,14 +57,14 @@ const submitButtonText = computed(() =>
 
 // Watch for modal visibility and pre-fill data in edit mode
 watch(
-  () => [props.visible, props.mode, props.client],
+  () => [props.visible, props.mode, props.client] as const,
   ([isVisible, mode, client]) => {
     if (!isVisible) {
       resetForm()
       return
     }
 
-    if (mode === 'edit' && client) {
+    if (mode === 'edit' && client && typeof client === 'object') {
       // Pre-fill all fields from client
       formData.value = {
         first_name: client.first_name,

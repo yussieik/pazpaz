@@ -64,8 +64,8 @@ const timeOptions = computed(() => {
   const [minHours, minMins] = props.minTime.split(':').map(Number)
   const [maxHours, maxMins] = props.maxTime.split(':').map(Number)
 
-  const startMinutes = minHours * 60 + minMins
-  const endMinutes = maxHours * 60 + maxMins
+  const startMinutes = (minHours ?? 0) * 60 + (minMins ?? 0)
+  const endMinutes = (maxHours ?? 23) * 60 + (maxMins ?? 59)
   const interval = props.interval
 
   for (
@@ -100,7 +100,7 @@ const selectedLabel = computed(() => {
   if (!time) return 'Select time'
 
   const [hours, mins] = time.split(':').map(Number)
-  return formatTime12Hour(hours, mins)
+  return formatTime12Hour(hours ?? 0, mins ?? 0)
 })
 
 /**
@@ -110,7 +110,7 @@ function roundTimeToInterval(timeStr: string): string {
   if (!timeStr) return ''
 
   const [hours, mins] = timeStr.split(':').map(Number)
-  const totalMinutes = hours * 60 + mins
+  const totalMinutes = (hours ?? 0) * 60 + (mins ?? 0)
 
   // Round to nearest interval
   const roundedMinutes = Math.round(totalMinutes / props.interval) * props.interval
@@ -195,7 +195,7 @@ function selectTime(timeValue: string) {
 
   // Set the time
   const [hours, mins] = timeValue.split(':').map(Number)
-  date.setHours(hours, mins, 0, 0)
+  date.setHours(hours ?? 0, mins ?? 0, 0, 0)
 
   // Format as datetime-local format (YYYY-MM-DDTHH:mm)
   const year = date.getFullYear()
@@ -281,7 +281,7 @@ function handleKeyDown(event: KeyboardEvent) {
     case ' ':
       event.preventDefault()
       if (highlightedIndex.value >= 0) {
-        selectTime(timeOptions.value[highlightedIndex.value].value)
+        selectTime(timeOptions.value[highlightedIndex.value]?.value ?? '')
       }
       break
 

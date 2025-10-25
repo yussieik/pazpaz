@@ -72,7 +72,7 @@ const sessionNoteWordCount = computed(() => {
 })
 
 const sessionNoteAttachments = computed(() => {
-  return sessionNote.value?.attachments?.length || 0
+  return sessionNote.value?.attachment_count || 0
 })
 
 /**
@@ -249,8 +249,7 @@ function applySuggestion(suggestion: string) {
               {{ formatDate(appointment.scheduled_start, "EEEE, MMMM d 'at' h:mm a") }}
             </p>
             <p class="mt-1 text-sm text-slate-600">
-              {{ appointment.client?.full_name || 'Unknown Client' }} -
-              {{ appointment.service?.name || 'Appointment' }}
+              {{ appointment.client?.full_name || 'Unknown Client' }}
             </p>
           </div>
 

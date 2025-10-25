@@ -138,21 +138,6 @@ async function loadSession(silent = false) {
   }
 }
 
-// Load client data
-async function loadClient(clientId: string) {
-  isLoadingClient.value = true
-
-  try {
-    const response = await apiClient.get<ClientData>(`/clients/${clientId}`)
-    client.value = response.data
-  } catch (error) {
-    console.error('Failed to load client:', error)
-    // Don't set error - client data is supplementary
-  } finally {
-    isLoadingClient.value = false
-  }
-}
-
 // Handle session finalized - optimistic update instead of full reload
 function handleSessionFinalized() {
   // Optimistic update: immediately update session status

@@ -161,7 +161,7 @@ export function useCalendarEvents() {
       confirmed: isPast ? '#f59e0b' : '#10b981',
     }
 
-    return colors[appointment.status] || colors.scheduled
+    return colors[appointment.status] ?? colors.scheduled ?? '#10b981'
   }
 
   /**

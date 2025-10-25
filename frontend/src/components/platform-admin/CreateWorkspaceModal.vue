@@ -33,8 +33,8 @@ onMounted(() => {
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     )
     if (focusableElements.length > 0) {
-      firstFocusableElement.value = focusableElements[0]
-      lastFocusableElement.value = focusableElements[focusableElements.length - 1]
+      firstFocusableElement.value = focusableElements[0] ?? null
+      lastFocusableElement.value = focusableElements[focusableElements.length - 1] ?? null
       firstFocusableElement.value?.focus()
     }
   }

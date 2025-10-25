@@ -945,7 +945,7 @@ onBeforeUnmount(() => {
     <SessionVersionHistory
       v-if="session"
       :session-id="props.sessionId"
-      :session="session"
+      :session="session as any"
       :open="showVersionHistory"
       @close="showVersionHistory = false"
     />

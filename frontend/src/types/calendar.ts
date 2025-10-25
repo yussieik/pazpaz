@@ -92,11 +92,30 @@ export interface SessionStatus {
  */
 export interface SessionWithAmendments {
   id: string
+  workspace_id: string
+  client_id: string
+  appointment_id: string | null
+  subjective?: string | null
+  objective?: string | null
+  assessment?: string | null
+  plan?: string | null
+  session_date: string
+  duration_minutes?: number | null
+  created_by_user_id: string
+  is_draft: boolean
+  draft_last_saved_at: string | null
   finalized_at: string | null
   amended_at: string | null
   amendment_count: number
+  version: number
+  created_at: string
+  updated_at: string
+  deleted_at?: string | null
+  deleted_reason?: string | null
+  deleted_by_user_id?: string | null
+  permanent_delete_after?: string | null
+  attachment_count?: number
   has_versions: boolean
-  // Other session fields will be typed via OpenAPI schema
 }
 
 /**

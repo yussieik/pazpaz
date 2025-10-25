@@ -236,7 +236,7 @@ function groupSessionsByMonth(sessions: SessionResponse[]): MonthGroup[] {
     .sort(([keyA], [keyB]) => keyB.localeCompare(keyA))
     .map(([monthKey, sessions]) => ({
       label:
-        sessions.length > 0
+        sessions.length > 0 && sessions[0]
           ? new Date(sessions[0].session_date).toLocaleDateString('en-US', {
               month: 'long',
               year: 'numeric',
@@ -269,7 +269,7 @@ async function jumpToMonth(monthKey: string) {
 
   // Parse year from input (format: "2025-10")
   const [yearStr] = monthKey.split('-')
-  const year = parseInt(yearStr, 10)
+  const year = parseInt(yearStr ?? '2025', 10)
 
   // Expand the year
   expandedYears.value.add(year)
@@ -310,6 +310,11 @@ function getMinMonth(): string {
   }
 
   const earliestSession = sessions.value[sessions.value.length - 1]
+  if (!earliestSession) {
+    const fiveYearsAgo = new Date()
+    fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5)
+    return `${fiveYearsAgo.getFullYear()}-01`
+  }
   const date = new Date(earliestSession.session_date)
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }

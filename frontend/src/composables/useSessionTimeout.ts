@@ -1,4 +1,4 @@
-import { ref, readonly, onMounted, onUnmounted } from 'vue'
+import { ref, readonly, onMounted, onUnmounted, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import apiClient from '@/api/client'
@@ -38,8 +38,8 @@ import apiClient from '@/api/client'
  */
 
 export interface UseSessionTimeoutReturn {
-  showWarning: Readonly<typeof showWarning>
-  remainingSeconds: Readonly<typeof remainingSeconds>
+  showWarning: Readonly<Ref<boolean>>
+  remainingSeconds: Readonly<Ref<number>>
   refreshSession: () => Promise<void>
   handleTimeout: () => Promise<void>
   resetTimers: () => void
@@ -56,7 +56,6 @@ export function useSessionTimeout(): UseSessionTimeoutReturn {
   const showWarning = ref(false)
   const remainingSeconds = ref(0)
 
-  let lastActivityTime = Date.now()
   let warningTimer: NodeJS.Timeout | null = null
   let expiryTimer: NodeJS.Timeout | null = null
   let countdownInterval: NodeJS.Timeout | null = null
@@ -66,8 +65,6 @@ export function useSessionTimeout(): UseSessionTimeoutReturn {
    * Called on clicks, keyboard events, and successful API calls
    */
   function trackActivity(): void {
-    lastActivityTime = Date.now()
-
     // If warning is showing and user is active, close it and reset
     if (showWarning.value) {
       showWarning.value = false

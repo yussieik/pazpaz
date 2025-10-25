@@ -546,7 +546,7 @@ defineExpose({
     <!-- Empty State -->
     <EmptyState
       v-else
-      icon="📎"
+      icon="document"
       title="No attachments yet"
       description="Upload files to attach them to this session"
     />

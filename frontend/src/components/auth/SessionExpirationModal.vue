@@ -55,7 +55,7 @@
                   <p class="mb-2 text-sm text-red-900">Your session expires in:</p>
                   <div
                     class="font-mono text-4xl font-bold text-red-600 tabular-nums"
-                    :class="{ 'animate-pulse': timeRemaining <= 10 }"
+                    :class="{ 'animate-pulse': timeRemaining !== null && timeRemaining <= 10 }"
                   >
                     {{ formattedTime }}
                   </div>

@@ -6,7 +6,7 @@ import apiClient from '@/api/client'
 
 interface Props {
   sessionId: string
-  session: Partial<SessionWithAmendments> | null
+  session: SessionWithAmendments | null
   open: boolean
 }
 

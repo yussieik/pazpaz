@@ -208,7 +208,7 @@ export function useAttachmentRename() {
         state.error = errorMessage
         return {
           success: false,
-          error: state.error,
+          error: state.error ?? undefined,
         }
       } else if (error.response?.status === 404) {
         // Not found

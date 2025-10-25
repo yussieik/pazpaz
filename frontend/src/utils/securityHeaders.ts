@@ -131,7 +131,7 @@ export function verifySecurityHeaders(
       if (header === 'strict-transport-security') {
         // Should have max-age >= 1 year
         const match = actualValue.match(/max-age=(\d+)/)
-        if (match) {
+        if (match && match[1]) {
           const maxAge = parseInt(match[1], 10)
           if (maxAge < 31536000) {
             warnings.push({

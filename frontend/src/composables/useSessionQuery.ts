@@ -33,10 +33,11 @@ export function useSessionQuery() {
       )
 
       if (response.data?.items && response.data.items.length > 0) {
-        session.value = response.data.items[0]
+        session.value = response.data.items[0] ?? null
         return session.value
       }
 
+      session.value = null
       return null
     } catch (err) {
       error.value = err instanceof Error ? err : new Error('Failed to fetch session')

@@ -11,7 +11,7 @@ if (!crypto.hash) {
   crypto.hash = (algorithm: string, data: string | Buffer, outputEncoding?: string) => {
     const hash = crypto.createHash(algorithm).update(data)
     return outputEncoding
-      ? hash.digest(outputEncoding as BufferEncoding)
+      ? hash.digest(outputEncoding as crypto.BinaryToTextEncoding)
       : hash.digest()
   }
 }
@@ -111,12 +111,13 @@ export function getViteConfig(mode: string): UserConfig {
 
       // Minification removes inline scripts and consolidates code
       minify: 'esbuild',
+    },
 
-      // HIPAA Compliance: Remove console.debug statements in production builds
-      // console.error and console.warn are preserved for error handling
-      esbuild: {
-        drop: ['console.debug'],
-      },
+    // HIPAA Compliance: Remove console.debug statements in production builds
+    // console.error and console.warn are preserved for error handling
+    esbuild: {
+      drop: ['debugger', 'console'],
+      pure: ['console.debug'],
     },
   }
 }

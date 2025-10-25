@@ -50,7 +50,7 @@ watch(
       const end = new Date(appointment.scheduled_end)
 
       // Set date (YYYY-MM-DD format for input[type="date"])
-      selectedDate.value = start.toISOString().split('T')[0]
+      selectedDate.value = start.toISOString().split('T')[0] ?? ''
 
       // Set time (HH:MM format for input[type="time"])
       const hours = start.getHours().toString().padStart(2, '0')
@@ -83,9 +83,9 @@ const newTimePreview = computed(() => {
 
   const [hours, minutes] = selectedTime.value.split(':').map(Number)
   const newStart = new Date(selectedDate.value)
-  newStart.setHours(hours, minutes, 0, 0)
+  newStart.setHours(hours ?? 0, minutes ?? 0, 0, 0)
 
-  const newEnd = calculateEndTime(newStart, duration.value)
+  const newEnd = calculateEndTime(newStart, duration.value ?? 60)
 
   return formatTimeRange(newStart, newEnd)
 })
@@ -101,13 +101,13 @@ const isFormValid = computed(() => {
  * Handle reschedule
  */
 function handleReschedule() {
-  if (!isFormValid.value) return
+  if (!isFormValid.value || !selectedDate.value || !selectedTime.value) return
 
   const [hours, minutes] = selectedTime.value.split(':').map(Number)
   const newStart = new Date(selectedDate.value)
-  newStart.setHours(hours, minutes, 0, 0)
+  newStart.setHours(hours ?? 0, minutes ?? 0, 0, 0)
 
-  const newEnd = calculateEndTime(newStart, duration.value)
+  const newEnd = calculateEndTime(newStart, duration.value ?? 60)
 
   emit('reschedule', { newStart, newEnd })
   handleClose()
@@ -124,7 +124,7 @@ function handleClose() {
  * Get today's date in YYYY-MM-DD format
  */
 function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0]
+  return new Date().toISOString().split('T')[0] ?? ''
 }
 </script>
 
