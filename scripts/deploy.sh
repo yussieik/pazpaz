@@ -276,7 +276,7 @@ check_environment() {
 
     # Validate Docker Compose configuration
     log "INFO" "Validating Docker Compose configuration..."
-    if ! docker-compose -f "$COMPOSE_FILE" config > /dev/null 2>&1; then
+    if ! docker compose --env-file ${PROJECT_ROOT}/.env.production -f "$COMPOSE_FILE" config > /dev/null 2>&1; then
         log "ERROR" "Docker Compose configuration is invalid"
         return 1
     fi
@@ -340,7 +340,7 @@ check_services_connectivity() {
 
     # Check GitHub Container Registry access
     log "INFO" "Checking GitHub Container Registry access..."
-    local test_image="ghcr.io/${GITHUB_REPOSITORY}/backend:${IMAGE_TAG}"
+    local test_image="ghcr.io/yussieik/pazpaz-backend:${IMAGE_TAG}"
 
     if docker pull "$test_image" --quiet > /dev/null 2>&1; then
         log "SUCCESS" "GitHub Container Registry is accessible"
@@ -427,8 +427,8 @@ pull_images() {
     log "INFO" "Pulling latest images from GitHub Container Registry..."
 
     local images=(
-        "ghcr.io/${GITHUB_REPOSITORY}/backend:${IMAGE_TAG}"
-        "ghcr.io/${GITHUB_REPOSITORY}/frontend:${IMAGE_TAG}"
+        "ghcr.io/yussieik/pazpaz-backend:${IMAGE_TAG}"
+        "ghcr.io/yussieik/pazpaz-frontend:${IMAGE_TAG}"
     )
 
     for image in "${images[@]}"; do
@@ -489,7 +489,7 @@ EOF
 
     # Deploy new containers alongside existing ones
     log "INFO" "Starting new containers..."
-    if execute "docker-compose -f $COMPOSE_FILE -f ${PROJECT_ROOT}/docker-compose.deploy.yml up -d --no-deps --scale api=2 --scale frontend=2 api frontend arq-worker nginx"; then
+    if execute "docker compose --env-file ${PROJECT_ROOT}/.env.production -f $COMPOSE_FILE -f ${PROJECT_ROOT}/docker-compose.deploy.yml up -d --no-deps --scale api=2 --scale frontend=2 api frontend arq-worker nginx"; then
         log "SUCCESS" "New containers started with deployment color: $deployment_color"
         DEPLOYED_SERVICES+=("api" "frontend" "arq-worker" "nginx")
     else
@@ -499,7 +499,7 @@ EOF
 
     # Start infrastructure services if not running
     log "INFO" "Ensuring infrastructure services are running..."
-    if execute "docker-compose -f $COMPOSE_FILE up -d db redis minio clamav"; then
+    if execute "docker compose --env-file ${PROJECT_ROOT}/.env.production -f $COMPOSE_FILE up -d db redis minio clamav"; then
         log "SUCCESS" "Infrastructure services are running"
     else
         log "ERROR" "Failed to start infrastructure services"
@@ -1015,7 +1015,7 @@ main() {
     # Print post-deployment instructions
     log "INFO" ""
     log "INFO" "Post-Deployment Checklist:"
-    log "INFO" "  1. Monitor application logs: docker-compose logs -f"
+    log "INFO" "  1. Monitor application logs: docker compose logs -f"
     log "INFO" "  2. Check metrics and performance"
     log "INFO" "  3. Verify critical user journeys"
     log "INFO" "  4. Monitor error rates for 30 minutes"
