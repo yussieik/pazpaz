@@ -365,3 +365,106 @@ jobs:
 
           echo ""
           echo "✅ All required CI checks passed successfully!"
+
+  # ============================================================================
+  # Docker Build & Push
+  # ============================================================================
+  docker-build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [test, security]  # Only build if tests and security pass
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write  # Required for ghcr.io
+      id-token: write  # Required for OIDC authentication
+
+    # Only run docker build on main branch pushes, release tags, or manual dispatch
+    # Skip for pull requests to save time (PR validation happens in test/security jobs)
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/yussieik/pazpaz-frontend
+          tags: |
+            # Tag with branch name for main/develop
+            type=ref,event=branch
+            # Tag with semver for releases (v1.0.0, v1.0, v1)
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            # Tag with commit SHA (first 7 chars)
+            type=sha,prefix=sha-,format=short
+            # Tag with 'latest' only for main branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+          labels: |
+            org.opencontainers.image.title=PazPaz Frontend
+            org.opencontainers.image.description=HIPAA-compliant practice management frontend
+            org.opencontainers.image.vendor=PazPaz
+            org.opencontainers.image.licenses=Proprietary
+            security.scan=required
+            security.non-root=true
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          platforms: linux/amd64  # Hetzner VPS architecture
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Run Trivy vulnerability scanner on image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/yussieik/pazpaz-frontend:${{ steps.meta.outputs.version }}
+          format: 'sarif'
+          output: 'trivy-image-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-image-results.sarif'
+          category: 'trivy-docker-image-frontend'
+        continue-on-error: true
+
+      - name: Generate image summary
+        if: always()
+        run: |
+          echo "## Docker Image Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** GitHub Container Registry (ghcr.io)" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository:** ghcr.io/yussieik/pazpaz-frontend" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Security:** Image scanned with Trivy for vulnerabilities" >> $GITHUB_STEP_SUMMARY

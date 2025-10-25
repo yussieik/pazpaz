@@ -84,7 +84,7 @@ services:
   # NOT exposed to host - only accessible through nginx
   api:
     # Use image from ghcr.io registry
-    image: ghcr.io/${GITHUB_REPOSITORY:-yourusername/pazpaz}/backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/yussieik/pazpaz-backend:${IMAGE_TAG:-latest}
     container_name: pazpaz-api
     networks:
       - backend   # Internal network for nginx communication
@@ -189,7 +189,7 @@ services:
   # Uses same image as API but runs different command
   arq-worker:
     # Use same image as API
-    image: ghcr.io/${GITHUB_REPOSITORY:-yourusername/pazpaz}/backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/yussieik/pazpaz-backend:${IMAGE_TAG:-latest}
     container_name: pazpaz-arq-worker
     command: ["uv", "run", "arq", "pazpaz.workers.scheduler.WorkerSettings"]
     networks:
@@ -511,7 +511,7 @@ services:
   # Serves the built Vue.js application
   # Only accessible through the main nginx reverse proxy
   frontend:
-    image: ghcr.io/${GITHUB_REPOSITORY:-yourusername/pazpaz}/frontend:${IMAGE_TAG:-latest}
+    image: ghcr.io/yussieik/pazpaz-frontend:${IMAGE_TAG:-latest}
     container_name: pazpaz-frontend
     networks:
       - frontend  # Internal frontend network
@@ -553,7 +553,7 @@ services:
   # Builds frontend and copies dist to shared volume
   # Runs once during deployment then exits
   frontend-builder:
-    image: ghcr.io/${GITHUB_REPOSITORY:-yourusername/pazpaz}/frontend:${IMAGE_TAG:-latest}
+    image: ghcr.io/yussieik/pazpaz-frontend:${IMAGE_TAG:-latest}
     container_name: pazpaz-frontend-builder
     volumes:
       - frontend_dist:/app/dist

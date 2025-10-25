@@ -838,10 +838,10 @@ function openInviteModal() {
       reasonPlaceholder="Explain why this workspace is being suspended..."
       :reasonRequired="true"
       @confirm="confirmSuspend"
-      @cancel="
+      @cancel="() => {
         showSuspendConfirmation = false;
         pendingAction = null;
-      "
+      }"
     />
 
     <ConfirmationModal
@@ -851,10 +851,10 @@ function openInviteModal() {
       confirmText="Reactivate"
       confirmStyle="primary"
       @confirm="confirmReactivate"
-      @cancel="
+      @cancel="() => {
         showReactivateConfirmation = false;
         pendingAction = null;
-      "
+      }"
     />
 
     <ConfirmationModal
@@ -868,10 +868,10 @@ function openInviteModal() {
       reasonPlaceholder="Explain why this workspace is being deleted..."
       :reasonRequired="true"
       @confirm="confirmDelete"
-      @cancel="
+      @cancel="() => {
         showDeleteConfirmation = false;
         pendingAction = null;
-      "
+      }"
     />
 
     <ConfirmationModal
@@ -881,10 +881,10 @@ function openInviteModal() {
       confirmText="Remove"
       confirmStyle="primary"
       @confirm="confirmRemoveFromBlacklist"
-      @cancel="
+      @cancel="() => {
         showRemoveBlacklistConfirmation = false;
         selectedBlacklistEmail = '';
-      "
+      }"
     />
   </div>
 </template>
