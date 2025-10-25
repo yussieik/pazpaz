@@ -93,11 +93,11 @@ class Settings(BaseSettings):
     )
     db_ssl_client_cert_path: str | None = Field(
         default="/app/certs/client-cert.pem",
-        description="Path to client certificate for mutual TLS (optional)"
+        description="Path to client certificate for mutual TLS (optional)",
     )
     db_ssl_client_key_path: str | None = Field(
         default="/app/certs/client-key.pem",
-        description="Path to client private key for mutual TLS (optional)"
+        description="Path to client private key for mutual TLS (optional)",
     )
 
     # Redis
