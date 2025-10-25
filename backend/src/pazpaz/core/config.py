@@ -88,14 +88,16 @@ class Settings(BaseSettings):
         description="SSL mode: disable, allow, prefer, require, verify-ca, verify-full",
     )
     db_ssl_ca_cert_path: str = Field(
-        default="/Users/yussieik/Desktop/projects/pazpaz/backend/certs/ca-cert.pem",
+        default="/app/certs/ca-cert.pem",
         description="Path to PostgreSQL CA certificate for SSL verification",
     )
     db_ssl_client_cert_path: str | None = Field(
-        default=None, description="Path to client certificate for mutual TLS (optional)"
+        default="/app/certs/client-cert.pem",
+        description="Path to client certificate for mutual TLS (optional)"
     )
     db_ssl_client_key_path: str | None = Field(
-        default=None, description="Path to client private key for mutual TLS (optional)"
+        default="/app/certs/client-key.pem",
+        description="Path to client private key for mutual TLS (optional)"
     )
 
     # Redis
