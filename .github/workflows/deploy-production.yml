@@ -385,31 +385,12 @@ jobs:
             echo "✅ Logged in to GitHub Container Registry"
           ENDSSH
 
-      - name: Run database migrations
-        if: inputs.skip_migrations != true
-        run: |
-          echo "Running database migrations..."
-
-          ssh production << 'ENDSSH'
-            set -e
-            cd ${{ env.DEPLOYMENT_DIR }}
-
-            # Export required environment variables
-            export GITHUB_REPOSITORY="${{ github.repository }}"
-            export IMAGE_TAG="${{ needs.validate.outputs.image_tag }}"
-
-            # Run migrations with migrate.sh
-            if [ -f scripts/migrate.sh ]; then
-              echo "Executing migrate.sh..."
-              if ${{ inputs.dry_run == true }}; then
-                ./scripts/migrate.sh --dry-run upgrade
-              else
-                ./scripts/migrate.sh upgrade
-              fi
-            else
-              echo "⚠️ migrate.sh not found, skipping migrations"
-            fi
-          ENDSSH
+      # Note: Database migrations are handled by deploy.sh script
+      # The deploy.sh script includes built-in migration support with:
+      # - Automatic backups before migration
+      # - Test database validation
+      # - Post-migration verification
+      # - Rollback on failure
 
       - name: Deploy application
         id: deployment
