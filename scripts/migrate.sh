@@ -164,9 +164,10 @@ log_error() {
 
 # Check if running in Docker environment
 check_docker_environment() {
-    if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    # Check for API container since that's where alembic runs
+    if docker ps --format '{{.Names}}' | grep -q "^${API_CONTAINER}$"; then
         USE_DOCKER=true
-        log_info "Docker environment detected, using container: $CONTAINER_NAME"
+        log_info "Docker environment detected, using container: $API_CONTAINER"
     else
         log_info "Local environment detected"
     fi
