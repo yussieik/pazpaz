@@ -401,9 +401,9 @@ jobs:
             if [ -f scripts/migrate.sh ]; then
               echo "Executing migrate.sh..."
               if ${{ inputs.dry_run == true }}; then
-                ./scripts/migrate.sh --dry-run --check-only
+                ./scripts/migrate.sh --dry-run upgrade
               else
-                ./scripts/migrate.sh --backup
+                ./scripts/migrate.sh upgrade
               fi
             else
               echo "⚠️ migrate.sh not found, skipping migrations"
