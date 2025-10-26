@@ -360,8 +360,8 @@ create_test_database() {
 run_test_migration() {
     log_info "Running test migration on: $DB_TEST_NAME"
 
-    # Create test database configuration
-    local test_db_url="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_TEST_NAME}"
+    # Create test database configuration (use asyncpg driver)
+    local test_db_url="postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_TEST_NAME}"
 
     # Run migration on test database
     if [ "$USE_DOCKER" = true ]; then
