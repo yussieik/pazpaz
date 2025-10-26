@@ -27,6 +27,14 @@
 name: Deploy Production
 
 on:
+  # Automatic deployment after CI passes on main branch
+  workflow_run:
+    workflows: ["Backend CI"]
+    types:
+      - completed
+    branches:
+      - main
+
   # Manual deployment with options
   workflow_dispatch:
     inputs:
@@ -98,6 +106,16 @@ jobs:
       deployment_id: ${{ steps.generate_id.outputs.id }}
 
     steps:
+      - name: Check CI workflow conclusion
+        if: github.event_name == 'workflow_run'
+        run: |
+          if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
+            echo "❌ Backend CI did not succeed. Conclusion: ${{ github.event.workflow_run.conclusion }}"
+            echo "Deployment will not proceed."
+            exit 1
+          fi
+          echo "✅ Backend CI passed successfully"
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -108,6 +126,9 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ inputs.image_tag }}"
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+            # Use latest tag for automatic deployments from main
+            TAG="latest"
           else
             # Extract tag from ref (e.g., refs/tags/v1.2.3 -> v1.2.3)
             TAG="${GITHUB_REF#refs/tags/}"
