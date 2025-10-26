@@ -37,9 +37,11 @@ services:
       - "443:443"   # HTTPS with SSL/TLS
     volumes:
       # Nginx configuration
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx-ssl.conf:/etc/nginx/nginx.conf:ro
+      # DH parameters for enhanced SSL security
+      - ./nginx/dhparam.pem:/etc/nginx/dhparam.pem:ro
       # SSL certificates (Let's Encrypt or custom)
-      - ./certs:/etc/letsencrypt:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
       # Let's Encrypt challenge directory
       - ./certs/acme-challenge:/var/www/acme-challenge:rw
       # Custom error pages
