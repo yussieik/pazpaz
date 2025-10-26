@@ -428,7 +428,7 @@ main() {
     [ -n "$from_email" ] && check_email_format "EMAILS_FROM_EMAIL" "$from_email"
 
     smtp_user=$(get_var_value "SMTP_USER" "$ENV_TEMP_FILE")
-    if [ -n "$smtp_user" ] && [ "$smtp_user" != "apikey" ]; then
+    if [ -n "$smtp_user" ] && [ "$smtp_user" != "apikey" ] && [ "$smtp_user" != "resend" ]; then
         check_email_format "SMTP_USER" "$smtp_user"
     fi
 
