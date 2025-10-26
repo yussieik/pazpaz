@@ -272,10 +272,16 @@ check_domain_format() {
     IFS=',' read -ra domain_list <<< "$domains"
 
     local domain_regex='^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    local ip_regex='^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 
     for domain in "${domain_list[@]}"; do
         # Trim whitespace
         domain=$(echo "$domain" | xargs)
+
+        # Allow localhost and IP addresses for Docker internal communication
+        if [[ "$domain" == "localhost" ]] || [[ "$domain" =~ $ip_regex ]]; then
+            continue
+        fi
 
         if ! [[ "$domain" =~ $domain_regex ]]; then
             format_errors_list+=("$var_name contains invalid domain: $domain")
