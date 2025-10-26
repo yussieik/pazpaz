@@ -191,7 +191,7 @@ services:
     # Use same image as API
     image: ghcr.io/yussieik/pazpaz-backend:${IMAGE_TAG:-latest}
     container_name: pazpaz-arq-worker
-    command: ["uv", "run", "arq", "pazpaz.workers.scheduler.WorkerSettings"]
+    command: ["uv", "run", "--no-sync", "arq", "pazpaz.workers.scheduler.WorkerSettings"]
     networks:
       - backend   # For potential API communication
       - database  # For database and Redis access

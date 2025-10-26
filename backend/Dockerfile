@@ -180,7 +180,8 @@ LABEL maintainer="PazPaz Security Team" \
 
 # Default command using exec form (more secure than shell form)
 # Exec form doesn't invoke a shell, preventing shell injection
-CMD ["uv", "run", "uvicorn", "pazpaz.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Using --no-sync to prevent downloading dependencies at runtime (security + performance)
+CMD ["uv", "run", "--no-sync", "uvicorn", "pazpaz.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
 
 # =============================================================================
 # Security Notes:
