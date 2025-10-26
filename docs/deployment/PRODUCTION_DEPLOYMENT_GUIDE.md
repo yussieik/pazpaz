@@ -6,6 +6,28 @@ This guide walks you through setting up PazPaz in production from scratch. Follo
 
 ---
 
+## 🎉 PRODUCTION STATUS: DEPLOYED & LIVE
+
+**Current Status:** PazPaz is **LIVE IN PRODUCTION** at https://pazpaz.health
+
+This guide serves as both:
+1. **Reference Documentation** - How the production environment was set up
+2. **Future Deployment Guide** - Steps for setting up additional environments (staging, DR)
+
+### Quick Production Summary
+
+- **✅ Status:** Live and operational
+- **🌐 URL:** https://pazpaz.health
+- **🔐 SSL:** Let's Encrypt (valid until Jan 23, 2026)
+- **🖥️ Server:** Hetzner Cloud CPX41 (5.161.241.81)
+- **📦 Backend Commit:** 15a33f3 (MinIO SSL fix)
+- **✅ HIPAA Compliance:** Full encryption in transit and at rest
+- **⏱️ Deployed:** October 25-26, 2025
+
+**For current production status, see:** `/DEPLOYMENT_STATUS.md`
+
+---
+
 ## Prerequisites Checklist
 
 Before starting, make sure you have:
@@ -1221,6 +1243,154 @@ If you need help:
 4. Review documentation:
    - `/docs/deployment/` folder
    - GitHub Actions workflow logs
+
+---
+
+## Actual Production Deployment Notes
+
+**This section documents what was actually done for the production deployment at pazpaz.health.**
+
+### Deployment Path Taken
+
+The production environment was deployed using a **hybrid approach**:
+- Started with infrastructure setup (Phases 1-2)
+- Domain (pazpaz.health) was already registered
+- Initial deployment used self-signed SSL certificates
+- Later migrated to Let's Encrypt for production-grade SSL
+
+### Key Differences from Guide
+
+**Manual vs. Automated:**
+- Infrastructure setup: Manual SSH
+- Service deployment: Manual Docker Compose commands
+- SSL setup: Custom scripts + manual Let's Encrypt configuration
+- No automated deployment workflow (yet)
+
+**SSL Certificate Journey:**
+1. **Phase 1:** Generated self-signed CA and certificates for:
+   - PostgreSQL (SSL/TLS for database connections)
+   - MinIO (HTTPS for S3-compatible storage)
+   - nginx (initially self-signed HTTPS)
+
+2. **Phase 2:** Migrated nginx to Let's Encrypt:
+   - Obtained Let's Encrypt certificate for pazpaz.health
+   - Updated nginx configuration to use Let's Encrypt
+   - Configured auto-renewal via certbot systemd timer
+
+**Deployment Scripts Created:**
+
+During deployment, several helper scripts were created in `/tmp/` on the server:
+
+1. **`/tmp/regenerate-ssl-certs-v2.sh`** - PostgreSQL SSL certificates
+   - Creates CA with proper X.509 v3 extensions
+   - Generates server and client certificates
+   - Used for initial PostgreSQL SSL setup
+
+2. **`/tmp/generate-minio-certs.sh`** - MinIO SSL certificates
+   - Generates certificates signed by PazPaz CA
+   - Configures SAN (Subject Alternative Names)
+   - Used for MinIO HTTPS setup
+
+3. **`/tmp/generate-nginx-certs.sh`** - nginx self-signed certificates
+   - Initial nginx SSL setup (before Let's Encrypt)
+   - Later replaced by Let's Encrypt certificates
+
+4. **`/tmp/fix-nginx-ssl.sh`** - Complete nginx SSL setup
+   - All-in-one script for nginx SSL configuration
+   - Generates certs, updates config, restarts services
+
+5. **`/tmp/deploy-minio-ssl-fix.sh`** - MinIO SSL fix deployment
+   - Deploys commit 15a33f3 (boto3 CA certificate fix)
+   - Adds S3_CA_CERT_PATH environment variable
+   - Restarts API service with new configuration
+
+**These scripts are preserved for documentation and can be reused for:**
+- Setting up staging environments
+- Disaster recovery scenarios
+- Redeploying individual components
+
+### Current Production Configuration
+
+**Environment Variables (`.env.production`):**
+- All secrets generated and configured
+- S3_CA_CERT_PATH configured for MinIO SSL
+- Database credentials secured
+- JWT secrets configured
+- Encryption master key set
+
+**Services Running:**
+- ✅ nginx: HTTPS with Let's Encrypt (ports 80, 443)
+- ✅ api: Backend with MinIO SSL fix (commit 15a33f3)
+- ✅ db: PostgreSQL 16 with SSL/TLS
+- ✅ redis: Password-protected cache
+- ✅ minio: HTTPS S3-compatible storage
+- ✅ clamav: Virus scanning for file uploads
+- ⚠️ frontend: Running (health check needs tuning)
+- ⚠️ arq-worker: Processing jobs (health check needs tuning)
+
+**SSL Certificates:**
+- **PostgreSQL:** Self-signed CA (internal communication)
+- **MinIO:** Self-signed CA (internal communication)
+- **nginx (public):** Let's Encrypt (browser-trusted)
+
+### Lessons Learned
+
+**What Worked Well:**
+1. Docker Compose for service orchestration
+2. Self-signed CA for internal service communication
+3. Let's Encrypt for public-facing SSL
+4. GitHub Container Registry for image storage
+5. Manual deployment initially (faster iteration)
+
+**What Needs Improvement:**
+1. **Automated deployments:** Need GitHub Actions workflow
+2. **Health checks:** Frontend and ARQ worker need adjustment
+3. **Monitoring:** Need UptimeRobot, Sentry, logging
+4. **Backups:** Need automated backup system
+5. **Documentation:** Scripts should be in `/opt/pazpaz/scripts/`
+
+**Next Improvements:**
+- Move deployment scripts from `/tmp/` to `/opt/pazpaz/scripts/`
+- Create automated deployment workflow
+- Fix frontend/ARQ worker health checks
+- Set up monitoring and alerting
+- Configure automated backups
+
+### Manual Deployment Commands Used
+
+**Pull and deploy backend update:**
+```bash
+cd /opt/pazpaz
+docker compose -f docker-compose.prod.yml --env-file .env.production pull api
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate api
+```
+
+**Update nginx configuration:**
+```bash
+# Edit config
+nano nginx/nginx-ssl.conf
+
+# Restart nginx
+docker compose -f docker-compose.prod.yml --env-file .env.production restart nginx
+```
+
+**Check service status:**
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production ps
+docker compose -f docker-compose.prod.yml --env-file .env.production logs -f api
+```
+
+**Manage Let's Encrypt certificates:**
+```bash
+# Check certificate status
+sudo certbot certificates
+
+# Test renewal (dry run)
+sudo certbot renew --dry-run
+
+# Force renewal (if needed)
+sudo certbot renew --force-renewal
+```
 
 ---
 
