@@ -99,6 +99,7 @@ services:
       # Production environment
       - ENVIRONMENT=production
       - DEBUG=false
+      - USE_AWS_SECRETS_MANAGER=false  # Non-AWS deployment (Hetzner)
 
       # Database connection (using service names)
       - DATABASE_URL=postgresql+asyncpg://pazpaz:${POSTGRES_PASSWORD}@db:5432/pazpaz
@@ -206,6 +207,7 @@ services:
       # Production environment
       - ENVIRONMENT=production
       - DEBUG=false
+      - USE_AWS_SECRETS_MANAGER=false  # Non-AWS deployment (Hetzner)
 
       # Database connection (same as API)
       - DATABASE_URL=postgresql+asyncpg://pazpaz:${POSTGRES_PASSWORD}@db:5432/pazpaz

@@ -312,6 +312,15 @@ class Settings(BaseSettings):
     )
 
     # AWS Secrets Manager configuration (production)
+    use_aws_secrets_manager: bool = Field(
+        default=True,
+        description=(
+            "Use AWS Secrets Manager for secrets in production/staging. "
+            "Set to False for non-AWS deployments (Hetzner, DigitalOcean, etc.) "
+            "to allow environment variable fallback while maintaining production security. "
+            "When False, ENCRYPTION_MASTER_KEY environment variable must be set."
+        ),
+    )
     aws_region: str = Field(default="us-east-1", description="AWS region")
     secrets_manager_key_name: str = Field(
         default="pazpaz/encryption-key-v1",
@@ -701,6 +710,7 @@ class Settings(BaseSettings):
             secret_name=self.secrets_manager_key_name,
             region=self.aws_region,
             environment=self.environment,
+            use_aws_secrets_manager=self.use_aws_secrets_manager,
         )
 
     @property

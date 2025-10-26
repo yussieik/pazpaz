@@ -280,12 +280,14 @@ def get_encryption_key(
     secret_name: str = "pazpaz/encryption-key-v1",
     region: str = "us-east-1",
     environment: str = "local",
+    use_aws_secrets_manager: bool = True,
 ) -> bytes:
     """
     Get encryption key from AWS Secrets Manager or environment variable.
 
     Security Model:
-    - Production/Staging: MUST use AWS Secrets Manager (fail-closed)
+    - Production/Staging (use_aws_secrets_manager=True): MUST use AWS Secrets Manager (fail-closed)
+    - Production/Staging (use_aws_secrets_manager=False): Allow environment variable for non-AWS deployments
     - Local/Development: Can use environment variable (fail-open for dev speed)
 
     The result is cached via @lru_cache to avoid repeated AWS API calls.
@@ -294,6 +296,9 @@ def get_encryption_key(
         secret_name: AWS Secrets Manager secret name (default: pazpaz/encryption-key-v1)
         region: AWS region (default: us-east-1)
         environment: Current environment (local/development/staging/production)
+        use_aws_secrets_manager: Whether to enforce AWS Secrets Manager in production/staging.
+            Set to False for non-AWS deployments (Hetzner, DigitalOcean, etc.) to allow
+            environment variable fallback while maintaining production security settings.
 
     Returns:
         32-byte encryption key for AES-256-GCM
@@ -308,8 +313,9 @@ def get_encryption_key(
         >>> len(key)
         32
     """
-    # PRODUCTION/STAGING: Enforce AWS Secrets Manager (fail-closed)
-    if environment in ("production", "staging"):
+    # PRODUCTION/STAGING: Check AWS Secrets Manager enforcement
+    if environment in ("production", "staging") and use_aws_secrets_manager:
+        # Enforce AWS Secrets Manager (fail-closed for HIPAA compliance)
         logger.info(
             "enforcing_aws_secrets_manager",
             environment=environment,
@@ -345,6 +351,35 @@ def get_encryption_key(
         )
 
         return key
+
+    if environment in ("production", "staging") and not use_aws_secrets_manager:
+        # Production/staging but non-AWS deployment: allow environment variable
+        logger.warning(
+            "using_env_key_in_production_non_aws",
+            environment=environment,
+            message=(
+                "Using environment variable for encryption key in production. "
+                "This is acceptable for non-AWS deployments (Hetzner, DigitalOcean, etc.) "
+                "as long as the key is properly secured."
+            ),
+        )
+
+        env_key = _get_key_from_env()
+        if env_key:
+            logger.info(
+                "encryption_key_loaded_from_env_production",
+                environment=environment,
+                message="Encryption key loaded from ENCRYPTION_MASTER_KEY environment variable",
+            )
+            return env_key
+
+        # No environment variable - fail
+        raise KeyNotFoundError(
+            f"Encryption key not found in environment variable ENCRYPTION_MASTER_KEY. "
+            f"Running in {environment} mode with use_aws_secrets_manager=False requires "
+            f"ENCRYPTION_MASTER_KEY to be set. Generate a key with: "
+            f"python -c 'import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())'"
+        )
 
     # LOCAL/DEVELOPMENT: Try environment variable first (faster development)
     logger.info("attempting_local_key_load", environment=environment)
