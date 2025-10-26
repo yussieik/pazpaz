@@ -291,7 +291,7 @@ get_current_revision() {
     local revision
 
     if [ "$USE_DOCKER" = true ]; then
-        revision=$(docker exec "$API_CONTAINER" bash -c "cd /app && PYTHONPATH=/app/src uv run alembic current 2>/dev/null" | grep -oE '[a-f0-9]{12}' | head -1)
+        revision=$(docker exec "$API_CONTAINER" bash -c "cd /app && PYTHONPATH=/app/src uv run --no-sync alembic current 2>/dev/null" | grep -oE '[a-f0-9]{12}' | head -1)
     else
         revision=$(cd "$BACKEND_DIR" && PYTHONPATH="${BACKEND_DIR}/src" uv run alembic current 2>/dev/null | grep -oE '[a-f0-9]{12}' | head -1)
     fi
@@ -320,7 +320,7 @@ generate_migration_sql() {
     log_info "Generating migration SQL for target: $target"
 
     if [ "$USE_DOCKER" = true ]; then
-        docker exec "$API_CONTAINER" bash -c "cd /app && PYTHONPATH=/app/src uv run alembic upgrade $target --sql" > "$sql_file" 2>&1
+        docker exec "$API_CONTAINER" bash -c "cd /app && PYTHONPATH=/app/src uv run --no-sync alembic upgrade $target --sql" > "$sql_file" 2>&1
     else
         (cd "$BACKEND_DIR" && PYTHONPATH="${BACKEND_DIR}/src" uv run alembic upgrade "$target" --sql) > "$sql_file" 2>&1
     fi
@@ -366,7 +366,7 @@ run_test_migration() {
     # Run migration on test database
     if [ "$USE_DOCKER" = true ]; then
         if timeout "$MIGRATION_TIMEOUT" docker exec "$API_CONTAINER" bash -c \
-            "cd /app && DATABASE_URL='$test_db_url' PYTHONPATH=/app/src uv run alembic upgrade $TARGET_REVISION"; then
+            "cd /app && DATABASE_URL='$test_db_url' PYTHONPATH=/app/src uv run --no-sync alembic upgrade $TARGET_REVISION"; then
             log_success "Test migration completed successfully"
             TEST_PASSED=true
             return 0
@@ -398,7 +398,7 @@ apply_migration() {
     # Run migration with timeout
     if [ "$USE_DOCKER" = true ]; then
         if timeout "$MIGRATION_TIMEOUT" docker exec "$API_CONTAINER" bash -c \
-            "cd /app && PYTHONPATH=/app/src uv run alembic $COMMAND $TARGET_REVISION"; then
+            "cd /app && PYTHONPATH=/app/src uv run --no-sync alembic $COMMAND $TARGET_REVISION"; then
             log_success "Migration applied successfully"
             MIGRATION_APPLIED=true
             return 0
@@ -479,7 +479,7 @@ validate_migration_state() {
 
     # Check for pending migrations
     if [ "$USE_DOCKER" = true ]; then
-        local pending=$(docker exec "$API_CONTAINER" bash -c "cd /app && PYTHONPATH=/app/src uv run alembic history -r current:head" | grep -c "Rev:")
+        local pending=$(docker exec "$API_CONTAINER" bash -c "cd /app && PYTHONPATH=/app/src uv run --no-sync alembic history -r current:head" | grep -c "Rev:")
     else
         local pending=$(cd "$BACKEND_DIR" && PYTHONPATH="${BACKEND_DIR}/src" uv run alembic history -r current:head | grep -c "Rev:")
     fi
@@ -747,7 +747,7 @@ handle_current() {
 
     # Get revision details
     if [ "$USE_DOCKER" = true ]; then
-        docker exec "$API_CONTAINER" bash -c "cd /app && PYTHONPATH=/app/src uv run alembic history -r $revision:$revision -v" 2>/dev/null
+        docker exec "$API_CONTAINER" bash -c "cd /app && PYTHONPATH=/app/src uv run --no-sync alembic history -r $revision:$revision -v" 2>/dev/null
     else
         (cd "$BACKEND_DIR" && PYTHONPATH="${BACKEND_DIR}/src" uv run alembic history -r "$revision:$revision" -v) 2>/dev/null
     fi
@@ -760,7 +760,7 @@ handle_history() {
     log_info "Showing migration history"
 
     if [ "$USE_DOCKER" = true ]; then
-        docker exec "$API_CONTAINER" bash -c "cd /app && PYTHONPATH=/app/src uv run alembic history -v"
+        docker exec "$API_CONTAINER" bash -c "cd /app && PYTHONPATH=/app/src uv run --no-sync alembic history -v"
     else
         (cd "$BACKEND_DIR" && PYTHONPATH="${BACKEND_DIR}/src" uv run alembic history -v)
     fi
