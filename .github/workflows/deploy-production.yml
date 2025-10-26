@@ -2,14 +2,14 @@
 # Production Deployment Pipeline for PazPaz
 # =============================================================================
 # Continuous Deployment workflow implementing zero-downtime deployment with
-# comprehensive health checks, automatic rollback, and HIPAA compliance.
+# comprehensive health checks and HIPAA compliance.
 #
 # Features:
-#   - Blue-green deployment via deploy.sh script
-#   - Database migration support via migrate.sh
+#   - Direct Docker Compose deployment (simple and reliable)
+#   - Database migration support with automatic backups
 #   - SSH-based deployment to production servers
 #   - Comprehensive health checks and smoke tests
-#   - Automatic rollback on failure
+#   - Configuration rollback on failure
 #   - Slack/Discord notification support
 #   - Deployment tracking and metrics
 #
@@ -19,7 +19,7 @@
 #   - SSH_USER: Deployment user (non-root)
 #   - SSH_PORT: SSH port (default: 22)
 #   - GHCR_TOKEN: GitHub Container Registry PAT
-#   - DOMAIN: Production domain (e.g., app.pazpaz.com)
+#   - DOMAIN: Production domain (e.g., pazpaz.health)
 #   - SLACK_WEBHOOK_URL: (Optional) Slack notifications
 #   - SENTRY_AUTH_TOKEN: (Optional) Sentry release tracking
 # =============================================================================
@@ -385,12 +385,31 @@ jobs:
             echo "✅ Logged in to GitHub Container Registry"
           ENDSSH
 
-      # Note: Database migrations are handled by deploy.sh script
-      # The deploy.sh script includes built-in migration support with:
-      # - Automatic backups before migration
-      # - Test database validation
-      # - Post-migration verification
-      # - Rollback on failure
+      - name: Run database migrations
+        if: inputs.skip_migrations != true && inputs.dry_run != true
+        run: |
+          echo "Running database migrations..."
+
+          ssh production << 'ENDSSH'
+            set -e
+            cd ${{ env.DEPLOYMENT_DIR }}
+
+            # Backup database before migration
+            echo "Creating database backup..."
+            docker exec pazpaz-db pg_dump -U pazpaz -d pazpaz > "backups/pre-migration-$(date +%Y%m%d-%H%M%S).sql"
+            echo "✅ Database backup created"
+
+            # Run migrations via migrate.sh script
+            if [ -f scripts/migrate.sh ]; then
+              ./scripts/migrate.sh
+            else
+              # Fallback to direct alembic migration
+              docker compose --env-file .env.production -f docker-compose.prod.yml exec -T api \
+                alembic upgrade head
+            fi
+
+            echo "✅ Database migrations completed"
+          ENDSSH
 
       - name: Deploy application
         id: deployment
@@ -402,57 +421,53 @@ jobs:
             set -e
             cd ${{ env.DEPLOYMENT_DIR }}
 
-            # Export required environment variables
-            export GITHUB_REPOSITORY="${{ github.repository }}"
+            # Set image tag in environment
             export IMAGE_TAG="${{ needs.validate.outputs.image_tag }}"
-            export DEPLOYMENT_ID="${{ needs.validate.outputs.deployment_id }}"
 
-            # Build deployment command
-            DEPLOY_CMD="./scripts/deploy.sh"
+            # Update docker-compose.prod.yml to use specified image tag
+            sed -i "s|image: ghcr.io/yussieik/pazpaz-backend:.*|image: ghcr.io/yussieik/pazpaz-backend:${IMAGE_TAG}|g" docker-compose.prod.yml
+            sed -i "s|image: ghcr.io/yussieik/pazpaz-frontend:.*|image: ghcr.io/yussieik/pazpaz-frontend:${IMAGE_TAG}|g" docker-compose.prod.yml
 
+            echo "Pulling latest images..."
+            docker compose --env-file .env.production -f docker-compose.prod.yml pull api frontend
+
+            echo "Deploying with Docker Compose..."
             if ${{ inputs.dry_run == true }}; then
-              DEPLOY_CMD="$DEPLOY_CMD --dry-run"
-            fi
-
-            if ${{ inputs.skip_health_checks == true }}; then
-              DEPLOY_CMD="$DEPLOY_CMD --skip-health-checks"
-            fi
-
-            if ${{ inputs.force_deployment == true }}; then
-              DEPLOY_CMD="$DEPLOY_CMD --force"
-            fi
-
-            DEPLOY_CMD="$DEPLOY_CMD --tag $IMAGE_TAG"
-
-            echo "Executing: $DEPLOY_CMD"
-
-            # Run deployment
-            if $DEPLOY_CMD; then
-              echo "✅ Deployment script completed successfully"
+              docker compose --env-file .env.production -f docker-compose.prod.yml config
+              echo "✅ Dry run completed - configuration is valid"
             else
-              EXIT_CODE=$?
-              echo "❌ Deployment script failed with exit code: $EXIT_CODE"
+              # Start/restart services with new images
+              docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-build
 
-              # Check exit codes for specific failure reasons
-              case $EXIT_CODE in
-                1)
-                  echo "Pre-deployment checks failed"
-                  ;;
-                2)
-                  echo "Deployment failed during container startup"
-                  ;;
-                3)
-                  echo "Health checks failed"
-                  ;;
-                4)
-                  echo "Rollback failed - manual intervention required!"
-                  ;;
-                *)
-                  echo "Unknown failure"
-                  ;;
-              esac
+              echo "Waiting for services to become healthy..."
+              TIMEOUT=120
+              ELAPSED=0
 
-              exit $EXIT_CODE
+              while [ $ELAPSED -lt $TIMEOUT ]; do
+                # Check if all required containers are healthy
+                UNHEALTHY=$(docker compose --env-file .env.production -f docker-compose.prod.yml ps --format json | \
+                  jq -r 'select(.Service == "api" or .Service == "frontend" or .Service == "nginx") | select(.Health != "healthy") | .Service' | wc -l)
+
+                if [ "$UNHEALTHY" -eq 0 ]; then
+                  echo "✅ All services are healthy"
+                  break
+                fi
+
+                echo "Waiting for services to become healthy... ($ELAPSED/$TIMEOUT seconds)"
+                sleep 5
+                ELAPSED=$((ELAPSED + 5))
+              done
+
+              if [ $ELAPSED -ge $TIMEOUT ]; then
+                echo "❌ Health check timeout - services did not become healthy in time"
+                echo "Container status:"
+                docker compose --env-file .env.production -f docker-compose.prod.yml ps
+                echo "Recent logs:"
+                docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=50
+                exit 1
+              fi
+
+              echo "✅ Deployment completed successfully"
             fi
           ENDSSH
 
@@ -718,21 +733,58 @@ jobs:
             set -e
             cd ${{ env.DEPLOYMENT_DIR }}
 
-            # Run rollback
-            if ./scripts/deploy.sh --rollback; then
+            # Restore previous docker-compose.prod.yml if available
+            if [ -f docker-compose.prod.yml.backup-* ]; then
+              LATEST_BACKUP=$(ls -t docker-compose.prod.yml.backup-* | head -1)
+              echo "Restoring configuration from: $LATEST_BACKUP"
+              cp "$LATEST_BACKUP" docker-compose.prod.yml
+            fi
+
+            # Pull previous images and restart
+            echo "Restarting with previous configuration..."
+            docker compose --env-file .env.production -f docker-compose.prod.yml pull
+            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --force-recreate
+
+            # Wait for services to become healthy
+            echo "Waiting for services to stabilize..."
+            sleep 30
+
+            # Check health
+            UNHEALTHY=$(docker compose --env-file .env.production -f docker-compose.prod.yml ps --format json | \
+              jq -r 'select(.Service == "api" or .Service == "frontend" or .Service == "nginx") | select(.Health != "healthy") | .Service' | wc -l)
+
+            if [ "$UNHEALTHY" -eq 0 ]; then
               echo "✅ Rollback completed successfully"
             else
-              echo "❌ Rollback failed - manual intervention required!"
-              echo "Please check the server logs and restore from backup if necessary"
+              echo "❌ Rollback failed - services are not healthy"
+              docker compose --env-file .env.production -f docker-compose.prod.yml ps
+              docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=50
               exit 1
             fi
           ENDSSH
 
       - name: Verify rollback
         run: |
+          # Wait for services to stabilize
+          sleep 15
+
           # Run smoke tests on rolled back version
-          curl -f -s "https://${{ secrets.DOMAIN }}/api/v1/health" || {
-            echo "❌ API not responding after rollback"
+          echo "Testing API health..."
+          for i in {1..5}; do
+            if curl -f -s "https://${{ secrets.DOMAIN }}/api/v1/health" | jq -e '.status == "healthy"' > /dev/null; then
+              echo "✅ API is responding after rollback"
+              break
+            fi
+            echo "Retry $i/5..."
+            sleep 10
+          done
+
+          # Verify frontend
+          if curl -f -s "https://${{ secrets.DOMAIN }}" | grep -q "PazPaz"; then
+            echo "✅ Frontend is accessible after rollback"
+          else
+            echo "❌ Frontend check failed after rollback"
             exit 1
-          }
+          fi
+
           echo "✅ Rollback verification passed"
