@@ -310,12 +310,15 @@ jobs:
             fi
             echo "✅ Docker is running"
 
-            # Check Docker Compose
-            if ! command -v docker-compose &> /dev/null; then
+            # Check Docker Compose (support both standalone and plugin versions)
+            if command -v docker-compose &> /dev/null; then
+              echo "✅ Docker Compose (standalone) is available"
+            elif docker compose version &> /dev/null; then
+              echo "✅ Docker Compose (plugin) is available"
+            else
               echo "❌ Docker Compose is not installed"
               exit 1
             fi
-            echo "✅ Docker Compose is available"
 
             # Check deployment directory
             if [ ! -d "${{ env.DEPLOYMENT_DIR }}" ]; then
