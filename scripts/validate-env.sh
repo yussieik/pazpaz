@@ -315,7 +315,8 @@ main() {
     # GitHub/Docker Registry
     check_required_var "GITHUB_REPOSITORY" "$ENV_TEMP_FILE"
     check_required_var "IMAGE_TAG" "$ENV_TEMP_FILE"
-    check_required_var "VERSION" "$ENV_TEMP_FILE"
+    # VERSION is optional - not critical for deployment
+    # check_required_var "VERSION" "$ENV_TEMP_FILE"
 
     # Database
     check_required_var "POSTGRES_PASSWORD" "$ENV_TEMP_FILE"
@@ -339,12 +340,13 @@ main() {
     check_required_var "FRONTEND_URL" "$ENV_TEMP_FILE"
     check_required_var "ALLOWED_HOSTS" "$ENV_TEMP_FILE"
 
-    # Email Configuration
-    check_required_var "SMTP_HOST" "$ENV_TEMP_FILE"
-    check_required_var "SMTP_PORT" "$ENV_TEMP_FILE"
-    check_required_var "SMTP_USER" "$ENV_TEMP_FILE"
-    check_required_var "SMTP_PASSWORD" "$ENV_TEMP_FILE"
-    check_required_var "EMAILS_FROM_EMAIL" "$ENV_TEMP_FILE"
+    # Email Configuration - OPTIONAL for now (can be configured later for magic link auth)
+    log_info "Email (SMTP) configuration is optional and can be set up later for magic link authentication"
+    # check_required_var "SMTP_HOST" "$ENV_TEMP_FILE"
+    # check_required_var "SMTP_PORT" "$ENV_TEMP_FILE"
+    # check_required_var "SMTP_USER" "$ENV_TEMP_FILE"
+    # check_required_var "SMTP_PASSWORD" "$ENV_TEMP_FILE"
+    # check_required_var "EMAILS_FROM_EMAIL" "$ENV_TEMP_FILE"
 
     if [ ${MISSING_VARS} -eq 0 ]; then
         log_success "All required variables are present"
