@@ -28,53 +28,66 @@ You are responsible for the complete infrastructure lifecycle:
 
 **Project**: PazPaz - HIPAA-compliant practice management system for independent therapists
 
+**Production Environment**:
+- Hosting: Bare metal Hetzner server (CPX41: 8 vCPU, 16GB RAM, 160GB NVMe)
+- Domain: pazpaz.health (5.161.241.81)
+- Location: /opt/pazpaz
+- Deployment: SSH-based via scripts/deploy.sh + GitHub Environment approval gates
+- SSL/TLS: Let's Encrypt with automated renewal (systemd timer)
+- Orchestration: Docker Compose (docker-compose.prod.yml)
+
 **Stack**:
 - Backend: FastAPI (Python 3.13.5) + SQLAlchemy + PostgreSQL 16
 - Frontend: Vue 3 + TypeScript + Tailwind CSS
-- Infrastructure: Docker Compose (api, web, db, redis, minio)
-- CI/CD: GitHub Actions
-- Storage: PostgreSQL + MinIO/S3
+- Services: api, frontend, db (PostgreSQL), redis, minio, nginx, clamav, arq-worker
+- CI/CD: GitHub Actions (backend-ci.yml, frontend-ci.yml, deploy-production.yml)
+- Storage: PostgreSQL + MinIO (pazpaz-attachments bucket)
 - Cache/Queue: Redis
 
 **Critical Requirements**:
 - HIPAA compliance for all infrastructure
 - p95 response time <150ms for schedule endpoints
-- Zero-downtime deployments
-- Automated backup and disaster recovery
+- Auto-deployment with approval gates (GitHub Environment "production")
+- Automated backup and disaster recovery procedures
 - Comprehensive audit logging
-- Encrypted data at rest and in transit
+- Encrypted data at rest and in transit (Let's Encrypt + internal CA for PostgreSQL/MinIO)
 
 ## Documentation Standards
 
 **CRITICAL**: You are FULLY RESPONSIBLE for infrastructure documentation.
 
 **Before Any Task**:
-1. Read `/docs/README.md` to locate relevant documentation
-2. Review `/docs/deployment/`, `/docs/operations/`, and `/docs/architecture/`
-3. Check `/docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md` for compliance requirements
+1. Read `DEPLOYMENT_STATUS.md` for current production state
+2. Review streamlined deployment docs (10 essential files below)
+3. Check `docs/SECURITY_FIRST_IMPLEMENTATION_PLAN.md` for compliance requirements
 4. Note any gaps, inaccuracies, or outdated information
 
-**You MUST READ**:
-- `/docs/deployment/` - Deployment procedures and infrastructure setup
-- `/docs/operations/` - Runbooks and operational procedures
-- `/docs/architecture/` - System design and infrastructure decisions
-- `/docs/security/` - Security requirements and compliance
-- `/docs/testing/` - CI/CD test configuration
+**You MUST READ** (Essential Production Docs):
+- `DEPLOYMENT_STATUS.md` - Current production state, deployment history, SSL status
+- `docs/deployment/README.md` - Navigation guide to deployment documentation
+- `docs/deployment/PRODUCTION_RUNBOOK.md` - Day-to-day operational procedures
+- `docs/deployment/PRODUCTION_DEPLOYMENT_GUIDE.md` - Complete deployment setup guide
+- `docs/deployment/deploy-script.md` - Usage of scripts/deploy.sh and scripts/migrate.sh
+- `docs/deployment/database-migrations.md` - Database migration procedures with Alembic
+- `docs/deployment/disaster-recovery.md` - Emergency procedures and SSL cert regeneration
+- `docs/deployment/github-cd-secrets.md` - GitHub Secrets reference and configuration
+- `scripts/production/README.md` - Production scripts for SSL cert generation (disaster recovery)
+- `.github/workflows/deploy-production.yml` - Actual auto-deployment workflow with approval gates
 
 **You MUST UPDATE**:
-- Deployment runbooks and procedures
-- Infrastructure diagrams and architecture docs
-- CI/CD pipeline documentation
-- Secrets management procedures
-- Monitoring and alerting configuration
-- Disaster recovery procedures
+- `DEPLOYMENT_STATUS.md` - Production state, recent deployments, container status
+- `docs/deployment/PRODUCTION_RUNBOOK.md` - Operational procedures and maintenance tasks
+- `docs/deployment/github-cd-secrets.md` - When adding/changing GitHub Secrets
+- `.github/workflows/*.yml` - CI/CD pipeline changes
+- `scripts/production/README.md` - When modifying production scripts
+- `docs/deployment/disaster-recovery.md` - Disaster recovery and rollback procedures
 
 **You MUST CREATE**:
-- Infrastructure decision records (ADRs)
-- Deployment playbooks with rollback procedures
-- Monitoring dashboards and alert configurations
-- Incident response procedures
-- Performance tuning guides
+- Infrastructure decision records in `docs/architecture/`
+- Deployment playbooks with rollback procedures in `docs/deployment/`
+- Incident response procedures in `docs/deployment/PRODUCTION_RUNBOOK.md`
+- Performance tuning guides in `docs/performance/`
+- New production scripts in `backend/scripts/production/` (document in scripts/production/README.md)
 
 **Documentation Quality**:
 - Every runbook MUST be executable step-by-step
@@ -154,11 +167,11 @@ When handling secrets:
 
 **GitHub Secrets**:
 1. Generate secure random values (use `openssl rand -base64 32`)
-2. Set secrets via GitHub UI or GitHub CLI
-3. Document secret names and purposes in `/docs/deployment/secrets.md`
+2. Set secrets via GitHub UI or GitHub CLI (`gh secret set`)
+3. Document secret names and purposes in `docs/deployment/github-cd-secrets.md`
 4. Implement rotation schedule (90 days for production)
-5. Use environment-specific secrets (DEV, STAGING, PROD)
-6. Never log or expose secret values
+5. All secrets required for deployment are documented in github-cd-secrets.md
+6. Never log or expose secret values in workflows or application logs
 
 **Environment Variables**:
 - Use `.env.example` as template (no actual secrets)
@@ -168,61 +181,74 @@ When handling secrets:
 
 **Encryption Requirements (HIPAA)**:
 - All secrets encrypted at rest
-- TLS 1.2+ for all network communication
-- Database encryption enabled
-- Encrypted backups
-- Key rotation procedures documented
+- TLS 1.2+ for all network communication (Let's Encrypt for nginx, internal CA for PostgreSQL/MinIO)
+- Database encryption enabled (PostgreSQL SSL with client certificates)
+- Encrypted backups with AES-256
+- Key rotation procedures documented in disaster-recovery.md
+- Disaster recovery scripts in `backend/scripts/production/`:
+  - `regenerate-ssl-certs-v2.sh` - Regenerate PostgreSQL CA and certificates
+  - `generate-minio-certs.sh` - Generate MinIO SSL certificates signed by PazPaz CA
 
 ## Deployment Strategy
 
-**Pre-Deployment Checklist**:
-- [ ] All tests passing in CI
-- [ ] Security scan completed (no high/critical vulnerabilities)
-- [ ] Performance benchmarks meet requirements (p95 <150ms)
-- [ ] Database migrations tested and reversible
-- [ ] Backup completed and verified
-- [ ] Rollback procedure documented and tested
-- [ ] Health checks implemented and validated
-- [ ] Monitoring and alerting configured
+**Current Deployment Flow**:
+1. Push to `main` branch triggers Backend CI (`backend-ci.yml`)
+2. Backend CI runs tests, lint, builds Docker image, pushes to GHCR
+3. On success, triggers Production Deployment workflow (`deploy-production.yml`)
+4. Deployment workflow requires manual approval (GitHub Environment "production")
+5. After approval, SSH deploys to pazpaz.health using `scripts/deploy.sh` and `scripts/migrate.sh`
+6. Docker Compose pulls latest images and recreates containers with zero-downtime restart
 
-**Blue-Green Deployment Process**:
-1. Deploy new version to "green" environment
-2. Run smoke tests against green environment
-3. Verify health checks pass
-4. Switch traffic to green environment
-5. Monitor error rates and performance metrics
-6. Keep blue environment running for quick rollback
-7. After validation period, decommission blue environment
+**Pre-Deployment Checklist**:
+- [ ] All tests passing in Backend CI (pytest with <150ms p95 enforcement)
+- [ ] Ruff lint and format checks pass
+- [ ] Docker images built and pushed to GHCR successfully
+- [ ] Database migrations tested (reversible Alembic migrations)
+- [ ] GitHub Environment "production" approval obtained
+- [ ] Health checks implemented (`/api/v1/health` endpoint)
+- [ ] Rollback procedure: Previous Docker images tagged and available in GHCR
+
+**SSH-Based Deployment Process** (scripts/deploy.sh):
+1. SSH to server (pazpaz@5.161.241.81)
+2. Pull latest code and Docker images from GHCR
+3. Run database migrations (`scripts/migrate.sh`)
+4. Restart services with `docker compose up -d` (zero-downtime with health checks)
+5. Verify all containers healthy (`docker ps` status)
+6. Check API health endpoint (`curl https://pazpaz.health/api/v1/health`)
 
 **Rollback Procedure**:
-1. Detect issue via monitoring/alerts
-2. Switch traffic back to previous (blue) environment
-3. Investigate root cause
-4. Fix issue and redeploy
-5. Document incident in `/docs/operations/incidents/`
+1. Detect issue via logs or health check failures
+2. SSH to server and revert to previous image tags in docker-compose.prod.yml
+3. Run `docker compose up -d --force-recreate` to restore previous version
+4. Roll back database migrations if needed (`alembic downgrade -1`)
+5. Verify service restoration and document incident in `docs/deployment/PRODUCTION_RUNBOOK.md`
 
 ## Monitoring & Alerting
 
-**Health Check Implementation**:
-- Implement `/health` endpoint for basic liveness
-- Implement `/health/ready` endpoint checking dependencies
-- Include database connectivity check
-- Include Redis connectivity check
-- Include disk space check
-- Return appropriate HTTP status codes (200, 503)
+**Current Health Check Implementation**:
+- Production endpoint: `https://pazpaz.health/api/v1/health`
+- Returns JSON with status of API, database, Redis, and MinIO
+- All services have Docker health checks in docker-compose.prod.yml
+- Manual monitoring via `docker compose ps` and log inspection
 
-**Metrics to Monitor**:
+**Current Monitoring Setup**:
+- **SSL Certificate**: systemd timer monitors Let's Encrypt expiration (auto-renewal)
+- **Container Health**: Docker health checks for all 8 services
+- **Manual Checks**: SSH access for logs and service status
+- **Planned (Not Yet Implemented)**: UptimeRobot, Sentry, log aggregation
+
+**Metrics to Monitor** (when monitoring tools configured):
 - **Availability**: Uptime percentage, incident frequency
-- **Performance**: p50, p95, p99 response times
+- **Performance**: p50, p95, p99 response times (target: p95 <150ms for schedule endpoints)
 - **Error Rates**: 5xx errors, client errors, exceptions
-- **Resource Usage**: CPU, memory, disk, network
+- **Resource Usage**: CPU, memory, disk, network (Hetzner server resources)
 - **Database**: Query performance, connection pool saturation
-- **Queue**: Job processing rate, queue depth, failed jobs
+- **Queue**: ARQ worker job processing rate, queue depth, failed jobs
 
-**Alert Thresholds**:
-- **Critical**: p95 response time >500ms, error rate >5%, uptime <99%
-- **Warning**: p95 response time >200ms, error rate >1%, unusual traffic patterns
-- **Info**: Deployment events, configuration changes, certificate expiration warnings
+**Alert Thresholds** (for future monitoring implementation):
+- **Critical**: p95 response time >500ms, error rate >5%, uptime <99%, SSL cert expiring <7 days
+- **Warning**: p95 response time >200ms, error rate >1%, unusual traffic patterns, disk space >80%
+- **Info**: Deployment events, configuration changes, certificate renewal success
 
 ## Performance Optimization Strategies
 
