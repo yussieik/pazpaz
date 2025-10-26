@@ -247,6 +247,7 @@ async def verify_magic_link_endpoint(
         samesite="lax",
         secure=not settings.debug,  # Auto-enable in production
         max_age=60 * 60 * 24 * 7,  # 7 days
+        path="/",  # Available for all paths
     )
 
     # Set CSRF token as cookie (not HttpOnly, JS needs to read)
@@ -259,6 +260,7 @@ async def verify_magic_link_endpoint(
         samesite="strict",  # Stricter than JWT cookie for CSRF prevention
         secure=not settings.debug,  # Auto-enable in production
         max_age=60 * 60 * 24 * 7,  # 7 days (match JWT)
+        path="/",  # Available for all paths
     )
 
     logger.info(
@@ -440,6 +442,7 @@ async def verify_magic_link_2fa_endpoint(
         samesite="lax",
         secure=not settings.debug,
         max_age=60 * 60 * 24 * 7,  # 7 days
+        path="/",  # Available for all paths
     )
 
     # Set CSRF token as cookie
@@ -450,6 +453,7 @@ async def verify_magic_link_2fa_endpoint(
         samesite="strict",
         secure=not settings.debug,
         max_age=60 * 60 * 24 * 7,  # 7 days
+        path="/",  # Available for all paths
     )
 
     # Log successful authentication with 2FA
@@ -578,6 +582,7 @@ async def accept_invitation(
             samesite="lax",
             secure=not settings.debug,  # Auto-enable in production
             max_age=60 * 60 * 24 * 7,  # 7 days
+            path="/",  # Available for all paths
         )
 
         # Set CSRF token as cookie
@@ -588,6 +593,7 @@ async def accept_invitation(
             samesite="strict",
             secure=not settings.debug,
             max_age=60 * 60 * 24 * 7,  # 7 days
+            path="/",  # Available for all paths
         )
 
         # Log successful invitation acceptance with audit event
