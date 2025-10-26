@@ -77,6 +77,12 @@ on:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'  # Semantic versioning tags (v1.2.3)
 
+# Permissions required for deployments and environment protection
+permissions:
+  contents: read
+  deployments: write
+  actions: read
+
 env:
   DEPLOYMENT_DIR: /opt/pazpaz
   SCRIPTS_DIR: /opt/pazpaz/scripts
