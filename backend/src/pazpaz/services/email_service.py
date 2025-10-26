@@ -31,7 +31,7 @@ async def send_magic_link_email(email: str, token: str) -> None:
 
     # Create email message
     message = EmailMessage()
-    message["From"] = "PazPaz <noreply@pazpaz.app>"
+    message["From"] = f"PazPaz <{settings.emails_from_email}>"
     message["To"] = email
     message["Subject"] = "Your PazPaz Login Link"
 
@@ -106,7 +106,7 @@ async def send_invitation_email(email: str, invitation_url: str) -> None:
     """
     # Create email message
     message = EmailMessage()
-    message["From"] = "PazPaz <noreply@pazpaz.app>"
+    message["From"] = f"PazPaz <{settings.emails_from_email}>"
     message["To"] = email
     message["Subject"] = "Invitation to Join PazPaz"
 
@@ -212,7 +212,7 @@ async def send_session_notes_reminder(
 
     # Create email message
     message = EmailMessage()
-    message["From"] = "PazPaz <noreply@pazpaz.app>"
+    message["From"] = f"PazPaz <{settings.emails_from_email}>"
     message["To"] = email
     message["Subject"] = (
         f"You have {draft_count} draft session note{'s' if draft_count != 1 else ''}"
@@ -347,7 +347,7 @@ async def send_daily_digest(
 
     # Create email message
     message = EmailMessage()
-    message["From"] = "PazPaz <noreply@pazpaz.app>"
+    message["From"] = f"PazPaz <{settings.emails_from_email}>"
     message["To"] = email
     message["Subject"] = f"Your schedule for {date_str}"
 
@@ -496,7 +496,7 @@ async def send_appointment_reminder(
 
     # Create email message
     message = EmailMessage()
-    message["From"] = "PazPaz <noreply@pazpaz.app>"
+    message["From"] = f"PazPaz <{settings.emails_from_email}>"
     message["To"] = email
 
     # Build subject based on time until appointment
