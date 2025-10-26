@@ -91,6 +91,7 @@ services:
     networks:
       - backend   # Internal network for nginx communication
       - database  # Internal network for database access
+      - internet  # Outbound internet for email sending
     # NO ports exposed to host - security by design
     env_file:
       - .env.production
@@ -197,6 +198,7 @@ services:
     networks:
       - backend   # For potential API communication
       - database  # For database and Redis access
+      - internet  # Outbound internet for email sending
     # NO ports exposed to host
     env_file:
       - .env.production
@@ -696,3 +698,14 @@ networks:
       - "app=pazpaz"
       - "zone=restricted"
       - "description=Restricted network for database access"
+
+  # Outbound internet access (for email, webhooks, etc.)
+  internet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.23.0.0/24
+    labels:
+      - "app=pazpaz"
+      - "zone=outbound"
+      - "description=Outbound internet access for external services (email, webhooks)"
