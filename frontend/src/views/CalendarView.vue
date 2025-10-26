@@ -219,7 +219,7 @@ function updateEventHeight(appointmentId: string, retryCount = 0) {
 }
 
 /**
- * Open create modal with pre-filled date/time from calendar double-click
+ * Open create modal with pre-filled date/time from calendar click
  */
 function openCreateModalWithPrefill(prefillData: { start: Date; end: Date }) {
   createModalPrefillData.value = prefillData
@@ -1991,7 +1991,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
   border-width: 0;
 }
 
-/* Double-click to create - Cursor affordance */
+/* Click to create - Cursor affordance */
 
 /* Week/Day view timeslots - cell cursor for clickability */
 :deep(.fc-timegrid-body) {

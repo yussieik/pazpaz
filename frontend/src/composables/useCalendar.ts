@@ -159,7 +159,7 @@ export function useCalendar() {
    *
    * NOTE: events and eventClick will be provided by useCalendarEvents
    * datesSet callback is provided internally
-   * dateClick is optional and enables double-click to create appointments
+   * dateClick is optional and enables single-click to create appointments
    *
    * IMPORTANT: Caller must wrap in computed() to make it reactive
    */

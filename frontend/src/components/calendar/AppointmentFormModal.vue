@@ -113,7 +113,7 @@ watch(
       formData.value.notes = ''
 
       if (props.prefillDateTime) {
-        // Use pre-filled date/time from calendar double-click
+        // Use pre-filled date/time from calendar click
         formData.value.scheduled_start = formatDateTimeForInput(
           props.prefillDateTime.start
         )
