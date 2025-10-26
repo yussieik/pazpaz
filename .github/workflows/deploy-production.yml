@@ -217,16 +217,16 @@ jobs:
           echo "Verifying Docker images are available..."
           IMAGE_TAG="${{ steps.determine_tag.outputs.tag }}"
 
-          # Check backend image
-          echo "Checking backend image: ghcr.io/${{ github.repository }}/backend:${IMAGE_TAG}"
-          docker manifest inspect "ghcr.io/${{ github.repository }}/backend:${IMAGE_TAG}" > /dev/null 2>&1 || {
+          # Check backend image (matches backend-ci.yml naming: pazpaz-backend)
+          echo "Checking backend image: ghcr.io/yussieik/pazpaz-backend:${IMAGE_TAG}"
+          docker manifest inspect "ghcr.io/yussieik/pazpaz-backend:${IMAGE_TAG}" > /dev/null 2>&1 || {
             echo "❌ Backend image not found. Ensure CI/CD builds have completed."
             exit 1
           }
 
-          # Check frontend image
-          echo "Checking frontend image: ghcr.io/${{ github.repository }}/frontend:${IMAGE_TAG}"
-          docker manifest inspect "ghcr.io/${{ github.repository }}/frontend:${IMAGE_TAG}" > /dev/null 2>&1 || {
+          # Check frontend image (matches frontend-ci.yml naming: pazpaz-frontend)
+          echo "Checking frontend image: ghcr.io/yussieik/pazpaz-frontend:${IMAGE_TAG}"
+          docker manifest inspect "ghcr.io/yussieik/pazpaz-frontend:${IMAGE_TAG}" > /dev/null 2>&1 || {
             echo "❌ Frontend image not found. Ensure CI/CD builds have completed."
             exit 1
           }
