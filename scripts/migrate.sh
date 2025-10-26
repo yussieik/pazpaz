@@ -360,8 +360,25 @@ create_test_database() {
 run_test_migration() {
     log_info "Running test migration on: $DB_TEST_NAME"
 
+    # Extract database host from production DATABASE_URL when in Docker
+    local db_host="$DB_HOST"
+    if [ "$USE_DOCKER" = true ]; then
+        # Get DATABASE_URL from container and extract hostname
+        local prod_db_url=$(docker exec "$API_CONTAINER" bash -c 'echo $DATABASE_URL' 2>/dev/null)
+        if [ -n "$prod_db_url" ]; then
+            # Extract hostname from URL: postgresql+asyncpg://user:pass@HOSTNAME:port/dbname
+            db_host=$(echo "$prod_db_url" | sed -n 's|.*@\([^:]*\):.*|\1|p')
+            if [ -n "$db_host" ]; then
+                log_info "Using database host from production: $db_host"
+            else
+                log_warning "Could not extract hostname from DATABASE_URL, using: $DB_HOST"
+                db_host="$DB_HOST"
+            fi
+        fi
+    fi
+
     # Create test database configuration (use asyncpg driver)
-    local test_db_url="postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_TEST_NAME}"
+    local test_db_url="postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${db_host}:${DB_PORT}/${DB_TEST_NAME}"
 
     # Run migration on test database
     if [ "$USE_DOCKER" = true ]; then
