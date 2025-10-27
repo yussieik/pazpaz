@@ -673,6 +673,28 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H 5.161.241.81 >> ~/.ssh/known_hosts
 
+      - name: Sync configuration files to server
+        run: |
+          echo "📦 Syncing configuration files to production server..."
+
+          # Copy docker-compose configuration
+          scp docker-compose.prod.yml root@5.161.241.81:/opt/pazpaz/
+
+          # Copy alembic configuration and migrations
+          ssh root@5.161.241.81 'mkdir -p /opt/pazpaz/backend/migrations'
+          scp backend/alembic.ini root@5.161.241.81:/opt/pazpaz/backend/
+          scp -r backend/migrations/* root@5.161.241.81:/opt/pazpaz/backend/migrations/ || echo "No migrations to sync"
+
+          echo "✅ Configuration files synced successfully"
+
+          # Verify files on server
+          ssh root@5.161.241.81 << 'ENDSSH'
+            echo "🔍 Verifying synced files:"
+            ls -lh /opt/pazpaz/docker-compose.prod.yml
+            ls -lh /opt/pazpaz/backend/alembic.ini
+            ls -lh /opt/pazpaz/backend/migrations/
+          ENDSSH
+
       - name: Deploy backend to production
         run: |
           ssh root@5.161.241.81 << 'ENDSSH'
@@ -681,15 +703,25 @@ jobs:
             echo "🚀 Starting backend deployment..."
             cd /opt/pazpaz
 
-            # Pull latest backend images (api and arq-worker)
-            docker compose --env-file .env.production -f docker-compose.prod.yml pull api arq-worker
+            # Set explicit image tag to ensure we pull the latest
+            export IMAGE_TAG=latest
+
+            # Pull latest backend images (api and arq-worker) with --quiet to reduce log noise
+            echo "📦 Pulling latest backend images from GHCR..."
+            docker compose --env-file .env.production -f docker-compose.prod.yml pull --quiet api arq-worker
+
+            # Show image digest for verification
+            echo "🔍 Verifying image digest:"
+            docker images --digests ghcr.io/yussieik/pazpaz-backend:latest | head -2
 
             # Run database migrations before restarting services
             echo "📦 Running database migrations..."
             docker compose --env-file .env.production -f docker-compose.prod.yml run --rm api alembic upgrade head
 
             # Recreate backend containers with new image
-            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --force-recreate api arq-worker
+            # Using --pull always to bypass any Docker cache
+            echo "🔄 Recreating containers with fresh images..."
+            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --force-recreate --pull always api arq-worker
 
             # Wait for containers to be healthy
             echo "⏳ Waiting for containers to be healthy..."
@@ -745,6 +777,30 @@ jobs:
               echo "❌ ARQ worker process not found"
               exit 1
             fi
+          ENDSSH
+
+      - name: Verify image deployment
+        run: |
+          echo "🔍 Verifying deployed image details..."
+
+          ssh root@5.161.241.81 << 'ENDSSH'
+            cd /opt/pazpaz
+
+            echo "📦 Backend API container info:"
+            docker inspect pazpaz-api --format='Image: {{.Image}}' || echo "Container not found"
+            docker inspect pazpaz-api --format='Created: {{.Created}}' || echo "Container not found"
+
+            echo ""
+            echo "📦 ARQ worker container info:"
+            docker inspect pazpaz-arq-worker --format='Image: {{.Image}}' || echo "Container not found"
+            docker inspect pazpaz-arq-worker --format='Created: {{.Created}}' || echo "Container not found"
+
+            echo ""
+            echo "🏷️  Backend image info:"
+            docker images ghcr.io/yussieik/pazpaz-backend:latest --format 'Repository: {{.Repository}}, Tag: {{.Tag}}, Created: {{.CreatedSince}}, Size: {{.Size}}'
+
+            echo ""
+            echo "✅ Deployment verification complete"
           ENDSSH
 
       - name: Deployment summary

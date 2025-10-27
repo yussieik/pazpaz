@@ -506,6 +506,25 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H 5.161.241.81 >> ~/.ssh/known_hosts
 
+      - name: Sync configuration files to server
+        run: |
+          echo "📦 Syncing configuration files to production server..."
+
+          # Copy docker-compose configuration
+          scp docker-compose.prod.yml root@5.161.241.81:/opt/pazpaz/
+
+          # Copy frontend nginx configuration
+          scp frontend/nginx.prod.conf root@5.161.241.81:/opt/pazpaz/frontend/
+
+          echo "✅ Configuration files synced successfully"
+
+          # Verify files on server
+          ssh root@5.161.241.81 << 'ENDSSH'
+            echo "🔍 Verifying synced files:"
+            ls -lh /opt/pazpaz/docker-compose.prod.yml
+            ls -lh /opt/pazpaz/frontend/nginx.prod.conf
+          ENDSSH
+
       - name: Deploy frontend to production
         run: |
           ssh root@5.161.241.81 << 'ENDSSH'
@@ -514,11 +533,21 @@ jobs:
             echo "🚀 Starting frontend deployment..."
             cd /opt/pazpaz
 
-            # Pull latest frontend image
-            docker compose --env-file .env.production -f docker-compose.prod.yml pull frontend
+            # Set explicit image tag to ensure we pull the latest
+            export IMAGE_TAG=latest
+
+            # Pull latest frontend image with --quiet to reduce log noise
+            echo "📦 Pulling latest frontend image from GHCR..."
+            docker compose --env-file .env.production -f docker-compose.prod.yml pull --quiet frontend
+
+            # Show image digest for verification
+            echo "🔍 Verifying image digest:"
+            docker images --digests ghcr.io/yussieik/pazpaz-frontend:latest | head -2
 
             # Recreate frontend and nginx containers with new image
-            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --force-recreate frontend nginx
+            # Using --pull always to bypass any Docker cache
+            echo "🔄 Recreating containers with fresh images..."
+            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --force-recreate --pull always frontend nginx
 
             # Wait for containers to be healthy
             echo "⏳ Waiting for containers to be healthy..."
@@ -556,6 +585,25 @@ jobs:
             echo "❌ Production site health check failed"
             exit 1
           fi
+
+      - name: Verify image deployment
+        run: |
+          echo "🔍 Verifying deployed image details..."
+
+          ssh root@5.161.241.81 << 'ENDSSH'
+            cd /opt/pazpaz
+
+            echo "📦 Frontend container info:"
+            docker inspect pazpaz-frontend --format='Image: {{.Image}}' || echo "Container not found"
+            docker inspect pazpaz-frontend --format='Created: {{.Created}}' || echo "Container not found"
+
+            echo ""
+            echo "🏷️  Frontend image info:"
+            docker images ghcr.io/yussieik/pazpaz-frontend:latest --format 'Repository: {{.Repository}}, Tag: {{.Tag}}, Created: {{.CreatedSince}}, Size: {{.Size}}'
+
+            echo ""
+            echo "✅ Deployment verification complete"
+          ENDSSH
 
       - name: Deployment summary
         if: always()
