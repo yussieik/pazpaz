@@ -550,7 +550,7 @@ jobs:
           sleep 5
 
           # Check if site is accessible
-          if curl -f -s -o /dev/null -w "%{http_code}" https://pazpaz.work/ | grep -q "200"; then
+          if curl -f -s -o /dev/null -w "%{http_code}" https://pazpaz.health/ | grep -q "200"; then
             echo "✅ Production site is accessible"
           else
             echo "❌ Production site health check failed"
@@ -562,7 +562,7 @@ jobs:
         run: |
           echo "## Frontend Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** Production (pazpaz.work)" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Production (pazpaz.health)" >> $GITHUB_STEP_SUMMARY
           echo "**Image:** ghcr.io/yussieik/pazpaz-frontend:${{ github.ref == 'refs/heads/main' && 'latest' || github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY

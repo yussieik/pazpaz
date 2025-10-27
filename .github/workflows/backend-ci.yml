@@ -655,7 +655,7 @@ jobs:
 
     environment:
       name: production
-      url: https://pazpaz.work
+      url: https://pazpaz.health
 
     steps:
       - name: Checkout code
@@ -723,7 +723,7 @@ jobs:
           sleep 10
 
           # Check if API health endpoint is accessible
-          if curl -f -s -o /dev/null -w "%{http_code}" https://pazpaz.work/api/v1/health | grep -q "200"; then
+          if curl -f -s -o /dev/null -w "%{http_code}" https://pazpaz.health/api/v1/health | grep -q "200"; then
             echo "✅ API health check passed"
           else
             echo "❌ API health check failed"
@@ -752,7 +752,7 @@ jobs:
         run: |
           echo "## Backend Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** Production (pazpaz.work)" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Production (pazpaz.health)" >> $GITHUB_STEP_SUMMARY
           echo "**Images:**" >> $GITHUB_STEP_SUMMARY
           echo "- API: ghcr.io/yussieik/pazpaz-backend:${{ github.ref == 'refs/heads/main' && 'latest' || github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- ARQ Worker: ghcr.io/yussieik/pazpaz-backend:${{ github.ref == 'refs/heads/main' && 'latest' || github.ref_name }}" >> $GITHUB_STEP_SUMMARY
