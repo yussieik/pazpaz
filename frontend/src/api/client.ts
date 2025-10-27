@@ -64,6 +64,13 @@ apiClient.interceptors.request.use(
       } else {
         console.warn('CSRF token not found in cookies for state-changing request')
       }
+
+      // SECURITY FIX: Ensure Content-Type is always present for POST/PUT/PATCH requests
+      // Backend middleware requires Content-Type header for these methods (OWASP API8:2023)
+      // Axios may not include it when body is empty object {}, so we explicitly set it here
+      if (!config.headers['Content-Type']) {
+        config.headers['Content-Type'] = 'application/json'
+      }
     }
 
     return config
