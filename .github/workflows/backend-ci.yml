@@ -716,7 +716,7 @@ jobs:
 
             # Run database migrations before restarting services
             echo "📦 Running database migrations..."
-            docker compose --env-file .env.production -f docker-compose.prod.yml run --rm api alembic upgrade head
+            docker compose --env-file .env.production -f docker-compose.prod.yml run --rm api uv run alembic upgrade head
 
             # Recreate backend containers with new image
             # Using --pull always to bypass any Docker cache
