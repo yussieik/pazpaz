@@ -55,6 +55,12 @@ export function getViteConfig(mode: string): UserConfig {
   // Load environment variables (VITE_* prefix)
   const env = loadEnv(mode, process.cwd(), 'VITE_')
 
+  // Proxy target for API requests
+  // Docker Compose: http://api:8000 (service name)
+  // Native development: http://localhost:8000 (host machine)
+  const apiProxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:8000'
+  const wsProxyTarget = apiProxyTarget.replace('http://', 'ws://')
+
   return {
     plugins: [vue(), cspHtmlTransform(mode, env)],
     resolve: {
@@ -66,11 +72,11 @@ export function getViteConfig(mode: string): UserConfig {
       port: 5173,
       proxy: {
         '/api': {
-          target: 'http://localhost:8000',
+          target: apiProxyTarget,
           changeOrigin: true,
         },
         '/ws': {
-          target: 'ws://localhost:8000',
+          target: wsProxyTarget,
           ws: true,
         },
       },

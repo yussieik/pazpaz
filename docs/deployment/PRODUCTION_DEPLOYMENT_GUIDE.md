@@ -790,78 +790,148 @@ exit
 
 **Estimated Time:** 10 minutes
 
-### Step 8.1: Set GitHub Container Registry Token (Optional)
+**Status:** ✅ **COMPLETE** - Automated deployments are live and working in production!
 
-If your repo is private:
+### Current Automated Deployment Status
 
+Automated CI/CD is **fully operational** as of October 27, 2025:
+
+- **Backend Deployment:** `.github/workflows/backend-ci.yml`
+  - ✅ Automatically deploys on push to main
+  - ✅ Runs database migrations before deployment
+  - ✅ Deploys API and ARQ worker containers
+  - ✅ Verifies deployment health (API health check)
+  - Production URL: https://pazpaz.health/api
+
+- **Frontend Deployment:** `.github/workflows/frontend-ci.yml`
+  - ✅ Automatically deploys on push to main
+  - ✅ Deploys frontend and nginx containers
+  - ✅ Verifies site accessibility
+  - Production URL: https://pazpaz.health
+
+- **Secrets Validation:** `.github/workflows/validate-secrets.yml`
+  - ✅ Weekly validation (Mondays 9 AM UTC)
+  - ✅ Tests SSH connectivity
+  - ✅ Validates encryption master key
+  - Can be triggered manually: `gh workflow run "Validate GitHub Secrets Configuration"`
+
+### How Automated Deployment Works
+
+**On every push to main:**
+
+1. **CI Phase** (5-10 minutes):
+   - Runs all tests (backend and frontend)
+   - Performs security scanning (Trivy, CodeQL)
+   - Runs linting and type checking
+   - Builds Docker images and pushes to ghcr.io
+
+2. **CD Phase** (2-5 minutes):
+   - SSH connects to production server (5.161.241.81)
+   - Pulls latest Docker images
+   - Runs database migrations (backend only)
+   - Recreates containers with new images
+   - Waits for health checks
+   - Verifies deployment success
+
+3. **Health Verification**:
+   - Backend: `curl https://pazpaz.health/api/v1/health`
+   - Frontend: `curl https://pazpaz.health/`
+   - Container status: `docker ps | grep "Up.*pazpaz"`
+
+### Required GitHub Secrets (Already Configured)
+
+The following secrets are configured and working:
+
+- ✅ `PRODUCTION_SSH_KEY` - ED25519 SSH private key for deployment
+- ✅ `PROD_ENCRYPTION_MASTER_KEY` - PHI encryption master key (HIPAA compliance)
+- ✅ SSH connection hardcoded to `root@5.161.241.81` in workflows
+- ✅ Domain hardcoded to `pazpaz.health` for health checks
+
+**Note:** SSH_HOST, SSH_USER, and SSH_PORT are **not used as secrets**. They are hardcoded directly in the workflow files for simplicity.
+
+### Manual Deployment (If Needed)
+
+While automated deployment works on every push to main, you can also deploy manually:
+
+**Option 1: Trigger workflows manually**
 ```bash
-# Create GitHub PAT with packages:read permission
-# Go to: https://github.com/settings/tokens
-# Generate new token (classic)
-# Select: read:packages
-# Copy token
+# Trigger backend deployment
+gh workflow run "Backend CI" --ref main
 
-# Add to GitHub Secrets
-gh secret set GHCR_TOKEN --body "ghp_your_token_here"
-```
-
-If your repo is public, this is not needed.
-
-### Step 8.2: Test Automated Deployment (Dry Run)
-
-From your local machine:
-
-```bash
-cd /Users/yussieik/Desktop/projects/pazpaz
-
-# Trigger deployment workflow (dry run)
-gh workflow run "Deploy Production" \
-  -f environment=production \
-  -f image_tag=latest \
-  -f dry_run=true
+# Trigger frontend deployment
+gh workflow run "Frontend CI" --ref main
 
 # Watch the run
 gh run watch
 ```
 
-This will:
-- Validate all steps
-- NOT actually deploy
-- Show you what would happen
-
-### Step 8.3: Run Real Automated Deployment
-
-If dry run succeeds:
-
+**Option 2: SSH to server and deploy manually**
 ```bash
-# Trigger real deployment
-gh workflow run "Deploy Production" \
-  -f environment=production \
-  -f image_tag=latest
+# SSH to production
+ssh root@5.161.241.81
 
-# Watch the run
+# Navigate to deployment directory
+cd /opt/pazpaz
+
+# Pull latest images and redeploy
+docker compose --env-file .env.production -f docker-compose.prod.yml pull
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --force-recreate
+```
+
+### Deployment Monitoring
+
+**Check recent deployments:**
+```bash
+# List recent workflow runs
+gh run list --workflow="Backend CI" --limit 5
+gh run list --workflow="Frontend CI" --limit 5
+
+# View specific run
+gh run view <run-id>
+
+# Watch live deployment
 gh run watch
 ```
 
-### Step 8.4: Future Deployments
-
-Now you can deploy by:
-
-**Option 1: Manual trigger**
+**Check production status:**
 ```bash
-gh workflow run "Deploy Production" \
-  -f environment=production \
-  -f image_tag=latest
+# SSH to server
+ssh root@5.161.241.81
+
+# Check container status
+cd /opt/pazpaz
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+
+# View logs
+docker compose --env-file .env.production -f docker-compose.prod.yml logs -f api
+docker compose --env-file .env.production -f docker-compose.prod.yml logs -f frontend
 ```
 
-**Option 2: Git tag (automatic)**
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-# Deployment automatically triggers
-```
+### Troubleshooting Automated Deployments
 
-**✅ Phase 8 Complete!** Automated deployments are working!
+**If deployment fails:**
+
+1. **Check workflow logs:**
+   ```bash
+   gh run list --workflow="Backend CI" --limit 1
+   gh run view --log
+   ```
+
+2. **Common issues:**
+   - SSH connection failure → Verify `PRODUCTION_SSH_KEY` secret
+   - Container health check failure → Check container logs on server
+   - Migration failure → Check database connectivity
+   - Image pull failure → Verify GITHUB_TOKEN has packages:read permission
+
+3. **Manual intervention:**
+   ```bash
+   # SSH to server and check status
+   ssh root@5.161.241.81
+   cd /opt/pazpaz
+   docker compose --env-file .env.production -f docker-compose.prod.yml logs
+   ```
+
+**✅ Phase 8 Complete!** Automated deployments are operational and have been tested in production.
 
 ---
 

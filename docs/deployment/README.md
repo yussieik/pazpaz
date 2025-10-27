@@ -14,13 +14,34 @@ Infrastructure, deployment, and production operations documentation.
 - **[Production Deployment Checklist](PRODUCTION_DEPLOYMENT_CHECKLIST.md)** - Complete pre-deployment verification checklist
 - **[Infrastructure Security Checklist](INFRASTRUCTURE_SECURITY_CHECKLIST.md)** - Security baseline requirements for HIPAA compliance
 
-### CI/CD Pipeline (Phase 3 Complete)
+### CI/CD Pipeline (Automated CD Live in Production)
+
+**Status:** 🟢 **Automated deployments active** - Push to main triggers automatic deployment to https://pazpaz.health
 
 - **[CI/CD Implementation Plan](CI_CD_IMPLEMENTATION_PLAN.md)** - Complete 5-phase deployment plan
 - **[Docker CI Builds](DOCKER_CI_BUILDS.md)** - Automated Docker image builds with security scanning
 - **[Infrastructure CI](infrastructure-ci.md)** - Infrastructure validation workflow for Docker, Nginx, and scripts
-- **Backend CI Workflow** - `.github/workflows/backend-ci.yml` - Automated testing, linting, security scanning, and Docker builds
-- **Infrastructure CI Workflow** - `.github/workflows/infrastructure-ci.yml` - Docker Compose, Nginx, and script validation
+- **[GitHub CD Secrets](github-cd-secrets.md)** - Required secrets for automated deployment
+
+#### Active Workflows
+
+- **Backend CI/CD** - `.github/workflows/backend-ci.yml`
+  - Automated testing, linting, security scanning, Docker builds
+  - Runs migrations and deploys to production on push to main
+  - Deploys to: https://pazpaz.health/api
+
+- **Frontend CI/CD** - `.github/workflows/frontend-ci.yml`
+  - Automated testing, linting, security scanning, Docker builds
+  - Deploys to production on push to main
+  - Deploys to: https://pazpaz.health
+
+- **Secrets Validation** - `.github/workflows/validate-secrets.yml`
+  - Weekly validation of production secrets (Mondays 9 AM UTC)
+  - Tests SSH connectivity and encryption key validity
+  - Manual trigger available for on-demand validation
+
+- **Infrastructure CI** - `.github/workflows/infrastructure-ci.yml`
+  - Docker Compose, Nginx, and script validation
 
 ### Coming Soon
 
@@ -142,11 +163,24 @@ docker compose logs -f api
 
 ## 🚀 Deployment Timeline
 
-- **Week 5 Day 23:** Production configuration and optimization
-- **Week 5 Day 25:** Final deployment preparation and runbooks
-- **Post-V1:** Continuous monitoring and optimization
+- **Week 5 Day 23:** Production configuration and optimization ✅
+- **Week 5 Day 25:** Final deployment preparation and runbooks ✅
+- **October 25-26, 2025:** Initial production deployment ✅
+- **October 27, 2025:** Automated CI/CD pipeline live ✅
+- **Current:** Production operational with automated deployments
+
+## 📊 Current Production Status
+
+- **Environment:** Production
+- **URL:** https://pazpaz.health
+- **Server:** Hetzner Cloud CPX41 (5.161.241.81)
+- **SSL:** Let's Encrypt (auto-renewal enabled)
+- **Deployment Method:** Automated via GitHub Actions (push to main)
+- **SSH Key Type:** ED25519
+- **Container Health Checks:** Active
+- **Database Migrations:** Automated on deployment
 
 ---
 
-**Last Updated:** 2025-10-20
-**Status:** Pre-Production (Infrastructure Ready)
+**Last Updated:** 2025-10-27
+**Status:** Production (Automated CD Live)

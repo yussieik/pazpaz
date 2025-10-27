@@ -2,6 +2,13 @@
 
 This document provides detailed instructions for configuring the required GitHub Secrets and Variables for the PazPaz continuous deployment pipeline.
 
+**Status:** ✅ Automated CD is **live in production** as of October 27, 2025
+
+**Production Environment:**
+- URL: https://pazpaz.health
+- Server: 5.161.241.81 (Hetzner Cloud CPX41)
+- Deployment Method: Automated via GitHub Actions on push to main
+
 ## Repository Variables
 
 These are non-secret configuration values that control workflow features. Set these in **Settings → Secrets and variables → Actions → Variables**.
@@ -30,33 +37,30 @@ gh variable set ENABLE_SENTRY_RELEASES --body "true"
 
 ## Required Secrets
 
-The following secrets **MUST** be configured for the deployment workflow to function properly:
+The following secrets are configured for the production deployment pipeline:
 
-### 1. SSH_PRIVATE_KEY (Required)
+### 1. PRODUCTION_SSH_KEY (Required) ✅
 **Description**: ED25519 SSH private key for authenticating with the production server.
 
-**How to generate and configure**:
+**Current Configuration:**
+- ✅ Configured and working
+- Format: ED25519 private key
+- Access: `root@5.161.241.81`
+- Usage: Both frontend and backend workflows
+
+**How to generate and configure** (for reference/rotation):
 ```bash
 # 1. Generate a new ED25519 SSH key pair (recommended over RSA for security)
 ssh-keygen -t ed25519 -f ~/.ssh/pazpaz-deploy -C "github-actions@pazpaz"
 
 # 2. Copy the public key to the production server
-ssh-copy-id -i ~/.ssh/pazpaz-deploy.pub user@your-server.com
+ssh-copy-id -i ~/.ssh/pazpaz-deploy.pub root@5.161.241.81
 
 # 3. Test the connection
-ssh -i ~/.ssh/pazpaz-deploy user@your-server.com "echo 'Connection successful'"
+ssh -i ~/.ssh/pazpaz-deploy root@5.161.241.81 "echo 'Connection successful'"
 
 # 4. Add the private key to GitHub Secrets
-# Option A: Using GitHub CLI
-gh secret set SSH_PRIVATE_KEY < ~/.ssh/pazpaz-deploy
-
-# Option B: Manual via GitHub UI
-# - Copy the private key content:
-cat ~/.ssh/pazpaz-deploy
-# - Go to: Settings > Secrets and variables > Actions
-# - Click "New repository secret"
-# - Name: SSH_PRIVATE_KEY
-# - Value: Paste the entire private key including BEGIN and END lines
+gh secret set PRODUCTION_SSH_KEY < ~/.ssh/pazpaz-deploy
 ```
 
 **Security Notes**:
@@ -65,93 +69,84 @@ cat ~/.ssh/pazpaz-deploy
 - Consider rotating this key every 90 days
 - Store a backup of the key pair in a secure password manager
 
-### 2. SSH_HOST (Required)
-**Description**: The hostname or IP address of your production server.
+### 2. PROD_ENCRYPTION_MASTER_KEY (Required) ✅
+**Description**: Master encryption key for HIPAA-compliant PHI encryption.
 
-**Examples**:
-- IP address: `185.199.108.153`
-- Hostname: `pazpaz-prod.example.com`
-
-**How to configure**:
-```bash
-# Using GitHub CLI
-gh secret set SSH_HOST --body "your-server.com"
-
-# Verify the hostname is reachable
-ping -c 3 your-server.com
-```
-
-### 3. SSH_USER (Required)
-**Description**: The username for SSH connection. Should be a non-root user with sudo privileges.
-
-**Setup on server**:
-```bash
-# Create a dedicated deployment user on the server
-sudo useradd -m -s /bin/bash deploy
-sudo usermod -aG docker deploy  # Add to docker group
-sudo usermod -aG sudo deploy    # Add sudo privileges (if needed)
-
-# Set up passwordless sudo for specific commands (optional but recommended)
-echo "deploy ALL=(ALL) NOPASSWD: /usr/bin/docker, /usr/bin/docker-compose" | sudo tee /etc/sudoers.d/deploy
-```
+**Current Configuration:**
+- ✅ Configured and working
+- Validated weekly by `.github/workflows/validate-secrets.yml`
+- Critical for HIPAA compliance
 
 **How to configure**:
 ```bash
-gh secret set SSH_USER --body "deploy"
+# Generate a secure 32-byte key (base64 encoded)
+openssl rand -base64 32
+
+# Add to GitHub Secrets
+gh secret set PROD_ENCRYPTION_MASTER_KEY --body "your-base64-key-here"
 ```
 
-### 4. SSH_PORT (Optional)
-**Description**: SSH port if not using the default port 22.
+**Important:** This key is critical for PHI encryption. Loss of this key means loss of access to encrypted patient data.
 
-**Default**: `22`
+### 3. SSH Host, User, and Port (Hardcoded)
 
-**How to configure** (if using non-standard port):
-```bash
-gh secret set SSH_PORT --body "2222"
+**Important:** These values are **NOT configured as secrets**. They are hardcoded directly in the workflow files for simplicity.
+
+**Current Configuration:**
+- SSH Host: `5.161.241.81` (hardcoded in workflows)
+- SSH User: `root` (hardcoded in workflows)
+- SSH Port: `22` (default, not specified)
+
+**Location in workflows:**
+- Backend: `.github/workflows/backend-ci.yml` (line 678)
+- Frontend: `.github/workflows/frontend-ci.yml` (line 511)
+
+**Example from workflow:**
+```yaml
+- name: Deploy backend to production
+  run: |
+    ssh root@5.161.241.81 << 'ENDSSH'
+      # deployment commands
+    ENDSSH
 ```
 
-### 5. GHCR_TOKEN (Optional)
-**Description**: Personal Access Token for GitHub Container Registry. Required if repository is private.
+**Note:** If you need to change these values, edit the workflow files directly rather than using secrets.
 
-**How to create**:
-1. Go to GitHub Settings > Developer settings > Personal access tokens > Tokens (classic)
-2. Click "Generate new token (classic)"
-3. Give it a descriptive name: "PazPaz GHCR Deployment"
-4. Select scopes:
-   - `read:packages` - Download container images
-   - `write:packages` - Upload container images (if needed)
-   - `delete:packages` - Delete old images (optional)
-5. Set expiration (recommend 90 days with rotation reminders)
-6. Generate token and copy immediately (won't be shown again)
+### 4. Production Domain (Hardcoded)
 
-**How to configure**:
-```bash
-gh secret set GHCR_TOKEN --body "ghp_xxxxxxxxxxxxxxxxxxxx"
+**Current Configuration:**
+- Domain: `pazpaz.health` (hardcoded in health checks)
+- No GitHub secret required
+
+**Location in workflows:**
+- Backend health check: `.github/workflows/backend-ci.yml` (line 726)
+- Frontend health check: `.github/workflows/frontend-ci.yml` (line 553)
+
+**Example from workflow:**
+```yaml
+- name: Verify deployment health
+  run: |
+    if curl -f -s -o /dev/null -w "%{http_code}" https://pazpaz.health/ | grep -q "200"; then
+      echo "✅ Production site is accessible"
+    fi
 ```
 
-**Note**: If repository is public, you can use `GITHUB_TOKEN` instead, which is automatically available.
+### 5. GITHUB_TOKEN (Automatic)
+**Description**: Automatically provided by GitHub Actions for authenticating with GitHub Container Registry.
 
-### 6. DOMAIN (Required)
-**Description**: The production domain name where PazPaz is deployed.
+**Current Configuration:**
+- ✅ Automatically available in all workflows
+- Used for: Pushing/pulling Docker images from ghcr.io
+- No manual configuration needed
 
-**Examples**:
-- `app.pazpaz.com`
-- `pazpaz.example.com`
-- `therapy.yourdomain.com`
-
-**How to configure**:
-```bash
-gh secret set DOMAIN --body "app.pazpaz.com"
-```
-
-**DNS Setup**:
-Ensure your domain points to your server:
-```bash
-# Verify DNS resolution
-nslookup app.pazpaz.com
-dig app.pazpaz.com
-
-# Should return your server's IP address
+**Usage in workflows:**
+```yaml
+- name: Log in to GitHub Container Registry
+  uses: docker/login-action@v3
+  with:
+    registry: ghcr.io
+    username: ${{ github.actor }}
+    password: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Optional Secrets
@@ -342,21 +337,142 @@ chmod +x setup-cd-secrets.sh
 
 ## Verification
 
-After setting up all secrets, verify configuration:
+**Current Status:** ✅ All required secrets are configured and validated
+
+### Verify Secrets Configuration
 
 ```bash
 # List all secrets (names only, not values)
 gh secret list
 
-# Test deployment in dry-run mode
-gh workflow run "Deploy Production" \
-  -f environment=production \
-  -f image_tag=latest \
-  -f dry_run=true
+# Should show at minimum:
+# - PRODUCTION_SSH_KEY
+# - PROD_ENCRYPTION_MASTER_KEY
+```
 
-# Watch the workflow run
+### Test Automated Deployment
+
+**Option 1: Trigger validation workflow**
+```bash
+# Run secrets validation workflow
+gh workflow run "Validate GitHub Secrets Configuration"
+
+# Watch the run
+gh run watch
+
+# This will:
+# - Validate PROD_ENCRYPTION_MASTER_KEY exists
+# - Test SSH connectivity to 5.161.241.81
+# - Check container health patterns
+```
+
+**Option 2: Trigger full deployment**
+```bash
+# Trigger backend deployment (will also deploy if you push to main)
+gh workflow run "Backend CI" --ref main
+
+# Trigger frontend deployment
+gh workflow run "Frontend CI" --ref main
+
+# Watch the runs
 gh run watch
 ```
+
+**Option 3: Push to main (automatic deployment)**
+```bash
+# Make any change and push to main
+git add .
+git commit -m "test: trigger automated deployment"
+git push origin main
+
+# Deployment will automatically trigger
+gh run watch
+```
+
+### Verify Production Deployment
+
+After deployment completes, verify production is working:
+
+```bash
+# Check API health
+curl https://pazpaz.health/api/v1/health
+# Should return: {"status":"ok"}
+
+# Check frontend
+curl -I https://pazpaz.health/
+# Should return: HTTP/2 200
+
+# SSH to server and check containers
+ssh root@5.161.241.81 "cd /opt/pazpaz && docker compose -f docker-compose.prod.yml ps"
+```
+
+## Current Workflow Configuration Summary
+
+### Backend CI/CD (`.github/workflows/backend-ci.yml`)
+
+**Triggers:**
+- Push to main (paths: `backend/**`, `.github/workflows/backend-ci.yml`, `pyproject.toml`)
+- Pull requests to main
+- Manual workflow dispatch
+
+**Jobs:**
+1. **Test & Quality Checks** - pytest with 90% pass rate requirement
+2. **Security Scanning** - Trivy, CodeQL, dependency checks
+3. **OpenAPI Validation** - API spec validation
+4. **Docker Build** - Build and push to ghcr.io/yussieik/pazpaz-backend
+5. **Deploy to Production** - SSH deploy to 5.161.241.81 (only on main push)
+
+**Deployment Steps:**
+1. Pull latest backend images (api, arq-worker)
+2. Run Alembic migrations: `alembic upgrade head`
+3. Recreate containers: `docker compose up -d --force-recreate api arq-worker`
+4. Verify container health: `docker ps | grep "Up.*pazpaz-api"`
+5. Verify API health: `curl https://pazpaz.health/api/v1/health`
+
+### Frontend CI/CD (`.github/workflows/frontend-ci.yml`)
+
+**Triggers:**
+- Push to main (paths: `frontend/**`, `.github/workflows/frontend-ci.yml`, `package.json`)
+- Pull requests to main
+- Manual workflow dispatch
+
+**Jobs:**
+1. **Test & Quality Checks** - ESLint, Prettier, TypeScript, Vitest
+2. **Security Scanning** - npm audit, Trivy
+3. **License Compliance** - License checker
+4. **Bundle Size Analysis** - Size comparison (PRs only)
+5. **Docker Build** - Build and push to ghcr.io/yussieik/pazpaz-frontend
+6. **Deploy to Production** - SSH deploy to 5.161.241.81 (only on main push)
+
+**Deployment Steps:**
+1. Pull latest frontend image
+2. Recreate containers: `docker compose up -d --force-recreate frontend nginx`
+3. Verify container health: `docker ps | grep "Up.*pazpaz-frontend"`
+4. Verify site accessibility: `curl https://pazpaz.health/`
+
+### Secrets Validation (`.github/workflows/validate-secrets.yml`)
+
+**Triggers:**
+- Weekly schedule (Mondays at 9 AM UTC)
+- Manual workflow dispatch
+
+**Checks:**
+1. **Critical Secrets** - PROD_ENCRYPTION_MASTER_KEY (fails if missing)
+2. **Database Secrets** - PROD_DATABASE_URL, PROD_POSTGRES_PASSWORD
+3. **SSH Secrets** - SSH_PRIVATE_KEY (hardcoded host/user)
+4. **Application Secrets** - PROD_SECRET_KEY, PROD_JWT_SECRET_KEY, etc.
+5. **SSH Connection Test** - Live test to 5.161.241.81
+6. **Server Health Check** - Docker installation, /opt/pazpaz directory
+
+### Key Differences from Documentation Template
+
+The actual implementation differs from the generic template in these ways:
+
+1. **SSH credentials are hardcoded** - Not using SSH_HOST, SSH_USER, SSH_PORT secrets
+2. **Domain is hardcoded** - Not using DOMAIN secret (uses pazpaz.health directly)
+3. **Simplified secret management** - Only 2 critical secrets: PRODUCTION_SSH_KEY and PROD_ENCRYPTION_MASTER_KEY
+4. **Direct root access** - Uses root@5.161.241.81 instead of dedicated deploy user
+5. **Container health checks** - Uses pattern matching: `docker ps | grep "Up.*container-name"`
 
 ## Support
 
@@ -367,4 +483,14 @@ For issues with secret configuration:
 4. Review server firewall and security group settings
 5. Check the deployment scripts have proper permissions
 
+**Production Support:**
+- SSH: `ssh root@5.161.241.81`
+- Logs: `cd /opt/pazpaz && docker compose -f docker-compose.prod.yml logs -f`
+- Workflow logs: `gh run list --limit 5`
+
 Remember: Never share secret values in issues, logs, or commits!
+
+---
+
+**Last Updated:** October 27, 2025
+**Status:** Production (Automated CD Live)
