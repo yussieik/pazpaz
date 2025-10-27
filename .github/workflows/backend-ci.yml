@@ -746,7 +746,27 @@ jobs:
 
             # Reload nginx to refresh DNS cache for new container IPs
             echo "🔄 Reloading nginx to refresh DNS cache..."
-            docker compose --env-file .env.production -f docker-compose.prod.yml exec -T nginx nginx -s reload
+            if docker compose --env-file .env.production -f docker-compose.prod.yml exec -T nginx nginx -s reload; then
+              echo "✅ Nginx reloaded successfully"
+
+              # Verify nginx can reach API after reload
+              echo "🔍 Verifying nginx can reach API..."
+              sleep 3
+
+              # Test internal nginx → API connectivity
+              if docker compose --env-file .env.production -f docker-compose.prod.yml exec -T nginx wget -q -O /dev/null http://api:8000/api/v1/health; then
+                echo "✅ Nginx can successfully reach API container after reload"
+              else
+                echo "⚠️  Warning: Nginx cannot reach API container immediately after reload"
+                echo "This might resolve itself; external health check will verify"
+              fi
+            else
+              echo "❌ Failed to reload nginx"
+              echo "Attempting to check nginx status..."
+              docker compose --env-file .env.production -f docker-compose.prod.yml ps nginx
+              docker compose --env-file .env.production -f docker-compose.prod.yml logs nginx --tail=20
+              exit 1
+            fi
 
             echo "✅ Backend deployment successful!"
           ENDSSH

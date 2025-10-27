@@ -92,16 +92,24 @@ Added explicit file synchronization steps to both frontend and backend CI/CD wor
 
 1. **Checkout code** - Get latest files from repository
 2. **Set up SSH** - Configure SSH keys for server access
-3. **Sync configuration files** - Copy config files to server (NEW STEP)
+3. **Sync configuration files** - Copy config files to server
 4. **Deploy backend** - Pull images, run migrations, recreate containers
    - Set `IMAGE_TAG=latest` explicitly
    - Pull images with `--quiet` flag
    - Show image digest for verification
    - Run database migrations
    - Recreate containers with `--force-recreate --pull always`
-5. **Verify API health** - Check API health endpoint
-6. **Verify ARQ worker** - Check background worker process
-7. **Verify image deployment** - Confirm correct images are running (NEW STEP)
+5. **Reload nginx** - Refresh DNS cache after container recreation
+   - Execute `nginx -s reload` in nginx container
+   - Verify nginx can reach API container (internal connectivity test)
+   - Fail deployment if reload fails
+6. **Verify API health** - Check API health endpoint with retry mechanism
+   - 12 attempts with 10-second intervals (2-minute timeout)
+   - Tests external connectivity through nginx
+7. **Verify ARQ worker** - Check background worker process
+   - 25-second startup wait for health recording
+   - Log-based verification (no pgrep)
+8. **Verify image deployment** - Confirm correct images are running
 
 ---
 
@@ -165,6 +173,35 @@ ssh root@5.161.241.81 'ls -ld /opt/pazpaz'
 # Fix directory permissions
 ssh root@5.161.241.81 'chmod 755 /opt/pazpaz'
 ```
+
+### 502 Bad Gateway After Deployment (Nginx DNS Cache)
+
+**Symptom:** API returns 502 errors after successful deployment, login fails, or health checks fail even though containers are running
+
+**Root Cause:** Nginx caches DNS resolution of upstream containers. When API container is recreated, it gets a new IP address, but nginx still tries the old IP.
+
+**Diagnosis:**
+```bash
+# Check if nginx and API have different uptimes
+ssh root@5.161.241.81 'docker ps --filter "name=pazpaz" --format "table {{.Names}}\t{{.Status}}"'
+
+# Check nginx error logs for "Connection refused"
+ssh root@5.161.241.81 'docker compose --env-file .env.production -f docker-compose.prod.yml logs nginx --tail=50 | grep "connect() failed"'
+
+# Check if API is responding internally
+ssh root@5.161.241.81 'docker exec pazpaz-api curl -s http://localhost:8000/api/v1/health'
+```
+
+**Immediate Fix:**
+```bash
+# Reload nginx to refresh DNS cache
+ssh root@5.161.241.81 'cd /opt/pazpaz && docker compose --env-file .env.production -f docker-compose.prod.yml exec -T nginx nginx -s reload'
+
+# Verify API is now accessible
+curl -s https://pazpaz.health/api/v1/health | jq '.'
+```
+
+**Long-term Fix:** The CI/CD workflow now includes automatic nginx reload after backend deployment (`.github/workflows/backend-ci.yml` lines 747-769). If you still see this issue, check the deployment logs to verify the nginx reload step executed successfully.
 
 ### Sparse Checkout Issues
 
