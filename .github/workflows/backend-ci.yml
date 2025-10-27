@@ -696,7 +696,7 @@ jobs:
             sleep 20
 
             # Verify deployment
-            if docker ps | grep -q "pazpaz-api.*Up"; then
+            if docker ps | grep -q "Up.*pazpaz-api"; then
               echo "✅ API container is running"
             else
               echo "❌ API container failed to start"
@@ -704,7 +704,7 @@ jobs:
               exit 1
             fi
 
-            if docker ps | grep -q "pazpaz-arq-worker.*Up"; then
+            if docker ps | grep -q "Up.*pazpaz-arq-worker"; then
               echo "✅ ARQ worker container is running"
             else
               echo "❌ ARQ worker container failed to start"

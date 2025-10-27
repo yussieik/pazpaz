@@ -525,14 +525,14 @@ jobs:
             sleep 20
 
             # Verify deployment
-            if docker ps | grep -q "pazpaz-frontend.*Up"; then
+            if docker ps | grep -q "Up.*pazpaz-frontend"; then
               echo "✅ Frontend container is running"
             else
               echo "❌ Frontend container failed to start"
               exit 1
             fi
 
-            if docker ps | grep -q "pazpaz-nginx.*Up"; then
+            if docker ps | grep -q "Up.*pazpaz-nginx"; then
               echo "✅ Nginx container is running"
             else
               echo "❌ Nginx container failed to start"
