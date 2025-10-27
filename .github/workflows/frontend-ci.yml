@@ -433,8 +433,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # TEMPORARY: Bypass corrupted cache from Oct 25
+          # cache-from: type=gha
+          cache-to: type=gha,mode=min  # Rebuild cache with only base layers
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
