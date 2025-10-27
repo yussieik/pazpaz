@@ -749,18 +749,29 @@ jobs:
 
       - name: Verify API health
         run: |
-          echo "🔍 Checking API health..."
+          echo "🔍 Checking API health with retry mechanism..."
 
-          # Wait a bit for API to fully start
-          sleep 10
+          MAX_ATTEMPTS=12
+          RETRY_INTERVAL=10
+          attempt=1
 
-          # Check if API health endpoint is accessible
-          if curl -f -s -o /dev/null -w "%{http_code}" https://pazpaz.health/api/v1/health | grep -q "200"; then
-            echo "✅ API health check passed"
-          else
-            echo "❌ API health check failed"
-            exit 1
-          fi
+          while [ $attempt -le $MAX_ATTEMPTS ]; do
+            echo "Attempt $attempt/$MAX_ATTEMPTS..."
+
+            http_code=$(curl -s -o /dev/null -w "%{http_code}" https://pazpaz.health/api/v1/health)
+
+            if [ "$http_code" = "200" ]; then
+              echo "✅ API health check passed (HTTP $http_code)"
+              exit 0
+            fi
+
+            echo "⏳ API not ready yet (HTTP $http_code), waiting ${RETRY_INTERVAL}s before retry..."
+            sleep $RETRY_INTERVAL
+            attempt=$((attempt + 1))
+          done
+
+          echo "❌ API health check failed after $MAX_ATTEMPTS attempts"
+          exit 1
 
       - name: Verify ARQ worker process
         run: |
