@@ -744,6 +744,10 @@ jobs:
               exit 1
             fi
 
+            # Reload nginx to refresh DNS cache for new container IPs
+            echo "🔄 Reloading nginx to refresh DNS cache..."
+            docker compose --env-file .env.production -f docker-compose.prod.yml exec -T nginx nginx -s reload
+
             echo "✅ Backend deployment successful!"
           ENDSSH
 
