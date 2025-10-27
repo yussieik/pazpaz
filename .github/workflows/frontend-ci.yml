@@ -514,9 +514,6 @@ jobs:
             echo "🚀 Starting frontend deployment..."
             cd /opt/pazpaz
 
-            # Pull latest docker-compose configuration
-            git pull origin main
-
             # Pull latest frontend image
             docker compose --env-file .env.production -f docker-compose.prod.yml pull frontend
 

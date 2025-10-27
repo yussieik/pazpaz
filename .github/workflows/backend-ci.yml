@@ -681,9 +681,6 @@ jobs:
             echo "🚀 Starting backend deployment..."
             cd /opt/pazpaz
 
-            # Pull latest docker-compose configuration
-            git pull origin main
-
             # Pull latest backend images (api and arq-worker)
             docker compose --env-file .env.production -f docker-compose.prod.yml pull api arq-worker
 
