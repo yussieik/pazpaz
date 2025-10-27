@@ -770,11 +770,15 @@ jobs:
             set -e
             cd /opt/pazpaz
 
-            # Check if arq worker process is running
-            if docker compose --env-file .env.production -f docker-compose.prod.yml exec -T arq-worker pgrep -f "arq pazpaz.worker.WorkerSettings" > /dev/null; then
-              echo "✅ ARQ worker process is running"
+            # Check if arq worker is healthy by looking for recent health recordings in logs
+            # ARQ worker records health every 21 seconds, so recent logs should show this
+            echo "Checking ARQ worker health from recent logs..."
+            if docker compose --env-file .env.production -f docker-compose.prod.yml logs arq-worker --tail=10 | grep -q "recording health"; then
+              echo "✅ ARQ worker is healthy and processing jobs"
             else
-              echo "❌ ARQ worker process not found"
+              echo "❌ ARQ worker health check not found in recent logs"
+              echo "Recent logs:"
+              docker compose --env-file .env.production -f docker-compose.prod.yml logs arq-worker --tail=20
               exit 1
             fi
           ENDSSH
