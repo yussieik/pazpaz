@@ -77,3 +77,6 @@ authStore.initializeAuth().finally(() => {
     userId: authStore.user?.id,
   })
 })
+
+// Force cache invalidation for Content-Type fix deployment (2025-10-27)
+// This comment forces Vite to rebuild fresh, bypassing GitHub Actions build cache
