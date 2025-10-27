@@ -379,6 +379,11 @@ jobs:
       packages: write  # Required for ghcr.io
       id-token: write  # Required for OIDC authentication
 
+    # Set outputs for deployment job
+    outputs:
+      image_digest: ${{ steps.build.outputs.digest }}
+      image_tags: ${{ steps.meta.outputs.tags }}
+
     # Only run docker build on main branch pushes, release tags, or manual dispatch
     # Skip for pull requests to save time (PR validation happens in test/security jobs)
     if: github.event_name != 'pull_request'
@@ -425,6 +430,7 @@ jobs:
             security.non-root=true
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
@@ -433,9 +439,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # TEMPORARY: Force complete rebuild to fix corrupted Oct 25 cache
-          no-cache: true
-          cache-to: type=gha,mode=min  # Rebuild fresh cache
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
@@ -469,3 +474,105 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Security:** Image scanned with Trivy for vulnerabilities" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Deploy to Production
+  # ============================================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    timeout-minutes: 10
+
+    # Only deploy on main branch (not on tags or manual dispatch)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    environment:
+      name: production
+      url: https://pazpaz.work
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            docker-compose.prod.yml
+            frontend/nginx.prod.conf
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 5.161.241.81 >> ~/.ssh/known_hosts
+
+      - name: Deploy frontend to production
+        run: |
+          ssh root@5.161.241.81 << 'ENDSSH'
+            set -e
+
+            echo "🚀 Starting frontend deployment..."
+            cd /opt/pazpaz
+
+            # Pull latest docker-compose configuration
+            git pull origin main
+
+            # Pull latest frontend image
+            docker compose --env-file .env.production -f docker-compose.prod.yml pull frontend
+
+            # Recreate frontend and nginx containers with new image
+            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --force-recreate frontend nginx
+
+            # Wait for containers to be healthy
+            echo "⏳ Waiting for containers to be healthy..."
+            sleep 10
+
+            # Verify deployment
+            if docker ps | grep -q "pazpaz-frontend.*Up"; then
+              echo "✅ Frontend container is running"
+            else
+              echo "❌ Frontend container failed to start"
+              exit 1
+            fi
+
+            if docker ps | grep -q "pazpaz-nginx.*Up"; then
+              echo "✅ Nginx container is running"
+            else
+              echo "❌ Nginx container failed to start"
+              exit 1
+            fi
+
+            echo "✅ Frontend deployment successful!"
+          ENDSSH
+
+      - name: Verify deployment health
+        run: |
+          echo "🔍 Checking production health..."
+
+          # Wait a bit for services to fully start
+          sleep 5
+
+          # Check if site is accessible
+          if curl -f -s -o /dev/null -w "%{http_code}" https://pazpaz.work/ | grep -q "200"; then
+            echo "✅ Production site is accessible"
+          else
+            echo "❌ Production site health check failed"
+            exit 1
+          fi
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "## Frontend Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Production (pazpaz.work)" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** ghcr.io/yussieik/pazpaz-frontend:${{ github.ref == 'refs/heads/main' && 'latest' || github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ **Status:** Deployment successful" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status:** Deployment failed" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -516,6 +516,7 @@ services:
   # =============================================================================
   # Serves the built Vue.js application
   # Only accessible through the main nginx reverse proxy
+  # IMPORTANT: Files are baked into the Docker image - no volume mount needed
   frontend:
     image: ghcr.io/yussieik/pazpaz-frontend:${IMAGE_TAG:-latest}
     container_name: pazpaz-frontend
@@ -526,8 +527,8 @@ services:
     volumes:
       # Frontend configuration (if using the frontend's nginx)
       - ./frontend/nginx.prod.conf:/etc/nginx/nginx.conf:ro
-      # Frontend dist files (optional, if not baked into image)
-      - frontend_dist:/usr/share/nginx/html:ro
+      # NOTE: No volume mount for /usr/share/nginx/html - files are baked into image
+      # This ensures fresh deployments always use the code from the latest image
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
       interval: 30s
@@ -551,28 +552,6 @@ services:
     labels:
       - "app=pazpaz"
       - "component=frontend"
-      - "environment=production"
-      - "version=${VERSION:-latest}"
-
-  # =============================================================================
-  # Frontend Builder (Optional - for deployment convenience)
-  # =============================================================================
-  # Builds frontend and copies dist to shared volume
-  # Runs once during deployment then exits
-  frontend-builder:
-    image: ghcr.io/yussieik/pazpaz-frontend:${IMAGE_TAG:-latest}
-    container_name: pazpaz-frontend-builder
-    volumes:
-      - frontend_dist:/app/dist
-    command: ["sh", "-c", "cp -r /app/dist/* /app/dist/"]
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    labels:
-      - "app=pazpaz"
-      - "component=frontend-builder"
       - "environment=production"
       - "version=${VERSION:-latest}"
 
@@ -626,12 +605,8 @@ volumes:
       - "type=antivirus"
       - "auto-update=true"
 
-  # Frontend distribution files
-  frontend_dist:
-    driver: local
-    labels:
-      - "app=pazpaz"
-      - "type=static"
+  # NOTE: frontend_dist volume removed - files are baked into Docker image
+  # This ensures fresh deployments always use code from the latest image
 
   # API temporary files
   api_temp:

@@ -547,6 +547,11 @@ jobs:
     # Skip for pull requests to save time (PR validation happens in test/security jobs)
     if: github.event_name != 'pull_request'
 
+    # Set outputs for deployment job
+    outputs:
+      image_digest: ${{ steps.build.outputs.digest }}
+      image_tags: ${{ steps.meta.outputs.tags }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -589,6 +594,7 @@ jobs:
             security.non-root=true
 
       - name: Build and push Docker image
+        id: build  # Added for output tracking
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -634,6 +640,134 @@ jobs:
           echo "**Security:** Image scanned with Trivy for vulnerabilities" >> $GITHUB_STEP_SUMMARY
           echo "**User:** Non-root (pazpaz:pazpaz, UID/GID 1000)" >> $GITHUB_STEP_SUMMARY
           echo "**Platform:** linux/amd64" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Deploy to Production
+  # ============================================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    timeout-minutes: 15
+
+    # Only deploy on main branch (not on tags or manual dispatch)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    environment:
+      name: production
+      url: https://pazpaz.work
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            docker-compose.prod.yml
+            backend/alembic.ini
+            backend/migrations/
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 5.161.241.81 >> ~/.ssh/known_hosts
+
+      - name: Deploy backend to production
+        run: |
+          ssh root@5.161.241.81 << 'ENDSSH'
+            set -e
+
+            echo "🚀 Starting backend deployment..."
+            cd /opt/pazpaz
+
+            # Pull latest docker-compose configuration
+            git pull origin main
+
+            # Pull latest backend images (api and arq-worker)
+            docker compose --env-file .env.production -f docker-compose.prod.yml pull api arq-worker
+
+            # Run database migrations before restarting services
+            echo "📦 Running database migrations..."
+            docker compose --env-file .env.production -f docker-compose.prod.yml run --rm api alembic upgrade head
+
+            # Recreate backend containers with new image
+            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --force-recreate api arq-worker
+
+            # Wait for containers to be healthy
+            echo "⏳ Waiting for containers to be healthy..."
+            sleep 15
+
+            # Verify deployment
+            if docker ps | grep -q "pazpaz-api.*Up"; then
+              echo "✅ API container is running"
+            else
+              echo "❌ API container failed to start"
+              docker compose --env-file .env.production -f docker-compose.prod.yml logs api --tail=50
+              exit 1
+            fi
+
+            if docker ps | grep -q "pazpaz-arq-worker.*Up"; then
+              echo "✅ ARQ worker container is running"
+            else
+              echo "❌ ARQ worker container failed to start"
+              docker compose --env-file .env.production -f docker-compose.prod.yml logs arq-worker --tail=50
+              exit 1
+            fi
+
+            echo "✅ Backend deployment successful!"
+          ENDSSH
+
+      - name: Verify API health
+        run: |
+          echo "🔍 Checking API health..."
+
+          # Wait a bit for API to fully start
+          sleep 10
+
+          # Check if API health endpoint is accessible
+          if curl -f -s -o /dev/null -w "%{http_code}" https://pazpaz.work/api/v1/health | grep -q "200"; then
+            echo "✅ API health check passed"
+          else
+            echo "❌ API health check failed"
+            exit 1
+          fi
+
+      - name: Verify ARQ worker process
+        run: |
+          echo "🔍 Checking ARQ worker process..."
+
+          ssh root@5.161.241.81 << 'ENDSSH'
+            set -e
+            cd /opt/pazpaz
+
+            # Check if arq worker process is running
+            if docker compose --env-file .env.production -f docker-compose.prod.yml exec -T arq-worker pgrep -f "arq pazpaz.worker.WorkerSettings" > /dev/null; then
+              echo "✅ ARQ worker process is running"
+            else
+              echo "❌ ARQ worker process not found"
+              exit 1
+            fi
+          ENDSSH
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "## Backend Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Production (pazpaz.work)" >> $GITHUB_STEP_SUMMARY
+          echo "**Images:**" >> $GITHUB_STEP_SUMMARY
+          echo "- API: ghcr.io/yussieik/pazpaz-backend:${{ github.ref == 'refs/heads/main' && 'latest' || github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ARQ Worker: ghcr.io/yussieik/pazpaz-backend:${{ github.ref == 'refs/heads/main' && 'latest' || github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ **Status:** Deployment successful" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status:** Deployment failed" >> $GITHUB_STEP_SUMMARY
+          fi
 
   # Summary job to ensure all checks pass
   ci-success:
