@@ -11,6 +11,7 @@ import { useCalendarKeyboardShortcuts } from '@/composables/useCalendarKeyboardS
 import { useCalendarLoading } from '@/composables/useCalendarLoading'
 import { useAppointmentDrag } from '@/composables/useAppointmentDrag'
 import { useCalendarCreation } from '@/composables/useCalendarCreation'
+import { useCalendarSwipe } from '@/composables/useCalendarSwipe'
 import { useScreenReader } from '@/composables/useScreenReader'
 import { useToast } from '@/composables/useToast'
 import { toISOString } from '@/utils/dragHelpers'
@@ -48,6 +49,7 @@ const router = useRouter()
 const appointmentsStore = useAppointmentsStore()
 const calendarRef = ref<InstanceType<typeof FullCalendar>>()
 const toolbarRef = ref<InstanceType<typeof CalendarToolbar>>()
+const calendarContainerRef = ref<HTMLElement | null>(null)
 
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
@@ -121,6 +123,9 @@ function handleEventClick(clickInfo: any) {
 }
 
 const { showLoadingSpinner } = useCalendarLoading()
+
+// Mobile swipe navigation - hidden on desktop (≥640px)
+useCalendarSwipe(calendarContainerRef, handlePrev, handleNext)
 
 /**
  * Apply correct height to calendar event
@@ -1381,6 +1386,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       <div class="calendar-content-area">
         <!-- FullCalendar Component with Transition -->
         <div
+          ref="calendarContainerRef"
           class="calendar-container relative p-4"
           @mousemove="handleCalendarMouseMove"
           @mouseleave="handleCalendarMouseLeave"
@@ -1603,6 +1609,19 @@ function handleGlobalKeydown(event: KeyboardEvent) {
   position: relative;
   z-index: 1;
   height: 100%; /* Allow FullCalendar's height: 100% to reference this */
+  /* Enable smooth touch scrolling on mobile */
+  -webkit-overflow-scrolling: touch;
+  /* Prevent text selection during swipe gestures on mobile */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Re-enable text selection on desktop */
+@media (min-width: 641px) {
+  .calendar-container {
+    -webkit-user-select: auto;
+    user-select: auto;
+  }
 }
 
 /* FullCalendar custom styling to match PazPaz design */

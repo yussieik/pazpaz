@@ -65,7 +65,8 @@ defineExpose({
           Today
         </button>
 
-        <div class="flex items-center gap-0.5">
+        <!-- Navigation arrows - Hidden on mobile (≤640px), visible on desktop -->
+        <div class="hidden items-center gap-0.5 sm:flex">
           <button
             ref="previousButtonRef"
             @click="emit('previous')"
@@ -108,7 +109,8 @@ defineExpose({
           </button>
         </div>
 
-        <div class="h-6 w-px bg-slate-300" aria-hidden="true"></div>
+        <!-- Divider - Hidden on mobile when arrows are hidden -->
+        <div class="hidden h-6 w-px bg-slate-300 sm:block" aria-hidden="true"></div>
 
         <h2
           class="flex flex-col gap-1 text-lg font-semibold text-slate-900 sm:flex-row sm:items-baseline sm:gap-2"
