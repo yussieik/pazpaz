@@ -88,7 +88,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       // Call backend logout endpoint (invalidates JWT)
-      await apiClient.post('/auth/logout')
+      await apiClient.post('/auth/logout', {})
     } catch (error) {
       // Logout anyway, even if backend call fails
       console.error('[Auth] Logout API call failed (continuing anyway):', error)

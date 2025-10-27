@@ -334,7 +334,7 @@ async function toggleFinalizeStatus() {
       }
 
       // Background API call
-      await apiClient.post<SessionResponse>(`/sessions/${props.sessionId}/finalize`)
+      await apiClient.post<SessionResponse>(`/sessions/${props.sessionId}/finalize`, {})
 
       // Emit finalized event (parent will do optimistic update too)
       emit('finalized')
@@ -374,7 +374,7 @@ async function toggleFinalizeStatus() {
       }
 
       // Background API call
-      await apiClient.post(`/sessions/${props.sessionId}/unfinalize`)
+      await apiClient.post(`/sessions/${props.sessionId}/unfinalize`, {})
 
       // Silent background sync to ensure we have latest server state
       loadSession(true)

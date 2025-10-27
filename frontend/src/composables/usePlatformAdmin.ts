@@ -286,7 +286,7 @@ export function usePlatformAdmin() {
     error.value = null
 
     try {
-      await apiClient.post(`/platform-admin/workspaces/${workspaceId}/reactivate`)
+      await apiClient.post(`/platform-admin/workspaces/${workspaceId}/reactivate`, {})
 
       // Optimistically update workspace status
       const workspace = workspaces.value.find((w) => w.id === workspaceId)

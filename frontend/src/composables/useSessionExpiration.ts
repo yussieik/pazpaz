@@ -100,7 +100,7 @@ export function useSessionExpiration() {
 
     try {
       // Call extend-session endpoint
-      await apiClient.post('/auth/extend-session')
+      await apiClient.post('/auth/extend-session', {})
 
       // Update session expiration (backend returns new expiration in response)
       // For now, add 15 minutes from current time

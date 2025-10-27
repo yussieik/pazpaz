@@ -143,7 +143,7 @@ async function restoreSession(session: SessionResponse) {
   restoringNoteId.value = session.id
 
   try {
-    await apiClient.post(`/sessions/${session.id}/restore`)
+    await apiClient.post(`/sessions/${session.id}/restore`, {})
 
     // Show success
     showSuccess('Session note restored successfully')

@@ -136,7 +136,7 @@ export function useSessionTimeout(): UseSessionTimeoutReturn {
    */
   async function refreshSession(): Promise<void> {
     try {
-      await apiClient.post('/auth/session/refresh')
+      await apiClient.post('/auth/session/refresh', {})
 
       // Close warning modal
       showWarning.value = false

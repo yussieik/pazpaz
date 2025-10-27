@@ -67,7 +67,7 @@ export function useAuth() {
 
       // Call backend logout endpoint
       // Cookies are automatically sent via credentials: 'include' in apiClient
-      await apiClient.post('/auth/logout')
+      await apiClient.post('/auth/logout', {})
     } catch (error) {
       // Log error but still clear client-side storage
       // Even if backend logout fails, we must clear local data
