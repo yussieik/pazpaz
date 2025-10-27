@@ -26,6 +26,7 @@ COPY --from=dependencies /app/node_modules ./node_modules
 # Copy source code and configuration files
 COPY . .
 
+# Cache bust: Force rebuild for single-click calendar feature
 # Build the Vue application
 # Skip TypeScript checking for now (should be fixed in CI/CD pipeline)
 # Using vite build directly instead of npm run build to avoid vue-tsc
