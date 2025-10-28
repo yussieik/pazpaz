@@ -605,6 +605,20 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     emails_from_email: str = "noreply@pazpaz.local"
 
+    # Google Calendar OAuth 2.0
+    google_oauth_client_id: str = Field(
+        default="",
+        description="Google OAuth 2.0 Client ID for Calendar integration",
+    )
+    google_oauth_client_secret: str = Field(
+        default="",
+        description="Google OAuth 2.0 Client Secret for Calendar integration",
+    )
+    google_oauth_redirect_uri: str = Field(
+        default="http://localhost:8000/api/v1/integrations/google-calendar/callback",
+        description="OAuth 2.0 redirect URI (must match Google Console configuration)",
+    )
+
     def is_trusted_proxy(self, client_ip: str) -> bool:
         """
         Check if a client IP address is in the trusted proxy list.

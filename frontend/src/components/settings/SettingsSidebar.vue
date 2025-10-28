@@ -37,6 +37,13 @@ const categories = computed<SettingsCategory[]>(() => [
     icon: 'bell',
     description: 'Email notifications and reminders',
   },
+  {
+    id: 'integrations',
+    name: 'Integrations',
+    path: '/settings/integrations',
+    icon: 'link',
+    description: 'Calendar sync and third-party apps',
+  },
   // Future categories - uncomment when ready to enable
   // {
   //   id: 'account',
@@ -58,13 +65,6 @@ const categories = computed<SettingsCategory[]>(() => [
   //   path: '/settings/privacy',
   //   icon: 'shield',
   //   description: 'Data privacy and security settings',
-  // },
-  // {
-  //   id: 'integrations',
-  //   name: 'Integrations',
-  //   path: '/settings/integrations',
-  //   icon: 'link',
-  //   description: 'Calendar sync and third-party apps',
   // },
   // {
   //   id: 'billing',

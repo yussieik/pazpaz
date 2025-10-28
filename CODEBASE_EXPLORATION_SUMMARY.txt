@@ -1,0 +1,305 @@
+================================================================================
+PAZPAZ CODEBASE EXPLORATION - COMPLETE SUMMARY
+================================================================================
+
+Exploration Date: 2025-10-28
+Status: COMPLETE
+
+DOCUMENTATION CREATED
+================================================================================
+
+1. APPOINTMENT_SYSTEM_ARCHITECTURE.md (26 KB)
+   - Comprehensive 12-section guide covering all aspects
+   - Appointment system architecture & relationships
+   - Settings system (notification preferences)
+   - User/Workspace privacy & scoping
+   - Audit/compliance logging
+   - Frontend architecture patterns
+   - Performance targets & optimizations
+   - Calendar sync roadmap with 4 phases
+   - File structure reference
+   - Implementation checklist
+
+2. CODEBASE_EXPLORATION_QUICK_REFERENCE.md (12 KB)
+   - Quick lookup guide with absolute paths
+   - All key files listed with locations
+   - API endpoint specifications
+   - Database model field reference
+   - Frontend component listing
+   - Performance targets summary
+   - Dependencies documentation
+   - Timezone handling explanation
+   - File tree organization
+
+================================================================================
+EXPLORATION FINDINGS SUMMARY
+================================================================================
+
+APPOINTMENT SYSTEM
+------------------
+Model File:     /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/models/appointment.py
+API File:       /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/api/appointments.py
+Schema File:    /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/schemas/appointment.py
+Frontend View:  /Users/yussieik/Desktop/projects/pazpaz/frontend/src/views/CalendarView.vue
+Frontend Store: /Users/yussieik/Desktop/projects/pazpaz/frontend/src/stores/appointments.ts
+
+Key Characteristics:
+- UUID-based IDs (good for distributed systems)
+- Workspace-scoped (privacy isolation enforced)
+- Time stored in UTC (timezone-aware)
+- Status tracking: scheduled, completed, cancelled, no_show
+- Conflict detection with performance index
+- Edit tracking (edited_at, edit_count)
+- CRUD endpoints with pagination & filtering
+- Optimistic updates with undo on frontend
+- FullCalendar integration (week/day/month views)
+
+SETTINGS SYSTEM
+---------------
+Model File:     /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/models/user_notification_settings.py
+API File:       /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/api/notification_settings.py
+Frontend View:  /Users/yussieik/Desktop/projects/pazpaz/frontend/src/views/settings/NotificationsView.vue
+
+Key Characteristics:
+- One-to-one with User (cascade delete)
+- Master email toggle controls everything
+- Event notifications for appointment lifecycle
+- Daily digests (today + tomorrow schedule)
+- Appointment reminders (preset intervals: 15/30/60/120/1440 min)
+- Session notes reminders
+- Extensible JSONB field for future features (SMS, push, etc.)
+- Times stored as "HH:MM" strings
+- Interpreted in workspace timezone
+- Comprehensive validation (time format, allowed minutes)
+- Auto-save composable on frontend
+
+USER & WORKSPACE
+----------------
+Workspace Model:    /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/models/workspace.py
+User Model:         /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/models/user.py
+Auth Dependencies:  /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/api/deps.py
+
+Key Characteristics:
+- User belongs to exactly ONE workspace
+- All data scoped by workspace_id (enforced in queries)
+- Workspace has IANA timezone for notification scheduling
+- Workspace has storage quota management
+- Authentication: passwordless (magic link) + optional 2FA
+- Authorization: role-based (owner, assistant)
+- Privacy: cross-workspace data leakage prevented
+
+AUDIT & COMPLIANCE
+------------------
+Model File:     /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/models/audit_event.py
+Service File:   /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/services/audit_service.py
+
+Key Characteristics:
+- Immutable append-only table (HIPAA compliance)
+- Tracks all CRUD operations + login/logout
+- Field-level changes captured (old/new values in JSONB)
+- No PII/PHI stored in metadata
+- Workspace-scoped or system-level (NULL workspace_id)
+- Database triggers prevent updates/deletes
+
+================================================================================
+CURRENT LIMITATIONS FOR CALENDAR SYNC
+================================================================================
+
+What Doesn't Exist Yet:
+- NO WebSocket for real-time events
+- NO Server-Sent Events (SSE) 
+- NO Webhook system for external calendar integration
+- NO Event emission to trigger external systems
+- NO ICS/iCal export functionality
+- NO CalendarIntegration model or OAuth2 flows
+
+Backend is Audit-Ready but NOT Event-Ready:
+- Appointments logged to AuditEvent for compliance
+- But audit events not used to trigger external actions
+- No real-time event streaming capability
+- No change notification broadcasting
+
+For Calendar Sync Implementation:
+- Will need polling or ICS export approach
+- Or build WebSocket/SSE infrastructure first
+- Or implement OAuth2 flows for external calendars
+
+================================================================================
+PERFORMANCE CHARACTERISTICS
+================================================================================
+
+Targets:
+- Conflict detection: p95 <150ms (indexed time-range query)
+- List appointments: p95 <150ms (pagination + filters)
+- Settings update: p95 <100ms (direct row update)
+
+Optimizations in Place:
+- Composite index: (workspace_id, scheduled_start, scheduled_end)
+- Partial indexes: for batch notification job queries
+- Frontend smart fetching: only refetch if date outside loaded range
+- Optimistic updates: with undo support
+- Pagination: max 50-100 items per request
+
+Database Engine:
+- PostgreSQL 16
+- SQLAlchemy async ORM
+- Timezone-aware datetimes (UTC storage)
+
+================================================================================
+FRONTEND ARCHITECTURE
+================================================================================
+
+State Management:
+- Pinia stores for appointments, auth, clients
+- TypeScript-first (generated from OpenAPI)
+- Composables for complex logic (useCalendarEvents, useAppointmentDrag)
+
+UI Patterns:
+- FullCalendar for appointment visualization
+- Modal-based forms (create/edit/delete)
+- Progressive disclosure (show details on demand)
+- Drag-and-drop support (desktop)
+- Mobile time picker (mobile-specific)
+- Accessible components (ARIA labels, keyboard nav)
+
+Styling:
+- Tailwind CSS (utility-first)
+- Responsive design (mobile-first)
+- SettingsCard component pattern
+- ToggleSwitch accessible component
+
+================================================================================
+SECURITY & PRIVACY FEATURES
+================================================================================
+
+Data Isolation:
+- Workspace scoping (mandatory in all queries)
+- User belongs to ONE workspace only
+- Cross-workspace lookups prevented at API layer
+
+Encryption:
+- TOTP secrets: EncryptedString (app-level)
+- Session notes: EncryptedString (all SOAP fields)
+- SessionAttachments: Encrypted in S3/MinIO
+
+Authentication:
+- Passwordless (magic link via email)
+- Optional 2FA (TOTP)
+- JWT tokens include workspace_id
+- HttpOnly cookies with SameSite=Lax
+
+Audit Trail:
+- All operations logged to immutable AuditEvent table
+- Field-level changes tracked
+- Supports HIPAA compliance reporting
+- Cannot be modified/deleted (database enforced)
+
+================================================================================
+RECOMMENDED NEXT STEPS FOR CALENDAR SYNC
+================================================================================
+
+Phase 1: Foundation (Minimal)
+- Add updated_since query parameter to /appointments endpoint
+- Implement GET /appointments/export.ics endpoint (RFC 5545)
+- Frontend: Add "Export Calendar" button to toolbar
+- Use appointment.id as PRODID UID for tracking changes
+
+Phase 2: Google Calendar Integration
+- Design CalendarIntegration model
+- Implement OAuth2 authentication flow
+- Build sync service (push/pull)
+- Add settings UI for connect/disconnect
+- Handle webhook from Google Calendar
+
+Phase 3: Real-time Sync (Advanced)
+- Implement WebSocket endpoint: GET /ws/appointments
+- Stream appointment changes to connected clients
+- Frontend subscription & change handling
+- Conflict resolution policy (local vs. remote)
+
+Phase 4: Multi-calendar Support
+- Support Apple Calendar, Microsoft Exchange
+- Bidirectional sync engines
+- Change conflict detection
+- User-configurable sync direction
+
+================================================================================
+FILE LOCATIONS - ABSOLUTE PATHS
+================================================================================
+
+FULL DOCUMENTATION:
+  /Users/yussieik/Desktop/projects/pazpaz/APPOINTMENT_SYSTEM_ARCHITECTURE.md
+  /Users/yussieik/Desktop/projects/pazpaz/CODEBASE_EXPLORATION_QUICK_REFERENCE.md
+
+BACKEND MODELS:
+  /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/models/appointment.py
+  /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/models/user_notification_settings.py
+  /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/models/workspace.py
+  /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/models/user.py
+  /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/models/audit_event.py
+
+BACKEND API:
+  /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/api/appointments.py
+  /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/api/notification_settings.py
+  /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/api/deps.py
+
+BACKEND SCHEMAS:
+  /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/schemas/appointment.py
+  /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/schemas/notification_settings.py
+
+BACKEND SERVICES:
+  /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/services/audit_service.py
+  /Users/yussieik/Desktop/projects/pazpaz/backend/src/pazpaz/services/notification_settings_service.py
+
+FRONTEND VIEWS:
+  /Users/yussieik/Desktop/projects/pazpaz/frontend/src/views/CalendarView.vue
+  /Users/yussieik/Desktop/projects/pazpaz/frontend/src/views/settings/NotificationsView.vue
+
+FRONTEND STATE:
+  /Users/yussieik/Desktop/projects/pazpaz/frontend/src/stores/appointments.ts
+
+FRONTEND COMPONENTS:
+  /Users/yussieik/Desktop/projects/pazpaz/frontend/src/components/settings/SettingsCard.vue
+  /Users/yussieik/Desktop/projects/pazpaz/frontend/src/components/settings/SettingsSidebar.vue
+  /Users/yussieik/Desktop/projects/pazpaz/frontend/src/components/calendar/AppointmentFormModal.vue
+  /Users/yussieik/Desktop/projects/pazpaz/frontend/src/components/calendar/ConflictAlert.vue
+
+================================================================================
+EXPLORATION METHODOLOGY
+================================================================================
+
+1. Model Exploration
+   - Located appointment.py, user_notification_settings.py, workspace.py
+   - Analyzed field definitions, constraints, indexes, relationships
+
+2. API Endpoint Discovery
+   - Found all CRUD endpoints in appointments.py
+   - Documented request/response schemas
+   - Identified conflict detection & status validation logic
+
+3. Frontend Architecture Analysis
+   - Examined CalendarView.vue for UI patterns
+   - Analyzed Pinia store structure
+   - Identified composables and component hierarchy
+
+4. Settings System Deep Dive
+   - Model: user_notification_settings.py
+   - API: notification_settings.py endpoints
+   - Frontend: NotificationsView.vue
+   - Services: notification_settings_service.py
+
+5. Security & Privacy Review
+   - Workspace scoping validation
+   - Encryption handling
+   - Audit logging mechanism
+   - Authentication flow
+
+6. Performance Analysis
+   - Index strategy review
+   - Query optimization examination
+   - Frontend caching patterns
+   - Pagination implementation
+
+================================================================================
+END OF SUMMARY
+================================================================================

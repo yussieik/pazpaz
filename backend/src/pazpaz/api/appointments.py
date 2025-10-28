@@ -5,12 +5,14 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
+from arq.connections import ArqRedis
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from pazpaz.api.deps import (
+    get_arq_pool,
     get_current_user,
     get_db,
     get_or_404,
@@ -42,6 +44,7 @@ from pazpaz.utils.session_helpers import (
     get_active_sessions_for_appointment,
     validate_session_not_amended,
 )
+from pazpaz.workers.settings import QUEUE_NAME
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 logger = get_logger(__name__)
@@ -244,6 +247,7 @@ async def create_appointment(
     appointment_data: AppointmentCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    arq_pool: ArqRedis = Depends(get_arq_pool),
 ) -> AppointmentResponse:
     """
     Create a new appointment with conflict detection.
@@ -333,6 +337,30 @@ async def create_appointment(
 
     # Build response with client summary
     response_data = build_appointment_response_with_client(appointment_with_client)
+
+    # Enqueue Google Calendar sync task (non-blocking)
+    # This will sync the appointment to Google Calendar if integration is enabled
+    try:
+        await arq_pool.enqueue_job(
+            "sync_appointment_to_google_calendar",
+            appointment_id=str(appointment.id),
+            action="create",
+            _queue_name=QUEUE_NAME,
+        )
+        logger.debug(
+            "google_calendar_sync_task_enqueued",
+            appointment_id=str(appointment.id),
+            action="create",
+        )
+    except Exception as e:
+        # Log error but don't fail appointment creation
+        logger.error(
+            "google_calendar_sync_enqueue_failed",
+            appointment_id=str(appointment.id),
+            action="create",
+            error=str(e),
+            exc_info=True,
+        )
 
     logger.info(
         "appointment_created",
@@ -599,6 +627,7 @@ async def update_appointment(
     ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    arq_pool: ArqRedis = Depends(get_arq_pool),
 ) -> AppointmentResponse:
     """
     Update an existing appointment with conflict detection.
@@ -740,6 +769,31 @@ async def update_appointment(
     result = await db.execute(query)
     appointment = result.scalar_one()
 
+    # Enqueue Google Calendar sync task (non-blocking)
+    # Only sync if there were actual changes
+    if changes:
+        try:
+            await arq_pool.enqueue_job(
+                "sync_appointment_to_google_calendar",
+                appointment_id=str(appointment.id),
+                action="update",
+                _queue_name=QUEUE_NAME,
+            )
+            logger.debug(
+                "google_calendar_sync_task_enqueued",
+                appointment_id=str(appointment.id),
+                action="update",
+            )
+        except Exception as e:
+            # Log error but don't fail appointment update
+            logger.error(
+                "google_calendar_sync_enqueue_failed",
+                appointment_id=str(appointment.id),
+                action="update",
+                error=str(e),
+                exc_info=True,
+            )
+
     # Build response with client summary
     return build_appointment_response_with_client(appointment)
 
@@ -749,6 +803,7 @@ async def delete_appointment(
     appointment_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    arq_pool: ArqRedis = Depends(get_arq_pool),
     deletion_request: AppointmentDeleteRequest | None = Body(None),
 ) -> None:
     """
@@ -904,6 +959,34 @@ async def delete_appointment(
             "deletion_provided": appointment_deletion_reason is not None,
         },
     )
+
+    # Enqueue Google Calendar sync task BEFORE deleting appointment
+    # Pass google_event_id and workspace_id since appointment will be deleted
+    if appointment.google_event_id:
+        try:
+            await arq_pool.enqueue_job(
+                "sync_appointment_to_google_calendar",
+                appointment_id=str(appointment.id),
+                action="delete",
+                google_event_id=appointment.google_event_id,
+                workspace_id=str(workspace_id),
+                _queue_name=QUEUE_NAME,
+            )
+            logger.debug(
+                "google_calendar_sync_task_enqueued",
+                appointment_id=str(appointment.id),
+                action="delete",
+                google_event_id=appointment.google_event_id,
+            )
+        except Exception as e:
+            # Log error but don't fail appointment deletion
+            logger.error(
+                "google_calendar_sync_enqueue_failed",
+                appointment_id=str(appointment.id),
+                action="delete",
+                error=str(e),
+                exc_info=True,
+            )
 
     # Delete appointment (CASCADE will NOT delete soft-deleted sessions since
     # appointment_id is SET NULL on delete, not CASCADE)

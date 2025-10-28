@@ -8,6 +8,7 @@ from pazpaz.models.appointment_reminder import (
 from pazpaz.models.audit_event import AuditAction, AuditEvent, ResourceType
 from pazpaz.models.client import Client
 from pazpaz.models.email_blacklist import EmailBlacklist
+from pazpaz.models.google_calendar_token import GoogleCalendarToken
 from pazpaz.models.location import Location
 from pazpaz.models.service import Service
 from pazpaz.models.session import Session
@@ -38,4 +39,5 @@ __all__ = [
     "ResourceType",
     "EmailBlacklist",
     "UserNotificationSettings",
+    "GoogleCalendarToken",
 ]

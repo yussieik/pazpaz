@@ -206,6 +206,11 @@ services:
       - ENVIRONMENT=local
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
       - ENCRYPTION_MASTER_KEY=${ENCRYPTION_MASTER_KEY:-CHANGE_ME_GENERATE_BASE64_32_BYTES}
+
+      # Google Calendar OAuth 2.0 Integration
+      - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
+      - GOOGLE_OAUTH_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET}
+      - GOOGLE_OAUTH_REDIRECT_URI=${GOOGLE_OAUTH_REDIRECT_URI:-http://localhost:8000/api/v1/integrations/google-calendar/callback}
     depends_on:
       db:
         condition: service_healthy

@@ -14,6 +14,7 @@ Migration:
 
 Day numbering: 0=Sunday, 1=Monday, ..., 6=Saturday
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -21,8 +22,8 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '70cacacc22ab'
-down_revision: str | Sequence[str] | None = '3adf29e61586'
+revision: str = "70cacacc22ab"
+down_revision: str | Sequence[str] | None = "3adf29e61586"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -31,12 +32,12 @@ def upgrade() -> None:
     """Upgrade schema - replace digest_skip_weekends with digest_days."""
     # Step 1: Add digest_days column as nullable initially
     op.add_column(
-        'user_notification_settings',
+        "user_notification_settings",
         sa.Column(
-            'digest_days',
+            "digest_days",
             postgresql.ARRAY(sa.Integer()),
             nullable=True,
-            comment='Days of week to send digest (0=Sunday, 6=Saturday)',
+            comment="Days of week to send digest (0=Sunday, 6=Saturday)",
         ),
     )
 
@@ -53,26 +54,26 @@ def upgrade() -> None:
 
     # Step 3: Make digest_days non-nullable with default
     op.alter_column(
-        'user_notification_settings',
-        'digest_days',
+        "user_notification_settings",
+        "digest_days",
         nullable=False,
-        server_default='{1,2,3,4,5}',
+        server_default="{1,2,3,4,5}",
     )
 
     # Step 4: Drop old digest_skip_weekends column
-    op.drop_column('user_notification_settings', 'digest_skip_weekends')
+    op.drop_column("user_notification_settings", "digest_skip_weekends")
 
 
 def downgrade() -> None:
     """Downgrade schema - restore digest_skip_weekends from digest_days."""
     # Step 1: Add digest_skip_weekends column back (nullable initially)
     op.add_column(
-        'user_notification_settings',
+        "user_notification_settings",
         sa.Column(
-            'digest_skip_weekends',
+            "digest_skip_weekends",
             sa.Boolean(),
             nullable=True,
-            comment='Skip digest on Saturdays and Sundays',
+            comment="Skip digest on Saturdays and Sundays",
         ),
     )
 
@@ -89,11 +90,11 @@ def downgrade() -> None:
 
     # Step 3: Make digest_skip_weekends non-nullable with default
     op.alter_column(
-        'user_notification_settings',
-        'digest_skip_weekends',
+        "user_notification_settings",
+        "digest_skip_weekends",
         nullable=False,
-        server_default='true',
+        server_default="true",
     )
 
     # Step 4: Drop digest_days column
-    op.drop_column('user_notification_settings', 'digest_days')
+    op.drop_column("user_notification_settings", "digest_days")

@@ -63,6 +63,7 @@ from pazpaz.services.reminder_tracking_service import (
     mark_reminder_sent,
     was_reminder_sent,
 )
+from pazpaz.workers.google_calendar_tasks import sync_appointment_to_google_calendar
 from pazpaz.workers.settings import (
     HEALTH_CHECK_INTERVAL,
     JOB_TIMEOUT,
@@ -781,6 +782,10 @@ class WorkerSettings:
 
     # Retry Configuration
     max_tries = MAX_TRIES
+
+    # Ad-hoc Task Functions
+    # These functions can be enqueued on-demand (not on a schedule)
+    functions = [sync_appointment_to_google_calendar]
 
     # Scheduled Tasks (Cron Jobs)
     # Phase 3 implementation - scheduled notification tasks

@@ -94,6 +94,16 @@ const router = createRouter({
             category: 'Notifications',
           },
         },
+        {
+          path: 'integrations',
+          name: 'settings-integrations',
+          component: () => import('@/views/settings/IntegrationsView.vue'),
+          meta: {
+            title: 'Integrations - Settings - PazPaz',
+            requiresAuth: true,
+            category: 'Integrations',
+          },
+        },
         // Future settings categories will be added here
         // Example:
         // {

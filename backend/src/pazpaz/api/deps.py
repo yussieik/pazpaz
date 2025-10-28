@@ -5,6 +5,8 @@ from __future__ import annotations
 import uuid
 
 import redis.asyncio as redis
+from arq import create_pool
+from arq.connections import ArqRedis, RedisSettings
 from fastapi import Cookie, Depends, HTTPException
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,8 +19,12 @@ from pazpaz.models.client import Client
 from pazpaz.models.user import User
 from pazpaz.models.workspace import WorkspaceStatus
 from pazpaz.services.auth_service import is_token_blacklisted
+from pazpaz.workers.settings import QUEUE_NAME, get_redis_settings
 
 logger = get_logger(__name__)
+
+# Global ARQ Redis pool for job enqueueing
+_arq_pool: ArqRedis | None = None
 
 
 async def get_current_user(
@@ -318,5 +324,67 @@ async def verify_client_in_workspace(
     return await get_or_404(db, Client, client_id, workspace_id)
 
 
+async def get_arq_pool() -> ArqRedis:
+    """
+    Get ARQ Redis pool for enqueueing background jobs.
+
+    This dependency provides an ARQ Redis connection pool that can be used
+    to enqueue background tasks (e.g., Google Calendar sync jobs).
+
+    Returns:
+        ArqRedis: ARQ Redis pool instance for job enqueueing
+
+    Raises:
+        ConnectionError: If Redis connection fails
+
+    Example:
+        ```python
+        @router.post("/appointments")
+        async def create_appointment(
+            arq_pool: ArqRedis = Depends(get_arq_pool),
+        ):
+            # ... create appointment ...
+            await arq_pool.enqueue_job(
+                'sync_appointment_to_google_calendar',
+                appointment_id=str(appointment.id),
+                action='create',
+            )
+        ```
+    """
+    global _arq_pool
+
+    if _arq_pool is None:
+        try:
+            redis_settings = RedisSettings(**get_redis_settings())
+            _arq_pool = await create_pool(redis_settings, default_queue_name=QUEUE_NAME)
+            logger.info("arq_pool_initialized", queue_name=QUEUE_NAME)
+        except Exception as e:
+            logger.error(
+                "arq_pool_initialization_failed",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            raise
+
+    return _arq_pool
+
+
+async def close_arq_pool():
+    """Close ARQ Redis pool (cleanup on shutdown)."""
+    global _arq_pool
+
+    if _arq_pool:
+        await _arq_pool.close()
+        _arq_pool = None
+        logger.info("arq_pool_closed")
+
+
 # Re-export for convenience
-__all__ = ["get_db", "get_current_user", "get_or_404", "verify_client_in_workspace"]
+__all__ = [
+    "get_db",
+    "get_current_user",
+    "get_or_404",
+    "verify_client_in_workspace",
+    "get_arq_pool",
+    "close_arq_pool",
+]

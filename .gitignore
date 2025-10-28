@@ -85,3 +85,8 @@ scripts/*.backup*
 
 # Temporary deployment files
 pazpaz-deploy.tar.gz
+
+# Google Calendar OAuth credentials
+# SECURITY: Never commit OAuth credentials to git
+credentials.json
+backend/credentials.json
