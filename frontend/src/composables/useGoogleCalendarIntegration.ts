@@ -101,7 +101,13 @@ export function useGoogleCalendarIntegration() {
 
     try {
       const response = await apiClient.post<{ authorization_url: string }>(
-        '/integrations/google-calendar/authorize'
+        '/integrations/google-calendar/authorize',
+        {},
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
       )
       return response.data.authorization_url
     } catch (err) {
