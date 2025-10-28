@@ -218,8 +218,9 @@ async def authorize_google_calendar(
 
 @router.get("/callback")
 async def oauth_callback(
-    code: str = Query(..., description="OAuth authorization code from Google"),
-    state: str = Query(..., description="CSRF state token"),
+    code: str | None = Query(None, description="OAuth authorization code from Google"),
+    state: str | None = Query(None, description="CSRF state token"),
+    error: str | None = Query(None, description="OAuth error from Google"),
     db: AsyncSession = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis),
 ) -> RedirectResponse:
@@ -263,6 +264,30 @@ async def oauth_callback(
         callback URL. Authentication is implicitly validated via the state token
         which maps to a workspace_id from an authenticated session.
     """
+    # Handle OAuth error from Google (user denied access, etc.)
+    if error:
+        logger.warning(
+            "google_calendar_oauth_error",
+            error=error,
+            state_preview=state[:8] + "..." if state else "missing",
+        )
+        return RedirectResponse(
+            url=f"{settings.frontend_url}/settings?gcal=error",
+            status_code=302,
+        )
+
+    # Validate required parameters
+    if not code or not state:
+        logger.error(
+            "google_calendar_callback_missing_parameters",
+            has_code=bool(code),
+            has_state=bool(state),
+        )
+        return RedirectResponse(
+            url=f"{settings.frontend_url}/settings?gcal=error",
+            status_code=302,
+        )
+
     logger.info(
         "google_calendar_callback_received",
         state_preview=state[:8] + "...",
