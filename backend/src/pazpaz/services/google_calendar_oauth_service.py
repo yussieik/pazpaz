@@ -25,26 +25,40 @@ logger = get_logger(__name__)
 GOOGLE_CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 
-def _create_http_session() -> requests.Session:
+# Configure requests library to use certifi for SSL verification
+# This monkey-patch ensures ALL requests.Session instances use certifi's CA bundle
+# for SSL/TLS certificate verification in Docker/production environments.
+#
+# Why this is needed:
+# - In Docker containers, the requests library doesn't automatically find SSL certificates
+# - Setting session.verify doesn't work reliably in all environments
+# - certifi provides Mozilla's CA bundle that works across all platforms
+#
+# This is the recommended best practice for production Python applications:
+# https://requests.readthedocs.io/en/latest/user/advanced/#ssl-cert-verification
+# https://github.com/certifi/python-certifi
+_original_request = requests.Session.request
+
+
+def _patched_request(self, method, url, **kwargs):
     """
-    Create a requests Session with explicit SSL certificate configuration.
+    Patched version of requests.Session.request that uses certifi by default.
 
-    Uses certifi's CA bundle to ensure proper SSL/TLS certificate verification
-    across all environments (local, Docker, production).
-
-    This is the recommended best practice for Python applications that need
-    reliable SSL verification in containerized environments.
-
-    Returns:
-        requests.Session configured with certifi CA bundle for SSL verification
-
-    References:
-        - https://requests.readthedocs.io/en/latest/user/advanced/#ssl-cert-verification
-        - https://github.com/certifi/python-certifi
+    Automatically injects verify=certifi.where() for all HTTPS requests
+    unless verify is explicitly provided by the caller.
     """
-    session = requests.Session()
-    session.verify = certifi.where()
-    return session
+    if "verify" not in kwargs and url.startswith("https://"):
+        kwargs["verify"] = certifi.where()
+    return _original_request(self, method, url, **kwargs)
+
+
+requests.Session.request = _patched_request
+
+logger.info(
+    "ssl_certifi_configured",
+    message="Configured requests library to use certifi CA bundle for SSL verification",
+    certifi_path=certifi.where(),
+)
 
 
 def get_authorization_url(state: str, workspace_id: uuid.UUID) -> str:
@@ -91,13 +105,12 @@ def get_authorization_url(state: str, workspace_id: uuid.UUID) -> str:
 
         # Create OAuth flow
         # redirect_uri must match exactly what's registered in Google Console
-        # Use custom session with explicit certifi configuration for SSL
+        # SSL verification is automatically configured via module-level monkey-patch
         flow = Flow.from_client_config(
             client_config=client_config,
             scopes=GOOGLE_CALENDAR_SCOPES,
             redirect_uri=settings.google_oauth_redirect_uri,
         )
-        flow.oauth2session.session = _create_http_session()
 
         # Generate authorization URL
         # access_type=offline: Request refresh token for long-lived access
@@ -191,16 +204,16 @@ async def exchange_code_for_tokens(
         }
 
         # Create OAuth flow (same redirect_uri as authorization)
-        # Use custom session with explicit certifi configuration for SSL
+        # SSL verification is automatically configured via module-level monkey-patch
         flow = Flow.from_client_config(
             client_config=client_config,
             scopes=GOOGLE_CALENDAR_SCOPES,
             redirect_uri=settings.google_oauth_redirect_uri,
         )
-        flow.oauth2session.session = _create_http_session()
 
         # Exchange authorization code for tokens
         # This makes a POST request to Google's token endpoint with SSL verification
+        # SSL certificate verification uses certifi CA bundle (configured at module level)
         flow.fetch_token(code=code)
 
         # Extract credentials
