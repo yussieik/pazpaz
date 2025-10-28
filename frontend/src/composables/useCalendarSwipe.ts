@@ -67,7 +67,7 @@ export function useCalendarSwipe(
     setTimeout(() => {
       swipeDirection.value = null
       isNavigating.value = false
-    }, 300) // Match transition duration (250ms) + 50ms buffer
+    }, 250) // Match transition duration (180ms) + 70ms buffer
   }
 
   return {

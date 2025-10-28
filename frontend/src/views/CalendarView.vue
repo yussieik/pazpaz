@@ -138,6 +138,13 @@ const transitionName = computed(() => {
   return `calendar-slide-${swipeDirection.value}`
 })
 
+// Generate unique calendar key to force transition on every navigation
+// Combines view and timestamp to ensure uniqueness even when returning to same date
+const calendarKey = computed(() => {
+  // Use timestamp to ensure key changes on every navigation, even when returning to today
+  return `${currentView.value}-${currentDate.value.getTime()}`
+})
+
 /**
  * Apply correct height to calendar event
  * FullCalendar v6 bug: ignores end time and defaults to 1-hour events
@@ -1426,7 +1433,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
           >
             <FullCalendar
               ref="calendarRef"
-              :key="`${currentView}-${currentDate.toISOString()}`"
+              :key="calendarKey"
               :options="calendarOptions"
             />
           </Transition>
@@ -1582,8 +1589,8 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 .calendar-slide-left-enter-active,
 .calendar-slide-left-leave-active {
   transition:
-    transform 250ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    opacity 250ms ease-out;
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 150ms ease-out;
   will-change: transform, opacity;
 }
 
@@ -1594,15 +1601,15 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 
 .calendar-slide-left-leave-to {
   transform: translateX(-100%); /* Exit to left */
-  opacity: 0.3; /* Fade slightly for depth */
+  opacity: 0.2; /* Faster fade for snappier feel */
 }
 
 /* Slide Right - Swipe right → Previous period */
 .calendar-slide-right-enter-active,
 .calendar-slide-right-leave-active {
   transition:
-    transform 250ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    opacity 250ms ease-out;
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 150ms ease-out;
   will-change: transform, opacity;
 }
 
@@ -1613,7 +1620,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 
 .calendar-slide-right-leave-to {
   transform: translateX(100%); /* Exit to right */
-  opacity: 0.3; /* Fade slightly for depth */
+  opacity: 0.2; /* Faster fade for snappier feel */
 }
 
 /* Fallback fade for non-swipe navigation (toolbar clicks) */

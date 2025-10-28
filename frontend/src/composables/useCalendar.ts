@@ -112,7 +112,7 @@ export function useCalendar() {
     // Reset flag after transition completes
     setTimeout(() => {
       isToolbarNavigating.value = false
-    }, 300)
+    }, 250)
   }
 
   /**
@@ -136,7 +136,7 @@ export function useCalendar() {
     // Reset flag after transition completes
     setTimeout(() => {
       isToolbarNavigating.value = false
-    }, 300)
+    }, 250)
   }
 
   /**
@@ -150,7 +150,7 @@ export function useCalendar() {
     // Reset flag after transition completes
     setTimeout(() => {
       isToolbarNavigating.value = false
-    }, 300)
+    }, 250)
   }
 
   /**
