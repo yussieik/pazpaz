@@ -509,7 +509,36 @@ const calendarOptions = computed(() => ({
 
     const title = document.createElement('div')
     title.className = 'fc-event-title fc-sticky'
-    title.textContent = event.title || 'Untitled'
+
+    // Detect mobile format (newline-separated) vs desktop format
+    const eventTitle = event.title || 'Untitled'
+    const isMobileFormat = eventTitle.includes('\n')
+
+    if (isMobileFormat) {
+      // Mobile: Parse newline-separated parts and render vertically
+      title.className = 'fc-event-title flex flex-col items-start gap-0.5'
+
+      const parts = eventTitle.split('\n')
+      parts.forEach((part: string, index: number) => {
+        const span = document.createElement('span')
+
+        if (index === 0) {
+          // Patient initials - primary, bold, larger
+          span.className = 'text-base font-bold tracking-wide'
+          span.textContent = part
+        } else {
+          // Status/session indicators - smaller, reduced opacity
+          span.className = 'text-sm opacity-85'
+          span.textContent = part
+        }
+
+        title.appendChild(span)
+      })
+    } else {
+      // Desktop: Render as plain text (existing behavior)
+      title.textContent = eventTitle
+    }
+
     titleContainer.appendChild(title)
     wrapper.appendChild(titleContainer)
 
@@ -573,8 +602,16 @@ const calendarOptions = computed(() => ({
       applyEventHeight(info.el, event.start, event.end)
     }
 
-    // Build tooltip text
-    let tooltipText = event.title
+    // Build tooltip text - always use full name for accessibility
+    // On mobile, the title contains initials, so we need to get the full name from appointments store
+    const appointment = appointmentsStore.appointments.find((a) => a.id === event.id)
+    const fullName =
+      appointment?.client?.full_name ||
+      (appointment?.client_id
+        ? `Client ${appointment.client_id.slice(0, 8)}`
+        : 'Unknown Client')
+
+    let tooltipText = fullName
 
     if (hasSession) {
       tooltipText += isDraft
@@ -1903,8 +1940,18 @@ function handleGlobalKeydown(event: KeyboardEvent) {
   }
 
   .fc-event {
-    padding: 2px 4px; /* Tighter padding on mobile */
-    font-size: 0.8125rem; /* 13px */
+    padding: 8px 6px; /* Larger padding for vertical stacking */
+    font-size: 0.875rem;
+    min-height: 60px; /* Ensure space for 3 lines (initials + status + session) */
+  }
+
+  /* Mobile event title - vertical layout with proper spacing */
+  .fc-event-title {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
   }
 }
 

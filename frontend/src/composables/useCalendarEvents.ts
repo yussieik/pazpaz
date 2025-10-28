@@ -3,6 +3,7 @@ import type { EventInput, EventClickArg } from '@fullcalendar/core'
 import type { AppointmentListItem, SessionStatus } from '@/types/calendar'
 import { useAppointmentsStore } from '@/stores/appointments'
 import apiClient from '@/api/client'
+import { getPatientInitials } from '@/utils/calendar/patientInitials'
 
 /**
  * Composable for managing calendar events
@@ -166,6 +167,7 @@ export function useCalendarEvents() {
 
   /**
    * Get event title with status and session indicators
+   * Adaptive display: shows patient initials on mobile (<640px), full names on desktop
    */
   function getEventTitle(appointment: AppointmentListItem): string {
     const statusEmoji: Record<string, string> = {
@@ -176,14 +178,34 @@ export function useCalendarEvents() {
 
     const statusIndicator = statusEmoji[appointment.status] || ''
     const sessionStatus = sessionStatusMap.value.get(appointment.id)
-    const sessionIndicator = sessionStatus?.hasSession ? ' 📄' : ''
+    const sessionIndicator = sessionStatus?.hasSession ? '📄' : ''
     const clientName =
       appointment.client?.full_name ||
       (appointment.client_id
         ? `Client ${appointment.client_id.slice(0, 8)}`
         : 'Unknown Client')
 
-    return `${statusIndicator}${sessionIndicator} ${clientName}`.trim()
+    // Detect mobile viewport (<640px)
+    const isMobile = window.innerWidth < 640
+
+    if (isMobile) {
+      // Mobile format: Newline-separated for vertical stacking
+      // Format: INITIALS\nSTATUS\nSESSION
+      const initials = getPatientInitials(appointment.client?.full_name)
+      const parts: string[] = [initials]
+
+      if (statusIndicator) {
+        parts.push(statusIndicator)
+      }
+      if (sessionIndicator) {
+        parts.push(sessionIndicator)
+      }
+
+      return parts.join('\n')
+    } else {
+      // Desktop format: Inline with spaces (existing format)
+      return `${statusIndicator}${sessionIndicator} ${clientName}`.trim()
+    }
   }
 
   /**
