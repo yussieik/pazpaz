@@ -18,6 +18,7 @@ import {
   extractDate,
 } from '@/utils/calendar/dateFormatters'
 import { useClientsStore } from '@/stores/clients'
+import { useDeviceType } from '@/composables/useDeviceType'
 
 interface Props {
   visible: boolean
@@ -37,6 +38,9 @@ const emit = defineEmits<Emits>()
 
 // Clients store for auto-filling address
 const clientsStore = useClientsStore()
+
+// Device type detection for mobile keyboard behavior
+const { shouldDeferKeyboard } = useDeviceType()
 
 // Form state
 const formData = ref<AppointmentFormData>({
@@ -144,7 +148,24 @@ watch(
         // 2. If client IS pre-filled but Date is empty → Focus Date picker
         // 3. If both client and Date are pre-filled → Focus Location dropdown
         if (!formData.value.client_id) {
-          clientComboboxRef.value?.inputRef?.focus()
+          const inputElement = clientComboboxRef.value?.inputRef
+          if (inputElement) {
+            inputElement.focus()
+
+            // On mobile: prevent keyboard until tap (readonly trick)
+            if (shouldDeferKeyboard.value) {
+              inputElement.setAttribute('readonly', 'readonly')
+
+              // Remove readonly on first user interaction
+              inputElement.addEventListener(
+                'click',
+                () => {
+                  inputElement.removeAttribute('readonly')
+                },
+                { once: true }
+              )
+            }
+          }
         } else if (!appointmentDate.value) {
           dateInputRef.value?.focus()
         } else {
@@ -154,7 +175,24 @@ watch(
     } else if (props.mode === 'edit') {
       // For edit mode, focus the first editable field (client combobox)
       nextTick(() => {
-        clientComboboxRef.value?.inputRef?.focus()
+        const inputElement = clientComboboxRef.value?.inputRef
+        if (inputElement) {
+          inputElement.focus()
+
+          // On mobile: prevent keyboard until tap (readonly trick)
+          if (shouldDeferKeyboard.value) {
+            inputElement.setAttribute('readonly', 'readonly')
+
+            // Remove readonly on first user interaction
+            inputElement.addEventListener(
+              'click',
+              () => {
+                inputElement.removeAttribute('readonly')
+              },
+              { once: true }
+            )
+          }
+        }
       })
     }
   }

@@ -5,6 +5,7 @@ import { useClientsStore } from '@/stores/clients'
 import { useClientListKeyboard } from '@/composables/useClientListKeyboard'
 import { useScreenReader } from '@/composables/useScreenReader'
 import { useToast } from '@/composables/useToast'
+import { useDeviceType } from '@/composables/useDeviceType'
 import type { ClientListItem, ClientCreate } from '@/types/client'
 import FloatingActionButton from '@/components/common/FloatingActionButton.vue'
 import ClientFormModal from '@/components/clients/ClientFormModal.vue'
@@ -12,6 +13,7 @@ import ClientFormModal from '@/components/clients/ClientFormModal.vue'
 const router = useRouter()
 const clientsStore = useClientsStore()
 const { showSuccess, showError } = useToast()
+const { shouldDeferKeyboard } = useDeviceType()
 
 // Local state for search
 const searchQuery = ref('')
@@ -91,6 +93,12 @@ onMounted(async () => {
   // Add global keyboard shortcut listener
   document.addEventListener('keydown', handleGlobalKeydown)
 
+  // Auto-focus search bar on desktop only (not on mobile)
+  if (!shouldDeferKeyboard.value && searchInputRef.value) {
+    await nextTick()
+    searchInputRef.value.focus()
+  }
+
   // Restore focus if returning from client detail view
   const lastFocusedClientId = sessionStorage.getItem('lastFocusedClientId')
   if (lastFocusedClientId) {
@@ -147,8 +155,12 @@ onUnmounted(() => {
           ref="searchInputRef"
           v-model="searchQuery"
           type="search"
-          placeholder="Search clients by name, email, or phone... (press / to focus)"
-          autofocus
+          :placeholder="
+            shouldDeferKeyboard
+              ? 'Tap to search clients...'
+              : 'Search clients by name, email, or phone... (press / to focus)'
+          "
+          :aria-label="shouldDeferKeyboard ? 'Search clients' : undefined"
           class="block w-full rounded-lg border border-slate-300 bg-white py-3 pr-3 pl-10 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
         />
       </div>

@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 import { useClientSearch } from '@/composables/useClientSearch'
 import { useScreenReader } from '@/composables/useScreenReader'
+import { useDeviceType } from '@/composables/useDeviceType'
 import ClientDropdownItem from './ClientDropdownItem.vue'
 import ClientQuickAddForm from './ClientQuickAddForm.vue'
 import type { Client, ClientListItem, ClientCreate } from '@/types/client'
@@ -40,6 +41,7 @@ const {
   clearSearch,
 } = useClientSearch()
 const { announce } = useScreenReader()
+const { shouldDeferKeyboard } = useDeviceType()
 
 // Component state
 const isOpen = ref(false)
@@ -335,6 +337,7 @@ defineExpose({
             ? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-500'
             : 'text-slate-900 placeholder-slate-400',
           selectedClient && 'font-medium',
+          shouldDeferKeyboard && 'cursor-pointer',
         ]"
       />
 
