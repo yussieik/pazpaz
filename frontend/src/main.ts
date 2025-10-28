@@ -9,6 +9,7 @@ import './assets/calendar-patterns.css'
 import App from './App.vue'
 import { useAuthStore } from './stores/auth'
 import { configureApiClient } from './api/config'
+import { vRtl } from './directives/rtl'
 
 /**
  * Application Bootstrap
@@ -62,6 +63,9 @@ const toastOptions: PluginOptions = {
 // Install plugins
 app.use(pinia)
 app.use(Toast, toastOptions)
+
+// Register global directives
+app.directive('rtl', vRtl)
 
 // Initialize authentication BEFORE mounting router
 // This ensures route guards have access to auth state

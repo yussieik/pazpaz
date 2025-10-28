@@ -713,6 +713,7 @@ function handleSubmit() {
               id="email"
               ref="emailInputRef"
               v-model="email"
+              v-rtl
               type="email"
               autocomplete="email"
               required

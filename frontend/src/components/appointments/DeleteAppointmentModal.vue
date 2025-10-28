@@ -375,6 +375,7 @@ function applySuggestion(suggestion: string) {
             <textarea
               id="deletion-reason"
               v-model="reason"
+              v-rtl
               class="mt-2 min-h-[80px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               rows="3"
               placeholder="e.g., Duplicate entry"

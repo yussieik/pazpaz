@@ -842,6 +842,7 @@ onBeforeUnmount(() => {
             <textarea
               id="subjective"
               v-model="formData.subjective"
+              v-rtl
               :maxlength="CHAR_LIMIT"
               @blur="handleFieldBlur"
               rows="6"
@@ -866,6 +867,7 @@ onBeforeUnmount(() => {
             <textarea
               id="objective"
               v-model="formData.objective"
+              v-rtl
               :maxlength="CHAR_LIMIT"
               @blur="handleFieldBlur"
               rows="6"
@@ -893,6 +895,7 @@ onBeforeUnmount(() => {
             <textarea
               id="assessment"
               v-model="formData.assessment"
+              v-rtl
               :maxlength="CHAR_LIMIT"
               @blur="handleFieldBlur"
               rows="6"
@@ -917,6 +920,7 @@ onBeforeUnmount(() => {
             <textarea
               id="plan"
               v-model="formData.plan"
+              v-rtl
               :maxlength="CHAR_LIMIT"
               @blur="handleFieldBlur"
               rows="6"

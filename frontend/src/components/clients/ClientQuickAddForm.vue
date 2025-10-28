@@ -125,6 +125,7 @@ function handleKeydown(e: KeyboardEvent) {
           id="quick-add-first-name"
           ref="firstNameInput"
           v-model="formData.first_name"
+          v-rtl
           type="text"
           placeholder="First Name *"
           autocomplete="given-name"
@@ -148,6 +149,7 @@ function handleKeydown(e: KeyboardEvent) {
         <input
           id="quick-add-last-name"
           v-model="formData.last_name"
+          v-rtl
           type="text"
           placeholder="Last Name *"
           autocomplete="family-name"

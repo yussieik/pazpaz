@@ -822,6 +822,7 @@ watch(
               <input
                 id="location-details"
                 v-model="formData.location_details"
+                v-rtl
                 type="text"
                 placeholder="e.g., Zoom link, room number, address"
                 class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
@@ -870,6 +871,7 @@ watch(
               <textarea
                 id="notes"
                 v-model="formData.notes"
+                v-rtl
                 rows="6"
                 placeholder="Optional notes about this appointment"
                 class="sm:rows-3 mt-1 block min-h-[120px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"

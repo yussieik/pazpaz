@@ -314,6 +314,7 @@ defineExpose({
         :id="comboboxId"
         ref="inputRef"
         v-model="searchQuery"
+        v-rtl
         type="text"
         role="combobox"
         :aria-expanded="isOpen"

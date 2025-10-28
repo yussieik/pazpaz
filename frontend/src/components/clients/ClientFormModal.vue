@@ -308,6 +308,7 @@ onUnmounted(() => {
                   id="first-name"
                   ref="firstNameInputRef"
                   v-model="formData.first_name"
+                  v-rtl
                   type="text"
                   autocomplete="given-name"
                   aria-required="true"
@@ -343,6 +344,7 @@ onUnmounted(() => {
                 <input
                   id="last-name"
                   v-model="formData.last_name"
+                  v-rtl
                   type="text"
                   autocomplete="family-name"
                   aria-required="true"
@@ -494,6 +496,7 @@ onUnmounted(() => {
                   <input
                     id="address"
                     v-model="formData.address"
+                    v-rtl
                     type="text"
                     autocomplete="street-address"
                     placeholder="123 Main St, City, State ZIP"
@@ -512,6 +515,7 @@ onUnmounted(() => {
                   <input
                     id="emergency-contact-name"
                     v-model="formData.emergency_contact_name"
+                    v-rtl
                     type="text"
                     placeholder="Full name"
                     class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
@@ -551,6 +555,7 @@ onUnmounted(() => {
                   <textarea
                     id="medical-history"
                     v-model="formData.medical_history"
+                    v-rtl
                     rows="4"
                     placeholder="Relevant medical history, conditions, medications, allergies..."
                     class="mt-1 block min-h-[100px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
@@ -568,6 +573,7 @@ onUnmounted(() => {
                   <textarea
                     id="notes"
                     v-model="formData.notes"
+                    v-rtl
                     rows="4"
                     placeholder="Initial assessment, treatment goals, preferences..."
                     class="mt-1 block min-h-[100px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"

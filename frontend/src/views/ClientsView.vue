@@ -154,6 +154,7 @@ onUnmounted(() => {
         <input
           ref="searchInputRef"
           v-model="searchQuery"
+          v-rtl
           type="search"
           :placeholder="
             shouldDeferKeyboard
