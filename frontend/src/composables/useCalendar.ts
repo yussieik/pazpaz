@@ -31,6 +31,7 @@ export function useCalendar() {
   })
 
   const isViewChanging = ref(false)
+  const isToolbarNavigating = ref(false) // Track toolbar navigation (prev/next/today)
   const lastStableDateRange = ref<string>('')
 
   /**
@@ -95,6 +96,7 @@ export function useCalendar() {
    * Update the reactive currentDate, which triggers calendar re-render via computed options
    */
   function handlePrev() {
+    isToolbarNavigating.value = true
     const date = new Date(currentDate.value)
 
     if (currentView.value === 'timeGridDay') {
@@ -106,6 +108,11 @@ export function useCalendar() {
     }
 
     currentDate.value = date
+
+    // Reset flag after transition completes
+    setTimeout(() => {
+      isToolbarNavigating.value = false
+    }, 300)
   }
 
   /**
@@ -113,6 +120,7 @@ export function useCalendar() {
    * Update the reactive currentDate, which triggers calendar re-render via computed options
    */
   function handleNext() {
+    isToolbarNavigating.value = true
     const date = new Date(currentDate.value)
 
     if (currentView.value === 'timeGridDay') {
@@ -124,6 +132,11 @@ export function useCalendar() {
     }
 
     currentDate.value = date
+
+    // Reset flag after transition completes
+    setTimeout(() => {
+      isToolbarNavigating.value = false
+    }, 300)
   }
 
   /**
@@ -131,7 +144,13 @@ export function useCalendar() {
    * Reset currentDate to now, which triggers calendar re-render via computed options
    */
   function handleToday() {
+    isToolbarNavigating.value = true
     currentDate.value = new Date()
+
+    // Reset flag after transition completes
+    setTimeout(() => {
+      isToolbarNavigating.value = false
+    }, 300)
   }
 
   /**
@@ -189,6 +208,7 @@ export function useCalendar() {
     currentDate,
     currentDateRange,
     formattedDateRange,
+    isToolbarNavigating,
     changeView,
     handlePrev,
     handleNext,

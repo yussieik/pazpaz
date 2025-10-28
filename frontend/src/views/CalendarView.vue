@@ -93,6 +93,7 @@ const {
   currentDate,
   currentDateRange,
   formattedDateRange,
+  isToolbarNavigating,
   changeView,
   handlePrev,
   handleNext,
@@ -125,7 +126,7 @@ function handleEventClick(clickInfo: any) {
 const { showLoadingSpinner } = useCalendarLoading()
 
 // Mobile swipe navigation - hidden on desktop (≥640px)
-const { swipeDirection, resetDirection } = useCalendarSwipe(
+const { swipeDirection, isNavigating, resetDirection } = useCalendarSwipe(
   calendarContainerRef,
   handlePrev,
   handleNext
@@ -1361,9 +1362,14 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 
 <template>
   <div class="container mx-auto px-5 py-6 pb-20 sm:px-6 sm:py-8">
-    <!-- Loading State (Only show for initial load with no appointments) -->
+    <!-- Loading State (Only show for initial load with no appointments, not during navigation) -->
     <CalendarLoadingState
-      v-if="showLoadingSpinner && appointmentsStore.appointments.length === 0"
+      v-if="
+        showLoadingSpinner &&
+        appointmentsStore.appointments.length === 0 &&
+        !isNavigating &&
+        !isToolbarNavigating
+      "
     />
 
     <!-- Error State -->

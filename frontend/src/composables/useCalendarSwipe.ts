@@ -28,6 +28,9 @@ export function useCalendarSwipe(
   // Track the last swipe direction for transition
   const swipeDirection = ref<'left' | 'right' | null>(null)
 
+  // Track if we're currently navigating (prevents loading spinner during swipe)
+  const isNavigating = ref(false)
+
   // Configure swipe behavior
   const { direction } = useSwipe(target, {
     // Minimum distance threshold to trigger swipe (in pixels)
@@ -48,25 +51,29 @@ export function useCalendarSwipe(
       if (direction === 'left') {
         // Swipe left → next period
         swipeDirection.value = 'left'
+        isNavigating.value = true
         onNext()
       } else if (direction === 'right') {
         // Swipe right → previous period
         swipeDirection.value = 'right'
+        isNavigating.value = true
         onPrevious()
       }
     },
   })
 
-  // Reset direction after a delay (transition duration + buffer)
+  // Reset direction and navigation state after a delay (transition duration + buffer)
   const resetDirection = () => {
     setTimeout(() => {
       swipeDirection.value = null
+      isNavigating.value = false
     }, 300) // Match transition duration (250ms) + 50ms buffer
   }
 
   return {
     direction,
     swipeDirection,
+    isNavigating,
     resetDirection,
   }
 }

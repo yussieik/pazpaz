@@ -378,9 +378,57 @@ Advanced UX pattern where the calendar follows the user's finger during the swip
 - [Touch Interaction Patterns](/docs/frontend/touch-patterns.md)
 - [Accessibility Guidelines](/docs/frontend/accessibility.md)
 
+## Loading State Management
+
+### Problem: Loading Spinner During Navigation
+
+**Issue**: When swiping between calendar timeframes, a loading spinner would appear and interrupt the smooth directional slide transitions, disrupting the native mobile UX.
+
+**Root Cause**:
+1. User swipes → `handlePrev()` or `handleNext()` called
+2. Vue transition starts (250ms slide animation)
+3. FullCalendar re-renders → `datesSet` callback fires → `ensureAppointmentsLoaded()` called
+4. Store's `loading` flag becomes `true` (even if data is already cached)
+5. `useCalendarLoading` debounce timer starts (300ms)
+6. If transition takes >300ms, spinner appears → interrupts smooth slide
+7. CalendarLoadingState renders and breaks the native feel
+
+**Solution (Implemented 2025-10-28)**:
+
+1. **Navigation State Tracking**:
+   - Added `isNavigating` flag to `useCalendarSwipe` composable
+   - Set to `true` during swipe gestures
+   - Reset after transition completes (300ms)
+   - Added `isToolbarNavigating` flag to `useCalendar` composable
+   - Tracks prev/next/today button clicks
+
+2. **Conditional Loading Display**:
+   - CalendarLoadingState only shows when:
+     - `showLoadingSpinner` is true (debounced loading state)
+     - No appointments loaded yet (initial load)
+     - NOT currently navigating via swipe (`!isNavigating`)
+     - NOT currently navigating via toolbar (`!isToolbarNavigating`)
+   - This ensures spinner only appears on true initial load
+
+3. **Store Optimization**:
+   - `ensureAppointmentsLoaded()` checks cache before setting `loading: true`
+   - Only fetches if visible range not fully covered by loaded data
+   - Prevents unnecessary loading state during cached navigation
+   - Smart fetch reduces API calls and loading flashes
+
+**Result**: Butter-smooth swipe navigation with zero visual interruptions. Loading spinner only appears on genuine initial page load.
+
 ## Changelog
 
 ### 2025-10-28
+- **Loading Spinner Fix**: Eliminated loading interruptions during navigation
+  - Added `isNavigating` flag to `useCalendarSwipe` composable
+  - Added `isToolbarNavigating` flag to `useCalendar` composable
+  - Updated CalendarLoadingState condition to respect navigation state
+  - Optimized `ensureAppointmentsLoaded()` to avoid setting loading when cached
+  - Loading spinner now only shows on initial load, never during swipe/click navigation
+  - Maintains smooth 250ms transitions with no visual interruptions
+
 - **Phase 1 Transitions**: Implemented directional slide animations
   - Calendar slides in direction of swipe gesture
   - 250ms duration with smooth spring easing (`cubic-bezier(0.25, 0.46, 0.45, 0.94)`)

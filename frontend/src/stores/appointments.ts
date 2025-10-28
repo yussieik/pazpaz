@@ -280,6 +280,9 @@ export const useAppointmentsStore = defineStore('appointments', () => {
    * - Switching between calendar views that show the same data
    * - Auto-refreshing on focus/mount
    *
+   * OPTIMIZATION: Does NOT set loading flag when data is already cached.
+   * This prevents loading spinner flashing during smooth swipe navigation.
+   *
    * @param visibleStart - Start of the visible date range
    * @param visibleEnd - End of the visible date range
    * @returns Promise that resolves when appointments are available
@@ -288,18 +291,14 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     visibleStart: Date,
     visibleEnd: Date
   ): Promise<AppointmentListItem[]> {
-    if (!loadedRange.value) {
-      await fetchAppointments(visibleStart.toISOString(), visibleEnd.toISOString())
-      return appointments.value
-    }
-
-    const isFullyCovered =
+    // Check if we need to fetch before setting loading state
+    const needsFetch = !loadedRange.value || !(
       visibleStart >= loadedRange.value.startDate &&
       visibleEnd <= loadedRange.value.endDate
+    )
 
-    if (!isFullyCovered) {
+    if (needsFetch) {
       await fetchAppointments(visibleStart.toISOString(), visibleEnd.toISOString())
-      return appointments.value
     }
 
     return appointments.value
