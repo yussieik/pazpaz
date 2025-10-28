@@ -12,6 +12,7 @@ import { useCalendarLoading } from '@/composables/useCalendarLoading'
 import { useAppointmentDrag } from '@/composables/useAppointmentDrag'
 import { useCalendarCreation } from '@/composables/useCalendarCreation'
 import { useCalendarSwipe } from '@/composables/useCalendarSwipe'
+import { useCalendarDragScrollLock } from '@/composables/useCalendarDragScrollLock'
 import { useScreenReader } from '@/composables/useScreenReader'
 import { useToast } from '@/composables/useToast'
 import { toISOString } from '@/utils/dragHelpers'
@@ -131,6 +132,10 @@ const { swipeDirection, isNavigating, resetDirection } = useCalendarSwipe(
   handlePrev,
   handleNext
 )
+
+// Mobile drag scroll isolation - locks body scroll during drag on mobile (<768px)
+const { activateScrollIsolation, deactivateScrollIsolation } =
+  useCalendarDragScrollLock()
 
 // Compute transition name based on swipe direction
 const transitionName = computed(() => {
@@ -487,6 +492,19 @@ function handleDeleteCancel() {
 const calendarOptions = computed(() => ({
   ...buildCalendarOptions(calendarEvents.value, handleEventClick, handleDateClick),
   eventDrop: handleEventDrop as (arg: EventDropArg) => void,
+
+  // Mobile drag scroll isolation - activate/deactivate on drag start/stop
+  eventDragStart: () => {
+    const calendarContentArea = document.querySelector(
+      '.calendar-content-area'
+    ) as HTMLElement
+    if (calendarContentArea) {
+      activateScrollIsolation(calendarContentArea)
+    }
+  },
+  eventDragStop: () => {
+    deactivateScrollIsolation()
+  },
 
   // Use eventContent to declaratively render event content with quick action buttons
   // This ensures buttons persist across all FullCalendar renders (initial, updates, etc.)
@@ -1671,6 +1689,44 @@ function handleGlobalKeydown(event: KeyboardEvent) {
   opacity: 0;
 }
 
+/* ===========================
+   Mobile Drag Scroll Isolation (Phase 1)
+   =========================== */
+
+/* Body scroll lock during drag (mobile only) */
+body.drag-mode-active {
+  overflow: hidden !important;
+  position: fixed !important;
+  width: 100% !important;
+  /* top is set dynamically via inline style to preserve scroll position */
+}
+
+html.drag-mode-active {
+  overflow: hidden !important;
+}
+
+/* Overlay dimming effect during drag (5% black - very subtle) */
+body.drag-mode-active::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.05);
+  z-index: 5;
+  pointer-events: none;
+  transition: opacity 150ms ease-out;
+}
+
+/* Calendar elevated during drag with subtle blue glow */
+.calendar-content-area.drag-active {
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+  transition: box-shadow 150ms ease-out;
+}
+
 /* Accessibility: Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .calendar-slide-left-enter-active,
@@ -1695,6 +1751,15 @@ function handleGlobalKeydown(event: KeyboardEvent) {
   .calendar-fade-enter-active,
   .calendar-fade-leave-active {
     transition: none; /* Instant swap for maximum reduced motion */
+  }
+
+  /* Disable scroll lock transitions for reduced motion */
+  .calendar-content-area.drag-active {
+    transition: none;
+  }
+
+  body.drag-mode-active::before {
+    transition: none;
   }
 }
 
