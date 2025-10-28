@@ -84,6 +84,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     # UV cache directory (writable by pazpaz user)
     UV_CACHE_DIR=/app/.cache/uv \
+    # SSL: Use system CA certificates instead of certifi bundle
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+    REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
     # Application settings
     APP_USER=pazpaz \
     APP_GROUP=pazpaz \
