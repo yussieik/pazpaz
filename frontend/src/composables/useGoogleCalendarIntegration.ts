@@ -133,6 +133,7 @@ export function useGoogleCalendarIntegration() {
         connected: false,
         last_sync_at: null,
         enabled: false,
+        sync_client_names: false,
       }
     } catch (err) {
       const axiosError = err as AxiosError
