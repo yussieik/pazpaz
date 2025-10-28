@@ -10,6 +10,7 @@ import SessionExpirationModal from '@/components/auth/SessionExpirationModal.vue
 import { useGlobalKeyboardShortcuts } from '@/composables/useGlobalKeyboardShortcuts'
 import { useSessionTimeout } from '@/composables/useSessionTimeout'
 import { useSessionExpiration } from '@/composables/useSessionExpiration'
+import { useImmersiveViewport } from '@/composables/useImmersiveViewport'
 import { useAuthSessionStore } from '@/stores/authSession'
 import { useAuthStore } from '@/stores/auth'
 import { createAuthChannel } from '@/utils/crossTabSync'
@@ -27,6 +28,9 @@ import { useToast } from '@/composables/useToast'
 
 // Enable global shortcuts at app level
 useGlobalKeyboardShortcuts()
+
+// Enable immersive mobile viewport (progressive enhancement for legacy browsers)
+useImmersiveViewport()
 
 // Session timeout tracking (HIPAA compliance)
 const sessionTimeout = useSessionTimeout()

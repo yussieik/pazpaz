@@ -80,3 +80,48 @@
   padding: 0;
   width: 100%;
 }
+
+/**
+ * Mobile Immersive Viewport Configuration
+ *
+ * Modern CSS-first approach to mobile viewport optimization:
+ * - Uses dynamic viewport height (dvh) for automatic viewport adaptation
+ * - Adds safe area insets for notched devices (iPhone X and later)
+ * - Browser natively hides address bar on user scroll (no JavaScript needed)
+ *
+ * Technical Details:
+ * - 100dvh automatically adapts to browser UI visibility (address bar, navigation bar)
+ * - env(safe-area-inset-*) respects notches, rounded corners, home indicator
+ * - JavaScript fallback (useImmersiveViewport) only for legacy browsers
+ *
+ * How Address Bar Hiding Works:
+ * - iOS Safari: Automatically hides address bar when user scrolls down
+ * - Chrome Android: Automatically hides toolbar when user scrolls down
+ * - Desktop: No effect (viewport is stable)
+ *
+ * Browser Support:
+ * - iOS Safari 15.4+ (dvh, safe-area-inset)
+ * - Chrome Android 108+ (dvh)
+ * - Firefox 110+ (dvh)
+ * - Fallback: 100vh for older browsers (enhanced by useImmersiveViewport)
+ *
+ * @see {@link https://web.dev/viewport-units/}
+ * @see {@link https://caniuse.com/viewport-unit-variants}
+ */
+:root {
+  /* Dynamic viewport height - adapts to browser UI visibility */
+  --app-height: 100vh; /* Fallback for browsers without dvh */
+  --app-height: 100dvh; /* Dynamic viewport height (modern browsers) */
+}
+
+/* Apply immersive viewport to root app container */
+#app {
+  min-height: 100vh; /* Fallback */
+  min-height: var(--app-height); /* Dynamic height */
+
+  /* Safe area insets for notched devices */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}

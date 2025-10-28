@@ -96,7 +96,7 @@ pazpaz-attachments/
 ### 🛡️ Security Features
 - **Triple Validation**: Extension → MIME type → Content parsing
 - **Privacy Protection**: EXIF metadata stripped from images
-- **PDF Sanitization**: Metadata removal from PDF documents ([details](../../PDF_METADATA_SANITIZATION_IMPLEMENTATION.md))
+- **PDF Sanitization**: Metadata removal from PDF documents
 - **Encryption**: AES-256 server-side encryption (AWS S3)
 - **Access Control**: Time-limited presigned URLs (15 minutes)
 - **Workspace Isolation**: Path-based multi-tenant separation
@@ -121,7 +121,6 @@ pazpaz-attachments/
 ### Security & Compliance
 - [HIPAA Compliance Overview](/docs/security/HIPAA_COMPLIANCE.md)
 - [Security Audit Reports](/docs/reports/security/)
-- [PDF Metadata Sanitization](/docs/backend/PDF_METADATA_SANITIZATION_IMPLEMENTATION.md)
 - [Encryption Architecture](/docs/security/encryption/ENCRYPTION_ARCHITECTURE.md)
 
 ### Implementation Details
