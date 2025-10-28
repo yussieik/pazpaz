@@ -1,4 +1,5 @@
 import { useSwipe } from '@vueuse/core'
+import { ref } from 'vue'
 import type { Ref } from 'vue'
 
 /**
@@ -12,6 +13,7 @@ import type { Ref } from 'vue'
  * - Minimum swipe distance threshold (50px) to prevent accidental navigation
  * - Only activates on mobile devices (touch-enabled)
  * - Respects reduced motion preferences
+ * - Directional slide transitions that match swipe direction
  * - Clean composable pattern for easy integration
  *
  * @param target - Ref to the DOM element to attach swipe listeners to (typically calendar container)
@@ -23,6 +25,9 @@ export function useCalendarSwipe(
   onPrevious: () => void,
   onNext: () => void
 ) {
+  // Track the last swipe direction for transition
+  const swipeDirection = ref<'left' | 'right' | null>(null)
+
   // Configure swipe behavior
   const { direction } = useSwipe(target, {
     // Minimum distance threshold to trigger swipe (in pixels)
@@ -42,15 +47,26 @@ export function useCalendarSwipe(
       // Only handle horizontal swipes
       if (direction === 'left') {
         // Swipe left → next period
+        swipeDirection.value = 'left'
         onNext()
       } else if (direction === 'right') {
         // Swipe right → previous period
+        swipeDirection.value = 'right'
         onPrevious()
       }
     },
   })
 
+  // Reset direction after a delay (transition duration + buffer)
+  const resetDirection = () => {
+    setTimeout(() => {
+      swipeDirection.value = null
+    }, 300) // Match transition duration (250ms) + 50ms buffer
+  }
+
   return {
     direction,
+    swipeDirection,
+    resetDirection,
   }
 }

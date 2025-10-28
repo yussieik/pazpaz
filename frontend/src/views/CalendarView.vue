@@ -125,7 +125,17 @@ function handleEventClick(clickInfo: any) {
 const { showLoadingSpinner } = useCalendarLoading()
 
 // Mobile swipe navigation - hidden on desktop (≥640px)
-useCalendarSwipe(calendarContainerRef, handlePrev, handleNext)
+const { swipeDirection, resetDirection } = useCalendarSwipe(
+  calendarContainerRef,
+  handlePrev,
+  handleNext
+)
+
+// Compute transition name based on swipe direction
+const transitionName = computed(() => {
+  if (!swipeDirection.value) return 'calendar-fade' // Fallback for non-swipe navigation (toolbar clicks)
+  return `calendar-slide-${swipeDirection.value}`
+})
 
 /**
  * Apply correct height to calendar event
@@ -1402,7 +1412,12 @@ function handleGlobalKeydown(event: KeyboardEvent) {
             :style="hoverOverlayStyle"
           ></div>
 
-          <Transition name="calendar-fade" mode="out-in">
+          <Transition
+            :name="transitionName"
+            mode="out-in"
+            @after-enter="resetDirection"
+            @after-leave="resetDirection"
+          >
             <FullCalendar
               ref="calendarRef"
               :key="`${currentView}-${currentDate.toISOString()}`"
@@ -1553,25 +1568,83 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 </template>
 
 <style>
-/* Calendar Transition Animations */
+/* ===========================
+   Calendar Swipe Transitions
+   =========================== */
+
+/* Slide Left - Swipe left → Next period */
+.calendar-slide-left-enter-active,
+.calendar-slide-left-leave-active {
+  transition:
+    transform 250ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    opacity 250ms ease-out;
+  will-change: transform, opacity;
+}
+
+.calendar-slide-left-enter-from {
+  transform: translateX(100%); /* Enter from right */
+  opacity: 0;
+}
+
+.calendar-slide-left-leave-to {
+  transform: translateX(-100%); /* Exit to left */
+  opacity: 0.3; /* Fade slightly for depth */
+}
+
+/* Slide Right - Swipe right → Previous period */
+.calendar-slide-right-enter-active,
+.calendar-slide-right-leave-active {
+  transition:
+    transform 250ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    opacity 250ms ease-out;
+  will-change: transform, opacity;
+}
+
+.calendar-slide-right-enter-from {
+  transform: translateX(-100%); /* Enter from left */
+  opacity: 0;
+}
+
+.calendar-slide-right-leave-to {
+  transform: translateX(100%); /* Exit to right */
+  opacity: 0.3; /* Fade slightly for depth */
+}
+
+/* Fallback fade for non-swipe navigation (toolbar clicks) */
 .calendar-fade-enter-active,
 .calendar-fade-leave-active {
   transition: opacity 150ms ease-in-out;
 }
 
-.calendar-fade-enter-from {
-  opacity: 0;
-}
-
+.calendar-fade-enter-from,
 .calendar-fade-leave-to {
   opacity: 0;
 }
 
-/* Respect user's motion preferences for accessibility */
+/* Accessibility: Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
+  .calendar-slide-left-enter-active,
+  .calendar-slide-left-leave-active,
+  .calendar-slide-right-enter-active,
+  .calendar-slide-right-leave-active {
+    transition: opacity 150ms ease-in-out;
+  }
+
+  .calendar-slide-left-enter-from,
+  .calendar-slide-right-enter-from {
+    transform: none; /* Disable sliding */
+    opacity: 0;
+  }
+
+  .calendar-slide-left-leave-to,
+  .calendar-slide-right-leave-to {
+    transform: none; /* Disable sliding */
+    opacity: 0;
+  }
+
   .calendar-fade-enter-active,
   .calendar-fade-leave-active {
-    transition: none;
+    transition: none; /* Instant swap for maximum reduced motion */
   }
 }
 

@@ -25,9 +25,21 @@ Mobile-friendly touch gesture navigation for the PazPaz calendar view, allowing 
   - Swipe gestures still work (if touch-enabled device)
   - Standard click navigation
 
-### 3. Accessibility
+### 3. Visual Transitions (Phase 1)
+
+- **Directional Slide Animations**: Calendar slides in the direction of the swipe
+  - Swipe left → Calendar slides left, new content enters from right
+  - Swipe right → Calendar slides right, new content enters from left
+- **Smooth Spring Easing**: 250ms duration with `cubic-bezier(0.25, 0.46, 0.45, 0.94)`
+- **GPU-Accelerated**: Uses `transform` and `opacity` for 60fps performance
+- **Toolbar Click Fallback**: Arrow button clicks use subtle fade instead of slide
+- **Depth Perception**: Exiting content fades to 30% opacity for visual hierarchy
+
+### 4. Accessibility
 
 - **Reduced Motion Support**: Respects `prefers-reduced-motion` preference
+  - Slide animations disabled, replaced with simple opacity fade
+  - No motion sickness triggers for sensitive users
 - **Screen Reader Friendly**: Navigation still announced properly
 - **Keyboard Navigation**: Existing keyboard shortcuts (arrow keys) remain functional
 - **No Text Selection Interference**: Text selection disabled during swipes on mobile
@@ -56,24 +68,137 @@ useCalendarSwipe(
 - `onPrevious`: Function to call when user swipes right
 - `onNext`: Function to call when user swipes left
 
+**Returns:**
+- `direction`: Current swipe direction from `@vueuse/core`
+- `swipeDirection`: Reactive ref tracking last swipe direction (`'left'`, `'right'`, or `null`)
+- `resetDirection`: Function to clear swipe direction after transition completes
+
 **Features:**
 - Built on `@vueuse/core` `useSwipe` composable
 - 50px minimum swipe threshold
 - Respects reduced motion preferences
 - Passive event listeners for performance
 - Only handles horizontal swipes
+- Tracks swipe direction for visual transitions
 
 ### Template Integration
 
 ```vue
-<div ref="calendarContainerRef" class="calendar-container">
-  <!-- Calendar content -->
-</div>
+<script setup lang="ts">
+import { useCalendarSwipe } from '@/composables/useCalendarSwipe'
+import { computed } from 'vue'
+
+// Get swipe direction tracking
+const { swipeDirection, resetDirection } = useCalendarSwipe(
+  calendarContainerRef,
+  handlePrev,
+  handleNext
+)
+
+// Compute dynamic transition name
+const transitionName = computed(() => {
+  if (!swipeDirection.value) return 'calendar-fade' // Toolbar clicks
+  return `calendar-slide-${swipeDirection.value}` // Swipe gestures
+})
+</script>
+
+<template>
+  <div ref="calendarContainerRef" class="calendar-container">
+    <Transition
+      :name="transitionName"
+      mode="out-in"
+      @after-enter="resetDirection"
+      @after-leave="resetDirection"
+    >
+      <FullCalendar :key="calendarKey" :options="calendarOptions" />
+    </Transition>
+  </div>
+</template>
 ```
 
 ### Styling Considerations
 
 ```css
+/* ===========================
+   Calendar Swipe Transitions
+   =========================== */
+
+/* Slide Left - Swipe left → Next period */
+.calendar-slide-left-enter-active,
+.calendar-slide-left-leave-active {
+  transition:
+    transform 250ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    opacity 250ms ease-out;
+  will-change: transform, opacity;
+}
+
+.calendar-slide-left-enter-from {
+  transform: translateX(100%); /* Enter from right */
+  opacity: 0;
+}
+
+.calendar-slide-left-leave-to {
+  transform: translateX(-100%); /* Exit to left */
+  opacity: 0.3; /* Fade slightly for depth */
+}
+
+/* Slide Right - Swipe right → Previous period */
+.calendar-slide-right-enter-active,
+.calendar-slide-right-leave-active {
+  transition:
+    transform 250ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    opacity 250ms ease-out;
+  will-change: transform, opacity;
+}
+
+.calendar-slide-right-enter-from {
+  transform: translateX(-100%); /* Enter from left */
+  opacity: 0;
+}
+
+.calendar-slide-right-leave-to {
+  transform: translateX(100%); /* Exit to right */
+  opacity: 0.3; /* Fade slightly for depth */
+}
+
+/* Fallback fade for non-swipe navigation (toolbar clicks) */
+.calendar-fade-enter-active,
+.calendar-fade-leave-active {
+  transition: opacity 150ms ease-in-out;
+}
+
+.calendar-fade-enter-from,
+.calendar-fade-leave-to {
+  opacity: 0;
+}
+
+/* Accessibility: Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .calendar-slide-left-enter-active,
+  .calendar-slide-left-leave-active,
+  .calendar-slide-right-enter-active,
+  .calendar-slide-right-leave-active {
+    transition: opacity 150ms ease-in-out;
+  }
+
+  .calendar-slide-left-enter-from,
+  .calendar-slide-right-enter-from {
+    transform: none; /* Disable sliding */
+    opacity: 0;
+  }
+
+  .calendar-slide-left-leave-to,
+  .calendar-slide-right-leave-to {
+    transform: none; /* Disable sliding */
+    opacity: 0;
+  }
+
+  .calendar-fade-enter-active,
+  .calendar-fade-leave-active {
+    transition: none; /* Instant swap for maximum reduced motion */
+  }
+}
+
 /* Mobile: Prevent text selection during swipes */
 @media (max-width: 640px) {
   .calendar-container {
@@ -97,6 +222,8 @@ useCalendarSwipe(
 ### 1. `/frontend/src/composables/useCalendarSwipe.ts` (NEW)
 - Core swipe gesture logic
 - Wraps `@vueuse/core` `useSwipe` with calendar-specific behavior
+- Tracks swipe direction for visual transitions
+- Provides `resetDirection` callback for transition cleanup
 
 ### 2. `/frontend/src/composables/useCalendarSwipe.spec.ts` (NEW)
 - Unit tests for the composable
@@ -107,6 +234,9 @@ useCalendarSwipe(
 - Created `calendarContainerRef` to attach swipe listeners
 - Initialized composable with navigation callbacks
 - Added CSS for mobile touch optimization
+- Implemented directional slide transitions (Phase 1)
+- Dynamic transition name based on swipe direction
+- Transition callbacks to reset swipe direction state
 
 ### 4. `/frontend/src/components/calendar/CalendarToolbar.vue`
 - Hidden arrow buttons on mobile (`hidden sm:flex`)
@@ -120,9 +250,12 @@ useCalendarSwipe(
 1. User opens calendar on mobile device
 2. Navigation arrows are hidden (cleaner UI)
 3. User can swipe left/right anywhere on calendar to navigate
-4. Smooth, natural gesture feels like native mobile app
-5. Visual feedback through calendar transition animations
-6. Today button remains visible for quick return
+4. Calendar smoothly slides in the direction of the swipe (Phase 1 transitions)
+   - Swipe left → calendar slides left, next period enters from right
+   - Swipe right → calendar slides right, previous period enters from left
+5. Smooth 250ms transition with spring easing feels native and responsive
+6. Visual depth through opacity changes (exiting content fades to 30%)
+7. Today button remains visible for quick return
 
 ### Desktop Behavior
 
@@ -160,17 +293,44 @@ npm run test:run -- src/composables/useCalendarSwipe.spec.ts
 
 ### Manual Testing Checklist
 
+**Basic Swipe Navigation:**
 - [ ] Swipe left navigates to next period (week/day/month)
 - [ ] Swipe right navigates to previous period
+- [ ] Small swipes (<50px) don't trigger navigation
+- [ ] Works in all calendar views (day, week, month)
+
+**Visual Transitions (Phase 1):**
+- [ ] Swipe left → calendar slides left, new content enters from right
+- [ ] Swipe right → calendar slides right, new content enters from left
+- [ ] Transition feels smooth (250ms, no jank)
+- [ ] Direction matches user's swipe gesture intuitively
+- [ ] Exiting content fades to 30% opacity (depth perception)
+
+**Toolbar Navigation (Non-Swipe):**
+- [ ] Arrow button clicks use fade transition (not slide)
+- [ ] Fade transition is subtle and appropriate for click
+- [ ] No jarring differences between swipe and click
+
+**Responsive Design:**
 - [ ] Arrow buttons hidden on mobile (≤640px)
 - [ ] Arrow buttons visible on desktop (>640px)
 - [ ] Divider hidden on mobile
-- [ ] Small swipes (<50px) don't trigger navigation
-- [ ] Reduced motion preference respected
-- [ ] Works in all calendar views (day, week, month)
 - [ ] Keyboard shortcuts still work
 - [ ] Today button still functional
-- [ ] Smooth transitions between periods
+
+**Accessibility:**
+- [ ] Enable "Reduce motion" in OS settings
+- [ ] Swipe navigation → slide animations disabled
+- [ ] Reduced motion → simple opacity fade still visible
+- [ ] No motion sickness triggers
+- [ ] Screen reader announces navigation changes
+
+**Performance:**
+- [ ] Open Chrome DevTools → Performance tab
+- [ ] Record multiple swipe gestures
+- [ ] Frame rate stays at 60fps (no red bars)
+- [ ] No layout thrashing or reflows
+- [ ] Memory usage stays stable
 
 ## Accessibility Compliance
 
@@ -185,20 +345,31 @@ npm run test:run -- src/composables/useCalendarSwipe.spec.ts
 
 ## Future Enhancements
 
-### Potential Improvements
+### Phase 2: Real-Time Finger Tracking (Future)
 
-1. **Visual Swipe Feedback**: Show subtle drag indicator during swipe
-2. **Haptic Feedback**: Vibration on successful navigation (iOS/Android)
-3. **Custom Threshold**: Allow users to adjust swipe sensitivity in settings
-4. **Momentum Scrolling**: Multiple period navigation with fast swipe
-5. **Vertical Swipe**: Up/down to change view type (day ↔ week ↔ month)
+Advanced UX pattern where the calendar follows the user's finger during the swipe:
+- **Live Preview**: See next/previous period sliding in as you drag
+- **Rubber-Band Physics**: Resistance at boundaries for tactile feedback
+- **Snap Decisions**: Automatically snaps to period based on swipe velocity/distance
+- **Continuous Updates**: Calendar position updates in real-time with touch movement
 
-## Known Limitations
+**Implementation Complexity:** High (16-24 hours)
+**User Impact:** Very High (industry-leading UX)
 
-1. **No Visual Feedback During Swipe**: Users don't see preview of next period during gesture
-2. **Single Period Navigation**: Each swipe navigates exactly one period (not momentum-based)
-3. **Horizontal Only**: Vertical swipes not utilized (could add view switching)
-4. **No Undo Gesture**: Swipe navigation can't be undone with reverse gesture
+### Other Potential Improvements
+
+1. **Haptic Feedback**: Vibration on successful navigation (iOS/Android)
+2. **Custom Threshold**: Allow users to adjust swipe sensitivity in settings
+3. **Momentum Scrolling**: Multiple period navigation with fast swipe
+4. **Vertical Swipe**: Up/down to change view type (day ↔ week ↔ month)
+
+## Known Limitations (Phase 1)
+
+1. **No Real-Time Feedback During Swipe**: Users don't see preview until swipe completes (Phase 2 feature)
+2. **Post-Gesture Transition Only**: Calendar slides AFTER swipe ends, not during (Phase 2 feature)
+3. **Single Period Navigation**: Each swipe navigates exactly one period (not momentum-based)
+4. **Horizontal Only**: Vertical swipes not utilized (could add view switching)
+5. **No Undo Gesture**: Swipe navigation can't be undone with reverse gesture
 
 ## Related Documentation
 
@@ -208,6 +379,19 @@ npm run test:run -- src/composables/useCalendarSwipe.spec.ts
 - [Accessibility Guidelines](/docs/frontend/accessibility.md)
 
 ## Changelog
+
+### 2025-10-28
+- **Phase 1 Transitions**: Implemented directional slide animations
+  - Calendar slides in direction of swipe gesture
+  - 250ms duration with smooth spring easing (`cubic-bezier(0.25, 0.46, 0.45, 0.94)`)
+  - GPU-accelerated using `transform` and `opacity` only
+  - Exiting content fades to 30% for visual depth
+  - Toolbar clicks use subtle fade (not slide)
+  - Full `prefers-reduced-motion` support
+- Updated `useCalendarSwipe` composable with direction tracking
+- Added `swipeDirection` ref and `resetDirection` callback
+- Dynamic transition name based on swipe direction vs toolbar click
+- Comprehensive CSS transitions with accessibility support
 
 ### 2025-10-27
 - Initial implementation of mobile swipe navigation
