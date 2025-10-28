@@ -411,3 +411,238 @@ class TestAppointmentReminderDeduplication:
             user_ids = {r.user_id for r in reminders}
             assert test_user_ws1.id in user_ids
             assert user2.id in user_ids
+
+
+@pytest.mark.asyncio
+class TestSchedulerTimezoneSupport:
+    """Test scheduler tasks display times in workspace timezone."""
+
+    async def test_appointment_reminder_displays_local_time(
+        self, db_session, workspace_1, test_user_ws1, sample_client_ws1
+    ):
+        """Test appointment reminder shows time in workspace timezone."""
+        # Set workspace timezone to Asia/Jerusalem (UTC+2)
+        workspace_1.timezone = "Asia/Jerusalem"
+        db_session.add(workspace_1)
+
+        # Configure user notification settings
+        settings = UserNotificationSettings(
+            id=uuid4(),
+            workspace_id=workspace_1.id,
+            user_id=test_user_ws1.id,
+            email_enabled=True,
+            reminder_enabled=True,
+            reminder_minutes=60,
+        )
+        db_session.add(settings)
+
+        # Create appointment at 06:00 UTC (08:00 IST) 60 minutes from now
+        now = datetime.now(UTC)
+        appointment_time = now.replace(
+            hour=6, minute=0, second=0, microsecond=0
+        ) + timedelta(hours=24)
+        appointment = Appointment(
+            id=uuid4(),
+            workspace_id=workspace_1.id,
+            client_id=sample_client_ws1.id,
+            scheduled_start=appointment_time,
+            scheduled_end=appointment_time + timedelta(hours=1),
+            status=AppointmentStatus.SCHEDULED,
+            location_type=LocationType.CLINIC,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+
+        # Mock email sending and time
+        with (
+            patch("pazpaz.workers.scheduler.send_appointment_reminder") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
+            # Set current time to 60 minutes before appointment
+            mock_datetime.now.return_value = appointment_time - timedelta(minutes=60)
+
+            # Run task
+            result = await send_appointment_reminders({})
+
+            # Verify email was sent
+            assert result["sent"] == 1
+            assert mock_send.called
+
+            # Verify the time passed to email service is in IST (08:00 AM)
+            call_args = mock_send.call_args
+            appointment_data = call_args.kwargs["appointment_data"]
+            assert "08:00 AM" in appointment_data["time"]
+            assert "06:00 AM" not in appointment_data["time"]  # Should NOT be UTC
+
+    async def test_reminder_with_multiple_timezones(
+        self, db_session, workspace_1, test_user_ws1, sample_client_ws1
+    ):
+        """Test reminders for different timezones are converted correctly."""
+        from pazpaz.models.client import Client
+        from pazpaz.models.user import User, UserRole
+        from pazpaz.models.workspace import Workspace
+
+        # Create second workspace with different timezone
+        workspace_2 = Workspace(
+            name="Test Clinic NY",
+            is_active=True,
+            timezone="America/New_York",  # UTC-5 in winter
+        )
+        db_session.add(workspace_2)
+        await db_session.commit()
+        await db_session.refresh(workspace_2)
+
+        # Create user in second workspace
+        user2 = User(
+            id=uuid4(),
+            workspace_id=workspace_2.id,
+            email="therapist2@test.com",
+            full_name="Test Therapist 2",
+            role=UserRole.OWNER,
+            is_active=True,
+        )
+        db_session.add(user2)
+        await db_session.commit()
+        await db_session.refresh(user2)
+
+        # Create client in second workspace
+        client2 = Client(
+            workspace_id=workspace_2.id,
+            first_name="John",
+            last_name="Smith",
+            email="john@test.com",
+            is_active=True,
+        )
+        db_session.add(client2)
+        await db_session.commit()
+        await db_session.refresh(client2)
+
+        # Set workspace 1 timezone to Asia/Jerusalem (UTC+2)
+        workspace_1.timezone = "Asia/Jerusalem"
+        db_session.add(workspace_1)
+
+        # Configure notification settings for both users
+        settings1 = UserNotificationSettings(
+            id=uuid4(),
+            workspace_id=workspace_1.id,
+            user_id=test_user_ws1.id,
+            email_enabled=True,
+            reminder_enabled=True,
+            reminder_minutes=60,
+        )
+        settings2 = UserNotificationSettings(
+            id=uuid4(),
+            workspace_id=workspace_2.id,
+            user_id=user2.id,
+            email_enabled=True,
+            reminder_enabled=True,
+            reminder_minutes=60,
+        )
+        db_session.add_all([settings1, settings2])
+
+        # Create appointments at same UTC time (14:00 UTC)
+        # For Asia/Jerusalem: 14:00 UTC = 16:00 IST
+        # For America/New_York: 14:00 UTC = 09:00 EST
+        now = datetime.now(UTC)
+        utc_time = now.replace(hour=14, minute=0, second=0, microsecond=0) + timedelta(
+            hours=24
+        )
+
+        appt1 = Appointment(
+            id=uuid4(),
+            workspace_id=workspace_1.id,
+            client_id=sample_client_ws1.id,
+            scheduled_start=utc_time,
+            scheduled_end=utc_time + timedelta(hours=1),
+            status=AppointmentStatus.SCHEDULED,
+            location_type=LocationType.CLINIC,
+        )
+        appt2 = Appointment(
+            id=uuid4(),
+            workspace_id=workspace_2.id,
+            client_id=client2.id,
+            scheduled_start=utc_time,
+            scheduled_end=utc_time + timedelta(hours=1),
+            status=AppointmentStatus.SCHEDULED,
+            location_type=LocationType.CLINIC,
+        )
+        db_session.add_all([appt1, appt2])
+        await db_session.commit()
+
+        # Mock email sending and time
+        with (
+            patch("pazpaz.workers.scheduler.send_appointment_reminder") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
+            # Set current time to 60 minutes before appointment
+            mock_datetime.now.return_value = utc_time - timedelta(minutes=60)
+
+            # Run task
+            result = await send_appointment_reminders({})
+
+            # Verify both emails were sent
+            assert result["sent"] == 2
+            assert mock_send.call_count == 2
+
+            # Check both calls for correct timezone conversion
+            calls = mock_send.call_args_list
+            times_sent = [call.kwargs["appointment_data"]["time"] for call in calls]
+
+            # Should have both IST and EST times
+            assert any("04:00 PM" in t for t in times_sent)  # 16:00 IST
+            assert any("09:00 AM" in t for t in times_sent)  # 09:00 EST
+            # Should NOT have UTC time
+            assert not any("02:00 PM" in t for t in times_sent)  # 14:00 UTC
+
+    async def test_invalid_timezone_falls_back_to_utc(
+        self, db_session, workspace_1, test_user_ws1, sample_client_ws1
+    ):
+        """Test that invalid timezone falls back to UTC gracefully."""
+        # Set invalid timezone
+        workspace_1.timezone = "Invalid/Timezone"
+        db_session.add(workspace_1)
+
+        # Configure user notification settings
+        settings = UserNotificationSettings(
+            id=uuid4(),
+            workspace_id=workspace_1.id,
+            user_id=test_user_ws1.id,
+            email_enabled=True,
+            reminder_enabled=True,
+            reminder_minutes=60,
+        )
+        db_session.add(settings)
+
+        # Create appointment at 10:00 UTC
+        now = datetime.now(UTC)
+        appointment_time = now.replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ) + timedelta(hours=24)
+        appointment = Appointment(
+            id=uuid4(),
+            workspace_id=workspace_1.id,
+            client_id=sample_client_ws1.id,
+            scheduled_start=appointment_time,
+            scheduled_end=appointment_time + timedelta(hours=1),
+            status=AppointmentStatus.SCHEDULED,
+            location_type=LocationType.CLINIC,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+
+        # Mock email sending and time
+        with (
+            patch("pazpaz.workers.scheduler.send_appointment_reminder") as mock_send,
+            patch("pazpaz.workers.scheduler.datetime") as mock_datetime,
+        ):
+            # Set current time to 60 minutes before appointment
+            mock_datetime.now.return_value = appointment_time - timedelta(minutes=60)
+
+            # Run task - should not raise exception
+            result = await send_appointment_reminders({})
+
+            # Verify email was sent with UTC time (fallback)
+            assert result["sent"] == 1
+            call_args = mock_send.call_args
+            appointment_data = call_args.kwargs["appointment_data"]
+            assert "10:00 AM" in appointment_data["time"]  # UTC time

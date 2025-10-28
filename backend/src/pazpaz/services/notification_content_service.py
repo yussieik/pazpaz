@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +32,37 @@ if TYPE_CHECKING:
     pass
 
 logger = get_logger(__name__)
+
+
+def _convert_to_workspace_timezone(
+    utc_datetime: datetime,
+    workspace_timezone: str | None,
+) -> datetime:
+    """
+    Convert UTC datetime to workspace timezone.
+
+    Args:
+        utc_datetime: Datetime in UTC
+        workspace_timezone: IANA timezone name (e.g., 'Asia/Jerusalem')
+
+    Returns:
+        Datetime in workspace timezone
+
+    Note:
+        Falls back to UTC if timezone is None or invalid.
+    """
+    if not workspace_timezone:
+        return utc_datetime
+
+    try:
+        tz = ZoneInfo(workspace_timezone)
+        return utc_datetime.astimezone(tz)
+    except ZoneInfoNotFoundError:
+        logger.warning(
+            "invalid_workspace_timezone",
+            timezone=workspace_timezone,
+        )
+        return utc_datetime
 
 
 async def build_session_notes_reminder_email(
@@ -197,6 +229,9 @@ async def build_daily_digest_email(
         digest_date=digest_date.isoformat(),
     )
 
+    # Ensure workspace relationship is loaded
+    await db.refresh(user, ["workspace"])
+
     # Query appointments for the specified date
     start_of_day = datetime.combine(digest_date, time.min)
     end_of_day = datetime.combine(digest_date, time.max)
@@ -259,8 +294,12 @@ PazPaz - Practice Management for Independent Therapists
         # Build appointment list
         appointment_lines = []
         for appt in appointments:
-            # Format time (TODO: timezone conversion in Phase 3+)
-            appt_time = appt.scheduled_start.strftime("%I:%M %p")
+            # Convert UTC to workspace timezone
+            local_time = _convert_to_workspace_timezone(
+                appt.scheduled_start,
+                user.workspace.timezone,
+            )
+            appt_time = local_time.strftime("%I:%M %p")
 
             # Get client name
             client_name = appt.client.full_name if appt.client else "Unknown Client"
@@ -358,6 +397,7 @@ async def build_appointment_reminder_email(
 
     # Load related data if not already loaded
     await db.refresh(appointment, ["client", "service", "location"])
+    await db.refresh(user, ["workspace"])
 
     # Calculate minutes until appointment
     now = datetime.now(appointment.scheduled_start.tzinfo)
@@ -378,8 +418,12 @@ async def build_appointment_reminder_email(
     else:
         subject = f"Appointment reminder: {client_name}"
 
-    # Format appointment time (TODO: timezone conversion in Phase 3+)
-    appt_time = appointment.scheduled_start.strftime("%I:%M %p on %A, %B %d, %Y")
+    # Convert UTC to workspace timezone
+    local_time = _convert_to_workspace_timezone(
+        appointment.scheduled_start,
+        user.workspace.timezone,
+    )
+    appt_time = local_time.strftime("%I:%M %p on %A, %B %d, %Y")
 
     # Get service info
     service_info = (

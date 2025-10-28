@@ -14,6 +14,7 @@ from pazpaz.models.session import Session
 from pazpaz.models.user import User, UserRole
 from pazpaz.models.workspace import Workspace
 from pazpaz.services.notification_content_service import (
+    _convert_to_workspace_timezone,
     build_appointment_reminder_email,
     build_daily_digest_email,
     build_session_notes_reminder_email,
@@ -398,3 +399,309 @@ class TestBuildAppointmentReminderEmail:
         # Verify location is included
         assert "Room 101" in email["body"]
         assert "Location:" in email["body"]
+
+
+class TestConvertToWorkspaceTimezone:
+    """Test _convert_to_workspace_timezone helper function."""
+
+    def test_converts_utc_to_asia_jerusalem(self):
+        """Test conversion from UTC to Asia/Jerusalem (IST/IDT)."""
+        # 06:00 UTC = 08:00 IST (winter) or 09:00 IDT (summer)
+        utc_time = datetime(2025, 1, 15, 6, 0, tzinfo=UTC)
+        local_time = _convert_to_workspace_timezone(utc_time, "Asia/Jerusalem")
+
+        # In January, Israel is in IST (UTC+2)
+        assert local_time.hour == 8
+        assert local_time.minute == 0
+
+    def test_converts_utc_to_america_new_york(self):
+        """Test conversion from UTC to America/New_York (EST/EDT)."""
+        # 14:00 UTC = 09:00 EST (winter) or 10:00 EDT (summer)
+        utc_time = datetime(2025, 1, 15, 14, 0, tzinfo=UTC)
+        local_time = _convert_to_workspace_timezone(utc_time, "America/New_York")
+
+        # In January, New York is in EST (UTC-5)
+        assert local_time.hour == 9
+        assert local_time.minute == 0
+
+    def test_converts_utc_to_europe_london(self):
+        """Test conversion from UTC to Europe/London (GMT/BST)."""
+        # 12:00 UTC = 12:00 GMT (winter) or 13:00 BST (summer)
+        utc_time = datetime(2025, 1, 15, 12, 0, tzinfo=UTC)
+        local_time = _convert_to_workspace_timezone(utc_time, "Europe/London")
+
+        # In January, London is in GMT (UTC+0)
+        assert local_time.hour == 12
+        assert local_time.minute == 0
+
+    def test_handles_none_timezone(self):
+        """Test that None timezone returns UTC unchanged."""
+        utc_time = datetime(2025, 1, 15, 6, 0, tzinfo=UTC)
+        result = _convert_to_workspace_timezone(utc_time, None)
+
+        assert result == utc_time
+        assert result.hour == 6
+
+    def test_handles_invalid_timezone(self):
+        """Test that invalid timezone returns UTC unchanged and logs warning."""
+        utc_time = datetime(2025, 1, 15, 6, 0, tzinfo=UTC)
+        result = _convert_to_workspace_timezone(utc_time, "Invalid/Timezone")
+
+        # Should return unchanged UTC time
+        assert result == utc_time
+        assert result.hour == 6
+
+    def test_handles_dst_transition(self):
+        """Test DST handling for summer/winter time changes."""
+        # Test summer time in New York (EDT = UTC-4)
+        summer_utc = datetime(2025, 7, 15, 14, 0, tzinfo=UTC)
+        summer_local = _convert_to_workspace_timezone(summer_utc, "America/New_York")
+
+        # In July, New York is in EDT (UTC-4)
+        assert summer_local.hour == 10
+
+        # Test winter time in New York (EST = UTC-5)
+        winter_utc = datetime(2025, 1, 15, 14, 0, tzinfo=UTC)
+        winter_local = _convert_to_workspace_timezone(winter_utc, "America/New_York")
+
+        # In January, New York is in EST (UTC-5)
+        assert winter_local.hour == 9
+
+
+class TestDailyDigestTimezoneSupport:
+    """Test daily digest email displays times in workspace timezone."""
+
+    @pytest.mark.asyncio
+    async def test_appointment_times_in_workspace_timezone(
+        self,
+        db_session: AsyncSession,
+        user: User,
+        client: Client,
+        workspace: Workspace,
+    ):
+        """Test appointment times shown in workspace timezone."""
+        # Set workspace timezone to Asia/Jerusalem
+        workspace.timezone = "Asia/Jerusalem"
+        db_session.add(workspace)
+        await db_session.commit()
+
+        # Create appointment at 06:00 UTC (should be 08:00 IST)
+        today = date.today()
+        start = datetime.combine(today, datetime.min.time()).replace(hour=6, tzinfo=UTC)
+
+        appointment = Appointment(
+            workspace_id=workspace.id,
+            client_id=client.id,
+            scheduled_start=start,
+            scheduled_end=start + timedelta(hours=1),
+            location_type=LocationType.CLINIC,
+            status=AppointmentStatus.SCHEDULED,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+
+        # Build email
+        email = await build_daily_digest_email(db_session, user, today)
+
+        # Verify time is in IST (08:00 AM)
+        assert "08:00 AM" in email["body"]
+        assert "06:00 AM" not in email["body"]  # Should NOT show UTC time
+
+    @pytest.mark.asyncio
+    async def test_multiple_appointments_with_timezone(
+        self,
+        db_session: AsyncSession,
+        user: User,
+        client: Client,
+        workspace: Workspace,
+    ):
+        """Test multiple appointment times all converted to workspace timezone."""
+        # Set workspace timezone to America/New_York
+        workspace.timezone = "America/New_York"
+        db_session.add(workspace)
+        await db_session.commit()
+
+        # Use a fixed winter date for EST (not EDT)
+        test_date = date(2025, 1, 15)  # January is EST (UTC-5)
+
+        # Create appointments at 14:00 UTC and 18:00 UTC
+        # 14:00 UTC = 09:00 EST (winter), 18:00 UTC = 13:00 EST (winter)
+        appointments_times = [(14, 9), (18, 13)]  # (UTC hour, EST hour)
+
+        for utc_hour, _est_hour in appointments_times:
+            start = datetime.combine(test_date, datetime.min.time()).replace(
+                hour=utc_hour, tzinfo=UTC
+            )
+            appointment = Appointment(
+                workspace_id=workspace.id,
+                client_id=client.id,
+                scheduled_start=start,
+                scheduled_end=start + timedelta(hours=1),
+                location_type=LocationType.CLINIC,
+                status=AppointmentStatus.SCHEDULED,
+            )
+            db_session.add(appointment)
+
+        await db_session.commit()
+
+        # Build email
+        email = await build_daily_digest_email(db_session, user, test_date)
+
+        # Verify both times are in EST
+        assert "09:00 AM" in email["body"]
+        assert "01:00 PM" in email["body"]
+        # Should NOT show UTC times
+        assert "02:00 PM" not in email["body"]  # 14:00 UTC
+        assert "06:00 PM" not in email["body"]  # 18:00 UTC
+
+    @pytest.mark.asyncio
+    async def test_defaults_to_utc_when_no_timezone(
+        self,
+        db_session: AsyncSession,
+        user: User,
+        client: Client,
+        workspace: Workspace,
+    ):
+        """Test that UTC is used when workspace timezone is None."""
+        # Set timezone to None
+        workspace.timezone = None
+        db_session.add(workspace)
+        await db_session.commit()
+
+        today = date.today()
+        start = datetime.combine(today, datetime.min.time()).replace(
+            hour=10, tzinfo=UTC
+        )
+
+        appointment = Appointment(
+            workspace_id=workspace.id,
+            client_id=client.id,
+            scheduled_start=start,
+            scheduled_end=start + timedelta(hours=1),
+            location_type=LocationType.CLINIC,
+            status=AppointmentStatus.SCHEDULED,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+
+        # Build email
+        email = await build_daily_digest_email(db_session, user, today)
+
+        # Should show UTC time (10:00 AM)
+        assert "10:00 AM" in email["body"]
+
+
+class TestAppointmentReminderTimezoneSupport:
+    """Test appointment reminder email displays times in workspace timezone."""
+
+    @pytest.mark.asyncio
+    async def test_appointment_time_in_workspace_timezone(
+        self,
+        db_session: AsyncSession,
+        user: User,
+        client: Client,
+        workspace: Workspace,
+    ):
+        """Test appointment time shown in workspace timezone."""
+        # Set workspace timezone to Asia/Jerusalem
+        workspace.timezone = "Asia/Jerusalem"
+        db_session.add(workspace)
+        await db_session.commit()
+
+        # Create appointment at 06:00 UTC (should be 08:00 IST)
+        now = datetime.now(UTC)
+        start = now + timedelta(minutes=60)
+        # Force specific time for predictable test
+        start = start.replace(hour=6, minute=0, second=0, microsecond=0)
+
+        appointment = Appointment(
+            workspace_id=workspace.id,
+            client_id=client.id,
+            scheduled_start=start,
+            scheduled_end=start + timedelta(hours=1),
+            location_type=LocationType.CLINIC,
+            status=AppointmentStatus.SCHEDULED,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment, ["client"])
+
+        # Build email
+        email = await build_appointment_reminder_email(db_session, appointment, user)
+
+        # Verify time is in IST (08:00 AM)
+        assert "08:00 AM" in email["body"]
+        assert "06:00 AM" not in email["body"]  # Should NOT show UTC time
+
+    @pytest.mark.asyncio
+    async def test_date_name_matches_timezone(
+        self,
+        db_session: AsyncSession,
+        user: User,
+        client: Client,
+        workspace: Workspace,
+    ):
+        """Test that day name matches the timezone's day."""
+        # Set workspace timezone to Asia/Jerusalem
+        workspace.timezone = "Asia/Jerusalem"
+        db_session.add(workspace)
+        await db_session.commit()
+
+        # Create appointment at 23:00 UTC on Monday
+        # In Asia/Jerusalem (UTC+2), this is 01:00 Tuesday
+        monday_utc = datetime(2025, 1, 13, 23, 0, tzinfo=UTC)
+
+        appointment = Appointment(
+            workspace_id=workspace.id,
+            client_id=client.id,
+            scheduled_start=monday_utc,
+            scheduled_end=monday_utc + timedelta(hours=1),
+            location_type=LocationType.CLINIC,
+            status=AppointmentStatus.SCHEDULED,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment, ["client"])
+
+        # Build email
+        email = await build_appointment_reminder_email(db_session, appointment, user)
+
+        # Should say Tuesday (local day) not Monday (UTC day)
+        assert "Tuesday" in email["body"]
+        assert "01:00 AM" in email["body"]
+
+    @pytest.mark.asyncio
+    async def test_handles_invalid_timezone_gracefully(
+        self,
+        db_session: AsyncSession,
+        user: User,
+        client: Client,
+        workspace: Workspace,
+    ):
+        """Test graceful fallback to UTC for invalid timezone."""
+        # Set invalid timezone
+        workspace.timezone = "Invalid/Timezone"
+        db_session.add(workspace)
+        await db_session.commit()
+
+        now = datetime.now(UTC)
+        start = now + timedelta(minutes=60)
+        start = start.replace(hour=10, minute=0, second=0, microsecond=0)
+
+        appointment = Appointment(
+            workspace_id=workspace.id,
+            client_id=client.id,
+            scheduled_start=start,
+            scheduled_end=start + timedelta(hours=1),
+            location_type=LocationType.CLINIC,
+            status=AppointmentStatus.SCHEDULED,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment, ["client"])
+
+        # Build email - should not raise exception
+        email = await build_appointment_reminder_email(db_session, appointment, user)
+
+        # Should show UTC time (fallback)
+        assert "10:00 AM" in email["body"]

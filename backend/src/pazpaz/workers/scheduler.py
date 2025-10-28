@@ -36,7 +36,7 @@ from __future__ import annotations
 import contextlib
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from arq.connections import RedisSettings
 
@@ -565,6 +565,21 @@ async def send_appointment_reminders(ctx: dict) -> dict:
                     # Build email content
                     await build_appointment_reminder_email(db, appointment, user)
 
+                    # Convert UTC to workspace timezone
+                    workspace_tz_name = user.workspace.timezone or "UTC"
+                    try:
+                        workspace_tz = ZoneInfo(workspace_tz_name)
+                        local_time = appointment.scheduled_start.astimezone(
+                            workspace_tz
+                        )
+                    except ZoneInfoNotFoundError:
+                        logger.warning(
+                            "invalid_workspace_timezone_in_scheduler",
+                            timezone=workspace_tz_name,
+                            user_id=str(user.id),
+                        )
+                        local_time = appointment.scheduled_start
+
                     # Format appointment data for email service
                     appointment_data = {
                         "appointment_id": str(appointment.id),
@@ -573,9 +588,7 @@ async def send_appointment_reminders(ctx: dict) -> dict:
                             if appointment.client
                             else "Unknown"
                         ),
-                        "time": appointment.scheduled_start.strftime(
-                            "%I:%M %p on %A, %B %d, %Y"
-                        ),
+                        "time": local_time.strftime("%I:%M %p on %A, %B %d, %Y"),
                     }
 
                     if appointment.service:

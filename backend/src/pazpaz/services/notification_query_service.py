@@ -402,7 +402,10 @@ async def get_appointments_needing_reminders(
                     UserNotificationSettings.reminder_enabled == True,  # noqa: E712
                 )
             )
-            .options(joinedload(User.notification_settings))
+            .options(
+                joinedload(User.notification_settings),
+                joinedload(User.workspace),
+            )
         )
 
         user_result = await db.execute(user_stmt)
