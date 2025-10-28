@@ -37,6 +37,7 @@ dependencies = [
     "google-api-python-client>=2.185.0",
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.2",
+    "certifi>=2025.8.3",
 ]
 
 [tool.hatch.build.targets.wheel]

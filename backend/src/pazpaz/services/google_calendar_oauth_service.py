@@ -5,9 +5,11 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
+import certifi
 import google.auth.exceptions
 import google.auth.transport.requests
 import google.oauth2.credentials
+import requests
 from fastapi import HTTPException
 from google_auth_oauthlib.flow import Flow
 from sqlalchemy import select
@@ -21,6 +23,28 @@ logger = get_logger(__name__)
 
 # Google Calendar API scopes
 GOOGLE_CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar"]
+
+
+def _create_http_session() -> requests.Session:
+    """
+    Create a requests Session with explicit SSL certificate configuration.
+
+    Uses certifi's CA bundle to ensure proper SSL/TLS certificate verification
+    across all environments (local, Docker, production).
+
+    This is the recommended best practice for Python applications that need
+    reliable SSL verification in containerized environments.
+
+    Returns:
+        requests.Session configured with certifi CA bundle for SSL verification
+
+    References:
+        - https://requests.readthedocs.io/en/latest/user/advanced/#ssl-cert-verification
+        - https://github.com/certifi/python-certifi
+    """
+    session = requests.Session()
+    session.verify = certifi.where()
+    return session
 
 
 def get_authorization_url(state: str, workspace_id: uuid.UUID) -> str:
@@ -67,11 +91,13 @@ def get_authorization_url(state: str, workspace_id: uuid.UUID) -> str:
 
         # Create OAuth flow
         # redirect_uri must match exactly what's registered in Google Console
+        # Use custom session with explicit certifi configuration for SSL
         flow = Flow.from_client_config(
             client_config=client_config,
             scopes=GOOGLE_CALENDAR_SCOPES,
             redirect_uri=settings.google_oauth_redirect_uri,
         )
+        flow.oauth2session.session = _create_http_session()
 
         # Generate authorization URL
         # access_type=offline: Request refresh token for long-lived access
@@ -165,14 +191,16 @@ async def exchange_code_for_tokens(
         }
 
         # Create OAuth flow (same redirect_uri as authorization)
+        # Use custom session with explicit certifi configuration for SSL
         flow = Flow.from_client_config(
             client_config=client_config,
             scopes=GOOGLE_CALENDAR_SCOPES,
             redirect_uri=settings.google_oauth_redirect_uri,
         )
+        flow.oauth2session.session = _create_http_session()
 
         # Exchange authorization code for tokens
-        # This makes a POST request to Google's token endpoint
+        # This makes a POST request to Google's token endpoint with SSL verification
         flow.fetch_token(code=code)
 
         # Extract credentials
