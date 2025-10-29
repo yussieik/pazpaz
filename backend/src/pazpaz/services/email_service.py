@@ -52,7 +52,8 @@ PazPaz - Practice Management for Independent Therapists
 """)
 
     # Email body (HTML with target attribute to reuse existing tab)
-    message.add_alternative(f"""
+    message.add_alternative(
+        f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -86,7 +87,9 @@ PazPaz - Practice Management for Independent Therapists
     </div>
 </body>
 </html>
-""", subtype='html')
+""",
+        subtype="html",
+    )
 
     # Send via SMTP
     try:
