@@ -29,6 +29,7 @@ const formData = ref<ClientCreate>({
   emergency_contact_phone: '',
   medical_history: '',
   notes: '',
+  google_calendar_consent: true, // Default to true (opt-out model)
 })
 
 // UI state
@@ -55,6 +56,16 @@ const submitButtonText = computed(() =>
   props.mode === 'create' ? 'Add Client' : 'Save Changes'
 )
 
+// Check if email is provided for calendar consent
+const hasEmail = computed(() => {
+  return formData.value.email?.trim().length > 0
+})
+
+// Date formatting helper
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString()
+}
+
 // Watch for modal visibility and pre-fill data in edit mode
 watch(
   () => [props.visible, props.mode, props.client] as const,
@@ -77,6 +88,7 @@ watch(
         emergency_contact_phone: client.emergency_contact_phone || '',
         medical_history: client.medical_history || '',
         notes: client.notes || '',
+        google_calendar_consent: client.google_calendar_consent ?? null,
       }
 
       // Auto-expand "Add More Details" if client has optional data
@@ -106,6 +118,21 @@ watch(
   { deep: true }
 )
 
+// Watch email changes to auto-disable consent if email is removed
+watch(
+  () => formData.value.email,
+  (newEmail) => {
+    // If email is removed, disable calendar consent
+    if (!newEmail?.trim() && formData.value.google_calendar_consent) {
+      formData.value.google_calendar_consent = false
+    }
+    // If email is added back and consent was disabled, re-enable it (opt-out model)
+    if (newEmail?.trim() && !formData.value.google_calendar_consent) {
+      formData.value.google_calendar_consent = true
+    }
+  }
+)
+
 function resetForm() {
   formData.value = {
     first_name: '',
@@ -118,6 +145,7 @@ function resetForm() {
     emergency_contact_phone: '',
     medical_history: '',
     notes: '',
+    google_calendar_consent: true, // Default to true for new clients (opt-out model)
   }
   errors.value = {}
   isAdditionalDetailsExpanded.value = false
@@ -182,6 +210,7 @@ function handleSubmit() {
     emergency_contact_phone: formData.value.emergency_contact_phone?.trim() || null,
     medical_history: formData.value.medical_history?.trim() || null,
     notes: formData.value.notes?.trim() || null,
+    google_calendar_consent: formData.value.google_calendar_consent,
   }
 
   emit('submit', cleanedData)
@@ -419,6 +448,43 @@ onUnmounted(() => {
                 >
                   {{ errors.email }}
                 </span>
+              </div>
+
+              <!-- Google Calendar Consent (only shown if email exists) -->
+              <div v-if="hasEmail" class="flex items-start gap-3">
+                <input
+                  id="google-calendar-consent"
+                  v-model="formData.google_calendar_consent"
+                  type="checkbox"
+                  class="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                />
+                <div class="flex-1">
+                  <label
+                    for="google-calendar-consent"
+                    class="text-sm font-medium text-slate-700 cursor-pointer"
+                  >
+                    Send appointment reminders via Google Calendar
+                  </label>
+                  <p class="mt-1 text-xs text-slate-500">
+                    Client will receive calendar invitations with appointment details. Uncheck to opt out.
+                  </p>
+                  <p
+                    v-if="props.mode === 'edit' && props.client?.google_calendar_consent_date"
+                    class="mt-1 text-xs text-slate-400"
+                  >
+                    Consent granted: {{ formatDate(props.client.google_calendar_consent_date) }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Warning if no email -->
+              <div v-if="!hasEmail && formData.google_calendar_consent" class="rounded-md border border-amber-200 bg-amber-50 p-3">
+                <p class="text-xs text-amber-700 flex items-center gap-2">
+                  <svg class="h-4 w-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                  </svg>
+                  <span>Email address required to send calendar reminders</span>
+                </p>
               </div>
             </div>
 

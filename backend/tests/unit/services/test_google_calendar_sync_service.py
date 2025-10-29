@@ -208,8 +208,9 @@ def test_build_event_client_missing_email(caplog):
     # Assert: Attendees should NOT be added
     assert "attendees" not in event
 
-    # Assert: Log message should indicate no consent (consent check happens before email check)
-    assert "client_notification_skipped_no_consent" in caplog.text
+    # Assert: Log message should indicate opted out (consent check happens before email check)
+    # Note: In opt-out model, None means client hasn't been migrated yet or opted out
+    assert "client_notification_skipped_opted_out" in caplog.text
 
 
 def test_build_event_client_invalid_email(caplog):
@@ -253,8 +254,9 @@ def test_build_event_client_invalid_email(caplog):
     # Assert: Attendees should NOT be added (invalid email)
     assert "attendees" not in event
 
-    # Assert: Log message should indicate no consent (consent check happens before email validation)
-    assert "client_notification_skipped_no_consent" in caplog.text
+    # Assert: Log message should indicate opted out (consent check happens before email validation)
+    # Note: In opt-out model, None means client hasn't been migrated yet or opted out
+    assert "client_notification_skipped_opted_out" in caplog.text
 
 
 # ============================================================================
@@ -359,7 +361,7 @@ def test_build_event_client_email_with_whitespace():
     assert event["attendees"][0]["email"] == "test@example.com"
 
 
-def test_build_event_client_empty_string_email(caplog):
+def test_build_event_client_empty_string_email():
     """Test that empty string email is handled gracefully."""
     # Setup
     workspace = Workspace(

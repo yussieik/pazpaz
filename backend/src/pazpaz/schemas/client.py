@@ -43,6 +43,10 @@ class ClientBase(BaseModel):
     consent_status: bool = Field(
         default=False, description="Client consent to store and process data"
     )
+    google_calendar_consent: bool | None = Field(
+        True,
+        description="Client consent to receive Google Calendar invitations (opt-out model: True=consented by default, False=opted out)",
+    )
     notes: str | None = Field(None, description="General notes about the client")
     tags: list[str] | None = Field(
         None, description="Tags for categorization and filtering"
@@ -75,6 +79,7 @@ class ClientUpdate(BaseModel):
     emergency_contact_phone: str | None = Field(None, max_length=50)
     is_active: bool | None = Field(None)
     consent_status: bool | None = Field(None)
+    google_calendar_consent: bool | None = Field(None)
     notes: str | None = Field(None)
     tags: list[str] | None = Field(None)
 
@@ -86,6 +91,9 @@ class ClientResponse(ClientBase):
     workspace_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+    google_calendar_consent_date: datetime | None = Field(
+        None, description="Date when client consented to Google Calendar invitations"
+    )
 
     # Computed appointment fields (populated by API endpoint)
     next_appointment: datetime | None = Field(

@@ -111,8 +111,9 @@ class Client(Base):
     google_calendar_consent: Mapped[bool | None] = mapped_column(
         Boolean,
         nullable=True,
-        default=None,
-        comment="Client consent to receive Google Calendar invitations (None=not asked, False=declined, True=consented)",
+        default=True,
+        server_default='true',
+        comment="Client consent to receive Google Calendar invitations (opt-out model: True=consented by default, False=opted out)",
     )
     google_calendar_consent_date: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),

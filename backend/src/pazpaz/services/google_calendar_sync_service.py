@@ -260,10 +260,11 @@ def _build_google_calendar_event(
 
     # Add client as attendee if notifications enabled
     if notify_client and appointment.client:
-        # SECURITY: Check client consent before sending notification
+        # SECURITY: Check client consent before sending notification (opt-out model)
+        # consent=True means client consented (default), consent=False means client opted out
         if appointment.client.google_calendar_consent is not True:
             logger.debug(
-                "client_notification_skipped_no_consent",
+                "client_notification_skipped_opted_out",
                 appointment_id=str(appointment.id),
                 client_id=str(appointment.client.id),
                 consent_status=appointment.client.google_calendar_consent,

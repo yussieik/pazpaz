@@ -14,6 +14,7 @@ export interface ClientBase {
   emergency_contact_phone?: string | null
   medical_history?: string | null
   notes?: string | null
+  google_calendar_consent?: boolean | null // NULL=not asked, false=declined, true=consented
 }
 
 export type ClientCreate = ClientBase
@@ -29,6 +30,7 @@ export interface ClientUpdate {
   emergency_contact_phone?: string | null
   medical_history?: string | null
   notes?: string | null
+  google_calendar_consent?: boolean | null
 }
 
 export interface Client extends ClientBase {
@@ -37,6 +39,7 @@ export interface Client extends ClientBase {
   full_name: string // Computed: first_name + last_name
   created_at: string // ISO 8601 datetime
   updated_at: string // ISO 8601 datetime
+  google_calendar_consent_date?: string | null // ISO 8601 datetime
 }
 
 export interface ClientListItem extends Client {
