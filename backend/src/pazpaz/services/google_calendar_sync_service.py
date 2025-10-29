@@ -33,6 +33,7 @@ Usage:
 
 from __future__ import annotations
 
+import re
 import uuid
 from typing import TYPE_CHECKING
 
@@ -106,10 +107,29 @@ async def _get_google_calendar_token(
     return token
 
 
+def _is_valid_email(email: str | None) -> bool:
+    """
+    Validate email format for Google Calendar attendee.
+
+    Args:
+        email: Email address to validate
+
+    Returns:
+        True if email is valid format, False otherwise
+    """
+    if not email or not email.strip():
+        return False
+
+    # Basic email validation (RFC 5322 simplified)
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    return bool(re.match(pattern, email.strip()))
+
+
 def _build_google_calendar_event(
     appointment: Appointment,
     workspace_timezone: str,
     sync_client_names: bool,
+    notify_client: bool = False,
 ) -> dict:
     """
     Build Google Calendar event dict from PazPaz appointment.
@@ -121,6 +141,7 @@ def _build_google_calendar_event(
         appointment: PazPaz appointment to sync
         workspace_timezone: IANA timezone name (e.g., 'Asia/Jerusalem')
         sync_client_names: Whether to include client name in event title
+        notify_client: Whether to send calendar invitation to client (requires client email)
 
     Returns:
         Google Calendar event dict ready for API submission
@@ -130,6 +151,7 @@ def _build_google_calendar_event(
         ...     appointment=appointment,
         ...     workspace_timezone='Asia/Jerusalem',
         ...     sync_client_names=True,
+        ...     notify_client=True,
         ... )
         >>> event['summary']
         'Appointment with John Doe'
@@ -211,6 +233,36 @@ def _build_google_calendar_event(
         description_parts.append(f"\n📝 Notes:\n{appointment.notes}")
 
     event["description"] = "\n".join(description_parts)
+
+    # Add client as attendee if notifications enabled
+    if notify_client and appointment.client and appointment.client.email:
+        # Validate email format first
+        if _is_valid_email(appointment.client.email):
+            event["attendees"] = [{"email": appointment.client.email.strip()}]
+            # Set custom reminders for email notifications
+            event["reminders"] = {
+                "useDefault": False,
+                "overrides": [
+                    {"method": "email", "minutes": 1440},  # 24 hours before
+                    {"method": "email", "minutes": 60},  # 1 hour before
+                ],
+            }
+            logger.debug(
+                "client_notification_enabled",
+                appointment_id=str(appointment.id),
+                client_email=appointment.client.email,
+            )
+        else:
+            logger.debug(
+                "client_notification_skipped_invalid_email",
+                appointment_id=str(appointment.id),
+                client_email=appointment.client.email,
+            )
+    elif notify_client and appointment.client and not appointment.client.email:
+        logger.debug(
+            "client_notification_skipped_no_email",
+            appointment_id=str(appointment.id),
+        )
 
     return event
 
@@ -301,11 +353,18 @@ async def create_calendar_event(
             appointment=appointment,
             workspace_timezone=workspace_timezone,
             sync_client_names=token.sync_client_names,
+            notify_client=token.notify_clients,
         )
 
         # Create event in Google Calendar
         created_event = (
-            service.events().insert(calendarId="primary", body=event).execute()
+            service.events()
+            .insert(
+                calendarId="primary",
+                body=event,
+                sendUpdates="all" if token.notify_clients else "none",
+            )
+            .execute()
         )
 
         google_event_id = created_event["id"]
@@ -321,6 +380,15 @@ async def create_calendar_event(
             workspace_id=str(workspace_id),
             event_summary=event["summary"],
         )
+
+        # Log client notification if sent
+        if token.notify_clients and "attendees" in event:
+            logger.info(
+                "client_notification_sent",
+                appointment_id=str(appointment_id),
+                event_id=google_event_id,
+                workspace_id=str(workspace_id),
+            )
 
         return google_event_id
 
@@ -448,6 +516,7 @@ async def update_calendar_event(
             appointment=appointment,
             workspace_timezone=workspace_timezone,
             sync_client_names=token.sync_client_names,
+            notify_client=token.notify_clients,
         )
 
         try:
@@ -456,6 +525,7 @@ async def update_calendar_event(
                 calendarId="primary",
                 eventId=appointment.google_event_id,
                 body=event,
+                sendUpdates="all" if token.notify_clients else "none",
             ).execute()
 
             logger.info(
@@ -465,6 +535,15 @@ async def update_calendar_event(
                 workspace_id=str(workspace_id),
                 event_summary=event["summary"],
             )
+
+            # Log client notification if sent
+            if token.notify_clients and "attendees" in event:
+                logger.info(
+                    "client_notification_sent",
+                    appointment_id=str(appointment_id),
+                    event_id=appointment.google_event_id,
+                    workspace_id=str(workspace_id),
+                )
 
         except HttpError as e:
             # Event not found (404) - create new event

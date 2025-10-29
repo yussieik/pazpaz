@@ -145,6 +145,16 @@ async function handleToggleAutoSync(enabled: boolean) {
   }
 }
 
+async function handleToggleNotifyClients(enabled: boolean) {
+  try {
+    await updateSettings({ notify_clients: enabled })
+    showSuccess(enabled ? 'Client invitations enabled' : 'Client invitations disabled')
+  } catch (err) {
+    console.error('[GoogleCalendar] Failed to update client invitations:', err)
+    showError('Failed to update settings. Please try again.')
+  }
+}
+
 // Lifecycle
 onMounted(async () => {
   await fetchStatus()
@@ -353,6 +363,67 @@ onMounted(async () => {
             </div>
           </div>
 
+          <!-- Client Notifications Toggle -->
+          <div class="border-t border-slate-200 pt-6">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1">
+                <label class="text-sm font-medium text-slate-900">
+                  Send appointment invitations to clients
+                </label>
+                <p class="mt-1 text-sm text-slate-600">
+                  Clients receive email invitations and calendar reminders from Google
+                  (24h and 1h before appointments)
+                </p>
+              </div>
+              <div class="flex-shrink-0">
+                <ToggleSwitch
+                  :model-value="settings.notify_clients"
+                  :disabled="!settings.auto_sync_enabled"
+                  @update:model-value="handleToggleNotifyClients"
+                />
+              </div>
+            </div>
+
+            <!-- Privacy Notice (conditional, with transition) -->
+            <Transition
+              enter-active-class="transition-all duration-300 ease-out"
+              enter-from-class="opacity-0 max-h-0"
+              enter-to-class="opacity-100 max-h-32"
+              leave-active-class="transition-all duration-200 ease-in"
+              leave-from-class="opacity-100 max-h-32"
+              leave-to-class="opacity-0 max-h-0"
+            >
+              <div
+                v-if="settings.notify_clients"
+                role="status"
+                aria-live="polite"
+                class="mt-4 overflow-hidden rounded-md border-l-2 border-amber-400 bg-amber-50/50 p-4"
+              >
+                <div class="flex items-start gap-3">
+                  <svg
+                    class="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  <div class="flex-1">
+                    <p class="text-xs font-medium text-slate-900">Privacy Notice</p>
+                    <p class="mt-1 text-xs text-slate-700">
+                      Client email addresses will be shared with Google Calendar.
+                      Only appointments with client email addresses will be sent.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Transition>
+          </div>
+
           <!-- Include Client Names (Future Feature) -->
           <!-- TODO: Uncomment when backend implements this setting -->
           <!--
@@ -512,6 +583,10 @@ onMounted(async () => {
 /* Warning accordion transition helpers */
 .max-h-0 {
   max-height: 0;
+}
+
+.max-h-32 {
+  max-height: 8rem;
 }
 
 .max-h-96 {

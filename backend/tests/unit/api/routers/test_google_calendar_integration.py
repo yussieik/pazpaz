@@ -575,3 +575,223 @@ async def test_get_status_includes_sync_client_names(
     assert data["enabled"] is True
     assert data["sync_client_names"] is True
     assert data["last_sync_at"] is None
+
+
+# ============================================================================
+# Client Notification Tests (Phase 6)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_update_settings_notify_clients_true(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    """Test updating notify_clients setting to true."""
+    # Create token
+    token = GoogleCalendarToken(
+        user_id=test_user.id,
+        workspace_id=test_user.workspace_id,
+        access_token="test_access_token",
+        refresh_token="test_refresh_token",
+        token_expiry=datetime.now(UTC) + timedelta(hours=1),
+        scopes=["https://www.googleapis.com/auth/calendar"],
+        enabled=True,
+        sync_client_names=False,
+        notify_clients=False,
+    )
+    db_session.add(token)
+    await db_session.commit()
+
+    # Update settings to enable notify_clients
+    response = await authenticated_client.patch(
+        "/api/v1/integrations/google-calendar/settings",
+        json={"notify_clients": True},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["notify_clients"] is True
+    assert data["enabled"] is True  # Unchanged
+    assert data["sync_client_names"] is False  # Unchanged
+
+    # Verify in database
+    await db_session.refresh(token)
+    assert token.notify_clients is True
+
+
+@pytest.mark.asyncio
+async def test_update_settings_notify_clients_false(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    """Test updating notify_clients setting to false."""
+    # Create token with notify_clients enabled
+    token = GoogleCalendarToken(
+        user_id=test_user.id,
+        workspace_id=test_user.workspace_id,
+        access_token="test_access_token",
+        refresh_token="test_refresh_token",
+        token_expiry=datetime.now(UTC) + timedelta(hours=1),
+        scopes=["https://www.googleapis.com/auth/calendar"],
+        enabled=True,
+        sync_client_names=True,
+        notify_clients=True,
+    )
+    db_session.add(token)
+    await db_session.commit()
+
+    # Update settings to disable notify_clients
+    response = await authenticated_client.patch(
+        "/api/v1/integrations/google-calendar/settings",
+        json={"notify_clients": False},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["notify_clients"] is False
+    assert data["enabled"] is True  # Unchanged
+    assert data["sync_client_names"] is True  # Unchanged
+
+    # Verify in database
+    await db_session.refresh(token)
+    assert token.notify_clients is False
+
+
+@pytest.mark.asyncio
+async def test_status_includes_notify_clients_when_connected(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    """Test GET /status includes notify_clients field when connected."""
+    # Create token with notify_clients enabled
+    token = GoogleCalendarToken(
+        user_id=test_user.id,
+        workspace_id=test_user.workspace_id,
+        access_token="test_access_token",
+        refresh_token="test_refresh_token",
+        token_expiry=datetime.now(UTC) + timedelta(hours=1),
+        scopes=["https://www.googleapis.com/auth/calendar"],
+        enabled=True,
+        sync_client_names=True,
+        notify_clients=True,
+    )
+    db_session.add(token)
+    await db_session.commit()
+
+    response = await authenticated_client.get(
+        "/api/v1/integrations/google-calendar/status"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["connected"] is True
+    assert data["enabled"] is True
+    assert data["sync_client_names"] is True
+    assert data["notify_clients"] is True
+
+
+@pytest.mark.asyncio
+async def test_status_notify_clients_defaults_to_false_when_not_connected(
+    authenticated_client: AsyncClient,
+):
+    """Test GET /status returns notify_clients=false when not connected."""
+    response = await authenticated_client.get(
+        "/api/v1/integrations/google-calendar/status"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["connected"] is False
+    assert data["notify_clients"] is False
+
+
+@pytest.mark.asyncio
+async def test_update_settings_persist_across_updates(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    """Test that updating one setting doesn't affect others."""
+    # Create token with specific settings
+    token = GoogleCalendarToken(
+        user_id=test_user.id,
+        workspace_id=test_user.workspace_id,
+        access_token="test_access_token",
+        refresh_token="test_refresh_token",
+        token_expiry=datetime.now(UTC) + timedelta(hours=1),
+        scopes=["https://www.googleapis.com/auth/calendar"],
+        enabled=True,
+        sync_client_names=True,
+        notify_clients=False,
+    )
+    db_session.add(token)
+    await db_session.commit()
+
+    # Update only notify_clients
+    response = await authenticated_client.patch(
+        "/api/v1/integrations/google-calendar/settings",
+        json={"notify_clients": True},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Verify all settings
+    assert data["enabled"] is True  # Should remain unchanged
+    assert data["sync_client_names"] is True  # Should remain unchanged
+    assert data["notify_clients"] is True  # Should be updated
+
+    # Verify in database
+    await db_session.refresh(token)
+    assert token.enabled is True
+    assert token.sync_client_names is True
+    assert token.notify_clients is True
+
+
+@pytest.mark.asyncio
+async def test_update_settings_multiple_fields_including_notify_clients(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    """Test updating multiple settings including notify_clients."""
+    # Create token
+    token = GoogleCalendarToken(
+        user_id=test_user.id,
+        workspace_id=test_user.workspace_id,
+        access_token="test_access_token",
+        refresh_token="test_refresh_token",
+        token_expiry=datetime.now(UTC) + timedelta(hours=1),
+        scopes=["https://www.googleapis.com/auth/calendar"],
+        enabled=False,
+        sync_client_names=False,
+        notify_clients=False,
+    )
+    db_session.add(token)
+    await db_session.commit()
+
+    # Update all settings at once
+    response = await authenticated_client.patch(
+        "/api/v1/integrations/google-calendar/settings",
+        json={
+            "enabled": True,
+            "sync_client_names": True,
+            "notify_clients": True,
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["enabled"] is True
+    assert data["sync_client_names"] is True
+    assert data["notify_clients"] is True
+
+    # Verify in database
+    await db_session.refresh(token)
+    assert token.enabled is True
+    assert token.sync_client_names is True
+    assert token.notify_clients is True

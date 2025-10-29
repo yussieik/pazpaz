@@ -18,6 +18,7 @@ class GoogleCalendarStatusResponse(BaseModel):
         connected: True if user has authorized Google Calendar access
         enabled: True if sync is active, False if paused
         sync_client_names: Whether client names are included in calendar events
+        notify_clients: Whether client notifications are enabled
         last_sync_at: Timestamp of most recent calendar sync (None if never synced)
     """
 
@@ -29,6 +30,9 @@ class GoogleCalendarStatusResponse(BaseModel):
     )
     sync_client_names: bool = Field(
         False, description="Whether client names are included in calendar events"
+    )
+    notify_clients: bool = Field(
+        False, description="Whether client notifications are enabled"
     )
     last_sync_at: datetime | None = Field(
         None, description="Timestamp of last calendar sync (UTC, None if never synced)"
@@ -61,11 +65,13 @@ class GoogleCalendarSettingsUpdate(BaseModel):
     Attributes:
         enabled: Enable/disable automatic sync
         sync_client_names: Include client names in calendar event titles
+        notify_clients: Send Google Calendar invitations to clients (requires client email)
 
     Example:
         {
             "enabled": true,
-            "sync_client_names": false
+            "sync_client_names": false,
+            "notify_clients": true
         }
     """
 
@@ -77,6 +83,10 @@ class GoogleCalendarSettingsUpdate(BaseModel):
         None,
         description="Include client names in calendar event titles (HIPAA consideration)",
     )
+    notify_clients: bool | None = Field(
+        None,
+        description="Send Google Calendar invitations to clients (requires client email)",
+    )
 
 
 class GoogleCalendarSettingsResponse(BaseModel):
@@ -86,6 +96,7 @@ class GoogleCalendarSettingsResponse(BaseModel):
     Attributes:
         enabled: Whether automatic sync is enabled
         sync_client_names: Whether client names are included in events
+        notify_clients: Whether client notifications are enabled
         last_sync_at: Timestamp of last successful sync
         last_sync_status: Status of last sync ("success" or "error")
         last_sync_error: Error message if last sync failed
@@ -94,6 +105,9 @@ class GoogleCalendarSettingsResponse(BaseModel):
     enabled: bool = Field(..., description="Whether automatic sync is enabled")
     sync_client_names: bool = Field(
         ..., description="Whether client names are included in calendar events"
+    )
+    notify_clients: bool = Field(
+        ..., description="Whether client notifications are enabled"
     )
     last_sync_at: datetime | None = Field(
         None, description="Timestamp of last sync (UTC)"

@@ -39,12 +39,14 @@ import type { AxiosError } from 'axios'
 interface GoogleCalendarSettings {
   auto_sync_enabled: boolean
   include_client_names: boolean
+  notify_clients: boolean
 }
 
 interface GoogleCalendarStatus {
   connected: boolean
   enabled: boolean
   sync_client_names: boolean
+  notify_clients: boolean
   last_sync_at: string | null
 }
 
@@ -60,6 +62,7 @@ export function useGoogleCalendarIntegration() {
   const settings = computed<GoogleCalendarSettings>(() => ({
     auto_sync_enabled: status.value?.enabled ?? false,
     include_client_names: status.value?.sync_client_names ?? false,
+    notify_clients: status.value?.notify_clients ?? false,
   }))
 
   /**
@@ -140,6 +143,7 @@ export function useGoogleCalendarIntegration() {
         last_sync_at: null,
         enabled: false,
         sync_client_names: false,
+        notify_clients: false,
       }
     } catch (err) {
       const axiosError = err as AxiosError
@@ -175,13 +179,15 @@ export function useGoogleCalendarIntegration() {
         backendSettings.sync_client_names = newSettings.include_client_names
       }
 
+      if (newSettings.notify_clients !== undefined) {
+        backendSettings.notify_clients = newSettings.notify_clients
+      }
+
       // Call backend PATCH endpoint
       await apiClient.patch('/integrations/google-calendar/settings', backendSettings)
 
       // Refresh status to get updated settings
       await fetchStatus()
-
-      console.log('[GoogleCalendar] Settings updated successfully:', newSettings)
     } catch (err) {
       const axiosError = err as AxiosError
       error.value = 'Failed to update settings'

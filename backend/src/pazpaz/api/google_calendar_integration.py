@@ -95,6 +95,7 @@ async def get_integration_status(
             connected=False,
             enabled=False,
             sync_client_names=False,
+            notify_clients=False,
             last_sync_at=None,
         )
 
@@ -114,6 +115,7 @@ async def get_integration_status(
         connected=True,
         enabled=token.enabled,
         sync_client_names=token.sync_client_names,
+        notify_clients=token.notify_clients,
         last_sync_at=None,  # Will be populated in Phase 2 (calendar sync)
     )
 
@@ -605,6 +607,10 @@ async def update_settings(
         token.sync_client_names = settings.sync_client_names
         updated_fields.append(f"sync_client_names={settings.sync_client_names}")
 
+    if settings.notify_clients is not None:
+        token.notify_clients = settings.notify_clients
+        updated_fields.append(f"notify_clients={settings.notify_clients}")
+
     # Commit changes
     await db.commit()
     await db.refresh(token)
@@ -620,6 +626,7 @@ async def update_settings(
     return GoogleCalendarSettingsResponse(
         enabled=token.enabled,
         sync_client_names=token.sync_client_names,
+        notify_clients=token.notify_clients,
         last_sync_at=token.last_sync_at,
         last_sync_status=token.last_sync_status,
         last_sync_error=token.last_sync_error,

@@ -146,6 +146,13 @@ class GoogleCalendarToken(Base):
         server_default="false",
         comment="Whether to sync client names to Google Calendar event titles (privacy setting)",
     )
+    notify_clients: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        comment="Send Google Calendar invitations to clients (requires client email)",
+    )
 
     # Sync tracking
     last_sync_at: Mapped[datetime | None] = mapped_column(
