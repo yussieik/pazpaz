@@ -45,7 +45,9 @@ from sqlalchemy.orm import selectinload
 
 from pazpaz.core.logging import get_logger
 from pazpaz.models.appointment import Appointment
+from pazpaz.models.audit_event import AuditAction, ResourceType
 from pazpaz.models.google_calendar_token import GoogleCalendarToken
+from pazpaz.services.audit_service import create_audit_event
 from pazpaz.services.google_calendar_oauth_service import (
     get_credentials,
     refresh_access_token,
@@ -55,6 +57,27 @@ if TYPE_CHECKING:
     from google.oauth2.credentials import Credentials
 
 logger = get_logger(__name__)
+
+
+def _redact_email(email: str | None) -> str:
+    """
+    Redact email address for logging (shows domain only, hides local part).
+
+    Args:
+        email: Email address to redact
+
+    Returns:
+        Redacted email in format "***@domain.com" or "***" if invalid
+
+    Example:
+        >>> _redact_email("client@example.com")
+        "***@example.com"
+        >>> _redact_email(None)
+        "***"
+    """
+    if not email or "@" not in email:
+        return "***"
+    return f"***@{email.split('@')[1]}"
 
 
 async def _get_google_calendar_token(
@@ -228,16 +251,36 @@ def _build_google_calendar_event(
     if appointment.service:
         description_parts.append(f"🏥 Service: {appointment.service.name}")
 
-    # Add therapist notes
-    if appointment.notes:
-        description_parts.append(f"\n📝 Notes:\n{appointment.notes}")
+    # SECURITY FIX: NEVER include therapist notes in Google Calendar events
+    # Therapist notes may contain diagnoses, symptoms, treatment plans (highest sensitivity PHI)
+    # Violates HIPAA minimum necessary standard - notes are not needed in calendar
+    # Therapist can view notes in PazPaz app directly
 
     event["description"] = "\n".join(description_parts)
 
     # Add client as attendee if notifications enabled
-    if notify_client and appointment.client and appointment.client.email:
-        # Validate email format first
-        if _is_valid_email(appointment.client.email):
+    if notify_client and appointment.client:
+        # SECURITY: Check client consent before sending notification
+        if appointment.client.google_calendar_consent is not True:
+            logger.debug(
+                "client_notification_skipped_no_consent",
+                appointment_id=str(appointment.id),
+                client_id=str(appointment.client.id),
+                consent_status=appointment.client.google_calendar_consent,
+            )
+        elif not appointment.client.email:
+            logger.debug(
+                "client_notification_skipped_no_email",
+                appointment_id=str(appointment.id),
+            )
+        elif not _is_valid_email(appointment.client.email):
+            logger.debug(
+                "client_notification_skipped_invalid_email",
+                appointment_id=str(appointment.id),
+                client_email_redacted=_redact_email(appointment.client.email),
+            )
+        else:
+            # All checks passed - add client as attendee
             event["attendees"] = [{"email": appointment.client.email.strip()}]
             # Set custom reminders for email notifications
             event["reminders"] = {
@@ -250,19 +293,8 @@ def _build_google_calendar_event(
             logger.debug(
                 "client_notification_enabled",
                 appointment_id=str(appointment.id),
-                client_email=appointment.client.email,
+                client_email_redacted=_redact_email(appointment.client.email),
             )
-        else:
-            logger.debug(
-                "client_notification_skipped_invalid_email",
-                appointment_id=str(appointment.id),
-                client_email=appointment.client.email,
-            )
-    elif notify_client and appointment.client and not appointment.client.email:
-        logger.debug(
-            "client_notification_skipped_no_email",
-            appointment_id=str(appointment.id),
-        )
 
     return event
 
@@ -388,6 +420,23 @@ async def create_calendar_event(
                 appointment_id=str(appointment_id),
                 event_id=google_event_id,
                 workspace_id=str(workspace_id),
+            )
+
+            # HIPAA COMPLIANCE: Audit PHI disclosure to third party
+            await create_audit_event(
+                db=db,
+                user_id=token.user_id,
+                workspace_id=workspace_id,
+                action=AuditAction.DISCLOSE,
+                resource_type=ResourceType.APPOINTMENT,
+                resource_id=appointment_id,
+                metadata={
+                    "disclosure_to": "Google Calendar API",
+                    "google_event_id": google_event_id,
+                    "client_id": str(appointment.client_id),
+                    "disclosed_fields": ["email", "appointment_time"],
+                    "notification_method": "google_calendar_invitation",
+                },
             )
 
         return google_event_id
@@ -543,6 +592,23 @@ async def update_calendar_event(
                     appointment_id=str(appointment_id),
                     event_id=appointment.google_event_id,
                     workspace_id=str(workspace_id),
+                )
+
+                # HIPAA COMPLIANCE: Audit PHI disclosure to third party
+                await create_audit_event(
+                    db=db,
+                    user_id=token.user_id,
+                    workspace_id=workspace_id,
+                    action=AuditAction.DISCLOSE,
+                    resource_type=ResourceType.APPOINTMENT,
+                    resource_id=appointment_id,
+                    metadata={
+                        "disclosure_to": "Google Calendar API",
+                        "google_event_id": appointment.google_event_id,
+                        "client_id": str(appointment.client_id),
+                        "disclosed_fields": ["email", "appointment_time"],
+                        "notification_method": "google_calendar_invitation_update",
+                    },
                 )
 
         except HttpError as e:

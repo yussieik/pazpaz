@@ -40,6 +40,7 @@ interface GoogleCalendarSettings {
   auto_sync_enabled: boolean
   include_client_names: boolean
   notify_clients: boolean
+  has_google_baa: boolean
 }
 
 interface GoogleCalendarStatus {
@@ -47,6 +48,7 @@ interface GoogleCalendarStatus {
   enabled: boolean
   sync_client_names: boolean
   notify_clients: boolean
+  has_google_baa: boolean
   last_sync_at: string | null
 }
 
@@ -63,6 +65,7 @@ export function useGoogleCalendarIntegration() {
     auto_sync_enabled: status.value?.enabled ?? false,
     include_client_names: status.value?.sync_client_names ?? false,
     notify_clients: status.value?.notify_clients ?? false,
+    has_google_baa: status.value?.has_google_baa ?? false,
   }))
 
   /**
@@ -144,6 +147,7 @@ export function useGoogleCalendarIntegration() {
         enabled: false,
         sync_client_names: false,
         notify_clients: false,
+        has_google_baa: false,
       }
     } catch (err) {
       const axiosError = err as AxiosError
@@ -181,6 +185,10 @@ export function useGoogleCalendarIntegration() {
 
       if (newSettings.notify_clients !== undefined) {
         backendSettings.notify_clients = newSettings.notify_clients
+      }
+
+      if (newSettings.has_google_baa !== undefined) {
+        backendSettings.has_google_baa = newSettings.has_google_baa
       }
 
       // Call backend PATCH endpoint

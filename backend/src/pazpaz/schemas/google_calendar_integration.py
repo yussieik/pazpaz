@@ -34,6 +34,9 @@ class GoogleCalendarStatusResponse(BaseModel):
     notify_clients: bool = Field(
         False, description="Whether client notifications are enabled"
     )
+    has_google_baa: bool = Field(
+        False, description="Whether therapist has Google Workspace BAA signed"
+    )
     last_sync_at: datetime | None = Field(
         None, description="Timestamp of last calendar sync (UTC, None if never synced)"
     )
@@ -87,6 +90,10 @@ class GoogleCalendarSettingsUpdate(BaseModel):
         None,
         description="Send Google Calendar invitations to clients (requires client email)",
     )
+    has_google_baa: bool | None = Field(
+        None,
+        description="Confirm Google Workspace Business Associate Agreement (BAA) is signed",
+    )
 
 
 class GoogleCalendarSettingsResponse(BaseModel):
@@ -108,6 +115,9 @@ class GoogleCalendarSettingsResponse(BaseModel):
     )
     notify_clients: bool = Field(
         ..., description="Whether client notifications are enabled"
+    )
+    has_google_baa: bool = Field(
+        ..., description="Whether therapist has Google Workspace BAA signed"
     )
     last_sync_at: datetime | None = Field(
         None, description="Timestamp of last sync (UTC)"

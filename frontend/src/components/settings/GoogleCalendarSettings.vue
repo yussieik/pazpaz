@@ -145,13 +145,28 @@ async function handleToggleAutoSync(enabled: boolean) {
   }
 }
 
+async function handleToggleBaa(enabled: boolean) {
+  try {
+    await updateSettings({ has_google_baa: enabled })
+    showSuccess(enabled ? 'BAA confirmation saved' : 'BAA confirmation removed')
+  } catch (err) {
+    console.error('[GoogleCalendar] Failed to update BAA status:', err)
+    showError('Failed to update BAA status. Please try again.')
+  }
+}
+
 async function handleToggleNotifyClients(enabled: boolean) {
   try {
     await updateSettings({ notify_clients: enabled })
     showSuccess(enabled ? 'Client invitations enabled' : 'Client invitations disabled')
   } catch (err) {
     console.error('[GoogleCalendar] Failed to update client invitations:', err)
-    showError('Failed to update settings. Please try again.')
+    // Check if error is due to missing BAA
+    if (err.response?.status === 400 && err.response?.data?.detail?.includes('BAA')) {
+      showError('You must confirm Google Workspace BAA before enabling client notifications.')
+    } else {
+      showError('Failed to update settings. Please try again.')
+    }
   }
 }
 
@@ -363,6 +378,35 @@ onMounted(async () => {
             </div>
           </div>
 
+          <!-- Google Workspace BAA Confirmation -->
+          <div class="border-t border-slate-200 pt-6">
+            <div class="flex items-start gap-3">
+              <input
+                id="has-google-baa"
+                :checked="settings.has_google_baa"
+                type="checkbox"
+                class="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                @change="handleToggleBaa($event.target.checked)"
+              />
+              <div class="flex-1">
+                <label for="has-google-baa" class="text-sm font-medium text-slate-900">
+                  I confirm my Google Workspace account has a signed Business Associate Agreement (BAA)
+                </label>
+                <p class="mt-1 text-sm text-slate-600">
+                  Required for HIPAA compliance when sending notifications to clients.
+                  <a
+                    href="https://support.google.com/a/answer/3407054"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-blue-600 hover:text-blue-700 underline"
+                  >
+                    Learn more about Google Workspace BAA
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+
           <!-- Client Notifications Toggle -->
           <div class="border-t border-slate-200 pt-6">
             <div class="flex items-start justify-between gap-4">
@@ -374,11 +418,14 @@ onMounted(async () => {
                   Clients receive email invitations and calendar reminders from Google
                   (24h and 1h before appointments)
                 </p>
+                <p v-if="!settings.has_google_baa" class="mt-2 text-xs font-medium text-amber-700">
+                  Note: You must confirm Google Workspace BAA before enabling client notifications
+                </p>
               </div>
               <div class="flex-shrink-0">
                 <ToggleSwitch
                   :model-value="settings.notify_clients"
-                  :disabled="!settings.auto_sync_enabled"
+                  :disabled="!settings.auto_sync_enabled || !settings.has_google_baa"
                   @update:model-value="handleToggleNotifyClients"
                 />
               </div>

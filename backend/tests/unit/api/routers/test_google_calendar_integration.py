@@ -600,6 +600,7 @@ async def test_update_settings_notify_clients_true(
         enabled=True,
         sync_client_names=False,
         notify_clients=False,
+        has_google_baa=True,  # Required to enable client notifications
     )
     db_session.add(token)
     await db_session.commit()
@@ -727,6 +728,7 @@ async def test_update_settings_persist_across_updates(
         enabled=True,
         sync_client_names=True,
         notify_clients=False,
+        has_google_baa=True,  # Required to enable client notifications
     )
     db_session.add(token)
     await db_session.commit()
@@ -770,6 +772,7 @@ async def test_update_settings_multiple_fields_including_notify_clients(
         enabled=False,
         sync_client_names=False,
         notify_clients=False,
+        has_google_baa=True,  # Required to enable client notifications
     )
     db_session.add(token)
     await db_session.commit()

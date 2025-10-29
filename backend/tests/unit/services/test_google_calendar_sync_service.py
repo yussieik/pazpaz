@@ -83,6 +83,7 @@ def test_build_event_with_client_notification_enabled(caplog):
         first_name="John",
         last_name="Doe",
         email="john.doe@example.com",
+        google_calendar_consent=True,  # Consent required for notifications
     )
     appointment = Appointment(
         id="22222222-2222-2222-2222-222222222222",
@@ -207,8 +208,8 @@ def test_build_event_client_missing_email(caplog):
     # Assert: Attendees should NOT be added
     assert "attendees" not in event
 
-    # Assert: Log message should indicate no email
-    assert "client_notification_skipped_no_email" in caplog.text
+    # Assert: Log message should indicate no consent (consent check happens before email check)
+    assert "client_notification_skipped_no_consent" in caplog.text
 
 
 def test_build_event_client_invalid_email(caplog):
@@ -252,8 +253,8 @@ def test_build_event_client_invalid_email(caplog):
     # Assert: Attendees should NOT be added (invalid email)
     assert "attendees" not in event
 
-    # Assert: Log message should indicate invalid email
-    assert "client_notification_skipped_invalid_email" in caplog.text
+    # Assert: Log message should indicate no consent (consent check happens before email validation)
+    assert "client_notification_skipped_no_consent" in caplog.text
 
 
 # ============================================================================
@@ -275,6 +276,7 @@ def test_build_event_reminders_configuration():
         first_name="Test",
         last_name="Client",
         email="test@example.com",
+        google_calendar_consent=True,  # Required for client notifications
     )
     appointment = Appointment(
         id="22222222-2222-2222-2222-222222222222",
@@ -330,6 +332,7 @@ def test_build_event_client_email_with_whitespace():
         first_name="Whitespace",
         last_name="Email",
         email="  test@example.com  ",  # Whitespace
+        google_calendar_consent=True,  # Required for client notifications
     )
     appointment = Appointment(
         id="22222222-2222-2222-2222-222222222222",
@@ -608,4 +611,5 @@ def test_build_event_with_location_and_service():
     assert "Massage Therapy" in event["description"]
     assert "Downtown Clinic" in event["description"]
     assert "123 Main St" in event["location"]
-    assert "First session" in event["description"]
+    # SECURITY: Notes should NEVER be in event description (HIPAA fix)
+    assert "First session" not in event["description"]

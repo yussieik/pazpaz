@@ -108,6 +108,17 @@ class Client(Base):
         nullable=False,
         comment="Client consent to store and process data",
     )
+    google_calendar_consent: Mapped[bool | None] = mapped_column(
+        Boolean,
+        nullable=True,
+        default=None,
+        comment="Client consent to receive Google Calendar invitations (None=not asked, False=declined, True=consented)",
+    )
+    google_calendar_consent_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Date when client consented to Google Calendar invitations",
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,

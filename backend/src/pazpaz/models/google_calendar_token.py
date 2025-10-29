@@ -153,6 +153,13 @@ class GoogleCalendarToken(Base):
         server_default="false",
         comment="Send Google Calendar invitations to clients (requires client email)",
     )
+    has_google_baa: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        comment="Therapist confirms Google Workspace Business Associate Agreement (BAA) is signed (required for HIPAA compliance when notify_clients=true)",
+    )
 
     # Sync tracking
     last_sync_at: Mapped[datetime | None] = mapped_column(

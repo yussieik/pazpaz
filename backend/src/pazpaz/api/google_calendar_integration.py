@@ -96,6 +96,7 @@ async def get_integration_status(
             enabled=False,
             sync_client_names=False,
             notify_clients=False,
+            has_google_baa=False,
             last_sync_at=None,
         )
 
@@ -116,6 +117,7 @@ async def get_integration_status(
         enabled=token.enabled,
         sync_client_names=token.sync_client_names,
         notify_clients=token.notify_clients,
+        has_google_baa=token.has_google_baa,
         last_sync_at=None,  # Will be populated in Phase 2 (calendar sync)
     )
 
@@ -607,7 +609,23 @@ async def update_settings(
         token.sync_client_names = settings.sync_client_names
         updated_fields.append(f"sync_client_names={settings.sync_client_names}")
 
+    if settings.has_google_baa is not None:
+        token.has_google_baa = settings.has_google_baa
+        updated_fields.append(f"has_google_baa={settings.has_google_baa}")
+
     if settings.notify_clients is not None:
+        # SECURITY: Validate BAA requirement before enabling client notifications
+        if settings.notify_clients and not token.has_google_baa:
+            logger.warning(
+                "google_calendar_notify_clients_blocked_no_baa",
+                user_id=str(user_id),
+                workspace_id=str(workspace_id),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Google Workspace Business Associate Agreement (BAA) required to send notifications to clients. "
+                       "Please confirm you have signed a BAA with Google before enabling client notifications.",
+            )
         token.notify_clients = settings.notify_clients
         updated_fields.append(f"notify_clients={settings.notify_clients}")
 
@@ -627,6 +645,7 @@ async def update_settings(
         enabled=token.enabled,
         sync_client_names=token.sync_client_names,
         notify_clients=token.notify_clients,
+        has_google_baa=token.has_google_baa,
         last_sync_at=token.last_sync_at,
         last_sync_status=token.last_sync_status,
         last_sync_error=token.last_sync_error,

@@ -30,6 +30,7 @@ class AuditAction(str, enum.Enum):
     EXPORT = "EXPORT"
     PRINT = "PRINT"
     SHARE = "SHARE"
+    DISCLOSE = "DISCLOSE"  # PHI disclosure to third party (e.g., Google Calendar)
 
 
 class ResourceType(str, enum.Enum):
