@@ -723,11 +723,11 @@ jobs:
             echo "🔄 Recreating containers with fresh images..."
             docker compose --env-file .env.production -f docker-compose.prod.yml up -d --force-recreate --pull always api arq-worker
 
-            # Wait for containers to be healthy
-            echo "⏳ Waiting for containers to be healthy..."
-            sleep 20
+            # Wait for containers to start
+            echo "⏳ Waiting for containers to start..."
+            sleep 10
 
-            # Verify deployment
+            # Verify containers are running
             if docker ps | grep -q "Up.*pazpaz-api"; then
               echo "✅ API container is running"
             else
@@ -744,22 +744,60 @@ jobs:
               exit 1
             fi
 
-            # Reload nginx to refresh DNS cache for new container IPs
-            echo "🔄 Reloading nginx to refresh DNS cache..."
+            # Wait for API health check with retry logic
+            echo "🔍 Waiting for API to be healthy (with retry)..."
+            MAX_ATTEMPTS=15
+            ATTEMPT=1
+            while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+              if docker compose --env-file .env.production -f docker-compose.prod.yml exec -T api curl -f -s http://localhost:8000/health > /dev/null 2>&1; then
+                echo "✅ API is healthy (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+                break
+              fi
+
+              if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+                echo "❌ API failed to become healthy after $MAX_ATTEMPTS attempts"
+                docker compose --env-file .env.production -f docker-compose.prod.yml logs api --tail=30
+                exit 1
+              fi
+
+              echo "⏳ API not ready yet (attempt $ATTEMPT/$MAX_ATTEMPTS), waiting 2s..."
+              sleep 2
+              ATTEMPT=$((ATTEMPT + 1))
+            done
+
+            # Additional wait for Docker DNS propagation
+            echo "⏳ Waiting 3 seconds for Docker DNS propagation..."
+            sleep 3
+
+            # Reload nginx to pick up new container IPs
+            echo "🔄 Reloading nginx to pick up new container IPs..."
             if docker compose --env-file .env.production -f docker-compose.prod.yml exec -T nginx nginx -s reload; then
               echo "✅ Nginx reloaded successfully"
 
               # Verify nginx can reach API after reload
-              echo "🔍 Verifying nginx can reach API..."
+              echo "🔍 Verifying nginx → API connectivity..."
               sleep 3
 
-              # Test internal nginx → API connectivity
-              if docker compose --env-file .env.production -f docker-compose.prod.yml exec -T nginx wget -q -O /dev/null http://api:8000/api/v1/health; then
-                echo "✅ Nginx can successfully reach API container after reload"
-              else
-                echo "⚠️  Warning: Nginx cannot reach API container immediately after reload"
-                echo "This might resolve itself; external health check will verify"
-              fi
+              # Test internal nginx → API connectivity with retry
+              CONNECTIVITY_ATTEMPTS=5
+              CONNECTIVITY_ATTEMPT=1
+              while [ $CONNECTIVITY_ATTEMPT -le $CONNECTIVITY_ATTEMPTS ]; do
+                if docker compose --env-file .env.production -f docker-compose.prod.yml exec -T nginx wget -q -O /dev/null http://api:8000/api/v1/health; then
+                  echo "✅ Nginx can successfully reach API container (attempt $CONNECTIVITY_ATTEMPT/$CONNECTIVITY_ATTEMPTS)"
+                  break
+                fi
+
+                if [ $CONNECTIVITY_ATTEMPT -eq $CONNECTIVITY_ATTEMPTS ]; then
+                  echo "⚠️  Warning: Nginx cannot reach API after $CONNECTIVITY_ATTEMPTS attempts"
+                  echo "External health check will verify connectivity"
+                  # Don't fail here - external health check will catch real issues
+                  break
+                fi
+
+                echo "⏳ Nginx cannot reach API yet (attempt $CONNECTIVITY_ATTEMPT/$CONNECTIVITY_ATTEMPTS), waiting 2s..."
+                sleep 2
+                CONNECTIVITY_ATTEMPT=$((CONNECTIVITY_ATTEMPT + 1))
+              done
             else
               echo "❌ Failed to reload nginx"
               echo "Attempting to check nginx status..."
