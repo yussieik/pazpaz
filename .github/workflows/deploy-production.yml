@@ -410,7 +410,9 @@ jobs:
             TIMEOUT=60
             ELAPSED=0
             while [ $ELAPSED -lt $TIMEOUT ]; do
-              if docker compose --env-file .env.production -f docker-compose.prod.yml ps api --format json | jq -r '.Health' | grep -q "healthy"; then
+              # Check health without jq - parse docker ps output directly
+              HEALTH=$(docker inspect ***-api --format='{{.State.Health.Status}}' 2>/dev/null || echo "")
+              if [ "$HEALTH" = "healthy" ]; then
                 echo "✅ API container is healthy"
                 break
               fi
@@ -420,6 +422,7 @@ jobs:
 
             if [ $ELAPSED -ge $TIMEOUT ]; then
               echo "❌ API container failed to become healthy"
+              docker logs ***-api --tail 50
               exit 1
             fi
 
