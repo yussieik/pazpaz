@@ -46,8 +46,10 @@ def _patched_request(self, method, url, **kwargs):
 
     Automatically injects verify=certifi.where() for all HTTPS requests
     unless verify is explicitly provided by the caller.
+
+    Handles both missing 'verify' parameter and verify=None (OAuth2Session behavior).
     """
-    if "verify" not in kwargs and url.startswith("https://"):
+    if url.startswith("https://") and kwargs.get("verify") is None:
         kwargs["verify"] = certifi.where()
     return _original_request(self, method, url, **kwargs)
 
