@@ -309,9 +309,7 @@ def test_build_event_reminders_configuration():
     assert reminder_24h["method"] == "email"
 
     # Assert: 1-hour reminder (60 minutes)
-    reminder_1h = next(
-        r for r in event["reminders"]["overrides"] if r["minutes"] == 60
-    )
+    reminder_1h = next(r for r in event["reminders"]["overrides"] if r["minutes"] == 60)
     assert reminder_1h["method"] == "email"
 
 
