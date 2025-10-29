@@ -385,6 +385,27 @@ jobs:
             echo "✅ Logged in to GitHub Container Registry"
           ENDSSH
 
+      - name: Pull new Docker images
+        run: |
+          echo "Pulling new Docker images before migration..."
+
+          ssh production << 'ENDSSH'
+            set -e
+            cd ${{ env.DEPLOYMENT_DIR }}
+
+            # Set image tag
+            export IMAGE_TAG="${{ needs.validate.outputs.image_tag }}"
+
+            # Update docker-compose.prod.yml to use specified image tag
+            sed -i "s|image: ghcr.io/yussieik/pazpaz-backend:.*|image: ghcr.io/yussieik/pazpaz-backend:${IMAGE_TAG}|g" docker-compose.prod.yml
+            sed -i "s|image: ghcr.io/yussieik/pazpaz-frontend:.*|image: ghcr.io/yussieik/pazpaz-frontend:${IMAGE_TAG}|g" docker-compose.prod.yml
+
+            echo "Pulling backend and frontend images..."
+            docker compose --env-file .env.production -f docker-compose.prod.yml pull api frontend
+
+            echo "✅ Docker images pulled successfully"
+          ENDSSH
+
       - name: Run database migrations
         if: inputs.skip_migrations != true && inputs.dry_run != true
         run: |
@@ -421,16 +442,7 @@ jobs:
             set -e
             cd ${{ env.DEPLOYMENT_DIR }}
 
-            # Set image tag in environment
-            export IMAGE_TAG="${{ needs.validate.outputs.image_tag }}"
-
-            # Update docker-compose.prod.yml to use specified image tag
-            sed -i "s|image: ghcr.io/yussieik/pazpaz-backend:.*|image: ghcr.io/yussieik/pazpaz-backend:${IMAGE_TAG}|g" docker-compose.prod.yml
-            sed -i "s|image: ghcr.io/yussieik/pazpaz-frontend:.*|image: ghcr.io/yussieik/pazpaz-frontend:${IMAGE_TAG}|g" docker-compose.prod.yml
-
-            echo "Pulling latest images..."
-            docker compose --env-file .env.production -f docker-compose.prod.yml pull api frontend
-
+            # Note: Docker images already pulled in previous step
             echo "Deploying with Docker Compose..."
             if ${{ inputs.dry_run == true }}; then
               docker compose --env-file .env.production -f docker-compose.prod.yml config
