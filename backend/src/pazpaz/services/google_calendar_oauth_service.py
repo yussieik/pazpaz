@@ -5,11 +5,9 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-import certifi
 import google.auth.exceptions
 import google.auth.transport.requests
 import google.oauth2.credentials
-import requests
 from fastapi import HTTPException
 from google_auth_oauthlib.flow import Flow
 from sqlalchemy import select
@@ -24,43 +22,13 @@ logger = get_logger(__name__)
 # Google Calendar API scopes
 GOOGLE_CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
-
-# Configure requests library to use certifi for SSL verification
-# This monkey-patch ensures ALL requests.Session instances use certifi's CA bundle
-# for SSL/TLS certificate verification in Docker/production environments.
+# SSL Configuration:
+# SSL certificate verification is configured via environment variables in Dockerfile:
+# - REQUESTS_CA_BUNDLE: Points to certifi CA bundle for requests library
+# - SSL_CERT_FILE: Points to certifi CA bundle for other SSL libraries
 #
-# Why this is needed:
-# - In Docker containers, the requests library doesn't automatically find SSL certificates
-# - Setting session.verify doesn't work reliably in all environments
-# - certifi provides Mozilla's CA bundle that works across all platforms
-#
-# This is the recommended best practice for production Python applications:
+# This is the standard, recommended approach for Python applications in Docker:
 # https://requests.readthedocs.io/en/latest/user/advanced/#ssl-cert-verification
-# https://github.com/certifi/python-certifi
-_original_request = requests.Session.request
-
-
-def _patched_request(self, method, url, **kwargs):
-    """
-    Patched version of requests.Session.request that uses certifi by default.
-
-    Automatically injects verify=certifi.where() for all HTTPS requests
-    unless verify is explicitly provided by the caller.
-
-    Handles both missing 'verify' parameter and verify=None (OAuth2Session behavior).
-    """
-    if url.startswith("https://") and kwargs.get("verify") is None:
-        kwargs["verify"] = certifi.where()
-    return _original_request(self, method, url, **kwargs)
-
-
-requests.Session.request = _patched_request
-
-logger.info(
-    "ssl_certifi_configured",
-    message="Configured requests library to use certifi CA bundle for SSL verification",
-    certifi_path=certifi.where(),
-)
 
 
 def get_authorization_url(state: str, workspace_id: uuid.UUID) -> str:

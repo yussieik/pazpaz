@@ -84,9 +84,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     # UV cache directory (writable by pazpaz user)
     UV_CACHE_DIR=/app/.cache/uv \
-    # SSL: Use system CA certificates instead of certifi bundle
-    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
-    REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
+    # SSL: Use certifi CA bundle for reliable HTTPS in Docker
+    # This is the recommended approach for Python applications in containers
+    # https://requests.readthedocs.io/en/latest/user/advanced/#ssl-cert-verification
+    SSL_CERT_FILE=/app/.venv/lib/python3.13/site-packages/certifi/cacert.pem \
+    REQUESTS_CA_BUNDLE=/app/.venv/lib/python3.13/site-packages/certifi/cacert.pem \
     # Application settings
     APP_USER=pazpaz \
     APP_GROUP=pazpaz \
