@@ -58,7 +58,7 @@ const submitButtonText = computed(() =>
 
 // Check if email is provided for calendar consent
 const hasEmail = computed(() => {
-  return formData.value.email?.trim().length > 0
+  return (formData.value.email?.trim().length ?? 0) > 0
 })
 
 // Date formatting helper
