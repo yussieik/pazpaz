@@ -624,7 +624,7 @@ async def update_settings(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Google Workspace Business Associate Agreement (BAA) required to send notifications to clients. "
-                       "Please confirm you have signed a BAA with Google before enabling client notifications.",
+                "Please confirm you have signed a BAA with Google before enabling client notifications.",
             )
         token.notify_clients = settings.notify_clients
         updated_fields.append(f"notify_clients={settings.notify_clients}")
