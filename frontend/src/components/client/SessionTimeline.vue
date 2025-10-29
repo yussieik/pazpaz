@@ -56,7 +56,7 @@ interface AppointmentItem {
   scheduled_end: string
   location_type: 'clinic' | 'home' | 'online'
   notes: string | null
-  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
+  status: 'scheduled' | 'attended' | 'cancelled' | 'no_show'
   service_name?: string | null
 }
 
@@ -198,9 +198,9 @@ async function fetchSessions() {
 
 async function fetchAppointments() {
   try {
-    // Fetch completed appointments for this client
+    // Fetch attended appointments for this client
     const response = await apiClient.get(
-      `/appointments?client_id=${props.clientId}&status=completed`
+      `/appointments?client_id=${props.clientId}&status=attended`
     )
 
     // Filter out appointments that already have sessions

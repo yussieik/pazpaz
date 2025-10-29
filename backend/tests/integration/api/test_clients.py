@@ -696,7 +696,7 @@ class TestClientComputedFields:
                 "client_id": str(sample_client_ws1.id),
                 "scheduled_start": "2020-01-01T10:00:00Z",
                 "scheduled_end": "2020-01-01T11:00:00Z",
-                "status": "completed",
+                "status": "attended",
                 "location_type": "clinic",
             },
         )
@@ -726,9 +726,9 @@ class TestClientComputedFields:
         data = response.json()
         # Check that appointments were counted (at least the 2 we created)
         assert data["appointment_count"] >= 2
-        # We created a completed appointment, so last_appointment should be set
+        # We created an attended appointment, so last_appointment should be set
         # Note: It might be None if the appointments API doesn't accept
-        # "completed" status on creation
+        # "attended" status on creation
         # In that case, we just verify the field exists
         assert "last_appointment" in data
         assert "next_appointment" in data

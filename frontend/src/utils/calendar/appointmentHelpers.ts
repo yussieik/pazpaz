@@ -3,7 +3,7 @@
  */
 const STATUS_COLORS: Record<string, string> = {
   scheduled: '#10b981', // emerald-500
-  completed: '#3b82f6', // blue-500
+  attended: '#10b981', // emerald-500 (positive completion)
   cancelled: '#ef4444', // red-500
   no_show: '#f59e0b', // amber-500
 }
@@ -13,7 +13,7 @@ const STATUS_COLORS: Record<string, string> = {
  */
 const STATUS_BADGE_CLASSES: Record<string, string> = {
   scheduled: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-  completed: 'bg-blue-50 text-blue-700 ring-blue-600/20',
+  attended: 'bg-green-50 text-green-700 ring-green-600/20',
   cancelled: 'bg-red-50 text-red-700 ring-red-600/20',
   no_show: 'bg-amber-50 text-amber-700 ring-amber-600/20',
 }

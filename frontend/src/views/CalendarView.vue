@@ -408,7 +408,7 @@ useCalendarKeyboardShortcuts({
 
 /**
  * Quick complete action handler
- * Marks a past scheduled appointment as completed
+ * Marks a past scheduled appointment as attended
  */
 async function handleQuickComplete(appointmentId: string) {
   const appointment = appointmentsStore.appointments.find(
@@ -417,19 +417,19 @@ async function handleQuickComplete(appointmentId: string) {
   if (!appointment) return
 
   try {
-    await appointmentsStore.updateAppointmentStatus(appointmentId, 'completed')
+    await appointmentsStore.updateAppointmentStatus(appointmentId, 'attended')
 
     // Show success toast with client name
     const clientName = appointment.client?.first_name || 'Appointment'
-    showSuccess(`${clientName} completed`, {
-      toastId: `completion-${appointmentId}-${Date.now()}`,
+    showSuccess(`${clientName} attended`, {
+      toastId: `attendance-${appointmentId}-${Date.now()}`,
     })
 
     // Screen reader announcement
-    announce(`Appointment marked as completed`)
+    announce(`Appointment marked as attended`)
   } catch (error) {
-    console.error('Failed to mark appointment as completed:', error)
-    showError('Failed to mark appointment as completed')
+    console.error('Failed to mark appointment as attended:', error)
+    showError('Failed to mark appointment as attended')
   }
 }
 
@@ -570,8 +570,8 @@ const calendarOptions = computed(() => ({
       const completeBtn = document.createElement('button')
       completeBtn.className =
         'p-1 rounded bg-white/90 hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 shadow-sm'
-      completeBtn.title = 'Mark completed (C)'
-      completeBtn.setAttribute('aria-label', 'Mark appointment as completed')
+      completeBtn.title = 'Mark attended (C)'
+      completeBtn.setAttribute('aria-label', 'Mark appointment as attended')
       completeBtn.innerHTML = `
         <svg class="h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -635,7 +635,7 @@ const calendarOptions = computed(() => ({
       tooltipText += isDraft
         ? '\n📄 Session note: Draft'
         : '\n📄 Session note: Finalized'
-    } else if (event.extendedProps?.status === 'completed') {
+    } else if (event.extendedProps?.status === 'attended') {
       tooltipText += '\n📝 No session note yet'
     }
 
@@ -1069,15 +1069,20 @@ function calculateDuration(start: Date, end: Date): number {
  */
 async function startSessionNotes(appointment: AppointmentListItem) {
   try {
-    // If appointment is scheduled, mark as completed first
-    if (appointment.status === 'scheduled') {
-      await appointmentsStore.updateAppointmentStatus(appointment.id, 'completed')
+    // Only auto-complete if appointment has ENDED (not just in progress)
+    const now = new Date()
+    const appointmentEnd = new Date(appointment.scheduled_end)
+    const isAppointmentPast = appointmentEnd < now
+
+    if (appointment.status === 'scheduled' && isAppointmentPast) {
+      await appointmentsStore.updateAppointmentStatus(appointment.id, 'attended')
       // Show toast notification for auto-completion with client name and unique ID
       const clientName = appointment.client?.first_name || 'Appointment'
-      showSuccess(`${clientName} completed`, {
-        toastId: `completion-${appointment.id}-${Date.now()}`,
+      showSuccess(`${clientName} attended`, {
+        toastId: `attendance-${appointment.id}-${Date.now()}`,
       })
     }
+    // For in-progress appointments: status stays "scheduled", no toast notification
 
     // Calculate duration from appointment times
     const durationMinutes = calculateDuration(
@@ -1291,7 +1296,7 @@ async function handleUndoCancel() {
 
   try {
     await appointmentsStore.updateAppointment(appointmentId, {
-      status: originalStatus as 'scheduled' | 'completed' | 'cancelled' | 'no_show',
+      status: originalStatus as 'scheduled' | 'attended' | 'cancelled' | 'no_show',
       notes: originalNotes,
     })
 

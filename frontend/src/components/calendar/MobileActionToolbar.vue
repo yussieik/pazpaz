@@ -121,7 +121,7 @@ function handleDelete() {
           type="button"
           class="flex h-12 w-[120px] items-center justify-center gap-2 rounded-lg bg-emerald-500 text-base font-semibold text-white shadow-sm transition-colors hover:bg-emerald-600 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none active:bg-emerald-700"
           @click="handleComplete"
-          aria-label="Mark appointment as completed"
+          aria-label="Mark appointment as attended"
         >
           <!-- Checkmark Icon -->
           <svg

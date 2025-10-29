@@ -30,7 +30,7 @@ vi.mock('@vueuse/core', () => ({
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   useDebounceFn: (fn: Function) => {
     // Return a mock debounced function that executes immediately for testing
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const mockFn = vi.fn(async (...args: any[]) => {
       return fn(...args)
     })

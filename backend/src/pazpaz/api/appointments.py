@@ -67,7 +67,7 @@ async def check_conflicts(
     - Exclude back-to-back: NOT (scheduled_end == requested_start OR
         scheduled_start == requested_end)
 
-    Only SCHEDULED and COMPLETED appointments cause conflicts.
+    Only SCHEDULED and ATTENDED appointments cause conflicts.
     CANCELLED and NO_SHOW appointments are ignored.
 
     Args:
@@ -86,9 +86,9 @@ async def check_conflicts(
         Appointment.workspace_id == workspace_id,
         Appointment.scheduled_start < scheduled_end,
         Appointment.scheduled_end > scheduled_start,
-        # Only SCHEDULED and COMPLETED appointments cause conflicts
+        # Only SCHEDULED and ATTENDED appointments cause conflicts
         Appointment.status.in_(
-            [AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED]
+            [AppointmentStatus.SCHEDULED, AppointmentStatus.ATTENDED]
         ),
     )
 
@@ -150,18 +150,18 @@ async def validate_status_transition(
     Validate appointment status transitions according to business rules.
 
     Valid transitions:
-    - scheduled → completed (always allowed)
+    - scheduled → attended (always allowed)
     - scheduled → cancelled (always allowed)
     - scheduled → no_show (always allowed)
-    - completed → no_show (allowed - correction)
-    - completed → cancelled (blocked if session exists - data protection)
+    - attended → no_show (allowed - correction)
+    - attended → cancelled (blocked if session exists - data protection)
     - cancelled → scheduled (allowed - restore)
     - no_show → scheduled (allowed - correction)
-    - no_show → completed (allowed - correction)
+    - no_show → attended (allowed - correction)
 
     Invalid transitions:
-    - completed → scheduled (data integrity)
-    - completed → cancelled (if session exists - data protection)
+    - attended → scheduled (data integrity)
+    - attended → cancelled (if session exists - data protection)
 
     Args:
         db: Database session
@@ -181,13 +181,13 @@ async def validate_status_transition(
     if current_status == AppointmentStatus.SCHEDULED:
         return
 
-    # Transitions from COMPLETED
-    if current_status == AppointmentStatus.COMPLETED:
-        # completed → no_show: allowed (correction)
+    # Transitions from ATTENDED
+    if current_status == AppointmentStatus.ATTENDED:
+        # attended → no_show: allowed (correction)
         if new_status == AppointmentStatus.NO_SHOW:
             return
 
-        # completed → cancelled: check for session
+        # attended → cancelled: check for session
         if new_status == AppointmentStatus.CANCELLED:
             # Check if session exists using centralized helper
             sessions = await get_active_sessions_for_appointment(db, appointment.id)
@@ -203,14 +203,14 @@ async def validate_status_transition(
                 raise HTTPException(
                     status_code=400,
                     detail=(
-                        "Cannot cancel completed appointment with existing "
+                        "Cannot cancel attended appointment with existing "
                         "session note. Delete the session note first to "
                         "maintain data integrity."
                     ),
                 )
             return
 
-        # completed → scheduled: not allowed
+        # attended → scheduled: not allowed
         if new_status == AppointmentStatus.SCHEDULED:
             logger.warning(
                 "status_transition_blocked",
@@ -222,7 +222,7 @@ async def validate_status_transition(
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "Cannot change completed appointment back to scheduled. "
+                    "Cannot change attended appointment back to scheduled. "
                     "This prevents data integrity issues."
                 ),
             )

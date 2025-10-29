@@ -42,7 +42,7 @@ vi.mock('@/router', () => ({
 }))
 
 describe('401 Unauthorized Handling', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   let apiClient: any
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>

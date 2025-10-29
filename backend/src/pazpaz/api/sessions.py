@@ -127,7 +127,7 @@ async def create_session(
 
     db.add(session)
 
-    # If appointment_id provided and appointment is scheduled, auto-complete it
+    # If appointment_id provided and appointment is scheduled, auto-mark as attended
     if session_data.appointment_id:
         query = select(Appointment).where(
             Appointment.id == session_data.appointment_id,
@@ -137,9 +137,9 @@ async def create_session(
         appointment = result.scalar_one_or_none()
 
         if appointment and appointment.status == AppointmentStatus.SCHEDULED:
-            appointment.status = AppointmentStatus.COMPLETED
+            appointment.status = AppointmentStatus.ATTENDED
             logger.info(
-                "appointment_auto_completed",
+                "appointment_auto_attended",
                 appointment_id=str(appointment.id),
                 session_id=str(session.id),
                 workspace_id=str(workspace_id),

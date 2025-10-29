@@ -475,7 +475,7 @@ export interface components {
      * @description Status of an appointment.
      * @enum {string}
      */
-    AppointmentStatus: 'scheduled' | 'completed' | 'cancelled' | 'no_show'
+    AppointmentStatus: 'scheduled' | 'attended' | 'cancelled' | 'no_show'
     /**
      * AppointmentUpdate
      * @description Schema for updating an existing appointment.

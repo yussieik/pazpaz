@@ -31,6 +31,19 @@ const isPastAppointment = computed(() => {
 })
 
 /**
+ * Check if appointment is currently in progress
+ * Only scheduled appointments within the time window are considered "in progress"
+ */
+const isInProgressAppointment = computed(() => {
+  if (!props.appointment) return false
+  if (props.appointment.status !== 'scheduled') return false
+  const now = new Date()
+  const start = new Date(props.appointment.scheduled_start)
+  const end = new Date(props.appointment.scheduled_end)
+  return now >= start && now <= end
+})
+
+/**
  * Check if status can be changed (only scheduled appointments)
  */
 const canChangeStatus = computed(() => {
@@ -51,15 +64,15 @@ const timeSinceEnd = computed(() => {
  * Primary action: Complete appointment and navigate to session creation
  */
 function completeAndDocument() {
-  emit('update-status', 'completed')
+  emit('update-status', 'attended')
   emit('complete-and-document')
 }
 
 /**
- * Secondary action: Mark as completed without creating session
+ * Secondary action: Mark as attended without creating session
  */
-function markAsCompleted() {
-  emit('update-status', 'completed')
+function markAsAttended() {
+  emit('update-status', 'attended')
 }
 
 /**
@@ -82,7 +95,7 @@ onKeyStroke(['Meta+Enter', 'Control+Enter'], (e) => {
 onKeyStroke(['Meta+Shift+c', 'Control+Shift+c'], (e) => {
   if (canChangeStatus.value && isPastAppointment.value) {
     e.preventDefault()
-    markAsCompleted()
+    markAsAttended()
   }
 })
 
@@ -100,8 +113,35 @@ onKeyStroke(['Meta+Shift+n', 'Control+Shift+n'], (e) => {
     v-if="appointment && canChangeStatus"
     class="rounded-lg border border-slate-200 bg-white p-4"
   >
-    <!-- Smart prompt for past appointments -->
-    <div v-if="isPastAppointment" class="mb-4">
+    <!-- IN PROGRESS: Show document action -->
+    <div v-if="isInProgressAppointment" class="mb-4">
+      <div class="flex items-start gap-3">
+        <svg
+          class="h-5 w-5 shrink-0 text-emerald-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <div class="flex-1">
+          <p class="text-sm font-medium text-slate-900">
+            Session in progress
+          </p>
+          <p class="mt-0.5 text-xs text-slate-600">
+            Document observations and findings in real-time
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAST: Keep existing prompt -->
+    <div v-else-if="isPastAppointment" class="mb-4">
       <div class="flex items-start gap-3">
         <IconClock size="md" class="shrink-0 text-blue-600" />
         <div class="flex-1">
@@ -113,32 +153,34 @@ onKeyStroke(['Meta+Shift+n', 'Control+Shift+n'], (e) => {
       </div>
     </div>
 
-    <!-- Future appointment message -->
+    <!-- FUTURE: Keep existing message -->
     <div v-else class="mb-4">
       <p class="text-sm text-slate-600">Update appointment status when completed</p>
     </div>
 
     <!-- Action Buttons -->
     <div class="space-y-2">
-      <!-- Primary: Complete & Add Session Note -->
+      <!-- Primary: Document Session (In Progress OR Past) -->
       <button
-        v-if="isPastAppointment"
+        v-if="isInProgressAppointment || isPastAppointment"
         @click="completeAndDocument"
         class="flex w-full items-center justify-between rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
       >
-        <span>Complete & Add Session Note</span>
+        <span>
+          {{ isInProgressAppointment ? 'Document Session' : 'Complete & Add Session Note' }}
+        </span>
         <span class="ml-2 rounded bg-emerald-700/50 px-2 py-0.5 text-xs font-medium">
           ⌘↵
         </span>
       </button>
 
-      <!-- Secondary: Mark as Completed (ONLY for past appointments) -->
+      <!-- Secondary: Mark as Attended (ONLY past, not in progress) -->
       <button
-        v-if="isPastAppointment"
-        @click="markAsCompleted"
+        v-if="isPastAppointment && !isInProgressAppointment"
+        @click="markAsAttended"
         class="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
       >
-        <span>Mark as Completed</span>
+        <span>Mark as Attended</span>
         <span
           class="ml-2 rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
         >
@@ -146,9 +188,9 @@ onKeyStroke(['Meta+Shift+n', 'Control+Shift+n'], (e) => {
         </span>
       </button>
 
-      <!-- Tertiary: Mark as No-Show (ONLY for past appointments) -->
+      <!-- Tertiary: Mark as No-Show (ONLY past, not in progress) -->
       <button
-        v-if="isPastAppointment"
+        v-if="isPastAppointment && !isInProgressAppointment"
         @click="markAsNoShow"
         class="flex w-full items-center justify-between rounded-lg border border-amber-300 bg-white px-4 py-2.5 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
       >

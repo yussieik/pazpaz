@@ -173,10 +173,10 @@ async def create_test_appointments(
         location_types = [LocationType.CLINIC, LocationType.HOME, LocationType.ONLINE]
         location_type = location_types[i % len(location_types)]
 
-        # Vary statuses (mostly scheduled, some completed/cancelled)
+        # Vary statuses (mostly scheduled, some attended/cancelled)
         statuses = (
             [AppointmentStatus.SCHEDULED] * 7
-            + [AppointmentStatus.COMPLETED] * 2
+            + [AppointmentStatus.ATTENDED] * 2
             + [AppointmentStatus.CANCELLED]
         )
         status = statuses[i % len(statuses)]

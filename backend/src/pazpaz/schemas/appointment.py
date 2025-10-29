@@ -77,10 +77,10 @@ class AppointmentUpdate(BaseModel):
         None,
         description=(
             "Appointment status. Valid transitions: "
-            "scheduled→completed, scheduled→cancelled, scheduled→no_show, "
-            "completed→no_show, cancelled→scheduled, no_show→scheduled, "
-            "no_show→completed. Cannot cancel completed appointments with "
-            "session notes (delete session first). Cannot revert completed "
+            "scheduled→attended, scheduled→cancelled, scheduled→no_show, "
+            "attended→no_show, cancelled→scheduled, no_show→scheduled, "
+            "no_show→attended. Cannot cancel attended appointments with "
+            "session notes (delete session first). Cannot revert attended "
             "appointments to scheduled."
         ),
     )

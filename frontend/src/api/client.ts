@@ -258,7 +258,7 @@ export interface ConflictingAppointment {
   scheduled_end: string
   client_initials: string
   location_type: 'clinic' | 'home' | 'online'
-  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
+  status: 'scheduled' | 'attended' | 'cancelled' | 'no_show'
 }
 
 export interface ConflictCheckResponse {

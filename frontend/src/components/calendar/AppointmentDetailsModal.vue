@@ -289,13 +289,25 @@ const isFutureAppointment = computed(() => {
 })
 
 /**
+ * Check if appointment is currently in progress
+ * Only scheduled appointments within the time window are considered "in progress"
+ */
+const isInProgressAppointment = computed(() => {
+  if (!props.appointment) return false
+  if (props.appointment.status !== 'scheduled') return false
+  const now = new Date()
+  const start = new Date(props.appointment.scheduled_start)
+  const end = new Date(props.appointment.scheduled_end)
+  return now >= start && now <= end
+})
+
+/**
  * Get user-friendly message for status change with client name
  */
 function getStatusChangeMessage(status: AppointmentStatus, clientName: string): string {
   const messages: Record<AppointmentStatus, string> = {
     scheduled: `${clientName} restored to scheduled`,
-    confirmed: `${clientName} confirmed`,
-    completed: `${clientName} completed`,
+    attended: `${clientName} attended`,
     cancelled: `${clientName} cancelled`,
     no_show: `${clientName} marked as no-show`,
   }
@@ -358,7 +370,7 @@ async function handleStatusUpdate(newStatus: string) {
 function handleCompleteAndDocument() {
   if (!props.appointment) return
   // First update status, then start session notes
-  emit('updateStatus', props.appointment.id, 'completed')
+  emit('updateStatus', props.appointment.id, 'attended')
   // Emit startSessionNotes to navigate to session creation
   emit('startSessionNotes', props.appointment)
 }
@@ -630,9 +642,21 @@ watch(
                   {{ appointment.status.replace('_', ' ') }}
                 </span>
 
-                <!-- WARNING BADGE: Only for past scheduled appointments -->
+                <!-- IN PROGRESS BADGE: For appointments currently happening -->
                 <span
-                  v-if="appointment.status === 'scheduled' && isPastAppointment"
+                  v-if="isInProgressAppointment"
+                  class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-600/20 ring-inset"
+                  role="status"
+                  aria-live="polite"
+                  aria-label="Appointment is currently in progress"
+                >
+                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
+                  In Progress
+                </span>
+
+                <!-- WARNING BADGE: Only for past scheduled appointments (not in progress) -->
+                <span
+                  v-if="appointment.status === 'scheduled' && isPastAppointment && !isInProgressAppointment"
                   class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900 ring-1 ring-amber-600/20 ring-inset"
                 >
                   <!-- Clock Icon -->
@@ -882,8 +906,9 @@ watch(
             </div>
 
             <!-- Appointment Status Management Card -->
+            <!-- Hidden during in-progress appointments to avoid duplicate messaging -->
             <AppointmentStatusCard
-              v-if="appointment"
+              v-if="appointment && !isInProgressAppointment"
               :appointment="appointment"
               :session-status="sessionStatus"
               @update-status="handleStatusUpdate"
@@ -923,9 +948,47 @@ watch(
 
               <!-- No Session Note - Context-Aware Messaging -->
               <div v-else-if="!sessionStatus?.hasSession">
-                <!-- Completed - Encourage documentation -->
+                <!-- In Progress: Allow session note creation -->
+                <div v-if="isInProgressAppointment" class="space-y-3">
+                  <div class="flex items-start gap-3">
+                    <svg
+                      class="h-5 w-5 shrink-0 text-emerald-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <div class="flex-1">
+                      <p class="text-sm font-medium text-slate-900">
+                        Session in progress
+                      </p>
+                      <p class="mt-1 text-xs text-slate-600">
+                        You can document SOAP notes in real-time
+                      </p>
+                      <button
+                        @click="emit('startSessionNotes', appointment)"
+                        class="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                        aria-label="Document session notes in real-time while appointment is in progress"
+                      >
+                        Document Session
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Attended - Encourage documentation -->
                 <div
-                  v-if="appointment.status === 'completed'"
+                  v-else-if="appointment.status === 'attended'"
                   class="flex items-start gap-3"
                 >
                   <IconWarning size="md" class="shrink-0 text-amber-600" />
@@ -947,7 +1010,7 @@ watch(
 
                 <!-- Scheduled - Future -->
                 <div v-else-if="isFutureAppointment" class="text-sm text-slate-600">
-                  <p>Session notes can be created after the appointment</p>
+                  <p>Session notes will be available when the appointment starts</p>
                 </div>
 
                 <!-- Scheduled - Past (prompt to complete) -->
@@ -973,7 +1036,7 @@ watch(
                       This appointment has ended
                     </p>
                     <p class="mt-0.5 text-xs text-slate-600">
-                      Mark it as completed to create session notes
+                      Mark it as attended to create session notes
                     </p>
                   </div>
                 </div>
@@ -1035,9 +1098,9 @@ watch(
                   }}
                 </button>
 
-                <!-- Start Session Notes button (only if no session and completed) -->
+                <!-- Start Session Notes button (only if no session and attended) -->
                 <button
-                  v-else-if="appointment.status === 'completed'"
+                  v-else-if="appointment.status === 'attended'"
                   @click="emit('startSessionNotes', appointment)"
                   class="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:w-auto"
                 >
@@ -1068,7 +1131,7 @@ watch(
                   <span>Delete</span>
                 </button>
 
-                <!-- Cancel button (only for scheduled/no_show, not completed or cancelled) -->
+                <!-- Cancel button (only for scheduled/no_show, not attended or cancelled) -->
                 <button
                   v-if="['scheduled', 'no_show'].includes(appointment.status)"
                   @click="emit('cancel', appointment)"

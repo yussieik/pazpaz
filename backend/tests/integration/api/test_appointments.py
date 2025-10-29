@@ -1059,7 +1059,7 @@ class TestConflictCheck:
         assert "last_name" not in conflict
         assert "full_name" not in conflict
 
-    async def test_conflict_check_ignores_completed_appointments(
+    async def test_conflict_check_ignores_attended_appointments(
         self,
         client: AsyncClient,
         workspace_1: Workspace,
@@ -1067,7 +1067,7 @@ class TestConflictCheck:
         test_user_ws1: User,
         redis_client,
     ):
-        """Completed appointments still cause conflicts if times overlap."""
+        """Attended appointments still cause conflicts if times overlap."""
         csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
@@ -1077,7 +1077,7 @@ class TestConflictCheck:
             hour=10, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
 
-        # Create and complete an appointment
+        # Create and mark as attended
         create_response = await client.post(
             "/api/v1/appointments",
             headers=headers,
@@ -1090,11 +1090,11 @@ class TestConflictCheck:
         )
         appointment_id = create_response.json()["id"]
 
-        # Mark as completed
+        # Mark as attended
         await client.put(
             f"/api/v1/appointments/{appointment_id}",
             headers=headers,
-            json={"status": "completed"},
+            json={"status": "attended"},
         )
 
         # Check overlapping time
@@ -1118,7 +1118,7 @@ class TestConflictCheck:
 class TestAppointmentStatusTransitions:
     """Test appointment status transition validation."""
 
-    async def test_scheduled_to_completed_success(
+    async def test_scheduled_to_attended_success(
         self,
         client: AsyncClient,
         workspace_1: Workspace,
@@ -1126,7 +1126,7 @@ class TestAppointmentStatusTransitions:
         test_user_ws1: User,
         redis_client,
     ):
-        """Scheduled appointment can be marked as completed."""
+        """Scheduled appointment can be marked as attended."""
         csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
@@ -1136,11 +1136,11 @@ class TestAppointmentStatusTransitions:
         response = await client.put(
             f"/api/v1/appointments/{sample_appointment_ws1.id}",
             headers=headers,
-            json={"status": "completed"},
+            json={"status": "attended"},
         )
 
         assert response.status_code == 200
-        assert response.json()["status"] == "completed"
+        assert response.json()["status"] == "attended"
 
     async def test_scheduled_to_cancelled_success(
         self,
@@ -1190,7 +1190,7 @@ class TestAppointmentStatusTransitions:
         assert response.status_code == 200
         assert response.json()["status"] == "no_show"
 
-    async def test_completed_to_no_show_success(
+    async def test_attended_to_no_show_success(
         self,
         client: AsyncClient,
         workspace_1: Workspace,
@@ -1198,7 +1198,7 @@ class TestAppointmentStatusTransitions:
         test_user_ws1: User,
         redis_client,
     ):
-        """Completed appointment can be corrected to no-show."""
+        """Attended appointment can be corrected to no-show."""
         csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
@@ -1208,7 +1208,7 @@ class TestAppointmentStatusTransitions:
             hour=10, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
 
-        # Create and complete appointment
+        # Create and mark as attended
         create_response = await client.post(
             "/api/v1/appointments",
             headers=headers,
@@ -1224,7 +1224,7 @@ class TestAppointmentStatusTransitions:
         await client.put(
             f"/api/v1/appointments/{appointment_id}",
             headers=headers,
-            json={"status": "completed"},
+            json={"status": "attended"},
         )
 
         # Correct to no_show
@@ -1237,7 +1237,7 @@ class TestAppointmentStatusTransitions:
         assert response.status_code == 200
         assert response.json()["status"] == "no_show"
 
-    async def test_completed_to_cancelled_without_session_success(
+    async def test_attended_to_cancelled_without_session_success(
         self,
         client: AsyncClient,
         workspace_1: Workspace,
@@ -1245,7 +1245,7 @@ class TestAppointmentStatusTransitions:
         test_user_ws1: User,
         redis_client,
     ):
-        """Completed appointment without session can be cancelled."""
+        """Attended appointment without session can be cancelled."""
         csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
@@ -1255,7 +1255,7 @@ class TestAppointmentStatusTransitions:
             hour=10, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
 
-        # Create and complete appointment
+        # Create and mark as attended
         create_response = await client.post(
             "/api/v1/appointments",
             headers=headers,
@@ -1271,7 +1271,7 @@ class TestAppointmentStatusTransitions:
         await client.put(
             f"/api/v1/appointments/{appointment_id}",
             headers=headers,
-            json={"status": "completed"},
+            json={"status": "attended"},
         )
 
         # Cancel it (no session exists)
@@ -1284,7 +1284,7 @@ class TestAppointmentStatusTransitions:
         assert response.status_code == 200
         assert response.json()["status"] == "cancelled"
 
-    async def test_completed_to_cancelled_with_session_blocked(
+    async def test_attended_to_cancelled_with_session_blocked(
         self,
         client: AsyncClient,
         workspace_1: Workspace,
@@ -1292,7 +1292,7 @@ class TestAppointmentStatusTransitions:
         test_user_ws1: User,
         redis_client,
     ):
-        """Completed appointment with session cannot be cancelled."""
+        """Attended appointment with session cannot be cancelled."""
         csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
@@ -1315,7 +1315,7 @@ class TestAppointmentStatusTransitions:
         )
         appointment_id = create_response.json()["id"]
 
-        # Create a session for this appointment (will auto-complete it)
+        # Create a session for this appointment (will auto-mark as attended)
         await client.post(
             "/api/v1/sessions",
             headers=headers,
@@ -1340,7 +1340,7 @@ class TestAppointmentStatusTransitions:
         assert response.status_code == 400
         assert "session note" in response.json()["detail"].lower()
 
-    async def test_completed_to_scheduled_blocked(
+    async def test_attended_to_scheduled_blocked(
         self,
         client: AsyncClient,
         workspace_1: Workspace,
@@ -1348,7 +1348,7 @@ class TestAppointmentStatusTransitions:
         test_user_ws1: User,
         redis_client,
     ):
-        """Completed appointment cannot be changed back to scheduled."""
+        """Attended appointment cannot be changed back to scheduled."""
         csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
@@ -1358,7 +1358,7 @@ class TestAppointmentStatusTransitions:
             hour=10, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
 
-        # Create and complete appointment
+        # Create and mark as attended
         create_response = await client.post(
             "/api/v1/appointments",
             headers=headers,
@@ -1374,7 +1374,7 @@ class TestAppointmentStatusTransitions:
         await client.put(
             f"/api/v1/appointments/{appointment_id}",
             headers=headers,
-            json={"status": "completed"},
+            json={"status": "attended"},
         )
 
         # Try to change back to scheduled
@@ -1458,7 +1458,7 @@ class TestAppointmentStatusTransitions:
         assert response.status_code == 200
         assert response.json()["status"] == "scheduled"
 
-    async def test_no_show_to_completed_success(
+    async def test_no_show_to_attended_success(
         self,
         client: AsyncClient,
         workspace_1: Workspace,
@@ -1466,7 +1466,7 @@ class TestAppointmentStatusTransitions:
         test_user_ws1: User,
         redis_client,
     ):
-        """No-show appointment can be corrected to completed."""
+        """No-show appointment can be corrected to attended."""
         csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
@@ -1495,17 +1495,17 @@ class TestAppointmentStatusTransitions:
             json={"status": "no_show"},
         )
 
-        # Correct to completed
+        # Correct to attended
         response = await client.put(
             f"/api/v1/appointments/{appointment_id}",
             headers=headers,
-            json={"status": "completed"},
+            json={"status": "attended"},
         )
 
         assert response.status_code == 200
-        assert response.json()["status"] == "completed"
+        assert response.json()["status"] == "attended"
 
-    async def test_session_creation_auto_completes_appointment(
+    async def test_session_creation_auto_marks_appointment_attended(
         self,
         client: AsyncClient,
         workspace_1: Workspace,
@@ -1513,7 +1513,7 @@ class TestAppointmentStatusTransitions:
         test_user_ws1: User,
         redis_client,
     ):
-        """Creating a session for scheduled appointment auto-completes it."""
+        """Creating a session for scheduled appointment auto-marks it as attended."""
         csrf_token = await add_csrf_to_client(
             client, workspace_1.id, test_user_ws1.id, redis_client
         )
@@ -1558,12 +1558,12 @@ class TestAppointmentStatusTransitions:
             },
         )
 
-        # Verify appointment is now completed
+        # Verify appointment is now attended
         get_response = await client.get(
             f"/api/v1/appointments/{appointment_id}",
             headers=headers,
         )
-        assert get_response.json()["status"] == "completed"
+        assert get_response.json()["status"] == "attended"
 
 
 class TestDeleteAppointmentMultipleSessions:

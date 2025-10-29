@@ -32,7 +32,7 @@ class AppointmentStatus(str, enum.Enum):
     """Status of an appointment."""
 
     SCHEDULED = "scheduled"
-    COMPLETED = "completed"
+    ATTENDED = "attended"
     CANCELLED = "cancelled"
     NO_SHOW = "no_show"
 

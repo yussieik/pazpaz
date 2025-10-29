@@ -348,15 +348,15 @@ function applySuggestion(suggestion: string) {
             </div>
           </div>
 
-          <!-- Warning if completed -->
+          <!-- Warning if attended -->
           <div
-            v-if="appointment.status === 'completed' && !loadingSession"
+            v-if="appointment.status === 'attended' && !loadingSession"
             class="mt-4 flex gap-3 rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4"
           >
             <IconWarning size="md" class="flex-shrink-0 text-amber-600" />
             <div>
               <p class="text-sm font-medium text-amber-800">
-                This appointment is marked as completed.
+                This appointment is marked as attended.
               </p>
               <p class="mt-1 text-sm text-amber-700">
                 This action is logged in your audit history for your protection.

@@ -155,11 +155,10 @@ export function useCalendarEvents() {
     const isPast = new Date(appointment.scheduled_end) < now
 
     const colors: Record<string, string> = {
-      completed: '#059669',
+      attended: '#059669',
       cancelled: '#94a3b8',
       no_show: '#f97316',
       scheduled: isPast ? '#f59e0b' : '#10b981',
-      confirmed: isPast ? '#f59e0b' : '#10b981',
     }
 
     return colors[appointment.status] ?? colors.scheduled ?? '#10b981'
@@ -171,7 +170,7 @@ export function useCalendarEvents() {
    */
   function getEventTitle(appointment: AppointmentListItem): string {
     const statusEmoji: Record<string, string> = {
-      completed: '✓',
+      attended: '✓',
       cancelled: '✕',
       no_show: '⚠',
     }
@@ -213,7 +212,7 @@ export function useCalendarEvents() {
    * Includes session status indicators (P0 feature)
    *
    * Calendar Event Accessibility Patterns:
-   * - Completed: Solid emerald fill
+   * - Attended: Solid emerald fill
    * - Cancelled: Gray with diagonal stripes (event-cancelled class)
    * - No-show: Orange with dashed border (event-no-show class)
    * - Past scheduled: Amber with pulsing glow (event-past-scheduled class)

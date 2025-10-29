@@ -67,13 +67,13 @@ async def enrich_client_response(
     next_result = await db.execute(next_apt_query)
     next_appointment = next_result.scalar_one_or_none()
 
-    # Query 2: Get last completed appointment
+    # Query 2: Get last attended appointment
     last_apt_query = (
         select(Appointment.scheduled_start)
         .where(
             Appointment.workspace_id == client.workspace_id,
             Appointment.client_id == client.id,
-            Appointment.status == AppointmentStatus.COMPLETED,
+            Appointment.status == AppointmentStatus.ATTENDED,
         )
         .order_by(Appointment.scheduled_start.desc())
         .limit(1)
