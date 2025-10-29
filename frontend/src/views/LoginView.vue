@@ -3,9 +3,14 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import apiClient from '@/api/client'
 import { useToast } from '@/composables/useToast'
+import { useCrossTabAuth } from '@/composables/useCrossTabAuth'
 
 const route = useRoute()
 const toast = useToast()
+
+// Enable cross-tab communication
+// This will listen for AUTH_SUCCESS from other tabs and auto-close this login tab
+useCrossTabAuth()
 
 const email = ref('')
 const isLoading = ref(false)
@@ -99,6 +104,9 @@ watch(success, (newValue) => {
 })
 
 onMounted(() => {
+  // Set window name so magic link can target this tab
+  window.name = 'pazpaz_login'
+
   // Focus email input on mount for keyboard-first UX
   emailInputRef.value?.focus()
 
@@ -436,7 +444,7 @@ function handleSubmit() {
                   Email changed. We'll send a new link to
                 </template>
                 <template v-else> We've sent a magic link to </template>
-                <strong>{{ email }}</strong>
+                <strong>{{ email }}</strong>. Click the link to sign in
                 <button
                   @click="editEmail"
                   type="button"

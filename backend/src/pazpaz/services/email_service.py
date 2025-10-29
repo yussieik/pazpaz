@@ -35,7 +35,7 @@ async def send_magic_link_email(email: str, token: str) -> None:
     message["To"] = email
     message["Subject"] = "Your PazPaz Login Link"
 
-    # Email body (plain text)
+    # Email body (plain text fallback)
     message.set_content(f"""
 Hello,
 
@@ -50,6 +50,43 @@ If you didn't request this, you can safely ignore this email.
 ---
 PazPaz - Practice Management for Independent Therapists
 """)
+
+    # Email body (HTML with target attribute to reuse existing tab)
+    message.add_alternative(f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #f9fafb; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
+        <h2 style="color: #059669; margin-top: 0;">Your PazPaz Login Link</h2>
+        <p style="font-size: 16px; margin-bottom: 30px;">Hello,</p>
+        <p style="font-size: 16px; margin-bottom: 30px;">Click the button below to log in to PazPaz:</p>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{magic_link}"
+               target="pazpaz_login"
+               style="display: inline-block; background-color: #059669; color: white; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 16px;">
+                Sign In to PazPaz
+            </a>
+        </div>
+
+        <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+            This link will expire in <strong>10 minutes</strong>.
+        </p>
+        <p style="font-size: 14px; color: #6b7280;">
+            If you didn't request this, you can safely ignore this email.
+        </p>
+    </div>
+
+    <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px;">
+        <p>PazPaz - Practice Management for Independent Therapists</p>
+    </div>
+</body>
+</html>
+""", subtype='html')
 
     # Send via SMTP
     try:
