@@ -21,7 +21,6 @@ from pazpaz.services.google_calendar_sync_service import (
     update_calendar_event,
 )
 
-
 # ============================================================================
 # End-to-End Sync Tests with Client Notifications
 # ============================================================================

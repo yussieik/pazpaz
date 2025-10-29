@@ -6,8 +6,7 @@ specifically covering the client notification feature (Phase 6).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock
+from datetime import UTC, datetime
 
 import pytest
 
@@ -20,7 +19,6 @@ from pazpaz.services.google_calendar_sync_service import (
     _build_google_calendar_event,
     _is_valid_email,
 )
-
 
 # ============================================================================
 # Email Validation Tests

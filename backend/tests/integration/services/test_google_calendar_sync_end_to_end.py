@@ -7,7 +7,7 @@ specifically testing the notify_clients feature and sendUpdates parameter.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +20,6 @@ from pazpaz.services.google_calendar_sync_service import (
     create_calendar_event,
     update_calendar_event,
 )
-
 
 # ============================================================================
 # End-to-End Tests - Create Event with Notifications
