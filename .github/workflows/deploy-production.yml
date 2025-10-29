@@ -385,9 +385,9 @@ jobs:
             echo "✅ Logged in to GitHub Container Registry"
           ENDSSH
 
-      - name: Pull new Docker images
+      - name: Pull and restart API container with new image
         run: |
-          echo "Pulling new Docker images before migration..."
+          echo "Pulling new Docker images and restarting API container..."
 
           ssh production << 'ENDSSH'
             set -e
@@ -403,7 +403,27 @@ jobs:
             echo "Pulling backend and frontend images..."
             docker compose --env-file .env.production -f docker-compose.prod.yml pull api frontend
 
-            echo "✅ Docker images pulled successfully"
+            echo "Restarting API container with new image (migrations will run inside new container)..."
+            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-deps api
+
+            echo "Waiting for API container to be healthy..."
+            TIMEOUT=60
+            ELAPSED=0
+            while [ $ELAPSED -lt $TIMEOUT ]; do
+              if docker compose --env-file .env.production -f docker-compose.prod.yml ps api --format json | jq -r '.Health' | grep -q "healthy"; then
+                echo "✅ API container is healthy"
+                break
+              fi
+              sleep 2
+              ELAPSED=$((ELAPSED + 2))
+            done
+
+            if [ $ELAPSED -ge $TIMEOUT ]; then
+              echo "❌ API container failed to become healthy"
+              exit 1
+            fi
+
+            echo "✅ Docker images pulled and API container restarted successfully"
           ENDSSH
 
       - name: Run database migrations
