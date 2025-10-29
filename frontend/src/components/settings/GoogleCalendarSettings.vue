@@ -149,7 +149,7 @@ async function handleToggleBaa(enabled: boolean) {
   try {
     await updateSettings({ has_google_baa: enabled })
     showSuccess(enabled ? 'BAA confirmation saved' : 'BAA confirmation removed')
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('[GoogleCalendar] Failed to update BAA status:', err)
     showError('Failed to update BAA status. Please try again.')
   }
@@ -159,10 +159,24 @@ async function handleToggleNotifyClients(enabled: boolean) {
   try {
     await updateSettings({ notify_clients: enabled })
     showSuccess(enabled ? 'Client invitations enabled' : 'Client invitations disabled')
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('[GoogleCalendar] Failed to update client invitations:', err)
     // Check if error is due to missing BAA
-    if (err.response?.status === 400 && err.response?.data?.detail?.includes('BAA')) {
+    if (
+      err &&
+      typeof err === 'object' &&
+      'response' in err &&
+      err.response &&
+      typeof err.response === 'object' &&
+      'status' in err.response &&
+      err.response.status === 400 &&
+      'data' in err.response &&
+      err.response.data &&
+      typeof err.response.data === 'object' &&
+      'detail' in err.response.data &&
+      typeof err.response.data.detail === 'string' &&
+      err.response.data.detail.includes('BAA')
+    ) {
       showError('You must confirm Google Workspace BAA before enabling client notifications.')
     } else {
       showError('Failed to update settings. Please try again.')
@@ -386,7 +400,7 @@ onMounted(async () => {
                 :checked="settings.has_google_baa"
                 type="checkbox"
                 class="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                @change="handleToggleBaa($event.target.checked)"
+                @change="handleToggleBaa(($event.target as HTMLInputElement).checked)"
               />
               <div class="flex-1">
                 <label for="has-google-baa" class="text-sm font-medium text-slate-900">
