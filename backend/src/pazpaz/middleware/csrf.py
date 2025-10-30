@@ -55,6 +55,18 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         #    - Single-use tokens (deleted after verification)
         #    - 10-minute token expiry
         #    - User existence revalidation
+        # 4. /payments/webhook/* - External payment provider webhooks
+        #    Protected by:
+        #    - HMAC-SHA256 signature verification (webhook_secret)
+        #    - Idempotency checks (Redis, 24h TTL)
+        #    - Provider transaction ID validation
+        #    - Workspace scoping (transaction → appointment → workspace)
+        # 5. /payments/test-credentials - Test payment credentials without storing
+        #    Protected by:
+        #    - Rate limiting (prevents credential brute-forcing)
+        #    - No credentials logged or stored
+        #    - Minimal test API call (no real payment)
+        #    - Error sanitization (prevents credential leakage)
         exempt_paths = [
             "/docs",
             "/redoc",
@@ -62,9 +74,15 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             f"{settings.api_v1_prefix}/openapi.json",
             f"{settings.api_v1_prefix}/auth/magic-link",  # Entry point for auth
             f"{settings.api_v1_prefix}/auth/verify",  # Magic link verification (POST)
+            f"{settings.api_v1_prefix}/payments/test-credentials",  # Test payment credentials
         ]
 
         if request.url.path in exempt_paths:
+            return await call_next(request)
+
+        # Exempt payment provider webhooks (external callbacks)
+        # These endpoints have their own security via HMAC signature verification
+        if request.url.path.startswith(f"{settings.api_v1_prefix}/payments/webhook/"):
             return await call_next(request)
 
         # Validate CSRF token on state-changing methods (POST, PUT, PATCH, DELETE)

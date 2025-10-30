@@ -273,6 +273,8 @@ export function useCalendarEvents() {
           hasSession,
           sessionId: sessionStatus?.sessionId || null,
           isDraft: sessionStatus?.isDraft || false,
+          payment_status: appointment.payment_status,
+          payment_price: appointment.payment_price,
         },
       }
     })

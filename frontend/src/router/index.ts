@@ -104,6 +104,16 @@ const router = createRouter({
             category: 'Integrations',
           },
         },
+        {
+          path: 'payments',
+          name: 'settings-payments',
+          component: () => import('@/views/settings/PaymentsView.vue'),
+          meta: {
+            title: 'Payments - Settings - PazPaz',
+            requiresAuth: true,
+            category: 'Payments',
+          },
+        },
         // Future settings categories will be added here
         // Example:
         // {

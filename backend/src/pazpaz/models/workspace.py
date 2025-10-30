@@ -5,9 +5,21 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Index, String
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Enum,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pazpaz.db.base import Base
@@ -17,6 +29,7 @@ if TYPE_CHECKING:
     from pazpaz.models.audit_event import AuditEvent
     from pazpaz.models.client import Client
     from pazpaz.models.location import Location
+    from pazpaz.models.payment_transaction import PaymentTransaction
     from pazpaz.models.service import Service
     from pazpaz.models.session import Session
     from pazpaz.models.user import User
@@ -99,6 +112,94 @@ class Workspace(Base):
         comment="IANA timezone name (e.g., 'Asia/Jerusalem', 'America/New_York') for notification scheduling",
     )
 
+    # Business details for tax receipts
+    business_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Legal business name",
+    )
+    business_name_hebrew: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Business name in Hebrew (שם העסק בעברית)",
+    )
+    tax_id: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        comment="Israeli Tax ID (ת.ז. or ח.פ.)",
+    )
+    business_license: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Business license number (מספר רישיון עסק)",
+    )
+    business_address: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Business address for tax receipts",
+    )
+
+    # VAT configuration
+    vat_registered: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        comment="Whether workspace is VAT registered (עוסק מורשה)",
+    )
+    vat_rate: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("17.00"),
+        server_default="17.00",
+        comment="VAT rate percentage (default 17% for Israel)",
+    )
+    receipt_counter: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+        comment="Auto-incrementing counter for receipt numbers",
+    )
+
+    # Payment provider configuration (feature flag)
+    payment_provider: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Payment provider: payplus, meshulam, stripe, null (disabled)",
+    )
+    payment_provider_config: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Encrypted payment provider API keys and configuration",
+    )
+    payment_auto_send: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        comment="Automatically send payment requests",
+    )
+    payment_send_timing: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="immediately",
+        server_default="immediately",
+        comment="When to send payment requests: immediately, end_of_day, end_of_month, manual",
+    )
+
+    # Third-party tax service integration (optional)
+    tax_service_provider: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Third-party tax service: greeninvoice, morning, ness, null",
+    )
+    tax_service_config: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Tax service API configuration",
+    )
+
     # Relationships
     users: Mapped[list[User]] = relationship(
         "User",
@@ -137,6 +238,11 @@ class Workspace(Base):
     )
     notification_settings: Mapped[list[UserNotificationSettings]] = relationship(
         "UserNotificationSettings",
+        back_populates="workspace",
+        cascade="all, delete-orphan",
+    )
+    payment_transactions: Mapped[list[PaymentTransaction]] = relationship(
+        "PaymentTransaction",
         back_populates="workspace",
         cascade="all, delete-orphan",
     )
@@ -199,6 +305,24 @@ class Workspace(Base):
             7000000000  # 7 GB remaining
         """
         return self.storage_quota_bytes - self.storage_used_bytes
+
+    @property
+    def payments_enabled(self) -> bool:
+        """
+        Check if payment processing is enabled for this workspace.
+
+        Returns:
+            True if payment_provider is configured, False otherwise
+
+        Example:
+            >>> workspace.payment_provider = "payplus"
+            >>> workspace.payments_enabled
+            True
+            >>> workspace.payment_provider = None
+            >>> workspace.payments_enabled
+            False
+        """
+        return self.payment_provider is not None
 
     def __repr__(self) -> str:
         return f"<Workspace(id={self.id}, name={self.name})>"

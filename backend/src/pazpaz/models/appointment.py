@@ -5,9 +5,10 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, Text
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pazpaz.db.base import Base
@@ -15,6 +16,7 @@ from pazpaz.db.base import Base
 if TYPE_CHECKING:
     from pazpaz.models.client import Client
     from pazpaz.models.location import Location
+    from pazpaz.models.payment_transaction import PaymentTransaction
     from pazpaz.models.service import Service
     from pazpaz.models.session import Session
     from pazpaz.models.workspace import Workspace
@@ -132,6 +134,25 @@ class Appointment(Base):
         comment="Number of times this appointment has been edited",
     )
 
+    # Payment fields
+    payment_price: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 2),
+        nullable=True,
+        comment="Appointment price in ILS (null = no price set)",
+    )
+    payment_status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="unpaid",
+        server_default="unpaid",
+        comment="Payment status: unpaid, pending, paid, partially_paid, refunded, failed",
+    )
+    payment_auto_send: Mapped[bool | None] = mapped_column(
+        Boolean,
+        nullable=True,
+        comment="Override workspace auto-send setting (null = use workspace default)",
+    )
+
     # Relationships
     workspace: Mapped[Workspace] = relationship(
         "Workspace",
@@ -153,6 +174,11 @@ class Appointment(Base):
         "Session",
         back_populates="appointment",
         uselist=False,
+    )
+    payment_transactions: Mapped[list[PaymentTransaction]] = relationship(
+        "PaymentTransaction",
+        back_populates="appointment",
+        cascade="all, delete-orphan",
     )
 
     # Indexes for performance-critical queries
@@ -177,6 +203,12 @@ class Appointment(Base):
             "ix_appointments_workspace_status",
             "workspace_id",
             "status",
+        ),
+        # Index for filtering appointments by payment status
+        Index(
+            "idx_appointments_workspace_payment_status",
+            "workspace_id",
+            "payment_status",
         ),
         {
             "comment": (

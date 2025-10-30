@@ -19,6 +19,8 @@ import { getStatusBadgeClass } from '@/utils/calendar/appointmentHelpers'
 import { useAppointmentAutoSave } from '@/composables/useAppointmentAutoSave'
 import { useToast } from '@/composables/useToast'
 import { useAppointmentsStore } from '@/stores/appointments'
+import { usePayments } from '@/composables/usePayments'
+import apiClient from '@/api/client'
 import AppointmentStatusCard from './AppointmentStatusCard.vue'
 import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentModal.vue'
 import TimePickerDropdown from '@/components/common/TimePickerDropdown.vue'
@@ -30,6 +32,12 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const appointmentsStore = useAppointmentsStore()
 const { showSuccess, showSuccessWithUndo, showError } = useToast()
+const {
+  paymentsEnabled,
+  canSendPaymentRequest,
+  getPaymentStatusBadge,
+  formatCurrency,
+} = usePayments()
 
 // Delete modal state
 const showDeleteModal = ref(false)
@@ -88,6 +96,22 @@ const appointmentDate = ref<string>('')
 // Flag to prevent duration preservation during date changes
 const isUpdatingFromDateChange = ref(false)
 
+// Payment transaction interface
+interface PaymentTransaction {
+  id: string
+  total_amount: string
+  status: string
+  payment_link?: string
+  created_at: string
+}
+
+// Payment state
+const paymentPrice = ref<number | null>(null)
+const customerEmail = ref('')
+const sendingPayment = ref(false)
+const paymentLink = ref<string | null>(null)
+const paymentTransactions = ref<PaymentTransaction[]>([])
+
 // Auto-save composable
 const autoSave = computed(() => {
   if (!props.appointment) return null
@@ -112,6 +136,91 @@ const lastSavedText = computed(() => {
 // Date/time utility functions imported from @/utils/calendar/dateFormatters
 // Using formatDateTimeForInput as formatDateTimeLocal for backward compatibility
 const formatDateTimeLocal = formatDateTimeForInput
+
+/**
+ * Save payment price to appointment
+ */
+async function savePaymentPrice() {
+  if (!props.appointment || paymentPrice.value === props.appointment.payment_price)
+    return
+
+  try {
+    await appointmentsStore.updateAppointment(props.appointment.id, {
+      payment_price: paymentPrice.value,
+    })
+    showSuccess('Price saved')
+    emit('refresh')
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to save payment price'
+    showError(errorMessage)
+  }
+}
+
+/**
+ * Send payment request to client
+ */
+async function sendPaymentRequest() {
+  if (!props.appointment || !customerEmail.value || !paymentPrice.value) return
+
+  sendingPayment.value = true
+  try {
+    const response = await apiClient.post('/payments/create-request', {
+      appointment_id: props.appointment.id,
+      customer_email: customerEmail.value,
+    })
+
+    paymentLink.value = response.data.payment_link
+    showSuccess('Payment request sent!')
+
+    // Refresh transactions
+    await loadPaymentTransactions()
+    emit('refresh')
+  } catch (error) {
+    const errorMessage =
+      (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
+      'Failed to send payment request'
+    showError(errorMessage)
+  } finally {
+    sendingPayment.value = false
+  }
+}
+
+/**
+ * Copy payment link to clipboard
+ */
+async function copyPaymentLink() {
+  if (!paymentLink.value) return
+
+  try {
+    await navigator.clipboard.writeText(paymentLink.value)
+    showSuccess('Link copied to clipboard')
+  } catch {
+    showError('Failed to copy link')
+  }
+}
+
+/**
+ * Load payment transactions for this appointment
+ */
+async function loadPaymentTransactions() {
+  if (!props.appointment) return
+
+  try {
+    const response = await apiClient.get(
+      `/payments/transactions?appointment_id=${props.appointment.id}`
+    )
+    paymentTransactions.value = response.data.transactions || []
+
+    // Set payment link from latest pending transaction
+    const pendingTx = paymentTransactions.value.find((tx) => tx.status === 'pending')
+    if (pendingTx?.payment_link) {
+      paymentLink.value = pendingTx.payment_link
+    }
+  } catch {
+    // Silently ignore errors (might not have transactions yet)
+  }
+}
 
 // Activate/deactivate focus trap and scroll lock based on visibility
 watch(
@@ -138,6 +247,15 @@ watch(
         location_type: newAppointment.location_type,
         location_details: newAppointment.location_details || '',
         notes: newAppointment.notes || '',
+      }
+
+      // Sync payment data
+      paymentPrice.value = newAppointment.payment_price || null
+      customerEmail.value = newAppointment.client?.email || ''
+
+      // Load payment transactions if payment status exists
+      if (newAppointment.payment_status) {
+        loadPaymentTransactions()
       }
     }
   },
@@ -299,6 +417,44 @@ const isInProgressAppointment = computed(() => {
   const start = new Date(props.appointment.scheduled_start)
   const end = new Date(props.appointment.scheduled_end)
   return now >= start && now <= end
+})
+
+/**
+ * Check if can send payment request for this appointment
+ */
+const canSendPayment = computed(() => {
+  if (!props.appointment) return false
+  return canSendPaymentRequest(props.appointment) && !sendingPayment.value
+})
+
+/**
+ * Get payment status badge for display
+ */
+const paymentStatusBadge = computed(() => {
+  if (!props.appointment?.payment_status) return null
+  return getPaymentStatusBadge(props.appointment.payment_status)
+})
+
+/**
+ * Check if completion is disabled due to missing payment price
+ * If payments enabled and no price set, can't complete appointment
+ */
+const completionDisabled = computed(() => {
+  if (!props.appointment) return false
+  if (paymentsEnabled.value && !paymentPrice.value) {
+    return true
+  }
+  return false
+})
+
+/**
+ * Get message explaining why completion is disabled
+ */
+const completionDisabledMessage = computed(() => {
+  if (completionDisabled.value) {
+    return 'Set payment price before marking as complete'
+  }
+  return null
 })
 
 /**
@@ -650,13 +806,20 @@ watch(
                   aria-live="polite"
                   aria-label="Appointment is currently in progress"
                 >
-                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
+                  <span
+                    class="h-1.5 w-1.5 rounded-full bg-emerald-500"
+                    aria-hidden="true"
+                  ></span>
                   In Progress
                 </span>
 
                 <!-- WARNING BADGE: Only for past scheduled appointments (not in progress) -->
                 <span
-                  v-if="appointment.status === 'scheduled' && isPastAppointment && !isInProgressAppointment"
+                  v-if="
+                    appointment.status === 'scheduled' &&
+                    isPastAppointment &&
+                    !isInProgressAppointment
+                  "
                   class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900 ring-1 ring-amber-600/20 ring-inset"
                 >
                   <!-- Clock Icon -->
@@ -905,12 +1068,144 @@ watch(
               <p class="mt-1 text-xs text-slate-400">Changes are saved automatically</p>
             </div>
 
+            <!-- Payment Section (conditional on paymentsEnabled) -->
+            <div
+              v-if="paymentsEnabled"
+              class="rounded-lg border border-slate-200 bg-white p-4"
+            >
+              <h3 class="mb-3 text-sm font-medium text-slate-500">Payment</h3>
+
+              <!-- Price Input (before completion or if no payment request sent) -->
+              <div
+                v-if="!appointment.payment_status || appointment.status !== 'attended'"
+                class="mb-4"
+              >
+                <label for="payment-price" class="mb-1 block text-xs text-slate-500">
+                  Price (₪)
+                </label>
+                <input
+                  id="payment-price"
+                  v-model.number="paymentPrice"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Enter price"
+                  @blur="savePaymentPrice"
+                  class="block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
+                />
+                <p class="mt-1 text-xs text-slate-400">
+                  Set price before marking appointment as complete
+                </p>
+              </div>
+
+              <!-- Payment Status (after payment request sent) -->
+              <div v-if="appointment.payment_status" class="mb-4">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-medium text-slate-500">Status:</span>
+                  <span
+                    v-if="paymentStatusBadge"
+                    :class="{
+                      'bg-green-100 text-green-800':
+                        paymentStatusBadge.color === 'green',
+                      'bg-yellow-100 text-yellow-800':
+                        paymentStatusBadge.color === 'yellow',
+                      'bg-red-100 text-red-800': paymentStatusBadge.color === 'red',
+                      'bg-gray-100 text-gray-800': paymentStatusBadge.color === 'gray',
+                    }"
+                    class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
+                  >
+                    {{ paymentStatusBadge.icon }} {{ paymentStatusBadge.label }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Send Payment Request Button -->
+              <div v-if="canSendPayment" class="mb-4">
+                <label
+                  for="customer-email"
+                  class="mb-1 block text-xs font-medium text-slate-500"
+                >
+                  Client Email
+                </label>
+                <input
+                  id="customer-email"
+                  v-model="customerEmail"
+                  type="email"
+                  placeholder="client@example.com"
+                  class="mb-2 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
+                />
+                <button
+                  @click="sendPaymentRequest"
+                  :disabled="sendingPayment || !customerEmail"
+                  class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {{ sendingPayment ? 'Sending...' : 'Send Payment Request' }}
+                </button>
+              </div>
+
+              <!-- Payment Link (if pending) -->
+              <div
+                v-if="appointment.payment_status === 'pending' && paymentLink"
+                class="mb-4"
+              >
+                <label class="mb-1 block text-xs font-medium text-slate-500">
+                  Payment Link
+                </label>
+                <div class="flex items-center gap-2">
+                  <input
+                    :value="paymentLink"
+                    type="text"
+                    readonly
+                    class="block min-h-[44px] flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:outline-none"
+                  />
+                  <button
+                    @click="copyPaymentLink"
+                    class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-slate-100 px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <!-- Payment Transactions (if any exist) -->
+              <div v-if="paymentTransactions.length > 0" class="mt-4">
+                <h4 class="mb-2 text-xs font-medium text-slate-500">Payment History</h4>
+                <div class="space-y-2">
+                  <div
+                    v-for="transaction in paymentTransactions"
+                    :key="transaction.id"
+                    class="rounded bg-slate-50 p-2 text-xs"
+                  >
+                    <div class="flex justify-between">
+                      <span>{{
+                        formatCurrency(parseFloat(transaction.total_amount))
+                      }}</span>
+                      <span
+                        :class="{
+                          'text-green-600': transaction.status === 'completed',
+                          'text-yellow-600': transaction.status === 'pending',
+                          'text-red-600': transaction.status === 'failed',
+                        }"
+                      >
+                        {{ transaction.status }}
+                      </span>
+                    </div>
+                    <div class="mt-1 text-slate-500">
+                      {{ new Date(transaction.created_at).toLocaleString() }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Appointment Status Management Card -->
             <!-- Hidden during in-progress appointments to avoid duplicate messaging -->
             <AppointmentStatusCard
               v-if="appointment && !isInProgressAppointment"
               :appointment="appointment"
               :session-status="sessionStatus"
+              :completion-disabled="completionDisabled"
+              :completion-disabled-message="completionDisabledMessage"
               @update-status="handleStatusUpdate"
               @complete-and-document="handleCompleteAndDocument"
             />
@@ -978,8 +1273,18 @@ watch(
                         aria-label="Document session notes in real-time while appointment is in progress"
                       >
                         Document Session
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        <svg
+                          class="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 5l7 7-7 7"
+                          />
                         </svg>
                       </button>
                     </div>

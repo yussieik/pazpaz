@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -163,6 +164,12 @@ class AppointmentResponse(BaseModel):
     )
     client: ClientSummary | None = Field(
         None, description="Client information (included when requested)"
+    )
+    payment_price: Decimal | None = Field(
+        None, description="Appointment price (null = no price set)"
+    )
+    payment_status: str = Field(
+        "unpaid", description="Payment status (unpaid, pending, paid, failed, refunded)"
     )
 
     model_config = ConfigDict(from_attributes=True)

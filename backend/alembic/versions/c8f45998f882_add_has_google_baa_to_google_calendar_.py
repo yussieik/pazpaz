@@ -10,14 +10,15 @@ Revises: f5b5bdc7a7c2
 Create Date: 2025-10-29 17:00:41.942983
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'c8f45998f882'
-down_revision: str | Sequence[str] | None = 'f5b5bdc7a7c2'
+revision: str = "c8f45998f882"
+down_revision: str | Sequence[str] | None = "f5b5bdc7a7c2"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -27,13 +28,13 @@ def upgrade() -> None:
     # Add has_google_baa column with default=False
     # This ensures notify_clients cannot be enabled without BAA confirmation
     op.add_column(
-        'google_calendar_tokens',
+        "google_calendar_tokens",
         sa.Column(
-            'has_google_baa',
+            "has_google_baa",
             sa.Boolean(),
             nullable=False,
-            server_default='false',
-            comment='Therapist confirms Google Workspace Business Associate Agreement (BAA) is signed (required for HIPAA compliance when notify_clients=true)',
+            server_default="false",
+            comment="Therapist confirms Google Workspace Business Associate Agreement (BAA) is signed (required for HIPAA compliance when notify_clients=true)",
         ),
     )
 
@@ -41,4 +42,4 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     # Remove has_google_baa column
-    op.drop_column('google_calendar_tokens', 'has_google_baa')
+    op.drop_column("google_calendar_tokens", "has_google_baa")

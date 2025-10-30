@@ -41,7 +41,9 @@ docs/
 │   │   ├── README.md
 │   │   ├── DATABASE_ARCHITECTURE_REVIEW.md
 │   │   ├── SESSIONS_SCHEMA.md
+│   │   ├── PAYMENT_SCHEMA.md
 │   │   └── WEEK2_DAY1_MORNING_SESSIONS_MIGRATION_REPORT.md
+│   ├── payment_features.md                # Payment Feature Flag Guide
 │   ├── encryption/                        # Encryption Operations (Supplemental)
 │   │   ├── ENCRYPTION_KEY_ROTATION.md     # Key rotation procedures
 │   │   └── KEY_BACKUP_RECOVERY.md         # Key backup and recovery

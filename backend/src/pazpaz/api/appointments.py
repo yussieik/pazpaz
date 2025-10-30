@@ -39,6 +39,7 @@ from pazpaz.utils.pagination import (
     calculate_total_pages,
     get_query_total_count,
 )
+from pazpaz.utils.payment_features import PaymentFeatureChecker
 from pazpaz.utils.session_helpers import (
     apply_soft_delete,
     get_active_sessions_for_appointment,
@@ -760,14 +761,72 @@ async def update_appointment(
     await db.commit()
     await db.refresh(appointment)
 
-    # Reload with client relationship
+    # Reload with client relationship and workspace (needed for payment feature check)
     query = (
         select(Appointment)
         .where(Appointment.id == appointment.id)
-        .options(selectinload(Appointment.client))
+        .options(
+            selectinload(Appointment.client),
+            selectinload(Appointment.workspace),
+        )
     )
     result = await db.execute(query)
     appointment = result.scalar_one()
+
+    # ============================================================================
+    # PHASE 0: Payment Feature Flag Check (STUB - NO ACTUAL PAYMENT PROCESSING)
+    # ============================================================================
+    # Check if appointment was just marked as attended (completed)
+    # If payments are enabled and auto-send is configured, this is where we would
+    # trigger payment request creation in Phase 1.
+    #
+    # Phase 0: Only log the detection, don't trigger any payment actions
+    # Phase 1: Will implement actual payment request creation here
+    if "status" in changes and changes["status"]["new"] == "attended":
+        # Check if payment request should be sent
+        can_send, reason = PaymentFeatureChecker.can_send_payment_request(appointment)
+
+        if can_send:
+            # Check workspace auto-send settings (appointment can override workspace default)
+            should_auto_send = (
+                appointment.payment_auto_send
+                if appointment.payment_auto_send is not None
+                else appointment.workspace.payment_auto_send
+            )
+
+            if should_auto_send:
+                # PHASE 0 STUB: Just log that payment request would be triggered
+                # PHASE 1 TODO: Replace this with actual payment request creation
+                logger.info(
+                    "payment_request_would_be_sent",
+                    appointment_id=str(appointment.id),
+                    workspace_id=str(appointment.workspace_id),
+                    payment_price=str(appointment.payment_price),
+                    payment_provider=appointment.workspace.payment_provider,
+                    send_timing=appointment.workspace.payment_send_timing,
+                    extra={"structured": True, "phase": "phase_0_stub"},
+                )
+                # TODO PHASE 1: Implement payment request creation
+                # await create_payment_request(appointment)
+            else:
+                logger.debug(
+                    "payment_auto_send_disabled",
+                    appointment_id=str(appointment.id),
+                    workspace_id=str(appointment.workspace_id),
+                    extra={"structured": True},
+                )
+        else:
+            # Log why payment request cannot be sent
+            logger.debug(
+                "payment_request_cannot_be_sent",
+                appointment_id=str(appointment.id),
+                workspace_id=str(appointment.workspace_id),
+                reason=reason,
+                extra={"structured": True},
+            )
+    # ============================================================================
+    # END PHASE 0 STUB
+    # ============================================================================
 
     # Enqueue Google Calendar sync task (non-blocking)
     # Only sync if there were actual changes

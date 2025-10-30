@@ -79,6 +79,33 @@ import SettingsSidebar from '@/components/settings/SettingsSidebar.vue'
               <span>Integrations</span>
             </RouterLink>
           </li>
+          <li>
+            <RouterLink
+              to="/settings/payments"
+              class="flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors"
+              :class="{
+                'border-emerald-600 text-emerald-700':
+                  $route.path === '/settings/payments',
+                'border-transparent text-slate-600 hover:text-slate-900':
+                  $route.path !== '/settings/payments',
+              }"
+            >
+              <svg
+                class="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                />
+              </svg>
+              <span>Payments</span>
+            </RouterLink>
+          </li>
           <!-- Future categories will be added here -->
           <!-- Example:
           <li>

@@ -10,6 +10,7 @@ from pazpaz.models.client import Client
 from pazpaz.models.email_blacklist import EmailBlacklist
 from pazpaz.models.google_calendar_token import GoogleCalendarToken
 from pazpaz.models.location import Location
+from pazpaz.models.payment_transaction import PaymentTransaction
 from pazpaz.models.service import Service
 from pazpaz.models.session import Session
 from pazpaz.models.session_attachment import SessionAttachment
@@ -40,4 +41,5 @@ __all__ = [
     "EmailBlacklist",
     "UserNotificationSettings",
     "GoogleCalendarToken",
+    "PaymentTransaction",
 ]

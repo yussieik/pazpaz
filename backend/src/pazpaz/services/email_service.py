@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from decimal import Decimal
 from email.message import EmailMessage
 
 import aiosmtplib
@@ -628,3 +630,180 @@ PazPaz - Practice Management for Independent Therapists
             exc_info=True,
         )
         raise
+
+
+async def send_payment_request_email(
+    customer_email: str,
+    customer_name: str,
+    therapist_name: str,
+    appointment_date: datetime,
+    amount: Decimal,
+    currency: str,
+    payment_link: str,
+) -> bool:
+    """
+    Send payment request email to client.
+
+    Sends email with payment link for an appointment. Email failures are logged
+    but do not raise exceptions to prevent payment creation failures.
+
+    Args:
+        customer_email: Client email address
+        customer_name: Client full name
+        therapist_name: Therapist/workspace name
+        appointment_date: Scheduled appointment datetime
+        amount: Total payment amount
+        currency: Currency code (e.g., "ILS")
+        payment_link: Payment link URL
+
+    Returns:
+        bool: True if email sent successfully, False otherwise
+
+    Example:
+        >>> success = await send_payment_request_email(
+        ...     customer_email="client@example.com",
+        ...     customer_name="Jane Doe",
+        ...     therapist_name="Dr. Sarah Cohen",
+        ...     appointment_date=datetime(2025, 10, 30, 14, 30),
+        ...     amount=Decimal("350.00"),
+        ...     currency="ILS",
+        ...     payment_link="https://payplus.co.il/pay/abc123"
+        ... )
+        >>> print(success)
+        True
+    """
+    try:
+        # Format appointment date for display
+        formatted_date = appointment_date.strftime("%A, %B %d, %Y")
+        formatted_time = appointment_date.strftime("%I:%M %p")
+
+        # Create email message
+        message = EmailMessage()
+        message["From"] = f"PazPaz <{settings.emails_from_email}>"
+        message["To"] = customer_email
+        message["Subject"] = f"Payment Request from {therapist_name}"
+
+        # Email body (plain text fallback)
+        message.set_content(f"""
+Hello {customer_name},
+
+You have a payment request from {therapist_name} for your upcoming appointment.
+
+Appointment Details:
+  Date: {formatted_date}
+  Time: {formatted_time}
+  Amount: {amount} {currency}
+
+Complete your payment:
+{payment_link}
+
+If you have any questions, please contact {therapist_name}.
+
+---
+PazPaz - Practice Management for Independent Therapists
+{settings.frontend_url}
+""")
+
+        # Email body (HTML)
+        message.add_alternative(
+            f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Request</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f5f5f5;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+        <h1 style="color: #059669; margin-top: 0; font-size: 24px;">Payment Request</h1>
+
+        <p style="font-size: 16px; margin-bottom: 20px;">Hello {customer_name},</p>
+
+        <p style="font-size: 16px; margin-bottom: 30px;">
+            You have a payment request from <strong>{therapist_name}</strong> for your upcoming appointment.
+        </p>
+
+        <div style="background-color: #f9fafb; border-radius: 6px; padding: 20px; margin: 30px 0;">
+            <h2 style="color: #333; margin-top: 0; font-size: 18px; margin-bottom: 15px;">Appointment Details</h2>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Date:</td>
+                    <td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">{formatted_date}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Time:</td>
+                    <td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">{formatted_time}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Amount:</td>
+                    <td style="padding: 8px 0; color: #111827; font-size: 16px; font-weight: 700;">{amount} {currency}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{payment_link}"
+               target="_blank"
+               style="display: inline-block; background-color: #059669; color: white; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.3);">
+                Pay Now
+            </a>
+        </div>
+
+        <p style="color: #6b7280; font-size: 14px; margin-top: 30px; text-align: center;">
+            If you have any questions, please contact {therapist_name}.
+        </p>
+    </div>
+
+    <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px;">
+        <p>PazPaz - Practice Management for Independent Therapists</p>
+    </div>
+</body>
+</html>
+""",
+            subtype="html",
+        )
+
+        # Send via SMTP
+        async with aiosmtplib.SMTP(
+            hostname=settings.smtp_host,
+            port=settings.smtp_port,
+        ) as smtp:
+            # Authenticate if credentials provided (not needed for MailHog)
+            if settings.smtp_user:
+                await smtp.login(settings.smtp_user, settings.smtp_password)
+
+            await smtp.send_message(message)
+
+        logger.info(
+            "payment_request_email_sent",
+            customer_email_hash=hash(customer_email),  # Hash for privacy
+            therapist_name=therapist_name,
+            amount=str(amount),
+            currency=currency,
+            smtp_host=settings.smtp_host,
+            smtp_port=settings.smtp_port,
+        )
+
+        # Also log to console in debug mode for convenience
+        if settings.debug:
+            logger.info(
+                "payment_request_email_debug_info",
+                customer_email=customer_email,
+                payment_link=payment_link,
+                mailhog_ui="http://localhost:8025",
+            )
+
+        return True
+
+    except Exception as e:
+        logger.error(
+            "failed_to_send_payment_request_email",
+            customer_email_hash=hash(customer_email),  # Hash for privacy
+            therapist_name=therapist_name,
+            error=str(e),
+            smtp_host=settings.smtp_host,
+            smtp_port=settings.smtp_port,
+            exc_info=True,
+        )
+        return False

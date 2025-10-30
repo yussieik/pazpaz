@@ -336,6 +336,159 @@ Before completing any task, verify:
 
 ---
 
+## Feature Flags & Pluggable Architecture
+
+**CRITICAL PRINCIPLE**: When implementing features that affect UI functionality, use feature flags and pluggable architecture patterns.
+
+### Design Philosophy
+
+**Opt-In by Default:**
+- New features should be **disabled by default**
+- Users explicitly enable features via Settings
+- No impact on existing users when new features are added
+- Allows gradual rollout and A/B testing
+
+**Pluggable Architecture:**
+- Features can be "plugged in" without modifying core functionality
+- Conditional rendering based on feature flags
+- Clean separation between feature code and core code
+
+### Implementation Pattern
+
+**1. Feature Flag in Database:**
+```python
+# Workspace model (or User model for user-level features)
+class Workspace(Base):
+    # Feature flag (NULL = disabled, value = enabled with config)
+    feature_name_enabled: Mapped[bool] = mapped_column(default=False)
+    feature_name_config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+```
+
+**2. Conditional Backend Logic:**
+```python
+async def handle_action(workspace: Workspace):
+    # Check feature flag
+    if not workspace.feature_name_enabled:
+        # Feature disabled, skip
+        return
+
+    # Feature enabled, execute logic
+    await execute_feature_logic(workspace)
+```
+
+**3. Conditional Frontend Rendering:**
+```vue
+<script setup>
+import { useFeatureFlags } from '@/composables/useFeatureFlags'
+
+const { isFeatureEnabled } = useFeatureFlags()
+</script>
+
+<template>
+  <!-- Feature only renders when enabled -->
+  <div v-if="isFeatureEnabled('feature_name')" class="feature-section">
+    <!-- Feature UI -->
+  </div>
+</template>
+```
+
+**4. Settings UI for Enablement:**
+```vue
+<template>
+  <div class="settings">
+    <h3>Feature Name</h3>
+    <button @click="enableFeature">Enable Feature</button>
+
+    <!-- Configuration only shown when enabled -->
+    <div v-if="featureEnabled" class="config">
+      <!-- Feature-specific settings -->
+    </div>
+  </div>
+</template>
+```
+
+### Real-World Example: Payments System
+
+**Reference:** `/docs/PAYMENT_FEATURE_FLAG_DESIGN.md`
+
+**Feature Flag:**
+```python
+class Workspace(Base):
+    payment_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # NULL = payments disabled
+    # "payplus" = payments enabled with PayPlus
+```
+
+**Conditional Fields:**
+```python
+class Appointment(Base):
+    # Always in schema but nullable
+    payment_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    payment_status: Mapped[str] = mapped_column(String(20), default="unpaid")
+```
+
+**UI Behavior:**
+- **Payments Disabled:** Appointment view shows only scheduling fields
+- **Payments Enabled:** Appointment view shows price input, payment status, "Send Payment Request" button
+
+**Benefits:**
+- Existing users unaffected (backwards compatible)
+- No schema migration needed to enable/disable
+- Can A/B test with subset of users
+- Easy to rollback if issues found
+
+### Feature Flag Best Practices
+
+**Do:**
+- ✅ Default to disabled (opt-in)
+- ✅ Make fields nullable (no migration on enable/disable)
+- ✅ Use workspace-level or user-level flags (not global)
+- ✅ Preserve historical data when disabling (soft disable)
+- ✅ Document feature flag behavior in code comments
+
+**Don't:**
+- ❌ Force features on all users at once
+- ❌ Require schema migration to enable feature
+- ❌ Delete data when disabling feature
+- ❌ Tightly couple feature code to core code
+- ❌ Forget to add Settings UI for enablement
+
+### When to Use Feature Flags
+
+**Always use for:**
+- Payment processing
+- Third-party integrations (calendar sync, email providers)
+- Advanced/premium features
+- Experimental features
+- Features with external dependencies
+
+**Consider using for:**
+- Major UI redesigns (gradual rollout)
+- Performance optimizations (A/B testing)
+- New workflows (run in parallel with old workflow)
+
+**Not needed for:**
+- Bug fixes
+- Minor UI tweaks
+- Core functionality improvements (that don't add new features)
+
+### Checklist for New Features
+
+Before implementing a feature that affects UI:
+
+- [ ] Is this feature optional? → Use feature flag
+- [ ] Does it require third-party service? → Use feature flag
+- [ ] Should users control enablement? → Use feature flag
+- [ ] Add `feature_enabled` field to Workspace/User model
+- [ ] Make all feature-specific fields nullable
+- [ ] Implement Settings UI for configuration
+- [ ] Add conditional rendering in frontend
+- [ ] Document feature flag design in `/docs/`
+- [ ] Test with feature disabled (ensure no breakage)
+- [ ] Test enable/disable toggle (ensure reversible)
+
+---
+
 ## Project Context
 
 **IMPORTANT**: Always read [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) before planning or implementing features.

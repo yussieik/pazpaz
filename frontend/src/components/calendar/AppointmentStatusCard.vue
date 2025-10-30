@@ -12,6 +12,8 @@ import IconClock from '@/components/icons/IconClock.vue'
 interface Props {
   appointment: AppointmentListItem | null
   sessionStatus?: SessionStatus | null
+  completionDisabled?: boolean
+  completionDisabledMessage?: string | null
 }
 
 interface Emits {
@@ -19,7 +21,10 @@ interface Emits {
   (e: 'complete-and-document'): void
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  completionDisabled: false,
+  completionDisabledMessage: null,
+})
 const emit = defineEmits<Emits>()
 
 /**
@@ -130,9 +135,7 @@ onKeyStroke(['Meta+Shift+n', 'Control+Shift+n'], (e) => {
           />
         </svg>
         <div class="flex-1">
-          <p class="text-sm font-medium text-slate-900">
-            Session in progress
-          </p>
+          <p class="text-sm font-medium text-slate-900">Session in progress</p>
           <p class="mt-0.5 text-xs text-slate-600">
             Document observations and findings in real-time
           </p>
@@ -160,16 +163,50 @@ onKeyStroke(['Meta+Shift+n', 'Control+Shift+n'], (e) => {
 
     <!-- Action Buttons -->
     <div class="space-y-2">
+      <!-- Warning message if completion is disabled -->
+      <div
+        v-if="completionDisabled && completionDisabledMessage"
+        class="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900"
+      >
+        <svg
+          class="h-4 w-4 shrink-0 text-amber-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
+        </svg>
+        <span>{{ completionDisabledMessage }}</span>
+      </div>
+
       <!-- Primary: Document Session (In Progress OR Past) -->
       <button
         v-if="isInProgressAppointment || isPastAppointment"
         @click="completeAndDocument"
-        class="flex w-full items-center justify-between rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+        :disabled="completionDisabled"
+        :class="[
+          'flex w-full items-center justify-between rounded-lg px-4 py-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2',
+          completionDisabled
+            ? 'cursor-not-allowed bg-slate-300 text-slate-500'
+            : 'bg-emerald-600 text-white hover:bg-emerald-700',
+        ]"
       >
         <span>
-          {{ isInProgressAppointment ? 'Document Session' : 'Complete & Add Session Note' }}
+          {{
+            isInProgressAppointment ? 'Document Session' : 'Complete & Add Session Note'
+          }}
         </span>
-        <span class="ml-2 rounded bg-emerald-700/50 px-2 py-0.5 text-xs font-medium">
+        <span
+          :class="[
+            'ml-2 rounded px-2 py-0.5 text-xs font-medium',
+            completionDisabled ? 'bg-slate-400/50' : 'bg-emerald-700/50',
+          ]"
+        >
           ⌘↵
         </span>
       </button>
@@ -178,11 +215,22 @@ onKeyStroke(['Meta+Shift+n', 'Control+Shift+n'], (e) => {
       <button
         v-if="isPastAppointment && !isInProgressAppointment"
         @click="markAsAttended"
-        class="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+        :disabled="completionDisabled"
+        :class="[
+          'flex w-full items-center justify-between rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2',
+          completionDisabled
+            ? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
+            : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
+        ]"
       >
         <span>Mark as Attended</span>
         <span
-          class="ml-2 rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+          :class="[
+            'ml-2 rounded px-2 py-0.5 text-xs font-medium',
+            completionDisabled
+              ? 'bg-slate-200 text-slate-500'
+              : 'bg-slate-100 text-slate-600',
+          ]"
         >
           ⌘⇧C
         </span>

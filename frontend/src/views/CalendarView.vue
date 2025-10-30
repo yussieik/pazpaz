@@ -15,6 +15,7 @@ import { useCalendarSwipe } from '@/composables/useCalendarSwipe'
 import { useCalendarDragScrollLock } from '@/composables/useCalendarDragScrollLock'
 import { useScreenReader } from '@/composables/useScreenReader'
 import { useToast } from '@/composables/useToast'
+import { usePayments } from '@/composables/usePayments'
 import { toISOString } from '@/utils/dragHelpers'
 import type { ConflictingAppointment } from '@/api/client'
 import type { AppointmentStatus } from '@/types/calendar'
@@ -88,6 +89,7 @@ const showEditSuccessBadge = ref(false)
 const { announcement: screenReaderAnnouncement, announce } = useScreenReader()
 const { showSuccess, showAppointmentSuccess, showSuccessWithUndo, showError } =
   useToast()
+const { paymentsEnabled, getPaymentStatusBadge } = usePayments()
 
 const {
   currentView,
@@ -559,6 +561,26 @@ const calendarOptions = computed(() => ({
 
     titleContainer.appendChild(title)
     wrapper.appendChild(titleContainer)
+
+    // Payment status indicator (only if payments enabled and status exists)
+    const paymentStatus = event.extendedProps?.payment_status
+    if (paymentsEnabled.value && paymentStatus && paymentStatus !== 'unpaid') {
+      const badge = getPaymentStatusBadge(paymentStatus)
+      if (badge) {
+        const paymentIndicator = document.createElement('div')
+        paymentIndicator.className = 'payment-indicator absolute top-1 left-1 z-10'
+        paymentIndicator.setAttribute('aria-label', `Payment: ${badge.label}`)
+        paymentIndicator.title = `Payment: ${badge.label}`
+
+        const iconSpan = document.createElement('span')
+        iconSpan.className = 'payment-icon text-xs'
+        iconSpan.textContent = badge.icon
+        iconSpan.style.filter = 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))'
+
+        paymentIndicator.appendChild(iconSpan)
+        wrapper.appendChild(paymentIndicator)
+      }
+    }
 
     // Quick action buttons container (desktop only - hidden on mobile ≤640px)
     const actionsContainer = document.createElement('div')

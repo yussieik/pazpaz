@@ -12,6 +12,7 @@ from pazpaz.api.google_calendar_integration import (
 )
 from pazpaz.api.locations import router as locations_router
 from pazpaz.api.notification_settings import router as notification_settings_router
+from pazpaz.api.payments import router as payments_router
 from pazpaz.api.platform_admin import router as platform_admin_router
 from pazpaz.api.services import router as services_router
 from pazpaz.api.session_attachments import router as session_attachments_router
@@ -37,4 +38,5 @@ api_router.include_router(locations_router)
 api_router.include_router(workspaces_router)
 api_router.include_router(notification_settings_router)
 api_router.include_router(google_calendar_integration_router)
+api_router.include_router(payments_router)
 api_router.include_router(audit_router)

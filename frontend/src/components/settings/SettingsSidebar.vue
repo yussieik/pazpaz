@@ -44,6 +44,13 @@ const categories = computed<SettingsCategory[]>(() => [
     icon: 'link',
     description: 'Calendar sync and third-party apps',
   },
+  {
+    id: 'payments',
+    name: 'Payments',
+    path: '/settings/payments',
+    icon: 'credit-card',
+    description: 'Payment processing and invoicing',
+  },
   // Future categories - uncomment when ready to enable
   // {
   //   id: 'account',
