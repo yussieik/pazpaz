@@ -510,9 +510,7 @@ class TestCreatePaymentRequest:
             await db_session.refresh(appointment)
             from sqlalchemy import select
 
-            stmt = select(PaymentTransaction).filter_by(
-                appointment_id=appointment.id
-            )
+            stmt = select(PaymentTransaction).filter_by(appointment_id=appointment.id)
             result = await db_session.execute(stmt)
             failed_tx = result.scalar_one_or_none()
             assert failed_tx is not None
