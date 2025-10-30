@@ -141,13 +141,15 @@ const formatDateTimeLocal = formatDateTimeForInput
  * Save payment price to appointment
  */
 async function savePaymentPrice() {
-  if (!props.appointment || paymentPrice.value === props.appointment.payment_price)
-    return
+  const appointmentPrice = props.appointment?.payment_price
+    ? parseFloat(props.appointment.payment_price)
+    : null
+  if (!props.appointment || paymentPrice.value === appointmentPrice) return
 
   try {
     await appointmentsStore.updateAppointment(props.appointment.id, {
-      payment_price: paymentPrice.value,
-    })
+      payment_price: paymentPrice.value !== null ? String(paymentPrice.value) : null,
+    } as any)
     showSuccess('Price saved')
     emit('refresh')
   } catch (error) {
@@ -250,8 +252,10 @@ watch(
       }
 
       // Sync payment data
-      paymentPrice.value = newAppointment.payment_price || null
-      customerEmail.value = newAppointment.client?.email || ''
+      paymentPrice.value = newAppointment.payment_price
+        ? parseFloat(newAppointment.payment_price)
+        : null
+      customerEmail.value = ''
 
       // Load payment transactions if payment status exists
       if (newAppointment.payment_status) {
@@ -424,7 +428,14 @@ const isInProgressAppointment = computed(() => {
  */
 const canSendPayment = computed(() => {
   if (!props.appointment) return false
-  return canSendPaymentRequest(props.appointment) && !sendingPayment.value
+  // Convert string payment_price to number for the composable
+  const appointmentWithNumericPrice = {
+    ...props.appointment,
+    payment_price: props.appointment.payment_price
+      ? parseFloat(props.appointment.payment_price)
+      : null,
+  }
+  return canSendPaymentRequest(appointmentWithNumericPrice) && !sendingPayment.value
 })
 
 /**
