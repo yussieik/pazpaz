@@ -31,7 +31,7 @@
  * HIPAA Note: Credentials are encrypted before sending to backend
  */
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import apiClient from '@/api/client'
@@ -68,6 +68,13 @@ const connectionSuccess = ref(false)
 const connectionError = ref(false)
 const errorMessage = ref<string | null>(null)
 
+// State - Toggle validation gate
+const credentialsConfigured = ref(false)
+const connectionTested = ref(false)
+const connectionValid = ref(false)
+const toggleStatusMessage = ref('')
+const toggleStatusType = ref<'info' | 'warning' | 'success' | 'error'>('info')
+
 // Composables
 const authStore = useAuthStore()
 const { showSuccess, showError, showWarning } = useToast()
@@ -103,6 +110,14 @@ const showSetupGuide = computed(() => {
   return paymentsEnabled.value && accountStatus.value === 'needs-account'
 })
 
+// Computed - Toggle disabled state
+const isToggleDisabled = computed(() => {
+  // Disabled until credentials configured AND successfully tested
+  return (
+    !credentialsConfigured.value || !connectionTested.value || !connectionValid.value
+  )
+})
+
 const sendTimingOptions = [
   { value: 'immediately', label: 'Immediately after marking complete' },
   { value: 'end_of_day', label: 'End of day (11:59 PM)' },
@@ -114,6 +129,52 @@ const sendTimingOptions = [
 onMounted(async () => {
   await loadPaymentConfig()
 })
+
+// Helper function to update toggle status
+function updateToggleStatus(
+  type: 'info' | 'warning' | 'success' | 'error',
+  message: string
+) {
+  toggleStatusType.value = type
+  toggleStatusMessage.value = message
+}
+
+// Watch for credential field changes
+watch(
+  [apiKey, paymentPageUid, webhookSecret],
+  (
+    [newApiKey, newPaymentPageUid, newWebhookSecret],
+    [oldApiKey, oldPaymentPageUid, oldWebhookSecret]
+  ) => {
+    // Check if any field was changed
+    const fieldsChanged =
+      newApiKey !== oldApiKey ||
+      newPaymentPageUid !== oldPaymentPageUid ||
+      newWebhookSecret !== oldWebhookSecret
+
+    if (fieldsChanged && connectionTested.value) {
+      // If credentials were previously tested and now changed, invalidate
+      connectionTested.value = false
+      connectionValid.value = false
+
+      if (newApiKey && newPaymentPageUid && newWebhookSecret) {
+        // All fields filled but not tested yet
+        updateToggleStatus('warning', 'Test connection to enable payment processing')
+      } else {
+        // Some fields are empty
+        updateToggleStatus('info', 'Fill in all credentials and test connection')
+      }
+    } else if (
+      newApiKey &&
+      newPaymentPageUid &&
+      newWebhookSecret &&
+      !connectionTested.value
+    ) {
+      // All fields filled for the first time but not tested yet
+      updateToggleStatus('warning', 'Test connection to enable payment processing')
+    }
+  }
+)
 
 async function loadPaymentConfig() {
   loading.value = true
@@ -127,6 +188,24 @@ async function loadPaymentConfig() {
     // Populate form
     paymentsEnabled.value = config.enabled || false
     provider.value = config.provider || 'payplus'
+
+    // Check if credentials are configured
+    credentialsConfigured.value = config.enabled && config.provider !== null
+
+    // If credentials exist, assume they were tested successfully before
+    // (since they couldn't be saved without testing in the new flow)
+    if (credentialsConfigured.value) {
+      connectionTested.value = true
+      connectionValid.value = true
+      updateToggleStatus('success', 'Active and working')
+    } else {
+      connectionTested.value = false
+      connectionValid.value = false
+      updateToggleStatus(
+        'info',
+        'Configure PayPlus credentials below to enable payment processing'
+      )
+    }
 
     // Business details
     businessName.value = config.business_name || ''
@@ -159,6 +238,13 @@ async function loadPaymentConfig() {
     ) {
       // No config exists yet, use defaults
       console.debug('[PaymentSettings] No existing config found, using defaults')
+      credentialsConfigured.value = false
+      connectionTested.value = false
+      connectionValid.value = false
+      updateToggleStatus(
+        'info',
+        'Configure PayPlus credentials below to enable payment processing'
+      )
     } else {
       showError('Failed to load payment settings')
     }
@@ -196,15 +282,25 @@ async function testConnection() {
 
     if (response.data?.valid !== false) {
       connectionSuccess.value = true
+      connectionTested.value = true
+      connectionValid.value = true
+      credentialsConfigured.value = true
+      updateToggleStatus('success', 'PayPlus connected successfully. Ready to enable.')
       showSuccess('Connection successful! Credentials are valid.')
     } else {
       connectionError.value = true
+      connectionTested.value = true
+      connectionValid.value = false
+      updateToggleStatus('error', 'Connection failed. Check credentials and try again.')
       errorMessage.value = response.data?.error || 'Invalid credentials'
       showError('Connection failed')
     }
   } catch (error: unknown) {
     console.error('[PaymentSettings] Connection test failed:', error)
     connectionError.value = true
+    connectionTested.value = true
+    connectionValid.value = false
+    updateToggleStatus('error', 'Connection failed. Check credentials and try again.')
 
     if (
       error &&
@@ -332,6 +428,27 @@ function handleTogglePayments(enabled: boolean) {
     connectionSuccess.value = false
     connectionError.value = false
     errorMessage.value = null
+
+    // Reset validation gate state
+    if (credentialsConfigured.value) {
+      // If credentials were configured, show info message about re-enabling
+      updateToggleStatus('info', 'Payments disabled. Toggle back on to re-enable.')
+    } else {
+      updateToggleStatus(
+        'info',
+        'Configure PayPlus credentials below to enable payment processing'
+      )
+    }
+  } else {
+    // When enabling, check if we need to configure or if already configured
+    if (credentialsConfigured.value && connectionValid.value) {
+      updateToggleStatus('success', 'Active and working')
+    } else {
+      updateToggleStatus(
+        'info',
+        'Configure PayPlus credentials below to enable payment processing'
+      )
+    }
   }
 }
 
@@ -386,19 +503,102 @@ function handleAccountCreated() {
             </div>
           </div>
 
-          <!-- Toggle -->
+          <!-- Toggle with Validation Gate -->
           <div class="flex-shrink-0">
-            <ToggleSwitch
-              :model-value="paymentsEnabled"
-              label="Enable payments"
-              @update:model-value="handleTogglePayments"
-            />
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="paymentsEnabled"
+              :aria-disabled="isToggleDisabled"
+              :disabled="isToggleDisabled"
+              :class="[
+                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none',
+                paymentsEnabled ? 'bg-emerald-600' : 'bg-slate-200',
+                isToggleDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+              ]"
+              @click="!isToggleDisabled && handleTogglePayments(!paymentsEnabled)"
+            >
+              <span
+                :class="[
+                  'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                  paymentsEnabled ? 'translate-x-6' : 'translate-x-1',
+                ]"
+              />
+            </button>
           </div>
         </div>
 
-        <!-- Warning -->
+        <!-- Status Message Card -->
         <div
-          v-if="!paymentsEnabled"
+          v-if="toggleStatusMessage"
+          :class="[
+            'mt-4 flex items-start gap-2 rounded-md p-3 text-sm',
+            toggleStatusType === 'info' &&
+              'border border-blue-200 bg-blue-50 text-blue-900',
+            toggleStatusType === 'warning' &&
+              'border border-amber-200 bg-amber-50 text-amber-900',
+            toggleStatusType === 'success' &&
+              'border border-emerald-200 bg-emerald-50 text-emerald-900',
+            toggleStatusType === 'error' &&
+              'border border-red-200 bg-red-50 text-red-900',
+          ]"
+        >
+          <!-- Icon -->
+          <svg
+            v-if="toggleStatusType === 'info'"
+            class="h-5 w-5 flex-shrink-0"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <svg
+            v-else-if="toggleStatusType === 'warning'"
+            class="h-5 w-5 flex-shrink-0"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <svg
+            v-else-if="toggleStatusType === 'success'"
+            class="h-5 w-5 flex-shrink-0"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <svg
+            v-else-if="toggleStatusType === 'error'"
+            class="h-5 w-5 flex-shrink-0"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+              clip-rule="evenodd"
+            />
+          </svg>
+
+          <span>{{ toggleStatusMessage }}</span>
+        </div>
+
+        <!-- Warning (only shown when toggle is OFF and not configured) -->
+        <div
+          v-if="!paymentsEnabled && !credentialsConfigured"
           class="mt-4 rounded-md border border-blue-200 bg-blue-50 p-4"
         >
           <div class="flex items-start gap-3">
@@ -436,7 +636,10 @@ function handleAccountCreated() {
       </div>
 
       <!-- Account Checkpoint (NEW) -->
-      <div v-if="paymentsEnabled" class="rounded-lg border-2 border-slate-300 bg-white p-6 shadow-sm">
+      <div
+        v-if="paymentsEnabled"
+        class="rounded-lg border-2 border-slate-300 bg-white p-6 shadow-sm"
+      >
         <h3 class="text-base font-semibold text-slate-900">
           Let's connect your PayPlus account
         </h3>
@@ -448,7 +651,11 @@ function handleAccountCreated() {
           <!-- Option 1: Has account -->
           <label
             class="flex cursor-pointer items-start gap-3 rounded-md border-2 p-4 transition"
-            :class="accountStatus === 'has-account' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-emerald-500 hover:bg-emerald-50'"
+            :class="
+              accountStatus === 'has-account'
+                ? 'border-emerald-500 bg-emerald-50'
+                : 'border-slate-200 hover:border-emerald-500 hover:bg-emerald-50'
+            "
           >
             <input
               v-model="accountStatus"
@@ -457,7 +664,9 @@ function handleAccountCreated() {
               class="mt-1 h-5 w-5 text-emerald-600"
             />
             <div class="flex-1">
-              <div class="font-medium text-slate-900">Yes, I have a PayPlus account</div>
+              <div class="font-medium text-slate-900">
+                Yes, I have a PayPlus account
+              </div>
               <div class="text-sm text-slate-600">I'm ready to connect my account</div>
             </div>
           </label>
@@ -465,7 +674,11 @@ function handleAccountCreated() {
           <!-- Option 2: Needs account -->
           <label
             class="flex cursor-pointer items-start gap-3 rounded-md border-2 p-4 transition"
-            :class="accountStatus === 'needs-account' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-500 hover:bg-blue-50'"
+            :class="
+              accountStatus === 'needs-account'
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-slate-200 hover:border-blue-500 hover:bg-blue-50'
+            "
           >
             <input
               v-model="accountStatus"
@@ -483,7 +696,10 @@ function handleAccountCreated() {
 
       <!-- Setup Guide (NEW - conditional) -->
       <Transition name="slide-fade">
-        <div v-if="showSetupGuide" class="rounded-lg border-2 border-blue-200 bg-blue-50 p-6 shadow-sm">
+        <div
+          v-if="showSetupGuide"
+          class="rounded-lg border-2 border-blue-200 bg-blue-50 p-6 shadow-sm"
+        >
           <div class="flex items-start gap-3">
             <svg
               class="h-6 w-6 flex-shrink-0 text-blue-600"
@@ -511,14 +727,16 @@ function handleAccountCreated() {
           <ol class="mt-6 space-y-6">
             <!-- Step 1: Create Account -->
             <li class="flex gap-4">
-              <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+              <div
+                class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white"
+              >
                 1
               </div>
               <div class="flex-1">
                 <h4 class="font-semibold text-blue-900">Create a PayPlus account</h4>
                 <p class="mt-1 text-sm text-blue-800">
-                  Sign up for a free PayPlus business account. You'll need your business tax ID
-                  and bank details.
+                  Sign up for a free PayPlus business account. You'll need your business
+                  tax ID and bank details.
                 </p>
                 <a
                   href="https://www.payplus.co.il"
@@ -546,14 +764,16 @@ function handleAccountCreated() {
 
             <!-- Step 2: Get Credentials -->
             <li class="flex gap-4">
-              <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+              <div
+                class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white"
+              >
                 2
               </div>
               <div class="flex-1">
                 <h4 class="font-semibold text-blue-900">Get your API credentials</h4>
                 <p class="mt-1 text-sm text-blue-800">
-                  After signing up, you'll need to collect three pieces of information from your
-                  PayPlus dashboard:
+                  After signing up, you'll need to collect three pieces of information
+                  from your PayPlus dashboard:
                 </p>
 
                 <button
@@ -585,18 +805,24 @@ function handleAccountCreated() {
                       Go to PayPlus Dashboard → Settings → API Keys
                     </p>
                     <!-- TODO: Add screenshot placeholder -->
-                    <div class="mt-2 rounded border border-slate-200 bg-slate-100 p-8 text-center text-sm text-slate-500">
+                    <div
+                      class="mt-2 rounded border border-slate-200 bg-slate-100 p-8 text-center text-sm text-slate-500"
+                    >
                       [Screenshot: PayPlus API Key location will be added here]
                     </div>
                   </div>
 
                   <div class="rounded-md border border-blue-300 bg-white p-4">
-                    <p class="text-sm font-medium text-slate-900">2. Payment Page UID</p>
+                    <p class="text-sm font-medium text-slate-900">
+                      2. Payment Page UID
+                    </p>
                     <p class="mt-1 text-sm text-slate-600">
                       Go to PayPlus Dashboard → Payment Pages → Settings
                     </p>
                     <!-- TODO: Add screenshot placeholder -->
-                    <div class="mt-2 rounded border border-slate-200 bg-slate-100 p-8 text-center text-sm text-slate-500">
+                    <div
+                      class="mt-2 rounded border border-slate-200 bg-slate-100 p-8 text-center text-sm text-slate-500"
+                    >
                       [Screenshot: Payment Page UID location will be added here]
                     </div>
                   </div>
@@ -607,7 +833,9 @@ function handleAccountCreated() {
                       Go to PayPlus Dashboard → Settings → Webhooks
                     </p>
                     <!-- TODO: Add screenshot placeholder -->
-                    <div class="mt-2 rounded border border-slate-200 bg-slate-100 p-8 text-center text-sm text-slate-500">
+                    <div
+                      class="mt-2 rounded border border-slate-200 bg-slate-100 p-8 text-center text-sm text-slate-500"
+                    >
                       [Screenshot: Webhook Secret location will be added here]
                     </div>
                   </div>
@@ -617,14 +845,16 @@ function handleAccountCreated() {
 
             <!-- Step 3: Return Here -->
             <li class="flex gap-4">
-              <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+              <div
+                class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white"
+              >
                 3
               </div>
               <div class="flex-1">
                 <h4 class="font-semibold text-blue-900">Return here and connect</h4>
                 <p class="mt-1 text-sm text-blue-800">
-                  Once you have your credentials, come back and click the button below to enter
-                  them.
+                  Once you have your credentials, come back and click the button below
+                  to enter them.
                 </p>
                 <button
                   type="button"
@@ -671,11 +901,16 @@ function handleAccountCreated() {
               <!-- Field 1: API Key -->
               <div class="rounded-md border border-slate-200 bg-slate-50 p-4">
                 <div class="flex items-start gap-3">
-                  <div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-bold text-white">
+                  <div
+                    class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-bold text-white"
+                  >
                     1
                   </div>
                   <div class="flex-1">
-                    <label for="api-key" class="block text-sm font-semibold text-slate-900">
+                    <label
+                      for="api-key"
+                      class="block text-sm font-semibold text-slate-900"
+                    >
                       API Key <span class="text-red-600">*</span>
                     </label>
                     <p class="mt-1 text-xs text-slate-600">
@@ -699,7 +934,7 @@ function handleAccountCreated() {
                       />
                       <div
                         v-if="apiKey.length > 0"
-                        class="absolute right-3 top-1/2 -translate-y-1/2"
+                        class="absolute top-1/2 right-3 -translate-y-1/2"
                       >
                         <svg
                           class="h-5 w-5 text-emerald-600"
@@ -721,7 +956,9 @@ function handleAccountCreated() {
               <!-- Field 2: Payment Page UID -->
               <div class="rounded-md border border-slate-200 bg-slate-50 p-4">
                 <div class="flex items-start gap-3">
-                  <div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-bold text-white">
+                  <div
+                    class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-bold text-white"
+                  >
                     2
                   </div>
                   <div class="flex-1">
@@ -752,7 +989,7 @@ function handleAccountCreated() {
                       />
                       <div
                         v-if="paymentPageUid.length > 0"
-                        class="absolute right-3 top-1/2 -translate-y-1/2"
+                        class="absolute top-1/2 right-3 -translate-y-1/2"
                       >
                         <svg
                           class="h-5 w-5 text-emerald-600"
@@ -774,11 +1011,16 @@ function handleAccountCreated() {
               <!-- Field 3: Webhook Secret -->
               <div class="rounded-md border border-slate-200 bg-slate-50 p-4">
                 <div class="flex items-start gap-3">
-                  <div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-bold text-white">
+                  <div
+                    class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-bold text-white"
+                  >
                     3
                   </div>
                   <div class="flex-1">
-                    <label for="webhook-secret" class="block text-sm font-semibold text-slate-900">
+                    <label
+                      for="webhook-secret"
+                      class="block text-sm font-semibold text-slate-900"
+                    >
                       Webhook Secret <span class="text-red-600">*</span>
                     </label>
                     <p class="mt-1 text-xs text-slate-600">
@@ -802,7 +1044,7 @@ function handleAccountCreated() {
                       />
                       <div
                         v-if="webhookSecret.length > 0"
-                        class="absolute right-3 top-1/2 -translate-y-1/2"
+                        class="absolute top-1/2 right-3 -translate-y-1/2"
                       >
                         <svg
                           class="h-5 w-5 text-emerald-600"
@@ -831,12 +1073,19 @@ function handleAccountCreated() {
                   4
                 </div>
                 <div class="flex-1">
-                  <label for="base-url" class="block text-sm font-semibold text-slate-900">
-                    API Base URL <span class="text-slate-500 font-normal">(Optional)</span>
+                  <label
+                    for="base-url"
+                    class="block text-sm font-semibold text-slate-900"
+                  >
+                    API Base URL
+                    <span class="font-normal text-slate-500">(Optional)</span>
                   </label>
                   <p class="mt-1 text-xs text-slate-600">
-                    Use this to override the default PayPlus API endpoint. Leave blank for production API, or set to
-                    <code class="bg-slate-200 px-1 py-0.5 rounded text-xs font-mono">https://restapidev.payplus.co.il/api/v1.0</code>
+                    Use this to override the default PayPlus API endpoint. Leave blank
+                    for production API, or set to
+                    <code class="rounded bg-slate-200 px-1 py-0.5 font-mono text-xs"
+                      >https://restapidev.payplus.co.il/api/v1.0</code
+                    >
                     for testing environment.
                   </p>
                   <div class="relative mt-2">
@@ -844,7 +1093,7 @@ function handleAccountCreated() {
                       id="base-url"
                       v-model="baseUrl"
                       type="text"
-                      class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+                      class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 font-mono text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                       placeholder="https://restapidev.payplus.co.il/api/v1.0 (optional)"
                     />
                   </div>
@@ -853,7 +1102,9 @@ function handleAccountCreated() {
             </div>
 
             <!-- Test Connection Button (Enhanced) -->
-            <div class="mt-6 flex items-center justify-between gap-4 rounded-md border-2 border-emerald-200 bg-emerald-50 p-4">
+            <div
+              class="mt-6 flex items-center justify-between gap-4 rounded-md border-2 border-emerald-200 bg-emerald-50 p-4"
+            >
               <div class="flex-1">
                 <p class="text-sm font-medium text-emerald-900">
                   Test your connection before saving
@@ -893,9 +1144,12 @@ function handleAccountCreated() {
                 />
               </svg>
               <div class="flex-1">
-                <p class="text-sm font-medium text-emerald-900">Connection successful!</p>
+                <p class="text-sm font-medium text-emerald-900">
+                  Connection successful!
+                </p>
                 <p class="mt-0.5 text-xs text-emerald-700">
-                  Your PayPlus credentials are working correctly. Continue below to complete setup.
+                  Your PayPlus credentials are working correctly. Continue below to
+                  complete setup.
                 </p>
               </div>
             </div>
@@ -932,7 +1186,10 @@ function handleAccountCreated() {
 
       <!-- Business Details (Progressive Disclosure - after connection success) -->
       <Transition name="slide-fade">
-        <div v-if="connectionSuccess" class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div
+          v-if="connectionSuccess"
+          class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+        >
           <h3 class="text-base font-semibold text-slate-900">Business Details</h3>
           <p class="mt-1 text-sm text-slate-600">
             This information appears on invoices and payment receipts
@@ -1029,91 +1286,95 @@ function handleAccountCreated() {
       </Transition>
 
       <!-- VAT Settings (show if payments enabled) -->
-      <div v-if="paymentsEnabled" class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 class="text-base font-semibold text-slate-900">VAT Settings</h3>
-          <p class="mt-1 text-sm text-slate-600">
-            Configure value-added tax for invoices
-          </p>
+      <div
+        v-if="paymentsEnabled"
+        class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+      >
+        <h3 class="text-base font-semibold text-slate-900">VAT Settings</h3>
+        <p class="mt-1 text-sm text-slate-600">
+          Configure value-added tax for invoices
+        </p>
 
-          <div class="mt-6 space-y-4">
-            <div class="flex items-start gap-3">
-              <input
-                id="vat-registered"
-                v-model="vatRegistered"
-                type="checkbox"
-                class="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-              />
-              <div class="flex-1">
-                <label for="vat-registered" class="text-sm font-medium text-slate-900">
-                  Business is VAT registered (עוסק מורשה)
-                </label>
-                <p class="mt-1 text-sm text-slate-600">
-                  Enable if your business is registered for VAT in Israel
-                </p>
-              </div>
-            </div>
-
-            <div v-if="vatRegistered">
-              <label for="vat-rate" class="block text-sm font-medium text-slate-900">
-                VAT Rate (%)
+        <div class="mt-6 space-y-4">
+          <div class="flex items-start gap-3">
+            <input
+              id="vat-registered"
+              v-model="vatRegistered"
+              type="checkbox"
+              class="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            />
+            <div class="flex-1">
+              <label for="vat-registered" class="text-sm font-medium text-slate-900">
+                Business is VAT registered (עוסק מורשה)
               </label>
-              <input
-                id="vat-rate"
-                v-model.number="vatRate"
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                class="mt-1 w-32 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              />
-              <p class="mt-1 text-xs text-slate-500">Standard rate in Israel is 17%</p>
+              <p class="mt-1 text-sm text-slate-600">
+                Enable if your business is registered for VAT in Israel
+              </p>
             </div>
           </div>
+
+          <div v-if="vatRegistered">
+            <label for="vat-rate" class="block text-sm font-medium text-slate-900">
+              VAT Rate (%)
+            </label>
+            <input
+              id="vat-rate"
+              v-model.number="vatRate"
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              class="mt-1 w-32 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            />
+            <p class="mt-1 text-xs text-slate-500">Standard rate in Israel is 17%</p>
+          </div>
+        </div>
       </div>
 
       <!-- Auto-Send Settings (show if payments enabled) -->
-      <div v-if="paymentsEnabled" class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 class="text-base font-semibold text-slate-900">
-            Payment Request Settings
-          </h3>
-          <p class="mt-1 text-sm text-slate-600">
-            Automatically send payment requests when appointments are completed
-          </p>
+      <div
+        v-if="paymentsEnabled"
+        class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+      >
+        <h3 class="text-base font-semibold text-slate-900">Payment Request Settings</h3>
+        <p class="mt-1 text-sm text-slate-600">
+          Automatically send payment requests when appointments are completed
+        </p>
 
-          <div class="mt-6 space-y-4">
-            <div class="flex items-start justify-between gap-4">
-              <div class="flex-1">
-                <label class="text-sm font-medium text-slate-900">
-                  Auto-send payment requests
-                </label>
-                <p class="mt-1 text-sm text-slate-600">
-                  Automatically send payment links to clients after appointments
-                </p>
-              </div>
-              <div class="flex-shrink-0">
-                <ToggleSwitch v-model="autoSend" label="Enable auto-send" />
-              </div>
-            </div>
-
-            <div v-if="autoSend">
-              <label for="send-timing" class="block text-sm font-medium text-slate-900">
-                Send timing
+        <div class="mt-6 space-y-4">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1">
+              <label class="text-sm font-medium text-slate-900">
+                Auto-send payment requests
               </label>
-              <select
-                id="send-timing"
-                v-model="sendTiming"
-                class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              >
-                <option
-                  v-for="option in sendTimingOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </option>
-              </select>
+              <p class="mt-1 text-sm text-slate-600">
+                Automatically send payment links to clients after appointments
+              </p>
+            </div>
+            <div class="flex-shrink-0">
+              <ToggleSwitch v-model="autoSend" label="Enable auto-send" />
             </div>
           </div>
+
+          <div v-if="autoSend">
+            <label for="send-timing" class="block text-sm font-medium text-slate-900">
+              Send timing
+            </label>
+            <select
+              id="send-timing"
+              v-model="sendTiming"
+              class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            >
+              <option
+                v-for="option in sendTimingOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <!-- Save Button -->
