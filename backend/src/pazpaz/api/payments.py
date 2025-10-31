@@ -48,6 +48,10 @@ class TestCredentialsRequest(BaseModel):
         ...,
         description="PayPlus webhook secret for signature verification",
     )
+    base_url: str | None = Field(
+        None,
+        description="Optional custom base URL for testing/sandbox environment",
+    )
 
 
 class TestCredentialsResponse(BaseModel):
@@ -315,6 +319,10 @@ async def test_payment_credentials(
             "payment_page_uid": request_data.payment_page_uid,
             "webhook_secret": request_data.webhook_secret,
         }
+
+        # Include custom base_url if provided (for testing/sandbox environments)
+        if request_data.base_url:
+            test_config["base_url"] = request_data.base_url
 
         provider = PayPlusProvider(test_config)
 
