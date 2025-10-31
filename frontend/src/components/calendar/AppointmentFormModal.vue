@@ -910,7 +910,7 @@ watch(
             <!-- Payment Tracking -->
             <PaymentTrackingCard
               v-model:payment-price="formData.payment_price"
-              v-model:payment-status="formData.payment_status"
+              v-model:payment-status="formData.payment_status!"
               v-model:payment-method="formData.payment_method"
               v-model:payment-notes="formData.payment_notes"
             />

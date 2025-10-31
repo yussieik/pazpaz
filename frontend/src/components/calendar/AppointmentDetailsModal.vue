@@ -158,9 +158,10 @@ async function savePaymentPrice() {
   if (!props.appointment || paymentPrice.value === appointmentPrice) return
 
   try {
+    // Type assertion needed because OpenAPI schema not yet regenerated with payment fields
     await appointmentsStore.updateAppointment(props.appointment.id, {
       payment_price: paymentPrice.value !== null ? String(paymentPrice.value) : null,
-    })
+    } as any)
     showSuccess('Price saved')
     emit('refresh')
   } catch (error) {
@@ -427,19 +428,28 @@ function handleTextFieldBlur(field: 'location_details' | 'notes') {
 
 /**
  * Handle payment field changes - save immediately (no debounce)
+ * Maps short field names from PaymentTrackingCard to full field names for API
  */
-async function handlePaymentFieldBlur(
-  field: 'payment_price' | 'payment_status' | 'payment_method' | 'payment_notes'
-) {
+async function handlePaymentFieldBlur(field: 'price' | 'status' | 'method' | 'notes') {
   if (!props.appointment || !autoSave.value) return
 
-  const value = editableData.value[field]
+  // Map short field names to full field names
+  const fieldMap = {
+    price: 'payment_price',
+    status: 'payment_status',
+    method: 'payment_method',
+    notes: 'payment_notes',
+  } as const
+
+  const fullFieldName = fieldMap[field]
+  const value = editableData.value[fullFieldName]
 
   try {
     // Convert payment_price to string for API (backend expects Decimal as string)
-    const apiValue = field === 'payment_price' && value !== null ? String(value) : value
+    const apiValue =
+      fullFieldName === 'payment_price' && value !== null ? String(value) : value
 
-    await autoSave.value.saveField(field, apiValue, false)
+    await autoSave.value.saveField(fullFieldName, apiValue, false)
     // Emit refresh to update parent component's appointment data
     emit('refresh')
   } catch {
