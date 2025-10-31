@@ -75,6 +75,14 @@ const connectionValid = ref(false)
 const toggleStatusMessage = ref('')
 const toggleStatusType = ref<'info' | 'warning' | 'success' | 'error'>('info')
 
+// State - Payment system status tracking
+const lastConnectionCheck = ref<Date | null>(null)
+const lastSuccessfulCheck = ref<Date | null>(null)
+const connectionHealthy = ref<boolean | null>(null)
+const connectionErrorMessage = ref<string | null>(null)
+const showErrorDetails = ref(false)
+const isTestingConnection = ref(false)
+
 // Composables
 const authStore = useAuthStore()
 const { showSuccess, showError, showWarning } = useToast()
@@ -125,10 +133,57 @@ const sendTimingOptions = [
   { value: 'manual', label: 'Manual only (no auto-send)' },
 ]
 
+// Computed - Status card display
+const statusCardState = computed<'active' | 'error' | 'inactive'>(() => {
+  if (!paymentsEnabled.value) return 'inactive'
+  if (connectionHealthy.value === false) return 'error'
+  return 'active'
+})
+
+const statusLabel = computed(() => {
+  switch (statusCardState.value) {
+    case 'active':
+      return 'Active'
+    case 'error':
+      return 'Error'
+    case 'inactive':
+      return 'Disabled'
+    default:
+      return 'Unknown'
+  }
+})
+
+const lastCheckFormatted = computed(() => {
+  if (!lastConnectionCheck.value) return 'Never tested'
+  return formatTimeAgo(lastConnectionCheck.value)
+})
+
+const lastSuccessFormatted = computed(() => {
+  if (!lastSuccessfulCheck.value) return 'Never'
+  return formatTimeAgo(lastSuccessfulCheck.value)
+})
+
 // Methods
 onMounted(async () => {
   await loadPaymentConfig()
 })
+
+// Helper function to format time ago
+function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
+
+  if (seconds < 60) return 'Just now'
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`
+
+  // Format as date if older than a week
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+  })
+}
 
 // Helper function to update toggle status
 function updateToggleStatus(
@@ -197,10 +252,16 @@ async function loadPaymentConfig() {
     if (credentialsConfigured.value) {
       connectionTested.value = true
       connectionValid.value = true
+
+      // Set initial healthy status for existing configs
+      connectionHealthy.value = true
+      lastSuccessfulCheck.value = new Date() // Assume recent if saved
+
       updateToggleStatus('success', 'Active and working')
     } else {
       connectionTested.value = false
       connectionValid.value = false
+      connectionHealthy.value = null
       updateToggleStatus(
         'info',
         'Configure PayPlus credentials below to enable payment processing'
@@ -260,6 +321,7 @@ async function testConnection() {
   }
 
   testing.value = true
+  isTestingConnection.value = true
   connectionSuccess.value = false
   connectionError.value = false
   errorMessage.value = null
@@ -285,14 +347,29 @@ async function testConnection() {
       connectionTested.value = true
       connectionValid.value = true
       credentialsConfigured.value = true
+
+      // Update status tracking
+      lastConnectionCheck.value = new Date()
+      lastSuccessfulCheck.value = new Date()
+      connectionHealthy.value = true
+      connectionErrorMessage.value = null
+
       updateToggleStatus('success', 'PayPlus connected successfully. Ready to enable.')
       showSuccess('Connection successful! Credentials are valid.')
     } else {
       connectionError.value = true
       connectionTested.value = true
       connectionValid.value = false
+
+      // Update error tracking
+      lastConnectionCheck.value = new Date()
+      connectionHealthy.value = false
+
+      const errorMsg = response.data?.error || 'Invalid credentials'
+      connectionErrorMessage.value = errorMsg
+
       updateToggleStatus('error', 'Connection failed. Check credentials and try again.')
-      errorMessage.value = response.data?.error || 'Invalid credentials'
+      errorMessage.value = errorMsg
       showError('Connection failed')
     }
   } catch (error: unknown) {
@@ -300,6 +377,11 @@ async function testConnection() {
     connectionError.value = true
     connectionTested.value = true
     connectionValid.value = false
+
+    // Update error tracking
+    lastConnectionCheck.value = new Date()
+    connectionHealthy.value = false
+
     updateToggleStatus('error', 'Connection failed. Check credentials and try again.')
 
     if (
@@ -315,13 +397,16 @@ async function testConnection() {
       typeof error.response.data.detail === 'string'
     ) {
       errorMessage.value = error.response.data.detail
+      connectionErrorMessage.value = error.response.data.detail
       showError(`Connection failed: ${error.response.data.detail}`)
     } else {
       errorMessage.value = 'Failed to connect to PayPlus'
+      connectionErrorMessage.value = 'Failed to connect to PayPlus'
       showError('Connection test failed. Please check your credentials.')
     }
   } finally {
     testing.value = false
+    isTestingConnection.value = false
   }
 }
 
@@ -378,6 +463,12 @@ async function saveSettings() {
     }
 
     await apiClient.patch(`/workspaces/${workspaceId}`, payload)
+
+    // Update status after successful save
+    if (paymentsEnabled.value && connectionValid.value) {
+      lastSuccessfulCheck.value = new Date()
+      connectionHealthy.value = true
+    }
 
     showSuccess('Payment settings saved successfully!')
 
@@ -594,6 +685,170 @@ function handleAccountCreated() {
           </svg>
 
           <span>{{ toggleStatusMessage }}</span>
+        </div>
+
+        <!-- Payment System Status Card -->
+        <div
+          v-if="paymentsEnabled && credentialsConfigured"
+          class="mt-6 rounded-lg border-l-4 p-4"
+          :class="[
+            statusCardState === 'active' && 'border-emerald-500 bg-emerald-50',
+            statusCardState === 'error' && 'border-red-500 bg-red-50',
+            statusCardState === 'inactive' && 'border-slate-300 bg-slate-50',
+          ]"
+        >
+          <!-- Header -->
+          <div class="flex items-center gap-2 mb-3">
+            <!-- Status Icon -->
+            <svg
+              v-if="statusCardState === 'active'"
+              class="h-5 w-5 text-emerald-600"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            <svg
+              v-else-if="statusCardState === 'error'"
+              class="h-5 w-5 text-red-600"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            <svg
+              v-else
+              class="h-5 w-5 text-slate-400"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 112 0v4a1 1 0 11-2 0V9z"
+                clip-rule="evenodd"
+              />
+            </svg>
+
+            <!-- Status Label -->
+            <h3
+              class="font-semibold"
+              :class="[
+                statusCardState === 'active' && 'text-emerald-900',
+                statusCardState === 'error' && 'text-red-900',
+                statusCardState === 'inactive' && 'text-slate-600',
+              ]"
+            >
+              Payment Processing: {{ statusLabel }}
+            </h3>
+          </div>
+
+          <!-- Status Body -->
+          <div
+            class="rounded-md border p-3"
+            :class="[
+              statusCardState === 'active' && 'border-emerald-200 bg-white',
+              statusCardState === 'error' && 'border-red-200 bg-white',
+              statusCardState === 'inactive' && 'border-slate-200 bg-white',
+            ]"
+          >
+            <!-- Active State -->
+            <div v-if="statusCardState === 'active'" class="space-y-3">
+              <div class="flex items-center gap-2">
+                <svg
+                  class="h-4 w-4 text-emerald-600"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                <span class="text-sm font-medium text-emerald-900">PayPlus Connected</span>
+              </div>
+              <p class="text-sm text-slate-600">Last verified: {{ lastSuccessFormatted }}</p>
+              <button
+                type="button"
+                class="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50"
+                :disabled="isTestingConnection"
+                @click="testConnection"
+              >
+                {{ isTestingConnection ? 'Testing...' : 'Test Connection Now' }}
+              </button>
+            </div>
+
+            <!-- Error State -->
+            <div v-else-if="statusCardState === 'error'" class="space-y-3">
+              <div class="flex items-center gap-2">
+                <svg
+                  class="h-4 w-4 text-red-600"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                <span class="text-sm font-medium text-red-900">Connection Failed</span>
+              </div>
+              <p class="text-sm text-slate-600">Last error: {{ lastCheckFormatted }}</p>
+
+              <!-- Error Message -->
+              <div class="rounded-md bg-red-50 p-2 text-sm text-red-800">
+                {{ connectionErrorMessage || 'Unable to connect to PayPlus' }}
+              </div>
+
+              <!-- Actions -->
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  class="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
+                  :disabled="isTestingConnection"
+                  @click="testConnection"
+                >
+                  {{ isTestingConnection ? 'Testing...' : 'Test Connection' }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                  @click="showErrorDetails = !showErrorDetails"
+                >
+                  {{ showErrorDetails ? 'Hide Details ▲' : 'View Details ▼' }}
+                </button>
+              </div>
+
+              <!-- Error Details (Expandable) -->
+              <div
+                v-if="showErrorDetails"
+                class="mt-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900"
+              >
+                <p class="font-medium mb-2">Troubleshooting:</p>
+                <ul class="list-disc list-inside space-y-1 text-red-800">
+                  <li>Verify your API key in PayPlus dashboard</li>
+                  <li>Check if credentials were recently rotated</li>
+                  <li>Ensure webhook secret matches PayPlus settings</li>
+                  <li>Confirm base URL is correct for testing environment</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Inactive State -->
+            <div v-else class="text-sm text-slate-600">
+              <p>Payment processing is currently disabled.</p>
+              <p class="mt-1">Enable above to start accepting payments.</p>
+            </div>
+          </div>
         </div>
 
         <!-- Warning (only shown when toggle is OFF and not configured) -->
