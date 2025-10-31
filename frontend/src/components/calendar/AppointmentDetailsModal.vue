@@ -1218,9 +1218,9 @@ watch(
                 </button>
               </div>
 
-              <!-- Payment Link (if pending) -->
+              <!-- Payment Link (if payment sent) -->
               <div
-                v-if="appointment.payment_status === 'pending' && paymentLink"
+                v-if="appointment.payment_status === 'payment_sent' && paymentLink"
                 class="mb-4"
               >
                 <label class="mb-1 block text-xs font-medium text-slate-500">

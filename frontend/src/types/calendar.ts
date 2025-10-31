@@ -31,15 +31,17 @@ export type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'payment_link' |
 
 /**
  * Extended appointment type with payment tracking fields
- * Note: The base type comes from OpenAPI schema. We extend it here
- * with payment tracking fields until the OpenAPI schema is regenerated.
+ * Note: The base type comes from OpenAPI schema. We use Omit to override
+ * payment_status from string to PaymentStatus enum for type safety.
  *
- * payment_price is a string because the backend returns Decimal as string (JSON serialization)
+ * payment_price and payment_status are strings in the OpenAPI schema because:
+ * - payment_price: backend Decimal serializes to string in JSON
+ * - payment_status: OpenAPI schema not yet regenerated with enum values
  */
-export interface AppointmentListItem extends AppointmentListItemBase {
+export type AppointmentListItem = Omit<AppointmentListItemBase, 'payment_status'> & {
   payment_price?: string | null
-  payment_status: PaymentStatus
-  payment_method?: PaymentMethod | null
+  payment_status: PaymentStatus | string // Allow string for API responses, but prefer PaymentStatus
+  payment_method?: PaymentMethod | string | null // Allow string for API responses
   payment_notes?: string | null
   paid_at?: string | null
 }
