@@ -1229,8 +1229,17 @@ async function handleEditAppointment(data: AppointmentFormData) {
   if (!appointmentToEdit.value) return
 
   try {
+    // Convert payment_price from number to string for API (backend expects Decimal as string)
+    const updateData = {
+      ...data,
+      payment_price:
+        data.payment_price !== null && data.payment_price !== undefined
+          ? String(data.payment_price)
+          : data.payment_price,
+    }
+
     // Update appointment in store (calls API and updates local state)
-    await appointmentsStore.updateAppointment(appointmentToEdit.value.id, data)
+    await appointmentsStore.updateAppointment(appointmentToEdit.value.id, updateData)
 
     // Close Edit Modal
     showEditModal.value = false
