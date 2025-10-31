@@ -321,6 +321,12 @@ async def create_appointment(
         location_details=appointment_data.location_details,
         notes=appointment_data.notes,
         status=AppointmentStatus.SCHEDULED,
+        payment_price=appointment_data.payment_price,
+        payment_status=appointment_data.payment_status.value,
+        payment_method=appointment_data.payment_method.value
+        if appointment_data.payment_method
+        else None,
+        payment_notes=appointment_data.payment_notes,
     )
 
     db.add(appointment)
@@ -685,6 +691,30 @@ async def update_appointment(
             appointment=appointment,
             new_status=update_data["status"],
         )
+
+    # Handle payment status changes and auto-set paid_at
+    if "payment_status" in update_data:
+        # Convert enum to string for database storage
+        if hasattr(update_data["payment_status"], "value"):
+            update_data["payment_status"] = update_data["payment_status"].value
+
+        # Auto-set paid_at when marking as paid (if not already provided)
+        if (
+            update_data["payment_status"] == "paid"
+            and "paid_at" not in update_data
+            and appointment.payment_status != "paid"
+        ):
+            update_data["paid_at"] = datetime.now()
+            logger.debug(
+                "auto_set_paid_at",
+                appointment_id=str(appointment_id),
+                paid_at=update_data["paid_at"].isoformat(),
+            )
+
+    # Convert payment_method enum to string if provided
+    if "payment_method" in update_data and update_data["payment_method"] is not None:
+        if hasattr(update_data["payment_method"], "value"):
+            update_data["payment_method"] = update_data["payment_method"].value
 
     # Determine final scheduled times for conflict check
     final_start = update_data.get("scheduled_start", appointment.scheduled_start)

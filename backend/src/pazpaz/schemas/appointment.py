@@ -7,11 +7,12 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 
 from pazpaz.core.constants import DELETION_REASON_MAX_LENGTH
 from pazpaz.models.appointment import AppointmentStatus, LocationType
+from pazpaz.models.enums import PaymentMethod, PaymentStatus
 
 
 class AppointmentBase(BaseModel):
@@ -31,6 +32,23 @@ class AppointmentBase(BaseModel):
         None, description="Additional location details"
     )
     notes: str | None = Field(None, description="Therapist notes for the appointment")
+    payment_price: Decimal | None = Field(
+        None,
+        ge=0,
+        description="Actual price for this appointment (overrides service price if set)",
+    )
+    payment_status: PaymentStatus = Field(
+        PaymentStatus.NOT_PAID,
+        description="Payment status: not_paid (default), paid, payment_sent, waived",
+    )
+    payment_method: PaymentMethod | None = Field(
+        None,
+        description="Payment method: cash, card, bank_transfer, payment_link, other",
+    )
+    payment_notes: str | None = Field(
+        None,
+        description="Free-text notes about payment (e.g., invoice number, special terms)",
+    )
 
     @field_validator("scheduled_end")
     @classmethod
@@ -86,6 +104,27 @@ class AppointmentUpdate(BaseModel):
         ),
     )
     notes: str | None = Field(None, description="Therapist notes")
+    payment_price: Decimal | None = Field(
+        None,
+        ge=0,
+        description="Actual price for this appointment (overrides service price if set)",
+    )
+    payment_status: PaymentStatus | None = Field(
+        None,
+        description="Payment status: not_paid, paid, payment_sent, waived",
+    )
+    payment_method: PaymentMethod | None = Field(
+        None,
+        description="Payment method: cash, card, bank_transfer, payment_link, other",
+    )
+    payment_notes: str | None = Field(
+        None,
+        description="Free-text notes about payment (e.g., invoice number, special terms)",
+    )
+    paid_at: datetime | None = Field(
+        None,
+        description="Timestamp when payment was marked as paid (auto-set if not provided when status='paid')",
+    )
 
     @field_validator("scheduled_end")
     @classmethod
@@ -99,6 +138,17 @@ class AppointmentUpdate(BaseModel):
                     "scheduled_end must be after scheduled_start",
                 )
         return end
+
+    @model_validator(mode="after")
+    def validate_payment_fields(self) -> AppointmentUpdate:
+        """Validate payment field consistency."""
+        # If payment_status is being set to PAID, ensure paid_at will be set
+        # (either provided or will be auto-set in the endpoint)
+        if self.payment_status == PaymentStatus.PAID:
+            # This is just a note - paid_at will be auto-set in the endpoint if not provided
+            pass
+
+        return self
 
 
 class AppointmentDeleteRequest(BaseModel):
@@ -166,10 +216,22 @@ class AppointmentResponse(BaseModel):
         None, description="Client information (included when requested)"
     )
     payment_price: Decimal | None = Field(
-        None, description="Appointment price (null = no price set)"
+        None, description="Actual price for this appointment (null = no price set)"
     )
     payment_status: str = Field(
-        "unpaid", description="Payment status (unpaid, pending, paid, failed, refunded)"
+        "not_paid",
+        description="Payment status: not_paid, paid, payment_sent, waived",
+    )
+    payment_method: str | None = Field(
+        None,
+        description="Payment method: cash, card, bank_transfer, payment_link, other",
+    )
+    payment_notes: str | None = Field(
+        None,
+        description="Free-text notes about payment (e.g., invoice number, special terms)",
+    )
+    paid_at: datetime | None = Field(
+        None, description="Timestamp when payment was marked as paid"
     )
 
     model_config = ConfigDict(from_attributes=True)
