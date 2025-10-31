@@ -8,7 +8,7 @@ export type ViewType = 'timeGridWeek' | 'timeGridDay' | 'dayGridMonth'
 export type AppointmentResponse =
   paths['/api/v1/appointments']['get']['responses']['200']['content']['application/json']
 
-export type AppointmentListItem = AppointmentResponse['items'][0]
+type AppointmentListItemBase = AppointmentResponse['items'][0]
 
 /**
  * Appointment status type
@@ -18,6 +18,29 @@ export type AppointmentStatus =
   | 'attended'
   | 'cancelled'
   | 'no_show'
+
+/**
+ * Payment status enum
+ */
+export type PaymentStatus = 'not_paid' | 'paid' | 'payment_sent' | 'waived'
+
+/**
+ * Payment method enum
+ */
+export type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'payment_link' | 'other'
+
+/**
+ * Extended appointment type with payment tracking fields
+ * Note: The base type comes from OpenAPI schema. We extend it here
+ * with payment tracking fields until the OpenAPI schema is regenerated.
+ */
+export interface AppointmentListItem extends AppointmentListItemBase {
+  payment_price?: number | null
+  payment_status: PaymentStatus
+  payment_method?: PaymentMethod | null
+  payment_notes?: string | null
+  paid_at?: string | null
+}
 
 /**
  * Calendar state interface
@@ -35,16 +58,6 @@ export interface DateRange {
   start: string
   end: string
 }
-
-/**
- * Payment status enum
- */
-export type PaymentStatus = 'not_paid' | 'paid' | 'payment_sent' | 'waived'
-
-/**
- * Payment method enum
- */
-export type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'payment_link' | 'other'
 
 /**
  * Appointment form data for create/edit operations
