@@ -44,6 +44,7 @@ const provider = ref<'payplus' | ''>('payplus')
 const apiKey = ref('')
 const paymentPageUid = ref('')
 const webhookSecret = ref('')
+const baseUrl = ref('')
 const businessName = ref('')
 const businessNameHebrew = ref('')
 const taxId = ref('')
@@ -180,11 +181,18 @@ async function testConnection() {
   try {
     // Test PayPlus API credentials
     // Note: This endpoint validates credentials without storing them
-    const response = await apiClient.post('/payments/test-credentials', {
+    const payload: Record<string, string> = {
       api_key: apiKey.value,
       payment_page_uid: paymentPageUid.value,
       webhook_secret: webhookSecret.value,
-    })
+    }
+
+    // Include base_url if provided (for testing/sandbox environments)
+    if (baseUrl.value.trim()) {
+      payload.base_url = baseUrl.value
+    }
+
+    const response = await apiClient.post('/payments/test-credentials', payload)
 
     if (response.data?.valid !== false) {
       connectionSuccess.value = true
@@ -253,11 +261,18 @@ async function saveSettings() {
       paymentPageUid.value &&
       webhookSecret.value
     ) {
-      payload.payment_provider_config = {
+      const config: Record<string, string> = {
         api_key: apiKey.value,
         payment_page_uid: paymentPageUid.value,
         webhook_secret: webhookSecret.value,
       }
+
+      // Include base_url if provided (for testing/sandbox environments)
+      if (baseUrl.value.trim()) {
+        config.base_url = baseUrl.value
+      }
+
+      payload.payment_provider_config = config
     }
 
     // Update workspace settings
@@ -275,6 +290,7 @@ async function saveSettings() {
       apiKey.value = ''
       paymentPageUid.value = ''
       webhookSecret.value = ''
+      baseUrl.value = ''
       showWarning(
         'For security, please re-enter credentials if you need to change them'
       )
@@ -801,6 +817,36 @@ function handleAccountCreated() {
                         </svg>
                       </div>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Base URL Field (Optional - for testing/sandbox) -->
+            <div class="rounded-md bg-slate-50 p-4">
+              <div class="flex gap-3">
+                <div
+                  class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-700"
+                >
+                  4
+                </div>
+                <div class="flex-1">
+                  <label for="base-url" class="block text-sm font-semibold text-slate-900">
+                    API Base URL <span class="text-slate-500 font-normal">(Optional)</span>
+                  </label>
+                  <p class="mt-1 text-xs text-slate-600">
+                    Use this to override the default PayPlus API endpoint. Leave blank for production API, or set to
+                    <code class="bg-slate-200 px-1 py-0.5 rounded text-xs font-mono">https://restapidev.payplus.co.il/api/v1.0</code>
+                    for testing environment.
+                  </p>
+                  <div class="relative mt-2">
+                    <input
+                      id="base-url"
+                      v-model="baseUrl"
+                      type="text"
+                      class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+                      placeholder="https://restapidev.payplus.co.il/api/v1.0 (optional)"
+                    />
                   </div>
                 </div>
               </div>
