@@ -8,10 +8,21 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Numeric, String, Text
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pazpaz.db.base import Base
+from pazpaz.models.enums import PaymentStatus
 
 if TYPE_CHECKING:
     from pazpaz.models.client import Client
@@ -134,18 +145,34 @@ class Appointment(Base):
         comment="Number of times this appointment has been edited",
     )
 
-    # Payment fields
+    # Payment tracking fields
+    # Independent of appointment/session status - client may pay before/during/after
     payment_price: Mapped[Decimal | None] = mapped_column(
         Numeric(10, 2),
         nullable=True,
-        comment="Appointment price in ILS (null = no price set)",
+        comment="Actual price for this appointment (overrides service price if set)",
     )
     payment_status: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
-        default="unpaid",
-        server_default="unpaid",
-        comment="Payment status: unpaid, pending, paid, partially_paid, refunded, failed",
+        default=PaymentStatus.NOT_PAID.value,
+        server_default=PaymentStatus.NOT_PAID.value,
+        comment="Payment status: not_paid, paid, payment_sent, waived",
+    )
+    payment_method: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        comment="Payment method: cash, card, bank_transfer, payment_link, other",
+    )
+    payment_notes: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Free-text notes about payment (e.g., invoice number, special terms)",
+    )
+    paid_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp when payment was marked as paid",
     )
     payment_auto_send: Mapped[bool | None] = mapped_column(
         Boolean,
@@ -181,7 +208,7 @@ class Appointment(Base):
         cascade="all, delete-orphan",
     )
 
-    # Indexes for performance-critical queries
+    # Indexes and constraints for performance-critical queries and data integrity
     __table_args__ = (
         # Critical index for conflict detection and calendar view
         # Supports: WHERE workspace_id = ? AND scheduled_start BETWEEN ? AND ?
@@ -206,9 +233,26 @@ class Appointment(Base):
         ),
         # Index for filtering appointments by payment status
         Index(
-            "idx_appointments_workspace_payment_status",
+            "ix_appointments_workspace_payment_status",
             "workspace_id",
             "payment_status",
+        ),
+        # CHECK constraints for payment data integrity
+        CheckConstraint(
+            "payment_status IN ('not_paid', 'paid', 'payment_sent', 'waived')",
+            name="ck_appointment_payment_status",
+        ),
+        CheckConstraint(
+            "payment_method IS NULL OR payment_method IN ('cash', 'card', 'bank_transfer', 'payment_link', 'other')",
+            name="ck_appointment_payment_method",
+        ),
+        CheckConstraint(
+            "payment_price IS NULL OR payment_price >= 0",
+            name="ck_appointment_payment_price_positive",
+        ),
+        CheckConstraint(
+            "(payment_status = 'paid' AND paid_at IS NOT NULL) OR (payment_status != 'paid')",
+            name="ck_appointment_paid_at_consistency",
         ),
         {
             "comment": (
