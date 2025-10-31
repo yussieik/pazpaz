@@ -18,9 +18,11 @@ Revises: 7530a2393547
 Create Date: 2025-10-31 16:05:53.530386
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.

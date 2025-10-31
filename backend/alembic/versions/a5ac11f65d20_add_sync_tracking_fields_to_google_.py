@@ -14,10 +14,11 @@ New fields:
 - last_sync_error: Error message from the last failed sync operation
 """
 
+from collections.abc import Sequence
+
 import sqlalchemy as sa
 
 from alembic import op
-from collections.abc import Sequence
 
 # revision identifiers, used by Alembic.
 revision: str = "a5ac11f65d20"

@@ -18,8 +18,9 @@ Day numbering: 0=Sunday, 1=Monday, ..., 6=Saturday
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "70cacacc22ab"
