@@ -16,8 +16,19 @@ type AppointmentResponse =
 type AppointmentListItem = AppointmentResponse['items'][0]
 type AppointmentCreate =
   paths['/api/v1/appointments']['post']['requestBody']['content']['application/json']
-type AppointmentUpdate =
+type AppointmentUpdateBase =
   paths['/api/v1/appointments/{appointment_id}']['put']['requestBody']['content']['application/json']
+
+/**
+ * Extended AppointmentUpdate type with payment tracking fields
+ * TODO: Remove this extension once OpenAPI schema is regenerated with payment fields
+ */
+type AppointmentUpdate = AppointmentUpdateBase & {
+  payment_price?: string | null
+  payment_status?: string
+  payment_method?: string | null
+  payment_notes?: string | null
+}
 
 export const useAppointmentsStore = defineStore('appointments', () => {
   const appointments = ref<AppointmentListItem[]>([])

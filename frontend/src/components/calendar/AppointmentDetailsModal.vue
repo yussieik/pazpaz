@@ -158,10 +158,9 @@ async function savePaymentPrice() {
   if (!props.appointment || paymentPrice.value === appointmentPrice) return
 
   try {
-    // Type assertion needed because OpenAPI schema not yet regenerated with payment fields
     await appointmentsStore.updateAppointment(props.appointment.id, {
       payment_price: paymentPrice.value !== null ? String(paymentPrice.value) : null,
-    } as any)
+    })
     showSuccess('Price saved')
     emit('refresh')
   } catch (error) {
