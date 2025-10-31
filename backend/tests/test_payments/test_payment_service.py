@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.models.appointment import Appointment, AppointmentStatus, LocationType
 from pazpaz.models.client import Client
+from pazpaz.models.enums import PaymentStatus
 from pazpaz.models.payment_transaction import PaymentTransaction
 from pazpaz.models.workspace import Workspace
 from pazpaz.payments.base import PaymentLinkResponse, WebhookPaymentData
@@ -192,7 +193,7 @@ class TestCreatePaymentRequest:
             location_type=LocationType.CLINIC,
             status=AppointmentStatus.SCHEDULED,
             payment_price=Decimal("117.00"),
-            payment_status="unpaid",
+            payment_status=PaymentStatus.NOT_PAID.value,
         )
 
         db_session.add_all([workspace, client, appointment])
@@ -243,9 +244,9 @@ class TestCreatePaymentRequest:
                 assert transaction.currency == "ILS"
                 assert transaction.payment_method == "online_card"
 
-                # Verify appointment updated
+                # Verify appointment updated to payment_sent (link sent)
                 await db_session.refresh(appointment)
-                assert appointment.payment_status == "pending"
+                assert appointment.payment_status == PaymentStatus.PAYMENT_SENT.value
 
                 # Verify provider called correctly
                 mock_provider.create_payment_link.assert_called_once()
@@ -292,7 +293,7 @@ class TestCreatePaymentRequest:
             location_type=LocationType.CLINIC,
             status=AppointmentStatus.SCHEDULED,
             payment_price=Decimal("100.00"),
-            payment_status="unpaid",
+            payment_status=PaymentStatus.NOT_PAID.value,
         )
 
         db_session.add_all([workspace, client, appointment])
@@ -554,7 +555,7 @@ class TestProcessWebhook:
             scheduled_end=datetime.now(UTC) + timedelta(days=1, hours=1),
             location_type=LocationType.CLINIC,
             status=AppointmentStatus.SCHEDULED,
-            payment_status="pending",
+            payment_status=PaymentStatus.PAYMENT_SENT.value,
         )
 
         transaction = PaymentTransaction(
@@ -612,9 +613,9 @@ class TestProcessWebhook:
             assert result.status == "completed"
             assert result.completed_at is not None
 
-            # Verify appointment status updated
+            # Verify appointment status updated to paid
             await db_session.refresh(appointment)
-            assert appointment.payment_status == "paid"
+            assert appointment.payment_status == PaymentStatus.PAID.value
 
     async def test_process_webhook_idempotency(
         self,
@@ -820,7 +821,7 @@ class TestProcessWebhook:
             scheduled_end=datetime.now(UTC) + timedelta(days=1, hours=1),
             location_type=LocationType.CLINIC,
             status=AppointmentStatus.SCHEDULED,
-            payment_status="pending",
+            payment_status=PaymentStatus.PAYMENT_SENT.value,
         )
 
         transaction = PaymentTransaction(
@@ -877,6 +878,6 @@ class TestProcessWebhook:
             assert result.failed_at is not None
             assert result.failure_reason == "Card declined - insufficient funds"
 
-            # Verify appointment status updated to unpaid
+            # Verify appointment status updated to not_paid
             await db_session.refresh(appointment)
-            assert appointment.payment_status == "unpaid"
+            assert appointment.payment_status == PaymentStatus.NOT_PAID.value

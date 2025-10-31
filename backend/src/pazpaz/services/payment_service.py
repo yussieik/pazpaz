@@ -57,6 +57,7 @@ from sqlalchemy.orm import selectinload
 from pazpaz.core.config import settings
 from pazpaz.core.logging import get_logger
 from pazpaz.models.appointment import Appointment
+from pazpaz.models.enums import PaymentStatus
 from pazpaz.models.payment_transaction import PaymentTransaction
 from pazpaz.payments.base import PaymentLinkRequest
 from pazpaz.payments.exceptions import (
@@ -336,8 +337,8 @@ class PaymentService:
 
             self.db.add(transaction)
 
-            # Update appointment payment status
-            appointment.payment_status = "pending"
+            # Update appointment payment status to payment_sent (link sent to client)
+            appointment.payment_status = PaymentStatus.PAYMENT_SENT.value
 
             # Commit transaction
             await self.db.commit()
@@ -615,9 +616,10 @@ class PaymentService:
         if webhook_data.status == "completed":
             transaction.completed_at = webhook_data.completed_at or datetime.now(UTC)
 
-            # Update appointment payment status
+            # Update appointment payment status and paid_at timestamp
             if transaction.appointment:
-                transaction.appointment.payment_status = "paid"
+                transaction.appointment.payment_status = PaymentStatus.PAID.value
+                transaction.appointment.paid_at = datetime.now(UTC)
 
             logger.info(
                 "payment_completed",
@@ -633,9 +635,10 @@ class PaymentService:
             transaction.failed_at = datetime.now(UTC)
             transaction.failure_reason = webhook_data.failure_reason
 
-            # Update appointment payment status
+            # Update appointment payment status back to not_paid (payment failed)
             if transaction.appointment:
-                transaction.appointment.payment_status = "unpaid"
+                transaction.appointment.payment_status = PaymentStatus.NOT_PAID.value
+                transaction.appointment.paid_at = None
 
             logger.warning(
                 "payment_failed",
@@ -650,9 +653,10 @@ class PaymentService:
         elif webhook_data.status == "refunded":
             transaction.refunded_at = datetime.now(UTC)
 
-            # Update appointment payment status
+            # Update appointment payment status to not_paid (refunded = effectively unpaid)
             if transaction.appointment:
-                transaction.appointment.payment_status = "refunded"
+                transaction.appointment.payment_status = PaymentStatus.NOT_PAID.value
+                transaction.appointment.paid_at = None
 
             logger.info(
                 "payment_refunded",
