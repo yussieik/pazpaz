@@ -177,7 +177,9 @@ async function handleToggleNotifyClients(enabled: boolean) {
       typeof err.response.data.detail === 'string' &&
       err.response.data.detail.includes('BAA')
     ) {
-      showError('You must confirm Google Workspace BAA before enabling client notifications.')
+      showError(
+        'You must confirm Google Workspace BAA before enabling client notifications.'
+      )
     } else {
       showError('Failed to update settings. Please try again.')
     }
@@ -193,12 +195,18 @@ onMounted(async () => {
 <template>
   <div>
     <!-- Loading State -->
-    <div v-if="isLoading && !isConnected" class="flex items-center justify-center py-12">
+    <div
+      v-if="isLoading && !isConnected"
+      class="flex items-center justify-center py-12"
+    >
       <LoadingSpinner />
     </div>
 
     <!-- NOT CONNECTED STATE -->
-    <div v-else-if="!isConnected" class="max-w-2xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <div
+      v-else-if="!isConnected"
+      class="max-w-2xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+    >
       <!-- Header -->
       <div class="flex items-start gap-4">
         <!-- Calendar Icon -->
@@ -220,9 +228,12 @@ onMounted(async () => {
         </div>
 
         <div class="flex-1">
-          <h2 class="text-lg font-semibold text-slate-900">Google Calendar Integration</h2>
+          <h2 class="text-lg font-semibold text-slate-900">
+            Google Calendar Integration
+          </h2>
           <p class="mt-1 text-sm text-slate-600">
-            Automatically sync your PazPaz appointments to Google Calendar. Never miss a session.
+            Automatically sync your PazPaz appointments to Google Calendar. Never miss a
+            session.
           </p>
         </div>
       </div>
@@ -231,7 +242,7 @@ onMounted(async () => {
       <div class="mt-6 rounded-md border border-amber-200 bg-amber-50">
         <button
           type="button"
-          class="flex w-full items-center justify-between gap-3 p-4 text-left focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+          class="flex w-full items-center justify-between gap-3 p-4 text-left focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:outline-none"
           :aria-expanded="isWarningExpanded"
           @click="toggleWarning"
         >
@@ -280,26 +291,29 @@ onMounted(async () => {
           <div v-if="isWarningExpanded" class="overflow-hidden px-4 pb-4">
             <div class="space-y-3 text-sm text-amber-900">
               <p>
-                <strong>Google Calendar is not HIPAA-compliant.</strong> By enabling this
-                integration, you understand:
+                <strong>Google Calendar is not HIPAA-compliant.</strong> By enabling
+                this integration, you understand:
               </p>
               <ul class="list-inside list-disc space-y-2 pl-2">
                 <li>
                   Appointment times and locations will be synced to your Google Calendar
                 </li>
                 <li>
-                  Client names and other PHI will <strong>NOT</strong> be included by default
+                  Client names and other PHI will <strong>NOT</strong> be included by
+                  default
                 </li>
                 <li>
-                  Google Calendar data is stored on Google's servers, not PazPaz's HIPAA-compliant
-                  infrastructure
+                  Google Calendar data is stored on Google's servers, not PazPaz's
+                  HIPAA-compliant infrastructure
                 </li>
                 <li>
-                  You are responsible for ensuring your use complies with applicable privacy laws
+                  You are responsible for ensuring your use complies with applicable
+                  privacy laws
                 </li>
               </ul>
               <p class="text-xs text-amber-800">
-                We recommend using generic labels like "Client Session" instead of client names.
+                We recommend using generic labels like "Client Session" instead of
+                client names.
               </p>
             </div>
           </div>
@@ -311,7 +325,7 @@ onMounted(async () => {
         <button
           type="button"
           :disabled="isConnecting"
-          class="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          class="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           @click="handleConnect"
         >
           <svg
@@ -335,7 +349,9 @@ onMounted(async () => {
             />
           </svg>
           <LoadingSpinner v-else class="h-5 w-5" />
-          <span>{{ isConnecting ? 'Connecting...' : 'Connect to Google Calendar' }}</span>
+          <span>{{
+            isConnecting ? 'Connecting...' : 'Connect to Google Calendar'
+          }}</span>
         </button>
       </div>
     </div>
@@ -376,9 +392,7 @@ onMounted(async () => {
           <!-- Auto Sync Toggle -->
           <div class="flex items-start justify-between gap-4">
             <div class="flex-1">
-              <label class="text-sm font-medium text-slate-900">
-                Automatic sync
-              </label>
+              <label class="text-sm font-medium text-slate-900"> Automatic sync </label>
               <p class="mt-1 text-sm text-slate-600">
                 Keep your Google Calendar up to date with new and updated appointments
               </p>
@@ -404,7 +418,8 @@ onMounted(async () => {
               />
               <div class="flex-1">
                 <label for="has-google-baa" class="text-sm font-medium text-slate-900">
-                  I confirm my Google Workspace account has a signed Business Associate Agreement (BAA)
+                  I confirm my Google Workspace account has a signed Business Associate
+                  Agreement (BAA)
                 </label>
                 <p class="mt-1 text-sm text-slate-600">
                   Required for HIPAA compliance when sending notifications to clients.
@@ -412,7 +427,7 @@ onMounted(async () => {
                     href="https://support.google.com/a/answer/3407054"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-blue-600 hover:text-blue-700 underline"
+                    class="text-blue-600 underline hover:text-blue-700"
                   >
                     Learn more about Google Workspace BAA
                   </a>
@@ -432,8 +447,12 @@ onMounted(async () => {
                   Clients receive email invitations and calendar reminders from Google
                   (24h and 1h before appointments)
                 </p>
-                <p v-if="!settings.has_google_baa" class="mt-2 text-xs font-medium text-amber-700">
-                  Note: You must confirm Google Workspace BAA before enabling client notifications
+                <p
+                  v-if="!settings.has_google_baa"
+                  class="mt-2 text-xs font-medium text-amber-700"
+                >
+                  Note: You must confirm Google Workspace BAA before enabling client
+                  notifications
                 </p>
               </div>
               <div class="flex-shrink-0">
@@ -476,8 +495,8 @@ onMounted(async () => {
                   <div class="flex-1">
                     <p class="text-xs font-medium text-slate-900">Privacy Notice</p>
                     <p class="mt-1 text-xs text-slate-700">
-                      Client email addresses will be shared with Google Calendar.
-                      Only appointments with client email addresses will be sent.
+                      Client email addresses will be shared with Google Calendar. Only
+                      appointments with client email addresses will be sent.
                     </p>
                   </div>
                 </div>
@@ -524,7 +543,7 @@ onMounted(async () => {
       <div class="flex justify-end">
         <button
           type="button"
-          class="rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+          class="rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none"
           @click="showDisconnectModal = true"
         >
           Disconnect Google Calendar
@@ -582,8 +601,8 @@ onMounted(async () => {
                   This will stop syncing appointments to your Google Calendar.
                 </p>
                 <p class="text-sm text-slate-600">
-                  Existing events in Google Calendar will not be deleted, but no new appointments
-                  will be synced.
+                  Existing events in Google Calendar will not be deleted, but no new
+                  appointments will be synced.
                 </p>
               </div>
 
@@ -591,7 +610,7 @@ onMounted(async () => {
               <div class="flex gap-3">
                 <button
                   type="button"
-                  class="flex-1 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  class="flex-1 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
                   @click="showDisconnectModal = false"
                 >
                   Cancel
@@ -599,7 +618,7 @@ onMounted(async () => {
                 <button
                   type="button"
                   :disabled="isLoading"
-                  class="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  class="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                   @click="handleDisconnect"
                 >
                   <span v-if="!isLoading">Disconnect</span>

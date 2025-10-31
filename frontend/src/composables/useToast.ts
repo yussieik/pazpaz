@@ -3,6 +3,14 @@ import type { ToastOptions } from 'vue-toastification/dist/types/types'
 import { h, type Component } from 'vue'
 
 /**
+ * Extended toast interface with runtime methods not in TypeScript types
+ */
+interface ExtendedToast {
+  success: (message: unknown, options?: Record<string, unknown>) => void
+  dismiss: (toastId: string) => void
+}
+
+/**
  * Toast utility composable for PazPaz
  *
  * Provides unified toast notification interface with:
@@ -19,7 +27,7 @@ import { h, type Component } from 'vue'
  * - Error: 6000ms
  */
 export function useToast() {
-  const toast = useVueToast()
+  const toast = useVueToast() as unknown as ExtendedToast
 
   /**
    * Show success toast with optional undo action
@@ -67,7 +75,7 @@ export function useToast() {
                 }
                 // Dismiss using API to maintain state consistency
                 if (toastId) {
-                  ;(toast as any).dismiss(toastId)
+                  toast.dismiss(toastId)
                 }
                 // Execute action
                 options.action!.onClick()
@@ -80,16 +88,12 @@ export function useToast() {
         ]
       )
 
-      // Cast to any to work around vue-toastification type limitations
-      // toastId is a valid runtime option even if not in TypeScript types
-      ;(toast as any).success(content, {
+      toast.success(content, {
         ...toastOptions,
         ...(toastId && { toastId }),
       })
     } else {
-      // Cast to any to work around vue-toastification type limitations
-      // toastId is a valid runtime option even if not in TypeScript types
-      ;(toast as any).success(message, {
+      toast.success(message, {
         ...toastOptions,
         ...(toastId && { toastId }),
       })
@@ -131,9 +135,7 @@ export function useToast() {
     // Generate unique ID to prevent toast caching
     const uniqueId = `${message}-${Date.now()}-${Math.random()}`
 
-    // Cast to any to work around vue-toastification type limitations
-    // toastId is a valid runtime option even if not in TypeScript types
-    ;(toast as any).success(content, {
+    toast.success(content, {
       timeout: options?.timeout || 5000, // 5s for important actions with context
       closeButton: false,
       icon: true,

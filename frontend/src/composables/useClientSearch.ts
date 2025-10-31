@@ -39,8 +39,10 @@ export function useClientSearch() {
 
       // Sort by most recent last_appointment (if available) or created_at
       const sorted = response.data.items.sort((a, b) => {
-        const aDate = (a as any).last_appointment || a.created_at
-        const bDate = (b as any).last_appointment || b.created_at
+        const aDate =
+          ('last_appointment' in a ? a.last_appointment : null) || a.created_at
+        const bDate =
+          ('last_appointment' in b ? b.last_appointment : null) || b.created_at
         return new Date(bDate).getTime() - new Date(aDate).getTime()
       })
 
@@ -109,9 +111,11 @@ export function useClientSearch() {
     try {
       const response = await apiClient.post<Client>('/clients', clientData)
       return response.data
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to create client:', err)
-      error.value = err.response?.data?.detail || 'Failed to create client'
+      error.value =
+        (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
+        'Failed to create client'
       return null
     } finally {
       isCreating.value = false

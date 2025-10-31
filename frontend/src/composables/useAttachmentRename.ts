@@ -191,26 +191,29 @@ export function useAttachmentRename() {
         success: true,
         data: updatedAttachment,
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Rename error:', error)
 
       // Handle specific error codes
-      if (error.response?.status === 409) {
+      const err = error as {
+        response?: { status?: number; data?: { detail?: string } }
+      }
+      if (err.response?.status === 409) {
         // Conflict - duplicate filename
         state.error = 'A file with this name already exists'
         return {
           success: false,
           error: state.error,
         }
-      } else if (error.response?.status === 400) {
+      } else if (err.response?.status === 400) {
         // Bad request - validation error
-        const errorMessage = error.response?.data?.detail || 'Invalid filename'
+        const errorMessage = err.response?.data?.detail || 'Invalid filename'
         state.error = errorMessage
         return {
           success: false,
           error: state.error ?? undefined,
         }
-      } else if (error.response?.status === 404) {
+      } else if (err.response?.status === 404) {
         // Not found
         showError('File not found')
         state.isEditing = false

@@ -444,7 +444,8 @@ function handleSubmit() {
                   Email changed. We'll send a new link to
                 </template>
                 <template v-else> We've sent a magic link to </template>
-                <strong>{{ email }}</strong>. Click the link to sign in
+                <strong>{{ email }}</strong
+                >. Click the link to sign in
                 <button
                   @click="editEmail"
                   type="button"

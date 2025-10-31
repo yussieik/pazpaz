@@ -194,7 +194,10 @@ describe('GoogleCalendarSettings', () => {
   describe('Connected State', () => {
     beforeEach(() => {
       // Mock as connected
-      vi.mocked(require('@/composables/useGoogleCalendarIntegration').useGoogleCalendarIntegration).mockReturnValue({
+      vi.mocked(
+        require('@/composables/useGoogleCalendarIntegration')
+          .useGoogleCalendarIntegration
+      ).mockReturnValue({
         isConnected: vi.fn(() => true),
         settings: {
           auto_sync_enabled: true,
@@ -283,7 +286,9 @@ describe('GoogleCalendarSettings', () => {
       await nextTick()
 
       // Confirm disconnect
-      const confirmButton = wrapper.findAll('button').find((btn) => btn.text() === 'Disconnect')
+      const confirmButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text() === 'Disconnect')
       expect(confirmButton).toBeDefined()
       await confirmButton!.trigger('click')
       await nextTick()
@@ -319,7 +324,10 @@ describe('GoogleCalendarSettings', () => {
 
   describe('Loading State', () => {
     it('shows loading spinner when fetching initial status', () => {
-      vi.mocked(require('@/composables/useGoogleCalendarIntegration').useGoogleCalendarIntegration).mockReturnValue({
+      vi.mocked(
+        require('@/composables/useGoogleCalendarIntegration')
+          .useGoogleCalendarIntegration
+      ).mockReturnValue({
         isConnected: vi.fn(() => false),
         settings: {
           auto_sync_enabled: false,
@@ -363,14 +371,19 @@ describe('GoogleCalendarSettings', () => {
 
       // Wait for error to be shown
       await vi.waitFor(() => {
-        expect(mockShowError).toHaveBeenCalledWith('Failed to connect. Please try again.')
+        expect(mockShowError).toHaveBeenCalledWith(
+          'Failed to connect. Please try again.'
+        )
       })
     })
 
     it('shows error toast when disconnect fails', async () => {
       mockDisconnect.mockRejectedValue(new Error('Network error'))
 
-      vi.mocked(require('@/composables/useGoogleCalendarIntegration').useGoogleCalendarIntegration).mockReturnValue({
+      vi.mocked(
+        require('@/composables/useGoogleCalendarIntegration')
+          .useGoogleCalendarIntegration
+      ).mockReturnValue({
         isConnected: vi.fn(() => true),
         settings: {
           auto_sync_enabled: true,
@@ -398,13 +411,17 @@ describe('GoogleCalendarSettings', () => {
       await nextTick()
 
       // Confirm disconnect
-      const confirmButton = wrapper.findAll('button').find((btn) => btn.text() === 'Disconnect')
+      const confirmButton = wrapper
+        .findAll('button')
+        .find((btn) => btn.text() === 'Disconnect')
       await confirmButton!.trigger('click')
       await nextTick()
 
       // Wait for error to be shown
       await vi.waitFor(() => {
-        expect(mockShowError).toHaveBeenCalledWith('Failed to disconnect. Please try again.')
+        expect(mockShowError).toHaveBeenCalledWith(
+          'Failed to disconnect. Please try again.'
+        )
       })
     })
   })

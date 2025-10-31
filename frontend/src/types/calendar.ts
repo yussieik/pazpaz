@@ -13,11 +13,7 @@ type AppointmentListItemBase = AppointmentResponse['items'][0]
 /**
  * Appointment status type
  */
-export type AppointmentStatus =
-  | 'scheduled'
-  | 'attended'
-  | 'cancelled'
-  | 'no_show'
+export type AppointmentStatus = 'scheduled' | 'attended' | 'cancelled' | 'no_show'
 
 /**
  * Payment status enum

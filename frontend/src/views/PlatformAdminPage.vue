@@ -4,6 +4,7 @@ import { usePlatformAdmin } from '@/composables/usePlatformAdmin'
 import { usePlatformMetrics } from '@/composables/usePlatformMetrics'
 import { useToast } from '@/composables/useToast'
 import type { InviteTherapistRequest } from '@/api/generated'
+import type { Workspace } from '@/components/platform-admin/WorkspaceCard.vue'
 
 // Components
 import MetricCard from '@/components/platform-admin/MetricCard.vue'
@@ -29,7 +30,7 @@ const invitationFilter = ref<'all' | 'active' | 'expired'>('all')
 // Modals
 const showInviteModal = ref(false)
 const showWorkspaceDetailsModal = ref(false)
-const selectedWorkspace = ref<any>(null)
+const selectedWorkspace = ref<Workspace | null>(null)
 
 // Confirmation modals
 const showSuspendConfirmation = ref(false)
@@ -838,10 +839,12 @@ function openInviteModal() {
       reasonPlaceholder="Explain why this workspace is being suspended..."
       :reasonRequired="true"
       @confirm="confirmSuspend"
-      @cancel="() => {
-        showSuspendConfirmation = false;
-        pendingAction = null;
-      }"
+      @cancel="
+        () => {
+          showSuspendConfirmation = false
+          pendingAction = null
+        }
+      "
     />
 
     <ConfirmationModal
@@ -851,10 +854,12 @@ function openInviteModal() {
       confirmText="Reactivate"
       confirmStyle="primary"
       @confirm="confirmReactivate"
-      @cancel="() => {
-        showReactivateConfirmation = false;
-        pendingAction = null;
-      }"
+      @cancel="
+        () => {
+          showReactivateConfirmation = false
+          pendingAction = null
+        }
+      "
     />
 
     <ConfirmationModal
@@ -868,10 +873,12 @@ function openInviteModal() {
       reasonPlaceholder="Explain why this workspace is being deleted..."
       :reasonRequired="true"
       @confirm="confirmDelete"
-      @cancel="() => {
-        showDeleteConfirmation = false;
-        pendingAction = null;
-      }"
+      @cancel="
+        () => {
+          showDeleteConfirmation = false
+          pendingAction = null
+        }
+      "
     />
 
     <ConfirmationModal
@@ -881,10 +888,12 @@ function openInviteModal() {
       confirmText="Remove"
       confirmStyle="primary"
       @confirm="confirmRemoveFromBlacklist"
-      @cancel="() => {
-        showRemoveBlacklistConfirmation = false;
-        selectedBlacklistEmail = '';
-      }"
+      @cancel="
+        () => {
+          showRemoveBlacklistConfirmation = false
+          selectedBlacklistEmail = ''
+        }
+      "
     />
   </div>
 </template>

@@ -102,8 +102,8 @@ export function useInvisibleAutosave<T extends Record<string, unknown>>(
   }
 
   const handleSyncError = async (error: Error) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const status = (error as any).status || (error as any).response?.status
+    const err = error as Error & { status?: number; response?: { status?: number } }
+    const status = err.status || err.response?.status
     const errorMessage = error.message || ''
     const isRecoverable =
       [500, 502, 503, 504].includes(status) ||

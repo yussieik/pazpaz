@@ -698,7 +698,7 @@ function handleAccountCreated() {
           ]"
         >
           <!-- Header -->
-          <div class="flex items-center gap-2 mb-3">
+          <div class="mb-3 flex items-center gap-2">
             <!-- Status Icon -->
             <svg
               v-if="statusCardState === 'active'"
@@ -773,12 +773,16 @@ function handleAccountCreated() {
                     clip-rule="evenodd"
                   />
                 </svg>
-                <span class="text-sm font-medium text-emerald-900">PayPlus Connected</span>
+                <span class="text-sm font-medium text-emerald-900"
+                  >PayPlus Connected</span
+                >
               </div>
-              <p class="text-sm text-slate-600">Last verified: {{ lastSuccessFormatted }}</p>
+              <p class="text-sm text-slate-600">
+                Last verified: {{ lastSuccessFormatted }}
+              </p>
               <button
                 type="button"
-                class="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50"
+                class="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none disabled:opacity-50"
                 :disabled="isTestingConnection"
                 @click="testConnection"
               >
@@ -813,7 +817,7 @@ function handleAccountCreated() {
               <div class="flex gap-2">
                 <button
                   type="button"
-                  class="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
+                  class="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none disabled:opacity-50"
                   :disabled="isTestingConnection"
                   @click="testConnection"
                 >
@@ -821,7 +825,7 @@ function handleAccountCreated() {
                 </button>
                 <button
                   type="button"
-                  class="rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                  class="rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none"
                   @click="showErrorDetails = !showErrorDetails"
                 >
                   {{ showErrorDetails ? 'Hide Details ▲' : 'View Details ▼' }}
@@ -833,8 +837,8 @@ function handleAccountCreated() {
                 v-if="showErrorDetails"
                 class="mt-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900"
               >
-                <p class="font-medium mb-2">Troubleshooting:</p>
-                <ul class="list-disc list-inside space-y-1 text-red-800">
+                <p class="mb-2 font-medium">Troubleshooting:</p>
+                <ul class="list-inside list-disc space-y-1 text-red-800">
                   <li>Verify your API key in PayPlus dashboard</li>
                   <li>Check if credentials were recently rotated</li>
                   <li>Ensure webhook secret matches PayPlus settings</li>

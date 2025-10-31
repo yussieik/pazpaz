@@ -29,7 +29,7 @@ export function useAppointmentAutoSave(appointmentId: string) {
    * Debounced save function (500ms delay)
    * Used for textarea fields to avoid excessive API calls while typing
    */
-  const debouncedSave = useDebounceFn(async (field: string, value: any) => {
+  const debouncedSave = useDebounceFn(async (field: string, value: unknown) => {
     await performSave(field, value)
   }, 500)
 
@@ -37,7 +37,7 @@ export function useAppointmentAutoSave(appointmentId: string) {
    * Immediate save function
    * Used for select, date, and other non-text fields
    */
-  async function immediateSave(field: string, value: any) {
+  async function immediateSave(field: string, value: unknown) {
     await performSave(field, value)
   }
 
@@ -45,7 +45,7 @@ export function useAppointmentAutoSave(appointmentId: string) {
    * Perform the actual save operation using the appointments store
    * This ensures the local state is updated immediately
    */
-  async function performSave(field: string, value: any) {
+  async function performSave(field: string, value: unknown) {
     isSaving.value = true
     saveError.value = null
 
@@ -57,11 +57,12 @@ export function useAppointmentAutoSave(appointmentId: string) {
 
       lastSaved.value = new Date()
       announce('Saved')
-    } catch (error: any) {
+    } catch (error) {
       console.error(`Failed to save ${field}:`, error)
 
+      const err = error as { response?: { status?: number } }
       // Check for conflict (412 Precondition Failed for optimistic locking)
-      if (error.response?.status === 412) {
+      if (err.response?.status === 412) {
         saveError.value = 'Someone else modified this appointment. Please refresh.'
         announce('Save failed: Conflict detected')
       } else {
@@ -82,7 +83,7 @@ export function useAppointmentAutoSave(appointmentId: string) {
    * @param value - New value
    * @param debounce - Whether to debounce the save (true for textarea, false for others)
    */
-  async function saveField(field: string, value: any, debounce = false) {
+  async function saveField(field: string, value: unknown, debounce = false) {
     if (debounce) {
       await debouncedSave(field, value)
     } else {

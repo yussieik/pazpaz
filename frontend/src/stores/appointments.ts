@@ -303,10 +303,12 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     visibleEnd: Date
   ): Promise<AppointmentListItem[]> {
     // Check if we need to fetch before setting loading state
-    const needsFetch = !loadedRange.value || !(
-      visibleStart >= loadedRange.value.startDate &&
-      visibleEnd <= loadedRange.value.endDate
-    )
+    const needsFetch =
+      !loadedRange.value ||
+      !(
+        visibleStart >= loadedRange.value.startDate &&
+        visibleEnd <= loadedRange.value.endDate
+      )
 
     if (needsFetch) {
       await fetchAppointments(visibleStart.toISOString(), visibleEnd.toISOString())

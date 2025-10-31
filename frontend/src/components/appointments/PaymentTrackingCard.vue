@@ -133,7 +133,10 @@ const formattedPaidAt = computed(() => {
 
     <!-- Payment Status -->
     <div class="mb-4">
-      <label for="payment-status" class="mb-1.5 block text-xs font-medium text-slate-700">
+      <label
+        for="payment-status"
+        class="mb-1.5 block text-xs font-medium text-slate-700"
+      >
         Status
       </label>
       <select
@@ -141,7 +144,7 @@ const formattedPaidAt = computed(() => {
         v-model="localStatus"
         @change="handleStatusChange"
         :disabled="disabled"
-        class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
+        class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
         aria-label="Payment status"
       >
         <option
@@ -174,7 +177,10 @@ const formattedPaidAt = computed(() => {
 
     <!-- Price -->
     <div class="mb-4">
-      <label for="payment-price" class="mb-1.5 block text-xs font-medium text-slate-700">
+      <label
+        for="payment-price"
+        class="mb-1.5 block text-xs font-medium text-slate-700"
+      >
         Price (ILS)
       </label>
       <input
@@ -186,7 +192,7 @@ const formattedPaidAt = computed(() => {
         placeholder="Enter price"
         @blur="handlePriceBlur"
         :disabled="disabled"
-        class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
+        class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
         aria-label="Payment price in ILS"
       />
       <p class="mt-1 text-xs text-slate-400">Optional - specify appointment price</p>
@@ -194,7 +200,10 @@ const formattedPaidAt = computed(() => {
 
     <!-- Payment Method -->
     <div class="mb-4">
-      <label for="payment-method" class="mb-1.5 block text-xs font-medium text-slate-700">
+      <label
+        for="payment-method"
+        class="mb-1.5 block text-xs font-medium text-slate-700"
+      >
         Method
       </label>
       <select
@@ -202,7 +211,7 @@ const formattedPaidAt = computed(() => {
         v-model="localMethod"
         @change="handleMethodChange"
         :disabled="disabled"
-        class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
+        class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
         aria-label="Payment method"
       >
         <option :value="null">Select method (optional)</option>
@@ -218,7 +227,10 @@ const formattedPaidAt = computed(() => {
 
     <!-- Payment Notes -->
     <div>
-      <label for="payment-notes" class="mb-1.5 block text-xs font-medium text-slate-700">
+      <label
+        for="payment-notes"
+        class="mb-1.5 block text-xs font-medium text-slate-700"
+      >
         Notes
       </label>
       <textarea
@@ -228,7 +240,7 @@ const formattedPaidAt = computed(() => {
         placeholder="Optional notes (e.g., invoice number, special terms)"
         @blur="handleNotesBlur"
         :disabled="disabled"
-        class="mt-1 block min-h-[88px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
+        class="mt-1 block min-h-[88px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
         aria-label="Payment notes"
       ></textarea>
       <p class="mt-1 text-xs text-slate-400">Auto-saves on blur</p>

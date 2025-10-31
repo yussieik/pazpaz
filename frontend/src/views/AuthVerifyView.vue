@@ -33,7 +33,7 @@ function requestNewLink() {
   if (email) {
     router.push({
       path: '/login',
-      query: { email: email as string }
+      query: { email: email as string },
     })
   } else {
     router.push('/login')
@@ -137,13 +137,17 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 to-slate-50 px-4">
+  <div
+    class="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 to-slate-50 px-4"
+  >
     <div class="w-full max-w-md space-y-8 p-8">
       <!-- Task 1.3: Enhanced Loading State -->
       <div v-if="status === 'loading'" class="text-center">
         <!-- Animated key icon with spinning border -->
         <div class="relative mx-auto mb-6 h-16 w-16">
-          <div class="absolute inset-0 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin"></div>
+          <div
+            class="absolute inset-0 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600"
+          ></div>
           <div class="absolute inset-0 flex items-center justify-center">
             <svg
               class="h-8 w-8 text-emerald-600"
@@ -167,17 +171,28 @@ onMounted(async () => {
 
         <!-- Bouncing dots -->
         <div class="mt-6 flex justify-center space-x-2">
-          <div class="h-2 w-2 rounded-full bg-emerald-600 animate-bounce" style="animation-delay: 0ms;"></div>
-          <div class="h-2 w-2 rounded-full bg-emerald-600 animate-bounce" style="animation-delay: 150ms;"></div>
-          <div class="h-2 w-2 rounded-full bg-emerald-600 animate-bounce" style="animation-delay: 300ms;"></div>
+          <div
+            class="h-2 w-2 animate-bounce rounded-full bg-emerald-600"
+            style="animation-delay: 0ms"
+          ></div>
+          <div
+            class="h-2 w-2 animate-bounce rounded-full bg-emerald-600"
+            style="animation-delay: 150ms"
+          ></div>
+          <div
+            class="h-2 w-2 animate-bounce rounded-full bg-emerald-600"
+            style="animation-delay: 300ms"
+          ></div>
         </div>
       </div>
 
       <!-- Task 1.3: Enhanced Success State -->
       <div v-else-if="status === 'success'" class="text-center">
-        <div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+        <div
+          class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100"
+        >
           <svg
-            class="h-8 w-8 text-emerald-600 animate-scale-in"
+            class="animate-scale-in h-8 w-8 text-emerald-600"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -197,7 +212,9 @@ onMounted(async () => {
 
       <!-- Task 1.1: Already Authenticated State -->
       <div v-else-if="status === 'already-authenticated'" class="text-center">
-        <div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+        <div
+          class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100"
+        >
           <svg
             class="h-8 w-8 text-blue-600"
             fill="none"
@@ -220,7 +237,9 @@ onMounted(async () => {
       <!-- Task 1.3: Enhanced Error State with Task 1.2: Manual Actions -->
       <div v-else class="text-center">
         <!-- Red X icon -->
-        <div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+        <div
+          class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100"
+        >
           <svg
             class="h-8 w-8 text-red-600"
             fill="none"
@@ -249,7 +268,7 @@ onMounted(async () => {
             @click="requestNewLink"
             ref="primaryActionButton"
             type="button"
-            class="w-full rounded-lg bg-emerald-600 px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            class="w-full rounded-lg bg-emerald-600 px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none"
             autofocus
           >
             Request new magic link
@@ -258,7 +277,7 @@ onMounted(async () => {
           <button
             @click="returnToHome"
             type="button"
-            class="w-full rounded-lg border-2 border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+            class="w-full rounded-lg border-2 border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 transition-all duration-200 hover:border-slate-400 hover:bg-slate-50 focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 focus:outline-none"
           >
             Return to home
           </button>
@@ -266,8 +285,9 @@ onMounted(async () => {
 
         <!-- Keyboard shortcuts hint -->
         <p class="mt-4 text-xs text-slate-500">
-          Press <kbd class="rounded bg-slate-100 px-2 py-1 font-mono">Enter</kbd> to request new link
-          or <kbd class="rounded bg-slate-100 px-2 py-1 font-mono">Esc</kbd> to go home
+          Press <kbd class="rounded bg-slate-100 px-2 py-1 font-mono">Enter</kbd> to
+          request new link or
+          <kbd class="rounded bg-slate-100 px-2 py-1 font-mono">Esc</kbd> to go home
         </p>
       </div>
     </div>
@@ -310,7 +330,8 @@ onMounted(async () => {
 
 /* Bouncing dots animation (Tailwind's animate-bounce) */
 @keyframes bounce {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {

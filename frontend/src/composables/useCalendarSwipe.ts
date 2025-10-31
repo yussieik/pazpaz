@@ -41,7 +41,10 @@ export function useCalendarSwipe(
     passive: true,
 
     // Handle swipe completion
-    onSwipeEnd: (_e: TouchEvent, direction: 'left' | 'right' | 'up' | 'down' | 'none') => {
+    onSwipeEnd: (
+      _e: TouchEvent,
+      direction: 'left' | 'right' | 'up' | 'down' | 'none'
+    ) => {
       // Respect reduced motion preference
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         return

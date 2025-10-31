@@ -3,7 +3,12 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppointmentsStore } from '@/stores/appointments'
 import FullCalendar from '@fullcalendar/vue3'
-import type { EventDropArg } from '@fullcalendar/core'
+import type {
+  EventDropArg,
+  EventClickArg,
+  EventContentArg,
+  EventMountArg,
+} from '@fullcalendar/core'
 import type { AppointmentListItem, AppointmentFormData } from '@/types/calendar'
 import { useCalendar } from '@/composables/useCalendar'
 import { useCalendarEvents } from '@/composables/useCalendarEvents'
@@ -112,7 +117,7 @@ const {
 } = useCalendarEvents()
 
 // Wrap handleEventClick to capture times before modal opens
-function handleEventClick(clickInfo: any) {
+function handleEventClick(clickInfo: EventClickArg) {
   // Both mobile and desktop: open modal immediately
   composableHandleEventClick(clickInfo)
 
@@ -510,7 +515,7 @@ const calendarOptions = computed(() => ({
 
   // Use eventContent to declaratively render event content with quick action buttons
   // This ensures buttons persist across all FullCalendar renders (initial, updates, etc.)
-  eventContent: (arg: any) => {
+  eventContent: (arg: EventContentArg) => {
     const event = arg.event
     const now = new Date()
     const canComplete =
@@ -628,7 +633,7 @@ const calendarOptions = computed(() => ({
     return { domNodes: [wrapper] }
   },
 
-  eventDidMount: (info: { event: any; el: HTMLElement }) => {
+  eventDidMount: (info: EventMountArg) => {
     const event = info.event
     const hasSession = event.extendedProps?.hasSession
     const isDraft = event.extendedProps?.isDraft
