@@ -37,6 +37,16 @@ export interface DateRange {
 }
 
 /**
+ * Payment status enum
+ */
+export type PaymentStatus = 'not_paid' | 'paid' | 'payment_sent' | 'waived'
+
+/**
+ * Payment method enum
+ */
+export type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'payment_link' | 'other'
+
+/**
  * Appointment form data for create/edit operations
  * Note: This matches the backend schema (AppointmentCreate/AppointmentUpdate)
  */
@@ -47,6 +57,10 @@ export interface AppointmentFormData {
   location_type: 'clinic' | 'home' | 'online'
   location_details?: string
   notes?: string
+  payment_price?: number | null
+  payment_status?: PaymentStatus
+  payment_method?: PaymentMethod | null
+  payment_notes?: string | null
 }
 
 /**

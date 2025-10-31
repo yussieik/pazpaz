@@ -9,6 +9,7 @@ import type {
 import { checkAppointmentConflicts } from '@/api/client'
 import ClientCombobox from '@/components/clients/ClientCombobox.vue'
 import TimePickerDropdown from '@/components/common/TimePickerDropdown.vue'
+import PaymentTrackingCard from '@/components/appointments/PaymentTrackingCard.vue'
 import IconClose from '@/components/icons/IconClose.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 import {
@@ -50,6 +51,10 @@ const formData = ref<AppointmentFormData>({
   location_type: 'clinic',
   location_details: '',
   notes: '',
+  payment_price: null,
+  payment_status: 'not_paid',
+  payment_method: null,
+  payment_notes: null,
 })
 
 // Separate date field for the date picker (YYYY-MM-DD format)
@@ -92,6 +97,26 @@ watch(
         location_type: newAppointment.location_type,
         location_details: newAppointment.location_details || '',
         notes: newAppointment.notes || '',
+        payment_price: newAppointment.payment_price
+          ? parseFloat(newAppointment.payment_price)
+          : null,
+        payment_status:
+          (newAppointment.payment_status as
+            | 'not_paid'
+            | 'paid'
+            | 'payment_sent'
+            | 'waived'
+            | undefined) || 'not_paid',
+        payment_method:
+          (newAppointment.payment_method as
+            | 'cash'
+            | 'card'
+            | 'bank_transfer'
+            | 'payment_link'
+            | 'other'
+            | null
+            | undefined) || null,
+        payment_notes: newAppointment.payment_notes || null,
       }
     }
   },
@@ -206,6 +231,10 @@ function resetForm() {
     location_type: 'clinic',
     location_details: '',
     notes: '',
+    payment_price: null,
+    payment_status: 'not_paid',
+    payment_method: null,
+    payment_notes: null,
   }
   errors.value = {}
   conflicts.value = []
@@ -877,6 +906,14 @@ watch(
                 class="sm:rows-3 mt-1 block min-h-[120px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               ></textarea>
             </div>
+
+            <!-- Payment Tracking -->
+            <PaymentTrackingCard
+              v-model:payment-price="formData.payment_price"
+              v-model:payment-status="formData.payment_status"
+              v-model:payment-method="formData.payment_method"
+              v-model:payment-notes="formData.payment_notes"
+            />
           </form>
 
           <!-- Footer -->

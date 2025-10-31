@@ -23,6 +23,7 @@ import { usePayments } from '@/composables/usePayments'
 import apiClient from '@/api/client'
 import AppointmentStatusCard from './AppointmentStatusCard.vue'
 import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentModal.vue'
+import PaymentTrackingCard from '@/components/appointments/PaymentTrackingCard.vue'
 import TimePickerDropdown from '@/components/common/TimePickerDropdown.vue'
 import DirectionsButton from '@/components/common/DirectionsButton.vue'
 import IconClose from '@/components/icons/IconClose.vue'
@@ -88,6 +89,16 @@ const editableData = ref({
   location_type: 'clinic' as 'clinic' | 'home' | 'online',
   location_details: '',
   notes: '',
+  payment_price: null as number | null,
+  payment_status: 'not_paid' as 'not_paid' | 'paid' | 'payment_sent' | 'waived',
+  payment_method: null as
+    | 'cash'
+    | 'card'
+    | 'bank_transfer'
+    | 'payment_link'
+    | 'other'
+    | null,
+  payment_notes: null as string | null,
 })
 
 // Separate date field for the date picker (YYYY-MM-DD format)
@@ -149,7 +160,7 @@ async function savePaymentPrice() {
   try {
     await appointmentsStore.updateAppointment(props.appointment.id, {
       payment_price: paymentPrice.value !== null ? String(paymentPrice.value) : null,
-    } as any)
+    })
     showSuccess('Price saved')
     emit('refresh')
   } catch (error) {
@@ -249,6 +260,26 @@ watch(
         location_type: newAppointment.location_type,
         location_details: newAppointment.location_details || '',
         notes: newAppointment.notes || '',
+        payment_price: newAppointment.payment_price
+          ? parseFloat(newAppointment.payment_price)
+          : null,
+        payment_status:
+          (newAppointment.payment_status as
+            | 'not_paid'
+            | 'paid'
+            | 'payment_sent'
+            | 'waived'
+            | undefined) || 'not_paid',
+        payment_method:
+          (newAppointment.payment_method as
+            | 'cash'
+            | 'card'
+            | 'bank_transfer'
+            | 'payment_link'
+            | 'other'
+            | null
+            | undefined) || null,
+        payment_notes: newAppointment.payment_notes || null,
       }
 
       // Sync payment data
@@ -392,6 +423,29 @@ function handleLocationTypeChange() {
 function handleTextFieldBlur(field: 'location_details' | 'notes') {
   const debounce = field === 'notes'
   handleFieldBlur(field, debounce)
+}
+
+/**
+ * Handle payment field changes - save immediately (no debounce)
+ */
+async function handlePaymentFieldBlur(
+  field: 'payment_price' | 'payment_status' | 'payment_method' | 'payment_notes'
+) {
+  if (!props.appointment || !autoSave.value) return
+
+  const value = editableData.value[field]
+
+  try {
+    // Convert payment_price to string for API (backend expects Decimal as string)
+    const apiValue = field === 'payment_price' && value !== null ? String(value) : value
+
+    await autoSave.value.saveField(field, apiValue, false)
+    // Emit refresh to update parent component's appointment data
+    emit('refresh')
+  } catch {
+    // Error is already handled by autoSave composable
+    // Silently catch to prevent unhandled promise rejection
+  }
 }
 
 /**
@@ -1078,6 +1132,16 @@ watch(
               ></textarea>
               <p class="mt-1 text-xs text-slate-400">Changes are saved automatically</p>
             </div>
+
+            <!-- Payment Tracking Card -->
+            <PaymentTrackingCard
+              v-model:payment-price="editableData.payment_price"
+              v-model:payment-status="editableData.payment_status"
+              v-model:payment-method="editableData.payment_method"
+              v-model:payment-notes="editableData.payment_notes"
+              :paid-at="appointment.paid_at"
+              @blur="handlePaymentFieldBlur"
+            />
 
             <!-- Payment Section (conditional on paymentsEnabled) -->
             <div

@@ -42,7 +42,6 @@ vi.mock('@/router', () => ({
 }))
 
 describe('401 Unauthorized Handling', () => {
-   
   let apiClient: any
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>
