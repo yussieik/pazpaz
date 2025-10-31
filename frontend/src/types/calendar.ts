@@ -33,9 +33,11 @@ export type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'payment_link' |
  * Extended appointment type with payment tracking fields
  * Note: The base type comes from OpenAPI schema. We extend it here
  * with payment tracking fields until the OpenAPI schema is regenerated.
+ *
+ * payment_price is a string because the backend returns Decimal as string (JSON serialization)
  */
 export interface AppointmentListItem extends AppointmentListItemBase {
-  payment_price?: number | null
+  payment_price?: string | null
   payment_status: PaymentStatus
   payment_method?: PaymentMethod | null
   payment_notes?: string | null
