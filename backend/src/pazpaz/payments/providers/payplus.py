@@ -91,9 +91,8 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 # PayPlus API configuration
-# TODO: Verify base URL for sandbox vs production
 PAYPLUS_BASE_URL = "https://restapi.payplus.co.il/api/v1.0"
-PAYPLUS_SANDBOX_URL = "https://sandbox.payplus.co.il/api/v1.0"  # TODO: Verify URL
+PAYPLUS_SANDBOX_URL = "https://restapidev.payplus.co.il/api/v1.0"
 
 # Timeout configuration for API calls
 API_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
