@@ -7,7 +7,10 @@ import { h, type Component } from 'vue'
  */
 interface ExtendedToast {
   success: (message: unknown, options?: Record<string, unknown>) => void
-  dismiss: (toastId: string) => void
+  error: (message: unknown, options?: Record<string, unknown>) => void
+  info: (message: unknown, options?: Record<string, unknown>) => void
+  warning: (message: unknown, options?: Record<string, unknown>) => void
+  dismiss: (toastId: string | number) => void
 }
 
 /**

@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import apiClient from '@/api/client'
-import type { Client, ClientCreate } from '@/types/client'
+import type { Client, ClientCreate, ClientListItem } from '@/types/client'
 
 /**
  * Composable for client search and recent clients functionality
@@ -39,10 +39,10 @@ export function useClientSearch() {
 
       // Sort by most recent last_appointment (if available) or created_at
       const sorted = response.data.items.sort((a, b) => {
-        const aDate =
-          ('last_appointment' in a ? a.last_appointment : null) || a.created_at
-        const bDate =
-          ('last_appointment' in b ? b.last_appointment : null) || b.created_at
+        const aList = a as ClientListItem
+        const bList = b as ClientListItem
+        const aDate = (aList.last_appointment ?? a.created_at) as string
+        const bDate = (bList.last_appointment ?? b.created_at) as string
         return new Date(bDate).getTime() - new Date(aDate).getTime()
       })
 

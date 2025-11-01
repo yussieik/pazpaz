@@ -106,7 +106,7 @@ export function useInvisibleAutosave<T extends Record<string, unknown>>(
     const status = err.status || err.response?.status
     const errorMessage = error.message || ''
     const isRecoverable =
-      [500, 502, 503, 504].includes(status) ||
+      (status !== undefined && [500, 502, 503, 504].includes(status)) ||
       errorMessage.includes('timeout') ||
       errorMessage.includes('network') ||
       errorMessage.includes('Network')

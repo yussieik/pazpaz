@@ -121,9 +121,8 @@ async function handleResendInvitation(userId: string) {
 
 // Workspace handlers
 function handleViewWorkspaceDetails(workspaceId: string) {
-  selectedWorkspace.value = platformAdmin.workspaces.value.find(
-    (w) => w.id === workspaceId
-  )
+  selectedWorkspace.value =
+    platformAdmin.workspaces.value.find((w) => w.id === workspaceId) || null
   showWorkspaceDetailsModal.value = true
 }
 
