@@ -507,28 +507,65 @@ async function saveSettings() {
   }
 }
 
-function handleTogglePayments(enabled: boolean) {
+async function handleTogglePayments(enabled: boolean) {
   paymentsEnabled.value = enabled
 
   if (!enabled) {
-    // Clear form when disabling
-    apiKey.value = ''
-    paymentPageUid.value = ''
-    webhookSecret.value = ''
-    accountStatus.value = ''
-    connectionSuccess.value = false
-    connectionError.value = false
-    errorMessage.value = null
+    // When disabling, immediately save to backend to disconnect payment provider
+    // This preserves credentials in payment_provider_config while setting payment_provider to null
+    try {
+      loading.value = true
 
-    // Reset validation gate state
-    if (credentialsConfigured.value) {
-      // If credentials were configured, show info message about re-enabling
-      updateToggleStatus('info', 'Payments disabled. Toggle back on to re-enable.')
-    } else {
+      const workspaceId = authStore.user?.workspace_id
+      if (!workspaceId) {
+        throw new Error('Workspace ID not found')
+      }
+
+      const payload: Record<string, unknown> = {
+        payment_provider: null, // Disconnect from payment provider
+        // Keep all other fields unchanged - don't send them to preserve existing config
+      }
+
+      await apiClient.patch(`/workspaces/${workspaceId}`, payload)
+
+      // Clear form UI state after successful save
+      apiKey.value = ''
+      paymentPageUid.value = ''
+      webhookSecret.value = ''
+      accountStatus.value = ''
+      connectionSuccess.value = false
+      connectionError.value = false
+      errorMessage.value = null
+
+      // Update credentialsConfigured to reflect disabled state
+      credentialsConfigured.value = false
+
       updateToggleStatus(
         'info',
-        'Configure PayPlus credentials below to enable payment processing'
+        'Payment processing disabled. Your PayPlus account stays connected for easy re-activation.'
       )
+      showSuccess('Payment processing disabled')
+    } catch (error) {
+      // Revert toggle on error
+      paymentsEnabled.value = true
+      updateToggleStatus('error', 'Failed to disable payments. Please try again.')
+      if (
+        error &&
+        typeof error === 'object' &&
+        'response' in error &&
+        error.response &&
+        typeof error.response === 'object' &&
+        'data' in error.response &&
+        error.response.data &&
+        typeof error.response.data === 'object' &&
+        'detail' in error.response.data
+      ) {
+        showError(`Failed to disable: ${error.response.data.detail}`)
+      } else {
+        showError('Failed to disable payment processing. Please try again.')
+      }
+    } finally {
+      loading.value = false
     }
   } else {
     // When enabling, check if we need to configure or if already configured
