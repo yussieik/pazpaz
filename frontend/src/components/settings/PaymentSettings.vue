@@ -535,7 +535,8 @@ async function handleTogglePayments(enabled: boolean) {
         'info',
         'Payment processing disabled. Your PayPlus account stays connected for easy re-activation.'
       )
-      showSuccess('Payment processing disabled')
+      // DEPLOYMENT TEST: Removed toast notification
+      // showSuccess('Payment processing disabled')
     } else {
       // When enabling: Set payment_provider to 'payplus'
       // Note: This enables the payment system, but it won't be functional until credentials are configured
@@ -551,35 +552,38 @@ async function handleTogglePayments(enabled: boolean) {
       // Check if credentials already exist (re-enabling after previous configuration)
       if (credentialsConfigured.value && connectionValid.value) {
         updateToggleStatus('success', 'Payment processing enabled')
-        showSuccess('Payment processing enabled')
+        // DEPLOYMENT TEST: Removed toast notification
+        // showSuccess('Payment processing enabled')
       } else {
         // First-time enablement - show setup instructions
         updateToggleStatus(
           'info',
           'Configure PayPlus credentials below to start accepting payments'
         )
-        showSuccess('Payment processing enabled - Configure credentials to start')
+        // DEPLOYMENT TEST: Removed toast notification
+        // showSuccess('Payment processing enabled - Configure credentials to start')
       }
     }
   } catch (error) {
     // Revert toggle on error (don't update paymentsEnabled.value since we failed)
     updateToggleStatus('error', 'Failed to save settings. Please try again.')
 
-    if (
-      error &&
-      typeof error === 'object' &&
-      'response' in error &&
-      error.response &&
-      typeof error.response === 'object' &&
-      'data' in error.response &&
-      error.response.data &&
-      typeof error.response.data === 'object' &&
-      'detail' in error.response.data
-    ) {
-      showError(`Failed to save: ${error.response.data.detail}`)
-    } else {
-      showError('Failed to save payment settings. Please try again.')
-    }
+    // DEPLOYMENT TEST: Removed error toast notifications
+    // if (
+    //   error &&
+    //   typeof error === 'object' &&
+    //   'response' in error &&
+    //   error.response &&
+    //   typeof error.response === 'object' &&
+    //   'data' in error.response &&
+    //   error.response.data &&
+    //   typeof error.response.data === 'object' &&
+    //   'detail' in error.response.data
+    // ) {
+    //   showError(`Failed to save: ${error.response.data.detail}`)
+    // } else {
+    //   showError('Failed to save payment settings. Please try again.')
+    // }
   } finally {
     loading.value = false
   }
