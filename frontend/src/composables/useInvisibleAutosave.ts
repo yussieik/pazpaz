@@ -103,13 +103,13 @@ export function useInvisibleAutosave<T extends Record<string, unknown>>(
 
   const handleSyncError = async (error: Error) => {
     const err = error as Error & { status?: number; response?: { status?: number } }
-    const status = err.status || err.response?.status
+    const status = err.status ?? err.response?.status
     const errorMessage = error.message || ''
+
+    // Check if error is recoverable (server errors or network issues)
     const isRecoverable =
       (status !== undefined && [500, 502, 503, 504].includes(status)) ||
-      errorMessage.includes('timeout') ||
-      errorMessage.includes('network') ||
-      errorMessage.includes('Network')
+      /timeout|network/i.test(errorMessage)
 
     if (!isRecoverable) {
       state.value = { type: 'error', error, recoverable: false }
@@ -129,7 +129,7 @@ export function useInvisibleAutosave<T extends Record<string, unknown>>(
         localStorage.removeItem(localStorageKey.value)
         onSuccess?.()
         return
-      } catch (retryError) {
+      } catch {
         // Continue to next retry
       }
     }

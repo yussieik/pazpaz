@@ -33,16 +33,15 @@ export function useClientSearch() {
     try {
       // TODO: Update API endpoint to support recent=true filter when backend implements it
       // For now, fetch all clients and filter/sort client-side
-      const response = await apiClient.get<{ items: Client[]; total: number }>(
+      const response = await apiClient.get<{ items: ClientListItem[]; total: number }>(
         '/clients?page=1&page_size=100'
       )
 
       // Sort by most recent last_appointment (if available) or created_at
       const sorted = response.data.items.sort((a, b) => {
-        const aList = a as ClientListItem
-        const bList = b as ClientListItem
-        const aDate = (aList.last_appointment ?? a.created_at) as string
-        const bDate = (bList.last_appointment ?? b.created_at) as string
+        // Use last_appointment if available, otherwise fall back to created_at
+        const aDate = a.last_appointment ?? a.created_at
+        const bDate = b.last_appointment ?? b.created_at
         return new Date(bDate).getTime() - new Date(aDate).getTime()
       })
 

@@ -3,13 +3,23 @@ import type { ToastOptions } from 'vue-toastification/dist/types/types'
 import { h, type Component } from 'vue'
 
 /**
- * Extended toast interface with runtime methods not in TypeScript types
+ * Extended ToastOptions that includes runtime properties not in the official types
+ */
+interface ExtendedToastOptions extends Partial<ToastOptions> {
+  toastId?: string | number
+}
+
+/**
+ * Extended toast interface with runtime methods not fully typed in vue-toastification
+ *
+ * Note: vue-toastification's TypeScript definitions are incomplete. This interface
+ * provides the actual runtime API for methods we use.
  */
 interface ExtendedToast {
-  success: (message: unknown, options?: Record<string, unknown>) => void
-  error: (message: unknown, options?: Record<string, unknown>) => void
-  info: (message: unknown, options?: Record<string, unknown>) => void
-  warning: (message: unknown, options?: Record<string, unknown>) => void
+  success: (message: string | Component, options?: ExtendedToastOptions) => string | number
+  error: (message: string | Component, options?: ExtendedToastOptions) => string | number
+  info: (message: string | Component, options?: ExtendedToastOptions) => string | number
+  warning: (message: string | Component, options?: ExtendedToastOptions) => string | number
   dismiss: (toastId: string | number) => void
 }
 
