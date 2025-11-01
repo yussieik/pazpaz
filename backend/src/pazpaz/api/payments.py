@@ -83,6 +83,10 @@ class PaymentConfigResponse(BaseModel):
         None,
         description="Payment provider: payplus, meshulam, stripe, or null if disabled",
     )
+    has_stored_credentials: bool = Field(
+        False,
+        description="Whether payment provider credentials are stored (encrypted) in database",
+    )
     auto_send: bool = Field(
         False,
         description="Automatically send payment requests after appointment completion",
@@ -230,6 +234,7 @@ async def get_payment_config(
     config = PaymentConfigResponse(
         enabled=workspace.payments_enabled,
         provider=workspace.payment_provider,
+        has_stored_credentials=workspace.payment_provider_config is not None,
         auto_send=workspace.payment_auto_send,
         send_timing=workspace.payment_send_timing,
         business_name=workspace.business_name,

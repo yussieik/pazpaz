@@ -70,6 +70,7 @@ const errorMessage = ref<string | null>(null)
 
 // State - Toggle validation gate
 const credentialsConfigured = ref(false)
+const hasStoredCredentials = ref(false) // Whether credentials exist in DB (even if payment disabled)
 const connectionTested = ref(false)
 const connectionValid = ref(false)
 const toggleStatusMessage = ref('')
@@ -235,6 +236,7 @@ async function loadPaymentConfig() {
     // Populate form
     paymentsEnabled.value = config.enabled || false
     provider.value = config.provider || 'payplus'
+    hasStoredCredentials.value = config.has_stored_credentials || false
 
     // Check if credentials are configured
     credentialsConfigured.value = config.enabled && config.provider !== null
@@ -549,19 +551,27 @@ async function handleTogglePayments(enabled: boolean) {
       // Update local state after successful save
       paymentsEnabled.value = true
 
-      // Check if credentials already exist (re-enabling after previous configuration)
-      if (credentialsConfigured.value && connectionValid.value) {
+      // Check if stored credentials exist (from previous configuration)
+      if (hasStoredCredentials.value) {
+        // Credentials exist in database - automatically re-enabled with stored credentials
+        credentialsConfigured.value = true
+        connectionTested.value = true
+        connectionValid.value = true
+        connectionHealthy.value = true
+        lastSuccessfulCheck.value = new Date()
+        updateToggleStatus(
+          'success',
+          'Payment processing re-enabled with your stored PayPlus credentials'
+        )
+      } else if (credentialsConfigured.value && connectionValid.value) {
+        // Edge case: credentials configured in this session
         updateToggleStatus('success', 'Payment processing enabled')
-        // DEPLOYMENT TEST: Removed toast notification
-        // showSuccess('Payment processing enabled')
       } else {
         // First-time enablement - show setup instructions
         updateToggleStatus(
           'info',
           'Configure PayPlus credentials below to start accepting payments'
         )
-        // DEPLOYMENT TEST: Removed toast notification
-        // showSuccess('Payment processing enabled - Configure credentials to start')
       }
     }
   } catch (error) {
