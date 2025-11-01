@@ -118,14 +118,6 @@ const showSetupGuide = computed(() => {
   return paymentsEnabled.value && accountStatus.value === 'needs-account'
 })
 
-// Computed - Toggle disabled state
-const isToggleDisabled = computed(() => {
-  // Disabled until credentials configured AND successfully tested
-  return (
-    !credentialsConfigured.value || !connectionTested.value || !connectionValid.value
-  )
-})
-
 const sendTimingOptions = [
   { value: 'immediately', label: 'Immediately after marking complete' },
   { value: 'end_of_day', label: 'End of day (11:59 PM)' },
@@ -508,27 +500,28 @@ async function saveSettings() {
 }
 
 async function handleTogglePayments(enabled: boolean) {
-  paymentsEnabled.value = enabled
+  // Always save to backend immediately (consistent with Notifications/Integrations tabs)
+  try {
+    loading.value = true
 
-  if (!enabled) {
-    // When disabling, immediately save to backend to disconnect payment provider
-    // This preserves credentials in payment_provider_config while setting payment_provider to null
-    try {
-      loading.value = true
+    const workspaceId = authStore.user?.workspace_id
+    if (!workspaceId) {
+      throw new Error('Workspace ID not found')
+    }
 
-      const workspaceId = authStore.user?.workspace_id
-      if (!workspaceId) {
-        throw new Error('Workspace ID not found')
-      }
-
+    if (!enabled) {
+      // When disabling: Set payment_provider to null (disconnects provider)
+      // This preserves credentials in payment_provider_config for easy re-activation
       const payload: Record<string, unknown> = {
-        payment_provider: null, // Disconnect from payment provider
-        // Keep all other fields unchanged - don't send them to preserve existing config
+        payment_provider: null,
       }
 
       await apiClient.patch(`/workspaces/${workspaceId}`, payload)
 
-      // Clear form UI state after successful save
+      // Update local state after successful save
+      paymentsEnabled.value = false
+
+      // Clear form UI state
       apiKey.value = ''
       paymentPageUid.value = ''
       webhookSecret.value = ''
@@ -536,8 +529,6 @@ async function handleTogglePayments(enabled: boolean) {
       connectionSuccess.value = false
       connectionError.value = false
       errorMessage.value = null
-
-      // Update credentialsConfigured to reflect disabled state
       credentialsConfigured.value = false
 
       updateToggleStatus(
@@ -545,38 +536,52 @@ async function handleTogglePayments(enabled: boolean) {
         'Payment processing disabled. Your PayPlus account stays connected for easy re-activation.'
       )
       showSuccess('Payment processing disabled')
-    } catch (error) {
-      // Revert toggle on error
-      paymentsEnabled.value = true
-      updateToggleStatus('error', 'Failed to disable payments. Please try again.')
-      if (
-        error &&
-        typeof error === 'object' &&
-        'response' in error &&
-        error.response &&
-        typeof error.response === 'object' &&
-        'data' in error.response &&
-        error.response.data &&
-        typeof error.response.data === 'object' &&
-        'detail' in error.response.data
-      ) {
-        showError(`Failed to disable: ${error.response.data.detail}`)
-      } else {
-        showError('Failed to disable payment processing. Please try again.')
-      }
-    } finally {
-      loading.value = false
-    }
-  } else {
-    // When enabling, check if we need to configure or if already configured
-    if (credentialsConfigured.value && connectionValid.value) {
-      updateToggleStatus('success', 'Active and working')
     } else {
-      updateToggleStatus(
-        'info',
-        'Configure PayPlus credentials below to enable payment processing'
-      )
+      // When enabling: Set payment_provider to 'payplus'
+      // Note: This enables the payment system, but it won't be functional until credentials are configured
+      const payload: Record<string, unknown> = {
+        payment_provider: 'payplus',
+      }
+
+      await apiClient.patch(`/workspaces/${workspaceId}`, payload)
+
+      // Update local state after successful save
+      paymentsEnabled.value = true
+
+      // Check if credentials already exist (re-enabling after previous configuration)
+      if (credentialsConfigured.value && connectionValid.value) {
+        updateToggleStatus('success', 'Payment processing enabled')
+        showSuccess('Payment processing enabled')
+      } else {
+        // First-time enablement - show setup instructions
+        updateToggleStatus(
+          'info',
+          'Configure PayPlus credentials below to start accepting payments'
+        )
+        showSuccess('Payment processing enabled - Configure credentials to start')
+      }
     }
+  } catch (error) {
+    // Revert toggle on error (don't update paymentsEnabled.value since we failed)
+    updateToggleStatus('error', 'Failed to save settings. Please try again.')
+
+    if (
+      error &&
+      typeof error === 'object' &&
+      'response' in error &&
+      error.response &&
+      typeof error.response === 'object' &&
+      'data' in error.response &&
+      error.response.data &&
+      typeof error.response.data === 'object' &&
+      'detail' in error.response.data
+    ) {
+      showError(`Failed to save: ${error.response.data.detail}`)
+    } else {
+      showError('Failed to save payment settings. Please try again.')
+    }
+  } finally {
+    loading.value = false
   }
 }
 
@@ -631,20 +636,17 @@ function handleAccountCreated() {
             </div>
           </div>
 
-          <!-- Toggle with Validation Gate -->
+          <!-- Toggle (Always Enabled - Auto-saves like Notifications tab) -->
           <div class="flex-shrink-0">
             <button
               type="button"
               role="switch"
               :aria-checked="paymentsEnabled"
-              :aria-disabled="isToggleDisabled"
-              :disabled="isToggleDisabled"
               :class="[
-                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none',
+                'relative inline-flex h-6 w-11 cursor-pointer items-center rounded-full transition-colors focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none',
                 paymentsEnabled ? 'bg-emerald-600' : 'bg-slate-200',
-                isToggleDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
               ]"
-              @click="!isToggleDisabled && handleTogglePayments(!paymentsEnabled)"
+              @click="handleTogglePayments(!paymentsEnabled)"
             >
               <span
                 :class="[
