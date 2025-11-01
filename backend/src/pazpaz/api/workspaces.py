@@ -502,12 +502,20 @@ async def update_workspace(
     # Track what fields are being updated for logging
     updated_fields = []
 
+    # Get only the fields that were actually provided in the request
+    # This allows us to distinguish between "field not provided" and "field provided as null"
+    provided_fields = update_data.model_dump(exclude_unset=True)
+
     # Update payment configuration
-    if update_data.payment_provider is not None:
+    # Check if field was provided (not whether it's None) to support explicit null values
+    if "payment_provider" in provided_fields:
         workspace.payment_provider = update_data.payment_provider
         updated_fields.append("payment_provider")
 
-    if update_data.payment_provider_config is not None:
+    if (
+        "payment_provider_config" in provided_fields
+        and update_data.payment_provider_config is not None
+    ):
         # CRITICAL: Encrypt payment provider config before storing
         # This contains sensitive API keys and secrets
         config_json = json.dumps(update_data.payment_provider_config)
@@ -524,41 +532,41 @@ async def update_workspace(
         )
 
     # Update business details
-    if update_data.business_name is not None:
+    if "business_name" in provided_fields:
         workspace.business_name = update_data.business_name
         updated_fields.append("business_name")
 
-    if update_data.business_name_hebrew is not None:
+    if "business_name_hebrew" in provided_fields:
         workspace.business_name_hebrew = update_data.business_name_hebrew
         updated_fields.append("business_name_hebrew")
 
-    if update_data.tax_id is not None:
+    if "tax_id" in provided_fields:
         workspace.tax_id = update_data.tax_id
         updated_fields.append("tax_id")
 
-    if update_data.business_license_number is not None:
+    if "business_license_number" in provided_fields:
         workspace.business_license = update_data.business_license_number
         updated_fields.append("business_license_number")
 
-    if update_data.business_address is not None:
+    if "business_address" in provided_fields:
         workspace.business_address = update_data.business_address
         updated_fields.append("business_address")
 
     # Update VAT settings
-    if update_data.vat_registered is not None:
+    if "vat_registered" in provided_fields:
         workspace.vat_registered = update_data.vat_registered
         updated_fields.append("vat_registered")
 
-    if update_data.vat_rate is not None:
+    if "vat_rate" in provided_fields:
         workspace.vat_rate = update_data.vat_rate
         updated_fields.append("vat_rate")
 
     # Update auto-send settings
-    if update_data.payment_auto_send is not None:
+    if "payment_auto_send" in provided_fields:
         workspace.payment_auto_send = update_data.payment_auto_send
         updated_fields.append("payment_auto_send")
 
-    if update_data.payment_send_timing is not None:
+    if "payment_send_timing" in provided_fields:
         workspace.payment_send_timing = update_data.payment_send_timing
         updated_fields.append("payment_send_timing")
 
