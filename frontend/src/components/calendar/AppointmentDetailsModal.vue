@@ -516,7 +516,7 @@ async function sendPaymentRequest() {
       success: boolean
       payment_link: string
       message: string
-    }>(`/api/v1/appointments/${props.appointment.id}/send-payment-request`)
+    }>(`/appointments/${props.appointment.id}/send-payment-request`)
 
     // Update local status
     editableData.value.payment_status = 'payment_sent'
