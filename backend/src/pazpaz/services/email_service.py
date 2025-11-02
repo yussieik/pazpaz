@@ -660,6 +660,7 @@ def _generate_payment_section_html(
         >>> "Bit" in html
         True
     """
+    # ruff: noqa: SIM116 - Dictionary not practical for multi-line HTML template returns
     if payment_type == "bit":
         return f"""
         <div style="background-color: #eff6ff; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">

@@ -6,8 +6,6 @@ import uuid
 from decimal import Decimal
 from unittest.mock import MagicMock
 
-import pytest
-
 from pazpaz.services.payment_link_service import (
     _generate_bit_link,
     _generate_custom_link,
