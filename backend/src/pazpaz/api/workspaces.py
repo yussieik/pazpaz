@@ -68,14 +68,18 @@ class WorkspaceStorageQuotaUpdateRequest(BaseModel):
 class UpdateWorkspaceRequest(BaseModel):
     """Request model for updating workspace configuration."""
 
-    # Payment configuration
+    # Payment configuration (Phase 1: Manual tracking)
+    bank_account_details: str | None = Field(
+        None,
+        description="Bank account details for manual payment tracking (free-text)",
+    )
     payment_provider: str | None = Field(
         None,
-        description="Payment provider: 'payplus' or null to disable payments",
+        description="Payment provider name (manual, or future automated providers), or null to disable",
     )
     payment_provider_config: dict | None = Field(
         None,
-        description="Payment provider configuration (API keys, secrets) - will be encrypted",
+        description="Payment provider configuration (API keys, secrets) - will be encrypted (future)",
     )
 
     # Business details for tax receipts
@@ -143,15 +147,19 @@ class WorkspaceResponse(BaseModel):
     vat_registered: bool = Field(..., description="Whether VAT registered")
     vat_rate: Decimal = Field(..., description="VAT rate percentage")
 
-    # Payment provider configuration (feature flag)
+    # Payment configuration (Phase 1: Manual tracking)
+    bank_account_details: str | None = Field(
+        None, description="Bank account details for manual payment tracking"
+    )
     payment_provider: str | None = Field(
-        None, description="Payment provider: payplus, meshulam, stripe, null"
+        None, description="Payment provider name (manual, or future automated providers), or null"
     )
     payment_auto_send: bool = Field(
-        ..., description="Automatically send payment requests"
+        ..., description="Automatically send payment requests (future feature)"
     )
     payment_send_timing: str = Field(
-        ..., description="When to send: immediately, end_of_day, end_of_month, manual"
+        ...,
+        description="When to send: immediately, end_of_day, end_of_month, manual (future feature)",
     )
 
     # Storage
@@ -435,17 +443,13 @@ async def update_workspace(
         ```json
         PATCH /api/v1/workspaces/{uuid}
         {
-            "payment_provider": "payplus",
-            "payment_provider_config": {
-                "api_key": "pk_live_xxx",
-                "payment_page_uid": "abc-123",
-                "webhook_secret": "whsec_xxx"
-            },
+            "payment_provider": "manual",
+            "payment_provider_config": null,
             "business_name": "Example Therapy Clinic",
             "vat_registered": true,
             "vat_rate": 17.00,
-            "payment_auto_send": true,
-            "payment_send_timing": "immediately"
+            "payment_auto_send": false,
+            "payment_send_timing": "manual"
         }
         ```
 
@@ -462,9 +466,9 @@ async def update_workspace(
             "business_address": null,
             "vat_registered": true,
             "vat_rate": 17.00,
-            "payment_provider": "payplus",
-            "payment_auto_send": true,
-            "payment_send_timing": "immediately",
+            "payment_provider": "manual",
+            "payment_auto_send": false,
+            "payment_send_timing": "manual",
             "storage_used_bytes": 0,
             "storage_quota_bytes": 10737418240,
             "timezone": "UTC"
@@ -508,6 +512,10 @@ async def update_workspace(
 
     # Update payment configuration
     # Check if field was provided (not whether it's None) to support explicit null values
+    if "bank_account_details" in provided_fields:
+        workspace.bank_account_details = update_data.bank_account_details
+        updated_fields.append("bank_account_details")
+
     if "payment_provider" in provided_fields:
         workspace.payment_provider = update_data.payment_provider
         updated_fields.append("payment_provider")
@@ -594,6 +602,7 @@ async def update_workspace(
         business_address=workspace.business_address,
         vat_registered=workspace.vat_registered,
         vat_rate=workspace.vat_rate,
+        bank_account_details=workspace.bank_account_details,
         payment_provider=workspace.payment_provider,
         payment_auto_send=workspace.payment_auto_send,
         payment_send_timing=workspace.payment_send_timing,

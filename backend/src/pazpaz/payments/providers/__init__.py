@@ -1,4 +1,7 @@
-"""Payment provider implementations.
+"""Payment provider implementations (Phase 2+ - NOT USED IN PHASE 1).
+
+⚠️  THIS MODULE IS NOT IMPORTED OR USED IN PHASE 1 (Manual Payment Tracking).
+    It is reserved for Phase 2+ automated payment provider integration.
 
 This package contains concrete implementations of payment providers that
 extend the PaymentProvider abstract base class. Each provider handles:
@@ -6,9 +9,10 @@ extend the PaymentProvider abstract base class. Each provider handles:
 - Webhook signature verification
 - Webhook payload parsing and normalization
 
-Available Providers:
-    - PayPlus: Israeli payment provider (Phase 1 implementation)
-    - Future: Stripe, Meshulam, etc.
+Phase 2+ Providers (future implementation):
+    - Bit API: Israeli mobile payment provider
+    - PayBox API: Israeli payment provider
+    - Stripe: International payment processor
 
 Provider Registration:
     Providers automatically register themselves with the factory when imported.

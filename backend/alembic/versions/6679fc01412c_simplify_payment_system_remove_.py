@@ -56,7 +56,8 @@ def upgrade() -> None:
     )
 
     # Drop payment_transactions table (PayPlus-specific, will be replaced with provider-agnostic tracking)
-    op.drop_table("payment_transactions")
+    # Use CASCADE to drop dependent views and foreign keys
+    op.execute("DROP TABLE IF EXISTS payment_transactions CASCADE")
 
     # Update payment_method CHECK constraint on appointments
     # Drop old constraint

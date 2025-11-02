@@ -1,7 +1,10 @@
-"""Payment provider abstraction layer for PazPaz.
+"""Payment provider abstraction layer for PazPaz (Phase 2+ - NOT USED IN PHASE 1).
 
-This package provides the infrastructure for integrating payment providers
-(PayPlus, Stripe, Meshulam) into PazPaz's practice management workflow.
+⚠️  THIS MODULE IS NOT IMPORTED OR USED IN PHASE 1 (Manual Payment Tracking).
+    It is reserved for Phase 2+ automated payment provider integration.
+
+This package provides the infrastructure for integrating automated payment providers
+(Bit API, PayBox API, Stripe, etc.) into PazPaz's practice management workflow.
 
 Architecture Overview:
     - base.py: Abstract base class (PaymentProvider) and data transfer objects
@@ -102,16 +105,18 @@ Security Notes:
     - Never log decrypted credentials or sensitive payment data
     - Use constant-time comparison for signature verification (hmac.compare_digest)
 
-Phase 1 Implementation:
-    Phase 1 (current) implements:
-    - PayPlus provider for Israeli market
-    - Payment request creation and email sending
-    - Webhook processing and status updates
-    - Basic VAT calculation
+Phase Implementation:
+    Phase 1 (current): Manual payment tracking only
+    - No automated providers
+    - Bank account details for manual sharing
+    - Manual payment status tracking in appointments
 
-    Future phases will add:
-    - Phase 2: Tax compliance (receipts, manual payments, financial reports)
-    - Phase 3: Multi-provider support (Stripe for US, Meshulam alternative)
+    Phase 2+ (future): Automated payment providers
+    - Bit API integration (Israeli market)
+    - PayBox API integration (Israeli market)
+    - Automated payment link generation
+    - Webhook processing and status updates
+    - Multi-provider support (Stripe for international)
 """
 
 # Import providers to trigger registration

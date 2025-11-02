@@ -1,4 +1,7 @@
-"""Payment provider exception classes.
+"""Payment provider exception classes (Phase 2+ - NOT USED IN PHASE 1).
+
+⚠️  THIS MODULE IS NOT IMPORTED OR USED IN PHASE 1 (Manual Payment Tracking).
+    It is reserved for Phase 2+ automated payment provider integration.
 
 This module defines the exception hierarchy for payment provider operations.
 These exceptions are raised by payment provider implementations when errors

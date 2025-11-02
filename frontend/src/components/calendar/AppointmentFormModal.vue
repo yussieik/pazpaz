@@ -112,7 +112,8 @@ watch(
             | 'cash'
             | 'card'
             | 'bank_transfer'
-            | 'payment_link'
+            | 'bit'
+            | 'paybox'
             | 'other'
             | null
             | undefined) || null,

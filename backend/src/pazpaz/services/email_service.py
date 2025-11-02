@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from decimal import Decimal
 from email.message import EmailMessage
+from typing import TYPE_CHECKING
 
 import aiosmtplib
 
 from pazpaz.core.config import settings
 from pazpaz.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from pazpaz.models.appointment import Appointment
+    from pazpaz.models.workspace import Workspace
 
 logger = get_logger(__name__)
 
@@ -632,139 +636,252 @@ PazPaz - Practice Management for Independent Therapists
         raise
 
 
-async def send_payment_request_email(
-    customer_email: str,
-    customer_name: str,
-    therapist_name: str,
-    appointment_date: datetime,
-    amount: Decimal,
-    currency: str,
+def _generate_payment_section_html(
+    payment_type: str,
     payment_link: str,
-) -> bool:
+    amount: Decimal,
+) -> str:
     """
-    Send payment request email to client.
+    Generate payment section HTML based on payment type.
 
-    Sends email with payment link for an appointment. Email failures are logged
-    but do not raise exceptions to prevent payment creation failures.
+    Creates payment-type-specific HTML content for email body, including
+    appropriate buttons, instructions, and formatting for each payment method.
 
     Args:
-        customer_email: Client email address
-        customer_name: Client full name
-        therapist_name: Therapist/workspace name
-        appointment_date: Scheduled appointment datetime
-        amount: Total payment amount
-        currency: Currency code (e.g., "ILS")
-        payment_link: Payment link URL
+        payment_type: Type of payment link (bit, paybox, bank, custom)
+        payment_link: Generated payment link from payment_link_service
+        amount: Payment amount in ILS
 
     Returns:
-        bool: True if email sent successfully, False otherwise
+        HTML string for payment section
 
     Example:
-        >>> success = await send_payment_request_email(
-        ...     customer_email="client@example.com",
-        ...     customer_name="Jane Doe",
-        ...     therapist_name="Dr. Sarah Cohen",
-        ...     appointment_date=datetime(2025, 10, 30, 14, 30),
-        ...     amount=Decimal("350.00"),
-        ...     currency="ILS",
-        ...     payment_link="https://payplus.co.il/pay/abc123"
-        ... )
-        >>> print(success)
+        >>> html = _generate_payment_section_html("bit", "sms:050-1234567...", Decimal("350.00"))
+        >>> "Bit" in html
         True
     """
-    try:
-        # Format appointment date for display
-        formatted_date = appointment_date.strftime("%A, %B %d, %Y")
-        formatted_time = appointment_date.strftime("%I:%M %p")
-
-        # Create email message
-        message = EmailMessage()
-        message["From"] = f"PazPaz <{settings.emails_from_email}>"
-        message["To"] = customer_email
-        message["Subject"] = f"Payment Request from {therapist_name}"
-
-        # Email body (plain text fallback)
-        message.set_content(f"""
-Hello {customer_name},
-
-You have a payment request from {therapist_name} for your upcoming appointment.
-
-Appointment Details:
-  Date: {formatted_date}
-  Time: {formatted_time}
-  Amount: {amount} {currency}
-
-Complete your payment:
-{payment_link}
-
-If you have any questions, please contact {therapist_name}.
-
----
-PazPaz - Practice Management for Independent Therapists
-{settings.frontend_url}
-""")
-
-        # Email body (HTML)
-        message.add_alternative(
-            f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payment Request</title>
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f5f5f5;">
-    <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-        <h1 style="color: #059669; margin-top: 0; font-size: 24px;">Payment Request</h1>
-
-        <p style="font-size: 16px; margin-bottom: 20px;">Hello {customer_name},</p>
-
-        <p style="font-size: 16px; margin-bottom: 30px;">
-            You have a payment request from <strong>{therapist_name}</strong> for your upcoming appointment.
-        </p>
-
-        <div style="background-color: #f9fafb; border-radius: 6px; padding: 20px; margin: 30px 0;">
-            <h2 style="color: #333; margin-top: 0; font-size: 18px; margin-bottom: 15px;">Appointment Details</h2>
-            <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Date:</td>
-                    <td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">{formatted_date}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Time:</td>
-                    <td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">{formatted_time}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Amount:</td>
-                    <td style="padding: 8px 0; color: #111827; font-size: 16px; font-weight: 700;">{amount} {currency}</td>
-                </tr>
-            </table>
+    if payment_type == "bit":
+        return f"""
+        <div style="background-color: #eff6ff; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+            <h3 style="color: #1e40af; margin-top: 0; margin-bottom: 15px; font-size: 18px;">תשלום דרך Bit</h3>
+            <p style="color: #374151; font-size: 14px; margin-bottom: 20px;">
+                לחצו על הכפתור למטה לפתיחת Bit ישירות באפליקציית ההודעות שלכם
+            </p>
+            <a href="{payment_link}"
+               target="_blank"
+               style="display: inline-block; background-color: #1e40af; color: white; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 4px rgba(30, 64, 175, 0.3);">
+                💳 שלם דרך Bit
+            </a>
+            <p style="color: #6b7280; font-size: 13px; margin-top: 15px; margin-bottom: 0;">
+                הקישור יפתח את אפליקציית ההודעות שלכם עם בקשת התשלום
+            </p>
         </div>
-
-        <div style="text-align: center; margin: 30px 0;">
+        """
+    elif payment_type == "paybox":
+        return f"""
+        <div style="background-color: #f0fdf4; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+            <h3 style="color: #059669; margin-top: 0; margin-bottom: 15px; font-size: 18px;">תשלום דרך PayBox</h3>
+            <p style="color: #374151; font-size: 14px; margin-bottom: 20px;">
+                לחצו על הכפתור למטה לביצוע תשלום מאובטח דרך PayBox
+            </p>
             <a href="{payment_link}"
                target="_blank"
                style="display: inline-block; background-color: #059669; color: white; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.3);">
-                Pay Now
+                💰 שלם עכשיו - PayBox
+            </a>
+            <p style="color: #6b7280; font-size: 13px; margin-top: 15px; margin-bottom: 0;">
+                תשלום מאובטח בכרטיס אשראי או העברה בנקאית
+            </p>
+        </div>
+        """
+    elif payment_type == "bank":
+        # For bank transfers, payment_link contains formatted bank details
+        return f"""
+        <div style="background-color: #fef3c7; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <h3 style="color: #92400e; margin-top: 0; margin-bottom: 15px; font-size: 18px; text-align: center;">העברה בנקאית</h3>
+            <div style="background-color: white; border-radius: 6px; padding: 15px; margin: 15px 0; direction: rtl;">
+                <pre style="font-family: 'Courier New', monospace; font-size: 14px; color: #1f2937; margin: 0; white-space: pre-wrap; word-wrap: break-word;">{payment_link}</pre>
+            </div>
+            <p style="color: #6b7280; font-size: 13px; text-align: center; margin-bottom: 0;">
+                העבירו ₪{amount} לפרטי החשבון המפורטים למעלה
+            </p>
+        </div>
+        """
+    else:  # custom
+        return f"""
+        <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+            <h3 style="color: #374151; margin-top: 0; margin-bottom: 15px; font-size: 18px;">קישור תשלום</h3>
+            <p style="color: #374151; font-size: 14px; margin-bottom: 20px;">
+                לחצו על הכפתור למטה לביצוע תשלום
+            </p>
+            <a href="{payment_link}"
+               target="_blank"
+               style="display: inline-block; background-color: #059669; color: white; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.3);">
+                💳 שלם עכשיו
             </a>
         </div>
+        """
 
-        <p style="color: #6b7280; font-size: 14px; margin-top: 30px; text-align: center;">
-            If you have any questions, please contact {therapist_name}.
+
+async def send_payment_request_email(
+    appointment: Appointment,
+    workspace: Workspace,
+    payment_link: str,
+    client_email: str,
+) -> None:
+    """
+    Send payment request email to client.
+
+    Sends bilingual (Hebrew/English) email with payment link for an appointment.
+    Email content varies based on workspace payment configuration (Bit, PayBox,
+    bank transfer, or custom link).
+
+    Args:
+        appointment: Appointment with payment details
+        workspace: Workspace with payment configuration
+        payment_link: Generated payment link from payment_link_service
+        client_email: Client's email address (already decrypted)
+
+    Raises:
+        Exception: If email sending fails
+
+    Example:
+        >>> await send_payment_request_email(
+        ...     appointment=appointment,
+        ...     workspace=workspace,
+        ...     payment_link="sms:050-1234567?body=...",
+        ...     client_email="client@example.com"
+        ... )
+    """
+    # Import here to avoid circular dependency
+    from pazpaz.utils.encryption import decrypt_field
+
+    # Decrypt client name for personalization
+    client_name = decrypt_field(appointment.client.name, settings.encryption_key)
+
+    # Format appointment date and time
+    appointment_date = appointment.scheduled_start.strftime("%d/%m/%Y")
+    appointment_time = appointment.scheduled_start.strftime("%H:%M")
+
+    # Payment amount
+    amount = appointment.payment_price or Decimal("0.00")
+
+    # Get payment type from workspace
+    payment_type = workspace.payment_link_type or "custom"
+
+    # Generate payment section HTML
+    payment_section = _generate_payment_section_html(
+        payment_type=payment_type,
+        payment_link=payment_link,
+        amount=amount,
+    )
+
+    # Create email message
+    message = EmailMessage()
+    message["From"] = f"PazPaz <{settings.emails_from_email}>"
+    message["To"] = client_email
+    message["Subject"] = f"תשלום עבור פגישה - Payment Request from {workspace.name}"
+
+    # Email body (plain text fallback)
+    message.set_content(f"""
+שלום {client_name},
+
+תודה שהגעת לפגישה אצל {workspace.name}.
+
+פרטי הפגישה:
+תאריך: {appointment_date}
+שעה: {appointment_time}
+סכום לתשלום: ₪{amount}
+
+לתשלום: {payment_link}
+
+שאלות? צור קשר עם {workspace.name}
+
+בברכה,
+{workspace.name}
+
+---
+
+Hello {client_name},
+
+Thank you for your appointment with {workspace.name}.
+
+Appointment Details:
+Date: {appointment_date}
+Time: {appointment_time}
+Amount: ₪{amount}
+
+Payment link: {payment_link}
+
+Questions? Contact {workspace.name}
+
+Best regards,
+{workspace.name}
+""")
+
+    # Email body (HTML)
+    message.add_alternative(
+        f"""
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בקשת תשלום - Payment Request</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
+    <!-- Header -->
+    <div style="background-color: #f9fafb; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
+        <h2 style="color: #059669; margin-top: 0; font-size: 24px;">תשלום עבור פגישה</h2>
+        <p style="font-size: 16px; color: #374151;">שלום {client_name},</p>
+        <p style="font-size: 16px; color: #374151;">תודה שהגעת לפגישה אצל {workspace.name}.</p>
+    </div>
+
+    <!-- Appointment Details -->
+    <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #1f2937; margin-top: 0; font-size: 18px; margin-bottom: 15px;">פרטי הפגישה</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-size: 14px;"><strong>תאריך:</strong></td>
+                <td style="padding: 8px 0; color: #111827; font-size: 14px;">{appointment_date}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-size: 14px;"><strong>שעה:</strong></td>
+                <td style="padding: 8px 0; color: #111827; font-size: 14px;">{appointment_time}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-size: 16px;"><strong>סכום לתשלום:</strong></td>
+                <td style="padding: 8px 0; color: #059669; font-size: 18px; font-weight: 700;">₪{amount}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Payment Section (generated by helper function) -->
+    {payment_section}
+
+    <!-- Footer -->
+    <div style="margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+        <p style="color: #6b7280; font-size: 14px; text-align: center;">
+            שאלות? צור קשר עם {workspace.name}
+        </p>
+        <p style="color: #6b7280; font-size: 14px; text-align: center;">
+            בברכה,<br>
+            {workspace.name}
         </p>
     </div>
 
-    <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px;">
-        <p>PazPaz - Practice Management for Independent Therapists</p>
+    <!-- PazPaz Branding -->
+    <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+        <p style="margin: 0;">PazPaz - Practice Management for Independent Therapists</p>
     </div>
 </body>
 </html>
 """,
-            subtype="html",
-        )
+        subtype="html",
+    )
 
-        # Send via SMTP
+    # Send via SMTP
+    try:
         async with aiosmtplib.SMTP(
             hostname=settings.smtp_host,
             port=settings.smtp_port,
@@ -777,10 +894,10 @@ PazPaz - Practice Management for Independent Therapists
 
         logger.info(
             "payment_request_email_sent",
-            customer_email_hash=hash(customer_email),  # Hash for privacy
-            therapist_name=therapist_name,
+            client_email_hash=hash(client_email),  # Hash for privacy
+            workspace_name=workspace.name,
+            payment_type=payment_type,
             amount=str(amount),
-            currency=currency,
             smtp_host=settings.smtp_host,
             smtp_port=settings.smtp_port,
         )
@@ -789,21 +906,21 @@ PazPaz - Practice Management for Independent Therapists
         if settings.debug:
             logger.info(
                 "payment_request_email_debug_info",
-                customer_email=customer_email,
+                client_email=client_email,
                 payment_link=payment_link,
+                payment_type=payment_type,
                 mailhog_ui="http://localhost:8025",
             )
-
-        return True
 
     except Exception as e:
         logger.error(
             "failed_to_send_payment_request_email",
-            customer_email_hash=hash(customer_email),  # Hash for privacy
-            therapist_name=therapist_name,
+            client_email_hash=hash(client_email),  # Hash for privacy
+            workspace_name=workspace.name,
+            payment_type=payment_type,
             error=str(e),
             smtp_host=settings.smtp_host,
             smtp_port=settings.smtp_port,
             exc_info=True,
         )
-        return False
+        raise

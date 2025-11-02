@@ -77,12 +77,13 @@ const statusOptions = [
   { value: 'waived', label: 'Waived', badgeClass: 'bg-purple-100 text-purple-700' },
 ] as const
 
-// Payment method options
+// Payment method options (Phase 1: Manual tracking methods)
 const methodOptions = [
   { value: 'cash', label: 'Cash' },
   { value: 'card', label: 'Card' },
   { value: 'bank_transfer', label: 'Bank Transfer' },
-  { value: 'payment_link', label: 'Payment Link' },
+  { value: 'bit', label: 'Bit' },
+  { value: 'paybox', label: 'PayBox' },
   { value: 'other', label: 'Other' },
 ] as const
 

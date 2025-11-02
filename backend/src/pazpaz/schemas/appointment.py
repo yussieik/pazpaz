@@ -43,7 +43,7 @@ class AppointmentBase(BaseModel):
     )
     payment_method: PaymentMethod | None = Field(
         None,
-        description="Payment method: cash, card, bank_transfer, payment_link, other",
+        description="Payment method: cash, card, bank_transfer, bit, paybox, other",
     )
     payment_notes: str | None = Field(
         None,
@@ -115,7 +115,7 @@ class AppointmentUpdate(BaseModel):
     )
     payment_method: PaymentMethod | None = Field(
         None,
-        description="Payment method: cash, card, bank_transfer, payment_link, other",
+        description="Payment method: cash, card, bank_transfer, bit, paybox, other",
     )
     payment_notes: str | None = Field(
         None,
@@ -149,6 +149,34 @@ class AppointmentUpdate(BaseModel):
             pass
 
         return self
+
+
+class AppointmentPaymentUpdate(BaseModel):
+    """Schema for updating payment status on an appointment (Phase 1)."""
+
+    payment_status: Literal["not_paid", "paid", "payment_sent", "waived"] = Field(
+        ...,
+        description="Payment status: not_paid, paid, payment_sent, waived",
+    )
+    payment_method: (
+        Literal["cash", "card", "bank_transfer", "bit", "paybox", "other"] | None
+    ) = Field(
+        None,
+        description="Payment method: cash, card, bank_transfer, bit, paybox, other",
+    )
+    payment_price: Decimal | None = Field(
+        None,
+        ge=0,
+        description="Actual price for this appointment (optional update)",
+    )
+    payment_notes: str | None = Field(
+        None,
+        description="Free-text notes about payment (e.g., invoice number, special terms)",
+    )
+    paid_at: datetime | None = Field(
+        None,
+        description="Timestamp when payment was marked as paid (auto-set if not provided when status='paid')",
+    )
 
 
 class AppointmentDeleteRequest(BaseModel):
@@ -224,7 +252,7 @@ class AppointmentResponse(BaseModel):
     )
     payment_method: str | None = Field(
         None,
-        description="Payment method: cash, card, bank_transfer, payment_link, other",
+        description="Payment method: cash, card, bank_transfer, bit, paybox, other",
     )
     payment_notes: str | None = Field(
         None,
@@ -293,4 +321,38 @@ class ConflictCheckResponse(BaseModel):
     conflicting_appointments: list[ConflictingAppointmentDetail] = Field(
         default_factory=list,
         description="List of conflicting appointments with privacy-preserving details",
+    )
+
+
+class SendPaymentRequestBody(BaseModel):
+    """Schema for sending payment request to client."""
+
+    message: str | None = Field(
+        None,
+        description="Optional custom message to include in email",
+    )
+
+
+class SendPaymentRequestResponse(BaseModel):
+    """Schema for send payment request response."""
+
+    success: bool = Field(
+        ..., description="Whether payment request was sent successfully"
+    )
+    payment_link: str = Field(..., description="Generated payment link")
+    message: str = Field(..., description="Human-readable success message")
+
+
+class PaymentLinkResponse(BaseModel):
+    """Schema for payment link preview/regeneration response."""
+
+    payment_link: str = Field(..., description="Generated payment link")
+    payment_type: str = Field(
+        ...,
+        description="Type of payment link: bit, paybox, bank, custom",
+    )
+    amount: Decimal = Field(..., description="Payment amount")
+    display_text: str = Field(
+        ...,
+        description="Human-readable description of payment method",
     )

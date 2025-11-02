@@ -94,6 +94,7 @@ class PaymentService:
         appointment: Appointment,
         payment_method: str,
         notes: str | None = None,
+        paid_at: datetime | None = None,
     ) -> Appointment:
         """Mark appointment as paid.
 
@@ -105,6 +106,7 @@ class PaymentService:
             appointment: Appointment to mark as paid
             payment_method: How client paid ("bank_transfer", "bit", "paybox", "cash", etc.)
             notes: Optional notes (invoice number, reference, etc.)
+            paid_at: Optional explicit payment timestamp (defaults to now)
 
         Returns:
             Updated appointment with payment_status = "paid"
@@ -129,7 +131,7 @@ class PaymentService:
 
         # Update payment status
         appointment.payment_status = PaymentStatus.PAID
-        appointment.paid_at = datetime.now(UTC)
+        appointment.paid_at = paid_at if paid_at is not None else datetime.now(UTC)
         appointment.payment_method = payment_method
 
         if notes:
@@ -171,7 +173,7 @@ class PaymentService:
         logger.info(
             "marking_appointment_as_unpaid",
             appointment_id=str(appointment.id),
-            previous_status=appointment.payment_status.value
+            previous_status=appointment.payment_status
             if appointment.payment_status
             else None,
         )
@@ -341,7 +343,7 @@ class PaymentService:
         logger.info(
             "payment_details_updated",
             appointment_id=str(appointment.id),
-            payment_status=appointment.payment_status.value
+            payment_status=appointment.payment_status
             if appointment.payment_status
             else None,
         )

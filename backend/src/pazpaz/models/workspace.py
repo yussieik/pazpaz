@@ -169,6 +169,18 @@ class Workspace(Base):
         comment="Bank account details for manual payment tracking (account number, bank name, branch, etc.)",
     )
 
+    # Phase 1.5: Smart Payment Links (no API integration)
+    payment_link_type: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Type of payment link: bit, paybox, bank, custom, NULL (disabled)",
+    )
+    payment_link_template: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="Template for payment links: phone number (Bit/PayBox), URL (custom), or bank details (bank)",
+    )
+
     # Automated payment provider integration (optional future feature)
     payment_provider: Mapped[str | None] = mapped_column(
         String(50),
@@ -350,8 +362,55 @@ class Workspace(Base):
         """
         return (
             self.bank_account_details is not None
+            or self.payment_link_template is not None
             or self.payment_provider is not None
         )
+
+    @property
+    def payment_mode(self) -> str | None:
+        """
+        Get current payment mode based on configuration priority.
+
+        Returns payment mode in priority order:
+        1. 'automated' - Phase 2+ automated provider (payment_provider set)
+        2. 'smart_link' - Phase 1.5 smart links (payment_link_template set)
+        3. 'manual' - Phase 1 manual tracking (bank_account_details only)
+        4. None - Payments disabled
+
+        Returns:
+            str | None: Payment mode or None if payments disabled
+
+        Examples:
+            >>> # Phase 1: Manual tracking only
+            >>> workspace.bank_account_details = "Bank Leumi, Account: 12345"
+            >>> workspace.payment_mode
+            'manual'
+
+            >>> # Phase 1.5: Smart payment links
+            >>> workspace.payment_link_type = "bit"
+            >>> workspace.payment_link_template = "050-1234567"
+            >>> workspace.payment_mode
+            'smart_link'
+
+            >>> # Phase 2+: Automated provider (highest priority)
+            >>> workspace.payment_provider = "bit_api"
+            >>> workspace.payment_mode
+            'automated'
+
+            >>> # Payments disabled
+            >>> workspace.bank_account_details = None
+            >>> workspace.payment_link_template = None
+            >>> workspace.payment_provider = None
+            >>> workspace.payment_mode
+            None
+        """
+        if self.payment_provider:
+            return "automated"  # Phase 2+ (highest priority)
+        if self.payment_link_template:
+            return "smart_link"  # Phase 1.5
+        if self.bank_account_details:
+            return "manual"  # Phase 1
+        return None  # Payments disabled
 
     def __repr__(self) -> str:
         return f"<Workspace(id={self.id}, name={self.name})>"

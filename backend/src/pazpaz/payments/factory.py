@@ -1,4 +1,7 @@
-"""Payment provider factory for creating provider instances.
+"""Payment provider factory for creating provider instances (Phase 2+ - NOT USED IN PHASE 1).
+
+⚠️  THIS MODULE IS NOT IMPORTED OR USED IN PHASE 1 (Manual Payment Tracking).
+    It is reserved for Phase 2+ automated payment provider integration.
 
 This module provides the factory function that instantiates the appropriate
 payment provider implementation based on workspace configuration. The factory

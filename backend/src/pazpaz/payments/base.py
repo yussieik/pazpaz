@@ -1,8 +1,11 @@
-"""Payment provider abstract base class and data transfer objects.
+"""Payment provider abstract base class and data transfer objects (Phase 2+ - NOT USED IN PHASE 1).
+
+⚠️  THIS MODULE IS NOT IMPORTED OR USED IN PHASE 1 (Manual Payment Tracking).
+    It is reserved for Phase 2+ automated payment provider integration.
 
 This module defines the payment provider interface that all payment provider
 implementations must follow. The abstraction layer enables swapping payment
-providers (PayPlus, Stripe, Meshulam) without changing business logic.
+providers (Bit API, PayBox API, Stripe) without changing business logic.
 
 Architecture:
     - Abstract base class: PaymentProvider (3 abstract methods)

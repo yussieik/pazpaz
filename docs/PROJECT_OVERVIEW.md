@@ -43,12 +43,12 @@ PazPaz aims to bridge this gap by offering an integrated, privacy-first tool des
 	5.	Reminders & Notifications
 	•	Email reminders to clients (SMS optional later)
 	•	Daily summary for therapist
-	6.	Payment Processing (Phase 0 Complete)
-	•	Opt-in payment infrastructure per workspace
-	•	Support for Israeli payment providers (PayPlus, Meshulam)
-	•	VAT-compliant receipt generation
-	•	Automatic or manual payment request sending
-	•	Cash and online payment tracking
+	6.	Payment Tracking (Phase 1.5 Complete)
+	•	Manual payment tracking - therapists mark payments manually
+	•	Smart payment links - auto-generate Bit SMS, PayBox URLs, bank transfer details
+	•	Flexible payment methods: bank transfer, Bit, PayBox, cash, card, custom links
+	•	Email payment requests with bilingual Hebrew/English templates
+	•	Phase 2+: Automated provider integrations (Bit API, PayBox API, PayPlus, Stripe)
 	7.	Privacy & Security
 	•	All data scoped per therapist workspace
 	•	Encryption at rest and in transit
@@ -144,10 +144,11 @@ M6	Polish: UX refinements, seed data, deploy staging
 12. Future Extensions (Post-V1)
 	•	Multi-user shared calendar
 	•	Client portal
-	•	Payment provider integrations (Phase 1: PayPlus, Phase 2: Meshulam/Stripe)
+	•	Automated payment provider integrations (Phase 2: Bit API, PayBox API, PayPlus, Stripe)
 	•	Invoice service integration (GreenInvoice, Morning, Ness)
 	•	Tele-session integration
 	•	Multi-language support beyond English/Hebrew
+	•	Google Calendar two-way sync
 
 ⸻
 

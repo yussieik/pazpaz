@@ -22,8 +22,16 @@ export type PaymentStatus = 'not_paid' | 'paid' | 'payment_sent' | 'waived'
 
 /**
  * Payment method enum
+ * Phase 1: Manual tracking methods (cash, card, bank_transfer, bit, paybox, other)
+ * Phase 2+: Will add automated payment link methods
  */
-export type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'payment_link' | 'other'
+export type PaymentMethod =
+  | 'cash'
+  | 'card'
+  | 'bank_transfer'
+  | 'bit'
+  | 'paybox'
+  | 'other'
 
 /**
  * Extended appointment type with payment tracking fields

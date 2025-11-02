@@ -284,15 +284,16 @@ class TestAppointmentPaymentUpdate:
             f"/api/v1/appointments/{appointment.id}",
             headers=headers,
             json={
-                "payment_method": "payment_link",
-                "payment_notes": "PayPlus invoice #12345, sent via email",
+                "payment_method": "bit",
+                "payment_notes": "Paid via Bit app, reference #12345",
             },
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["payment_method"] == "payment_link"
-        assert data["payment_notes"] == "PayPlus invoice #12345, sent via email"
+        assert data["payment_method"] == "bit"
+        assert data["payment_notes"] == "Paid via Bit app, reference #12345"
+        # payment_status should remain unchanged (was payment_sent)
         assert data["payment_status"] == "payment_sent"
 
     async def test_payment_status_waived(
@@ -448,3 +449,404 @@ class TestPaymentWorkspaceIsolation:
         assert refreshed_appointment.payment_status == PaymentStatus.PAID.value
         assert refreshed_appointment.payment_method == PaymentMethod.CASH.value
         assert refreshed_appointment.paid_at is not None
+
+
+class TestPaymentLinkEndpoints:
+    """Test payment link generation and sending endpoints (Phase 1.5)."""
+
+    async def test_get_payment_link_success_bit(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+        db_session: AsyncSession,
+    ):
+        """Generate payment link for Bit payment type."""
+        # Configure workspace with Bit payment links
+        workspace_1.payment_link_type = "bit"
+        workspace_1.payment_link_template = "050-123-4567"
+        await db_session.commit()
+
+        # Create appointment with payment price
+        appointment = Appointment(
+            workspace_id=workspace_1.id,
+            client_id=sample_client_ws1.id,
+            scheduled_start=datetime.now(UTC) + timedelta(days=1, hours=10),
+            scheduled_end=datetime.now(UTC) + timedelta(days=1, hours=11),
+            location_type="clinic",
+            payment_price=Decimal("150.00"),
+            payment_status=PaymentStatus.NOT_PAID.value,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Get payment link
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+
+        response = await client.get(
+            f"/api/v1/appointments/{appointment.id}/payment-link",
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["payment_type"] == "bit"
+        assert data["amount"] == "150.00"
+        assert data["display_text"] == "Bit (ביט)"
+        assert "sms:0501234567" in data["payment_link"]
+        assert "150.00" in data["payment_link"]
+
+    async def test_get_payment_link_success_paybox(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+        db_session: AsyncSession,
+    ):
+        """Generate payment link for PayBox payment type."""
+        # Configure workspace with PayBox payment links
+        workspace_1.payment_link_type = "paybox"
+        workspace_1.payment_link_template = "https://paybox.co.il/p/yussie"
+        await db_session.commit()
+
+        # Create appointment with payment price
+        appointment = Appointment(
+            workspace_id=workspace_1.id,
+            client_id=sample_client_ws1.id,
+            scheduled_start=datetime.now(UTC) + timedelta(days=2, hours=10),
+            scheduled_end=datetime.now(UTC) + timedelta(days=2, hours=11),
+            location_type="clinic",
+            payment_price=Decimal("200.00"),
+            payment_status=PaymentStatus.NOT_PAID.value,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Get payment link
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+
+        response = await client.get(
+            f"/api/v1/appointments/{appointment.id}/payment-link",
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["payment_type"] == "paybox"
+        assert data["amount"] == "200.00"
+        assert data["display_text"] == "PayBox"
+        assert "paybox.co.il/p/yussie" in data["payment_link"]
+        assert "amount=200.00" in data["payment_link"]
+
+    async def test_get_payment_link_no_price(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+        db_session: AsyncSession,
+    ):
+        """Cannot generate payment link without price."""
+        # Configure workspace with payment links
+        workspace_1.payment_link_type = "bit"
+        workspace_1.payment_link_template = "050-123-4567"
+        await db_session.commit()
+
+        # Create appointment WITHOUT payment price
+        appointment = Appointment(
+            workspace_id=workspace_1.id,
+            client_id=sample_client_ws1.id,
+            scheduled_start=datetime.now(UTC) + timedelta(days=3, hours=10),
+            scheduled_end=datetime.now(UTC) + timedelta(days=3, hours=11),
+            location_type="clinic",
+            payment_status=PaymentStatus.NOT_PAID.value,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Try to get payment link
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+
+        response = await client.get(
+            f"/api/v1/appointments/{appointment.id}/payment-link",
+            headers=headers,
+        )
+
+        assert response.status_code == 400
+        assert "price" in response.json()["detail"].lower()
+
+    async def test_get_payment_link_not_configured(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+        db_session: AsyncSession,
+    ):
+        """Cannot generate payment link if workspace not configured."""
+        # Ensure workspace has NO payment links configured
+        workspace_1.payment_link_type = None
+        workspace_1.payment_link_template = None
+        await db_session.commit()
+
+        # Create appointment with payment price
+        appointment = Appointment(
+            workspace_id=workspace_1.id,
+            client_id=sample_client_ws1.id,
+            scheduled_start=datetime.now(UTC) + timedelta(days=4, hours=10),
+            scheduled_end=datetime.now(UTC) + timedelta(days=4, hours=11),
+            location_type="clinic",
+            payment_price=Decimal("100.00"),
+            payment_status=PaymentStatus.NOT_PAID.value,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Try to get payment link
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+
+        response = await client.get(
+            f"/api/v1/appointments/{appointment.id}/payment-link",
+            headers=headers,
+        )
+
+        assert response.status_code == 400
+        assert "not configured" in response.json()["detail"].lower()
+
+    async def test_send_payment_request_success(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+        db_session: AsyncSession,
+    ):
+        """Send payment request successfully updates status and creates audit log."""
+        # Configure workspace with payment links
+        workspace_1.payment_link_type = "paybox"
+        workspace_1.payment_link_template = "https://paybox.co.il/p/yussie"
+        await db_session.commit()
+
+        # Ensure client has email
+        sample_client_ws1.email = "client@example.com"
+        await db_session.commit()
+
+        # Create appointment with payment price
+        appointment = Appointment(
+            workspace_id=workspace_1.id,
+            client_id=sample_client_ws1.id,
+            scheduled_start=datetime.now(UTC) + timedelta(days=5, hours=10),
+            scheduled_end=datetime.now(UTC) + timedelta(days=5, hours=11),
+            location_type="clinic",
+            payment_price=Decimal("180.00"),
+            payment_status=PaymentStatus.NOT_PAID.value,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Send payment request
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+
+        response = await client.post(
+            f"/api/v1/appointments/{appointment.id}/send-payment-request",
+            headers=headers,
+            json={"message": "Please pay for your session"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "paybox.co.il" in data["payment_link"]
+        assert "amount=180.00" in data["payment_link"]
+        assert sample_client_ws1.first_name in data["message"]
+
+        # Verify payment_status updated to 'payment_sent'
+        await db_session.refresh(appointment)
+        assert appointment.payment_status == "payment_sent"
+
+    async def test_send_payment_request_no_email(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+        db_session: AsyncSession,
+    ):
+        """Cannot send payment request if client has no email."""
+        # Configure workspace with payment links
+        workspace_1.payment_link_type = "bit"
+        workspace_1.payment_link_template = "050-123-4567"
+        await db_session.commit()
+
+        # Ensure client has NO email
+        sample_client_ws1.email = None
+        await db_session.commit()
+
+        # Create appointment with payment price
+        appointment = Appointment(
+            workspace_id=workspace_1.id,
+            client_id=sample_client_ws1.id,
+            scheduled_start=datetime.now(UTC) + timedelta(days=6, hours=10),
+            scheduled_end=datetime.now(UTC) + timedelta(days=6, hours=11),
+            location_type="clinic",
+            payment_price=Decimal("120.00"),
+            payment_status=PaymentStatus.NOT_PAID.value,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Try to send payment request
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+
+        response = await client.post(
+            f"/api/v1/appointments/{appointment.id}/send-payment-request",
+            headers=headers,
+            json={},
+        )
+
+        assert response.status_code == 400
+        assert "email" in response.json()["detail"].lower()
+
+        # Verify payment_status NOT updated
+        await db_session.refresh(appointment)
+        assert appointment.payment_status == "not_paid"
+
+    async def test_send_payment_request_already_sent(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws1: User,
+        redis_client,
+        db_session: AsyncSession,
+    ):
+        """Sending payment request when already sent does not change status."""
+        # Configure workspace with payment links
+        workspace_1.payment_link_type = "paybox"
+        workspace_1.payment_link_template = "https://paybox.co.il/p/yussie"
+        await db_session.commit()
+
+        # Ensure client has email
+        sample_client_ws1.email = "client@example.com"
+        await db_session.commit()
+
+        # Create appointment with payment_status already 'payment_sent'
+        appointment = Appointment(
+            workspace_id=workspace_1.id,
+            client_id=sample_client_ws1.id,
+            scheduled_start=datetime.now(UTC) + timedelta(days=7, hours=10),
+            scheduled_end=datetime.now(UTC) + timedelta(days=7, hours=11),
+            location_type="clinic",
+            payment_price=Decimal("160.00"),
+            payment_status=PaymentStatus.PAYMENT_SENT.value,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Send payment request again
+        csrf_token = await add_csrf_to_client(
+            client, workspace_1.id, test_user_ws1.id, redis_client
+        )
+        headers = get_auth_headers(workspace_1.id, csrf_cookie=csrf_token)
+        headers["X-CSRF-Token"] = csrf_token
+
+        response = await client.post(
+            f"/api/v1/appointments/{appointment.id}/send-payment-request",
+            headers=headers,
+            json={},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+
+        # Verify payment_status remains 'payment_sent' (not changed)
+        await db_session.refresh(appointment)
+        assert appointment.payment_status == "payment_sent"
+
+    async def test_payment_link_workspace_isolation(
+        self,
+        client: AsyncClient,
+        workspace_1: Workspace,
+        workspace_2: Workspace,
+        sample_client_ws1: Client,
+        test_user_ws2: User,
+        redis_client,
+        db_session: AsyncSession,
+    ):
+        """Cannot access payment links from other workspaces."""
+        # Configure workspace 1 with payment links
+        workspace_1.payment_link_type = "bit"
+        workspace_1.payment_link_template = "050-123-4567"
+        await db_session.commit()
+
+        # Create appointment in workspace 1 with payment price
+        appointment = Appointment(
+            workspace_id=workspace_1.id,
+            client_id=sample_client_ws1.id,
+            scheduled_start=datetime.now(UTC) + timedelta(days=8, hours=10),
+            scheduled_end=datetime.now(UTC) + timedelta(days=8, hours=11),
+            location_type="clinic",
+            payment_price=Decimal("150.00"),
+            payment_status=PaymentStatus.NOT_PAID.value,
+        )
+        db_session.add(appointment)
+        await db_session.commit()
+        await db_session.refresh(appointment)
+
+        # Try to access from workspace 2
+        csrf_token = await add_csrf_to_client(
+            client, workspace_2.id, test_user_ws2.id, redis_client
+        )
+        headers = get_auth_headers(workspace_2.id, csrf_cookie=csrf_token)
+
+        # Try GET payment link
+        response = await client.get(
+            f"/api/v1/appointments/{appointment.id}/payment-link",
+            headers=headers,
+        )
+        assert response.status_code == 404
+
+        # Try POST send payment request
+        headers["X-CSRF-Token"] = csrf_token
+        response = await client.post(
+            f"/api/v1/appointments/{appointment.id}/send-payment-request",
+            headers=headers,
+            json={},
+        )
+        assert response.status_code == 404

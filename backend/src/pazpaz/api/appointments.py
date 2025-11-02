@@ -18,6 +18,7 @@ from pazpaz.api.deps import (
     get_or_404,
     verify_client_in_workspace,
 )
+from pazpaz.core.config import settings
 from pazpaz.core.logging import get_logger
 from pazpaz.models.appointment import Appointment, AppointmentStatus
 from pazpaz.models.audit_event import AuditAction, ResourceType
@@ -27,12 +28,21 @@ from pazpaz.schemas.appointment import (
     AppointmentCreate,
     AppointmentDeleteRequest,
     AppointmentListResponse,
+    AppointmentPaymentUpdate,
     AppointmentResponse,
     AppointmentUpdate,
     ConflictCheckResponse,
     ConflictingAppointmentDetail,
+    PaymentLinkResponse,
+    SendPaymentRequestBody,
+    SendPaymentRequestResponse,
 )
 from pazpaz.services.audit_service import create_audit_event
+from pazpaz.services.payment_link_service import (
+    generate_payment_link,
+    get_payment_link_display_text,
+)
+from pazpaz.services.payment_service import PaymentService
 from pazpaz.utils.appointment_helpers import build_appointment_response_with_client
 from pazpaz.utils.pagination import (
     calculate_pagination_offset,
@@ -1098,4 +1108,485 @@ async def delete_appointment(
         session_note_action=session_note_action or "keep",
         session_was_soft_deleted=session_was_soft_deleted,
         deletion_reason_provided=appointment_deletion_reason is not None,
+    )
+
+
+@router.patch("/{appointment_id}/payment", response_model=AppointmentResponse)
+async def update_appointment_payment(
+    appointment_id: uuid.UUID,
+    payment_update: AppointmentPaymentUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> AppointmentResponse:
+    """
+    Update payment status for an appointment (Phase 1: Manual payment tracking).
+
+    This endpoint allows therapists to manually mark appointments as paid/unpaid
+    and update payment details (method, price, notes).
+
+    **Phase 1 Behavior:**
+    - Manual payment tracking only (no automated payment processing)
+    - Therapist manually marks appointments as paid/unpaid
+    - Auto-sets paid_at timestamp when marking as paid
+    - Uses simplified PaymentService methods
+
+    **Workspace Scoping:**
+    - Automatically scoped to authenticated user's workspace
+    - workspace_id derived from JWT token (server-side, trusted)
+
+    **Audit Logging:**
+    - Payment status changes are logged to audit trail
+    - Includes old and new payment status for reconciliation
+
+    Args:
+        appointment_id: UUID of the appointment to update
+        payment_update: Payment status update data
+        current_user: Authenticated user (from JWT token)
+        db: Database session
+
+    Returns:
+        AppointmentResponse with updated payment details
+
+    Raises:
+        HTTPException: 401 if not authenticated, 404 if appointment not found
+
+    Example Request:
+        ```json
+        {
+            "payment_status": "paid",
+            "payment_method": "bit",
+            "payment_price": 150.00,
+            "payment_notes": "Paid via Bit app"
+        }
+        ```
+
+    Example Response:
+        ```json
+        {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "payment_status": "paid",
+            "payment_method": "bit",
+            "payment_price": 150.00,
+            "payment_notes": "Paid via Bit app",
+            "paid_at": "2025-11-02T10:00:00Z",
+            ...
+        }
+        ```
+    """
+    workspace_id = current_user.workspace_id
+
+    logger.info(
+        "appointment_payment_update_requested",
+        appointment_id=str(appointment_id),
+        workspace_id=str(workspace_id),
+        user_id=str(current_user.id),
+        payment_status=payment_update.payment_status,
+    )
+
+    # Fetch existing appointment with workspace scoping (raises 404 if not found)
+    # Load client relationship for response
+    query = (
+        select(Appointment)
+        .where(
+            Appointment.id == appointment_id,
+            Appointment.workspace_id == workspace_id,
+        )
+        .options(selectinload(Appointment.client))
+    )
+    result = await db.execute(query)
+    appointment = result.scalar_one_or_none()
+
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    # Store old payment status for audit logging
+    old_payment_status = appointment.payment_status
+
+    # Use PaymentService to update payment fields
+    service = PaymentService(db)
+
+    # Update payment status using service methods
+    if payment_update.payment_status == "paid":
+        # Mark as paid (will auto-set paid_at if not provided)
+        # payment_method is required when marking as paid
+        if not payment_update.payment_method:
+            raise HTTPException(
+                status_code=400,
+                detail="payment_method is required when marking appointment as paid",
+            )
+        await service.mark_as_paid(
+            appointment=appointment,
+            payment_method=payment_update.payment_method,
+            notes=payment_update.payment_notes,
+            paid_at=payment_update.paid_at,
+        )
+    elif payment_update.payment_status == "not_paid":
+        # Mark as unpaid (will clear paid_at)
+        await service.mark_as_unpaid(appointment=appointment)
+    else:
+        # For payment_sent or waived, update status directly
+        appointment.payment_status = payment_update.payment_status
+        if payment_update.payment_method:
+            appointment.payment_method = payment_update.payment_method
+
+    # Update price if provided
+    if payment_update.payment_price is not None:
+        await service.update_payment_price(
+            appointment=appointment,
+            price=payment_update.payment_price,
+        )
+
+    # Update payment notes if provided (if not already set by mark_as_paid)
+    if (
+        payment_update.payment_notes is not None
+        and payment_update.payment_status != "paid"
+    ):
+        appointment.payment_notes = payment_update.payment_notes
+
+    # Commit changes
+    await db.commit()
+    await db.refresh(appointment)
+
+    # Audit log the payment status change
+    await create_audit_event(
+        db=db,
+        workspace_id=workspace_id,
+        user_id=current_user.id,
+        resource_type=ResourceType.APPOINTMENT,
+        resource_id=appointment_id,
+        action=AuditAction.UPDATE,
+        metadata={
+            "old_payment_status": old_payment_status,
+            "new_payment_status": appointment.payment_status,
+            "payment_method": appointment.payment_method,
+            "payment_price": str(appointment.payment_price)
+            if appointment.payment_price
+            else None,
+            "paid_at": appointment.paid_at.isoformat() if appointment.paid_at else None,
+        },
+    )
+
+    logger.info(
+        "appointment_payment_updated",
+        appointment_id=str(appointment_id),
+        workspace_id=str(workspace_id),
+        old_payment_status=old_payment_status,
+        new_payment_status=appointment.payment_status,
+        payment_method=appointment.payment_method,
+    )
+
+    # Return response with client information
+    return build_appointment_response_with_client(appointment)
+
+
+@router.get("/{appointment_id}/payment-link", response_model=PaymentLinkResponse)
+async def get_payment_link(
+    appointment_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PaymentLinkResponse:
+    """
+    Preview or regenerate payment link without sending email.
+
+    Generates a payment link for the appointment based on workspace configuration.
+    This endpoint does NOT send an email or change appointment status.
+
+    **Use Cases:**
+    - Preview payment link before sending
+    - Regenerate payment link for manual sharing
+    - Test payment link generation
+
+    **Validation:**
+    - Appointment must belong to authenticated user's workspace
+    - Appointment must have a price set
+    - Workspace must have payment links configured
+
+    **Workspace Scoping:**
+    - Automatically scoped to authenticated user's workspace
+    - workspace_id derived from JWT token (server-side, trusted)
+
+    Args:
+        appointment_id: UUID of the appointment
+        current_user: Authenticated user (from JWT token)
+        db: Database session
+
+    Returns:
+        PaymentLinkResponse with payment link details
+
+    Raises:
+        HTTPException: 401 if not authenticated,
+            404 if appointment not found or wrong workspace,
+            400 if no price set or payment links not configured
+    """
+    workspace_id = current_user.workspace_id
+
+    logger.info(
+        "payment_link_preview_requested",
+        appointment_id=str(appointment_id),
+        workspace_id=str(workspace_id),
+        user_id=str(current_user.id),
+    )
+
+    # Fetch appointment with workspace scoping and relationships
+    query = (
+        select(Appointment)
+        .where(
+            Appointment.id == appointment_id,
+            Appointment.workspace_id == workspace_id,
+        )
+        .options(
+            selectinload(Appointment.workspace),
+            selectinload(Appointment.client),
+        )
+    )
+    result = await db.execute(query)
+    appointment = result.scalar_one_or_none()
+
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    # Validate appointment has a price
+    if not appointment.payment_price or appointment.payment_price <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Appointment must have a price set to generate payment link",
+        )
+
+    # Validate workspace has payment links configured
+    if not appointment.workspace.payment_link_template:
+        raise HTTPException(
+            status_code=400,
+            detail="Payment links not configured for this workspace. Configure payment links in Settings > Payments.",
+        )
+
+    # Generate payment link
+    payment_link = generate_payment_link(appointment.workspace, appointment)
+
+    if not payment_link:
+        logger.error(
+            "payment_link_generation_failed",
+            appointment_id=str(appointment_id),
+            workspace_id=str(workspace_id),
+            payment_link_type=appointment.workspace.payment_link_type,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate payment link. Please check your payment configuration.",
+        )
+
+    # Get display text for payment method
+    display_text = get_payment_link_display_text(appointment.workspace)
+
+    logger.info(
+        "payment_link_generated",
+        appointment_id=str(appointment_id),
+        workspace_id=str(workspace_id),
+        payment_link_type=appointment.workspace.payment_link_type,
+    )
+
+    return PaymentLinkResponse(
+        payment_link=payment_link,
+        payment_type=appointment.workspace.payment_link_type or "unknown",
+        amount=appointment.payment_price,
+        display_text=display_text,
+    )
+
+
+@router.post(
+    "/{appointment_id}/send-payment-request",
+    response_model=SendPaymentRequestResponse,
+)
+async def send_payment_request(
+    appointment_id: uuid.UUID,
+    request_body: SendPaymentRequestBody,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SendPaymentRequestResponse:
+    """
+    Send payment request to client via email.
+
+    Generates a payment link and sends it to the client via email.
+    Updates appointment payment_status from 'not_paid' to 'payment_sent'.
+
+    **Workflow:**
+    1. Validate appointment and workspace configuration
+    2. Generate payment link
+    3. Send email to client with payment link (Step 7 will implement email service)
+    4. Update payment_status to 'payment_sent' if currently 'not_paid'
+    5. Create audit log entry
+
+    **Validation:**
+    - Appointment must belong to authenticated user's workspace
+    - Appointment must have a price set
+    - Workspace must have payment links configured
+    - Client must have an email address
+
+    **Workspace Scoping:**
+    - Automatically scoped to authenticated user's workspace
+    - workspace_id derived from JWT token (server-side, trusted)
+
+    **Audit Logging:**
+    - Logs payment request sent event with amount, client_id, payment_type
+
+    Args:
+        appointment_id: UUID of the appointment
+        request_body: Optional custom message to include in email
+        current_user: Authenticated user (from JWT token)
+        db: Database session
+
+    Returns:
+        SendPaymentRequestResponse with success status and payment link
+
+    Raises:
+        HTTPException: 401 if not authenticated,
+            404 if appointment not found or wrong workspace,
+            400 if no price, no email, or payment links not configured
+    """
+    workspace_id = current_user.workspace_id
+
+    logger.info(
+        "payment_request_send_started",
+        appointment_id=str(appointment_id),
+        workspace_id=str(workspace_id),
+        user_id=str(current_user.id),
+    )
+
+    # Fetch appointment with workspace scoping and relationships
+    query = (
+        select(Appointment)
+        .where(
+            Appointment.id == appointment_id,
+            Appointment.workspace_id == workspace_id,
+        )
+        .options(
+            selectinload(Appointment.workspace),
+            selectinload(Appointment.client),
+        )
+    )
+    result = await db.execute(query)
+    appointment = result.scalar_one_or_none()
+
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    # Validate appointment has a price
+    if not appointment.payment_price or appointment.payment_price <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Appointment must have a price set to send payment request",
+        )
+
+    # Validate workspace has payment links configured
+    if not appointment.workspace.payment_link_template:
+        raise HTTPException(
+            status_code=400,
+            detail="Payment links not configured for this workspace. Configure payment links in Settings > Payments.",
+        )
+
+    # Validate client has email address
+    if not appointment.client or not appointment.client.email:
+        raise HTTPException(
+            status_code=400,
+            detail="Client must have an email address to receive payment request",
+        )
+
+    # Generate payment link
+    payment_link = generate_payment_link(appointment.workspace, appointment)
+
+    if not payment_link:
+        logger.error(
+            "payment_link_generation_failed",
+            appointment_id=str(appointment_id),
+            workspace_id=str(workspace_id),
+            payment_link_type=appointment.workspace.payment_link_type,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate payment link. Please check your payment configuration.",
+        )
+
+    # Send payment request email to client
+    from pazpaz.services.email_service import send_payment_request_email
+    from pazpaz.utils.encryption import decrypt_field
+
+    # Decrypt client email for sending
+    client_email_decrypted = decrypt_field(
+        appointment.client.email, settings.encryption_key
+    )
+
+    try:
+        await send_payment_request_email(
+            appointment=appointment,
+            workspace=appointment.workspace,
+            payment_link=payment_link,
+            client_email=client_email_decrypted,
+        )
+        logger.info(
+            "payment_request_email_sent_successfully",
+            appointment_id=str(appointment_id),
+            workspace_id=str(workspace_id),
+            client_email_hash=hash(client_email_decrypted),
+            payment_amount=str(appointment.payment_price),
+            payment_link_type=appointment.workspace.payment_link_type,
+        )
+    except Exception as e:
+        # Log error but don't fail the request - payment link was generated
+        logger.error(
+            "payment_request_email_failed",
+            appointment_id=str(appointment_id),
+            workspace_id=str(workspace_id),
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to send payment request email. Please try again or send the payment link manually.",
+        )
+
+    # Update payment_status to 'payment_sent' if currently 'not_paid'
+    old_payment_status = appointment.payment_status
+    if appointment.payment_status == "not_paid":
+        appointment.payment_status = "payment_sent"
+        await db.commit()
+        await db.refresh(appointment)
+
+        logger.info(
+            "payment_status_updated",
+            appointment_id=str(appointment_id),
+            workspace_id=str(workspace_id),
+            old_status=old_payment_status,
+            new_status=appointment.payment_status,
+        )
+
+    # Create audit log entry
+    await create_audit_event(
+        db=db,
+        workspace_id=workspace_id,
+        user_id=current_user.id,
+        resource_type=ResourceType.APPOINTMENT,
+        resource_id=appointment_id,
+        action=AuditAction.UPDATE,
+        metadata={
+            "action": "payment_request_sent",
+            "amount": str(appointment.payment_price),
+            "client_id": str(appointment.client.id),
+            "payment_type": appointment.workspace.payment_link_type,
+            "old_payment_status": old_payment_status,
+            "new_payment_status": appointment.payment_status,
+        },
+    )
+
+    logger.info(
+        "payment_request_sent",
+        appointment_id=str(appointment_id),
+        workspace_id=str(workspace_id),
+        client_id=str(appointment.client.id),
+        payment_amount=str(appointment.payment_price),
+        payment_link_type=appointment.workspace.payment_link_type,
+    )
+
+    return SendPaymentRequestResponse(
+        success=True,
+        payment_link=payment_link,
+        message=f"Payment request sent to {appointment.client.full_name}",
     )

@@ -161,7 +161,7 @@ class Appointment(Base):
     payment_method: Mapped[str | None] = mapped_column(
         String(20),
         nullable=True,
-        comment="Payment method: cash, card, bank_transfer, payment_link, other",
+        comment="Payment method: cash, card, bank_transfer, bit, paybox, other",
     )
     payment_notes: Mapped[str | None] = mapped_column(
         Text,
@@ -237,7 +237,7 @@ class Appointment(Base):
             name="ck_appointment_payment_status",
         ),
         CheckConstraint(
-            "payment_method IS NULL OR payment_method IN ('cash', 'card', 'bank_transfer', 'payment_link', 'other')",
+            "payment_method IS NULL OR payment_method IN ('cash', 'card', 'bank_transfer', 'bit', 'paybox', 'other')",
             name="ck_appointment_payment_method",
         ),
         CheckConstraint(
