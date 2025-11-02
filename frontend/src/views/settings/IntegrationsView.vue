@@ -17,19 +17,10 @@ import GoogleCalendarSettings from '@/components/settings/GoogleCalendarSettings
 
 <template>
   <div>
-    <!-- Page Header -->
-    <div class="mb-8">
-      <h1 class="text-2xl font-bold text-slate-900">Integrations</h1>
-      <p class="mt-2 text-sm text-slate-600">
-        Connect PazPaz with your favorite tools to streamline your workflow
-      </p>
-    </div>
-
     <!-- Integrations List -->
     <div class="space-y-8">
       <!-- Google Calendar Integration -->
       <section>
-        <h2 class="mb-4 text-lg font-semibold text-slate-900">Calendar Sync</h2>
         <GoogleCalendarSettings />
       </section>
 

@@ -448,9 +448,6 @@ onMounted(() => {
             class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
             :class="{ 'border-red-500': bitPhoneError }"
           />
-          <p class="mt-1 text-xs text-slate-500">
-            📱 Phone: SMS link with Hebrew message | 🌐 URL: Direct Bit Pay link with amount
-          </p>
           <span v-if="bitPhoneError" class="mt-1 block text-sm text-red-600">{{
             bitPhoneError
           }}</span>
