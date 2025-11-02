@@ -8,7 +8,7 @@ interface Props {
   paymentMethod?: PaymentMethod | null
   paymentNotes?: string | null
   paidAt?: string | null
-  disabled?: boolean
+  readonly?: boolean
 }
 
 interface Emits {
@@ -25,7 +25,7 @@ const props = withDefaults(defineProps<Props>(), {
   paymentMethod: null,
   paymentNotes: null,
   paidAt: null,
-  disabled: false,
+  readonly: false,
 })
 
 const emit = defineEmits<Emits>()
@@ -144,7 +144,7 @@ const formattedPaidAt = computed(() => {
         id="payment-status"
         v-model="localStatus"
         @change="handleStatusChange"
-        :disabled="disabled"
+        :disabled="readonly"
         class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
         aria-label="Payment status"
       >
@@ -192,7 +192,7 @@ const formattedPaidAt = computed(() => {
         min="0"
         placeholder="Enter price"
         @blur="handlePriceBlur"
-        :disabled="disabled"
+        :disabled="readonly"
         class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
         aria-label="Payment price in ILS"
       />
@@ -211,7 +211,7 @@ const formattedPaidAt = computed(() => {
         id="payment-method"
         v-model="localMethod"
         @change="handleMethodChange"
-        :disabled="disabled"
+        :disabled="readonly"
         class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
         aria-label="Payment method"
       >
@@ -240,7 +240,7 @@ const formattedPaidAt = computed(() => {
         rows="3"
         placeholder="Optional notes (e.g., invoice number, special terms)"
         @blur="handleNotesBlur"
-        :disabled="disabled"
+        :disabled="readonly"
         class="mt-1 block min-h-[88px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
         aria-label="Payment notes"
       ></textarea>

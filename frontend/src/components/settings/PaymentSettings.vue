@@ -280,10 +280,6 @@ async function saveCustomPayment() {
 }
 
 async function disablePayments() {
-  if (!confirm('Are you sure you want to disable payment tracking?')) {
-    return
-  }
-
   saving.value = true
   try {
     const response = await apiClient.put('/payments/config', {
@@ -355,14 +351,6 @@ onMounted(() => {
 
 <template>
   <div class="payment-settings">
-    <!-- Header -->
-    <div class="mb-6">
-      <h2 class="mb-2 text-2xl font-semibold text-slate-900">Payment Configuration</h2>
-      <p class="text-slate-600">
-        Configure how clients can pay you for appointments and sessions
-      </p>
-    </div>
-
     <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center py-12">
       <LoadingSpinner size="lg" />
@@ -422,10 +410,7 @@ onMounted(() => {
 
       <!-- Payment Method Selector -->
       <div v-if="!hasPaymentSettings || isEditing">
-        <h3 class="mb-4 text-lg font-semibold text-slate-900">
-          {{ isEditing ? 'Change Payment Method' : 'Choose Payment Method' }}
-        </h3>
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="grid grid-cols-1 gap-4">
           <!-- Bit Card -->
           <div
             @click="selectMethod('bit')"
@@ -435,51 +420,10 @@ onMounted(() => {
               'border-slate-200 bg-white': selectedMethod !== 'bit',
             }"
           >
-            <div class="mb-3 text-4xl">💳</div>
-            <h4 class="mb-2 font-semibold text-slate-900">Bit (ביט)</h4>
-            <p class="text-sm text-slate-600">Israeli mobile payment app</p>
-          </div>
-
-          <!-- PayBox Card -->
-          <div
-            @click="selectMethod('paybox')"
-            class="cursor-pointer rounded-lg border-2 p-6 transition-all hover:border-blue-500 hover:shadow-md"
-            :class="{
-              'border-blue-500 bg-blue-50 shadow-md': selectedMethod === 'paybox',
-              'border-slate-200 bg-white': selectedMethod !== 'paybox',
-            }"
-          >
-            <div class="mb-3 text-4xl">💰</div>
-            <h4 class="mb-2 font-semibold text-slate-900">PayBox</h4>
-            <p class="text-sm text-slate-600">Payment gateway with links</p>
-          </div>
-
-          <!-- Bank Transfer Card -->
-          <div
-            @click="selectMethod('bank')"
-            class="cursor-pointer rounded-lg border-2 p-6 transition-all hover:border-blue-500 hover:shadow-md"
-            :class="{
-              'border-blue-500 bg-blue-50 shadow-md': selectedMethod === 'bank',
-              'border-slate-200 bg-white': selectedMethod !== 'bank',
-            }"
-          >
-            <div class="mb-3 text-4xl">🏦</div>
-            <h4 class="mb-2 font-semibold text-slate-900">Bank Transfer</h4>
-            <p class="text-sm text-slate-600">Manual bank account details</p>
-          </div>
-
-          <!-- Custom Link Card -->
-          <div
-            @click="selectMethod('custom')"
-            class="cursor-pointer rounded-lg border-2 p-6 transition-all hover:border-blue-500 hover:shadow-md"
-            :class="{
-              'border-blue-500 bg-blue-50 shadow-md': selectedMethod === 'custom',
-              'border-slate-200 bg-white': selectedMethod !== 'custom',
-            }"
-          >
-            <div class="mb-3 text-4xl">🔗</div>
-            <h4 class="mb-2 font-semibold text-slate-900">Custom Link</h4>
-            <p class="text-sm text-slate-600">Your own payment link</p>
+            <div class="flex items-center gap-3">
+              <div class="text-4xl">💳</div>
+              <h4 class="font-semibold text-slate-900">Bit (ביט)</h4>
+            </div>
           </div>
         </div>
       </div>
@@ -692,29 +636,6 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Info Section (when no method selected and payments disabled) -->
-      <div
-        v-if="!hasPaymentSettings && !selectedMethod"
-        class="rounded-lg border border-slate-200 bg-slate-50 p-6"
-      >
-        <div class="flex items-start gap-3">
-          <div class="text-2xl">💡</div>
-          <div>
-            <h4 class="mb-2 font-medium text-slate-900">How Payment Links Work</h4>
-            <ol class="list-inside list-decimal space-y-2 text-sm text-slate-700">
-              <li>Choose your preferred payment method above</li>
-              <li>Configure your payment details (phone number, URL, or bank account)</li>
-              <li>
-                Send payment requests to clients directly from appointment details
-              </li>
-              <li>Track which clients have paid and which are pending</li>
-            </ol>
-            <p class="mt-3 text-sm font-medium text-blue-700">
-              Select a payment method above to get started!
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>

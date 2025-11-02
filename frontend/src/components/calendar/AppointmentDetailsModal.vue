@@ -24,20 +24,17 @@ import apiClient from '@/api/client'
 import AppointmentStatusCard from './AppointmentStatusCard.vue'
 import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentModal.vue'
 import PaymentTrackingCard from '@/components/appointments/PaymentTrackingCard.vue'
+import PaymentSection from '@/components/appointments/PaymentSection.vue'
 import TimePickerDropdown from '@/components/common/TimePickerDropdown.vue'
 import DirectionsButton from '@/components/common/DirectionsButton.vue'
 import IconClose from '@/components/icons/IconClose.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 import IconClock from '@/components/icons/IconClock.vue'
-import IconSend from '@/components/icons/IconSend.vue'
-import IconRefresh from '@/components/icons/IconRefresh.vue'
-import IconCheck from '@/components/icons/IconCheck.vue'
-import IconCopy from '@/components/icons/IconCopy.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const appointmentsStore = useAppointmentsStore()
 const { showSuccess, showSuccessWithUndo, showError } = useToast()
-const { paymentsEnabled, getPaymentStatusBadge, formatCurrency } = usePayments()
+const { paymentsEnabled } = usePayments()
 
 // Delete modal state
 const showDeleteModal = ref(false)
@@ -45,6 +42,10 @@ const showDeleteModal = ref(false)
 // Payment request state
 const sendingPayment = ref(false)
 const paymentRequestSent = ref(false)
+
+// Copy payment link state
+const copyingLink = ref(false)
+const linkCopied = ref(false)
 
 interface Props {
   appointment: AppointmentListItem | null
@@ -139,32 +140,6 @@ const lastSavedText = computed(() => {
 // Using formatDateTimeForInput as formatDateTimeLocal for backward compatibility
 const formatDateTimeLocal = formatDateTimeForInput
 
-/**
- * Save payment price to appointment
- */
-async function savePaymentPrice() {
-  const appointmentPrice = props.appointment?.payment_price
-    ? parseFloat(props.appointment.payment_price)
-    : null
-  if (!props.appointment || paymentPrice.value === appointmentPrice) return
-
-  try {
-    await appointmentsStore.updateAppointment(props.appointment.id, {
-      payment_price: paymentPrice.value !== null ? String(paymentPrice.value) : null,
-    })
-    showSuccess('Price saved')
-    emit('refresh')
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to save payment price'
-    showError(errorMessage)
-  }
-}
-
-// Phase 2+: Automated payment functions will be added here
-// - sendPaymentRequest()
-// - copyPaymentLink()
-// - loadPaymentTransactions()
 
 // Activate/deactivate focus trap and scroll lock based on visibility
 watch(
@@ -418,112 +393,9 @@ const isInProgressAppointment = computed(() => {
 })
 
 /**
- * Get payment status badge for display
- */
-const paymentStatusBadge = computed(() => {
-  if (!props.appointment?.payment_status) return null
-  return getPaymentStatusBadge(props.appointment.payment_status)
-})
-
-/**
  * Client name for success message
  */
 const clientName = computed(() => props.appointment?.client?.full_name || 'client')
-
-/**
- * Show payment request button when payments enabled and price set
- */
-const showPaymentRequestButton = computed(() => {
-  return (
-    paymentsEnabled.value &&
-    editableData.value.payment_price !== null &&
-    editableData.value.payment_price > 0
-  )
-})
-
-/**
- * Determines button label and styling for payment request action
- */
-const paymentRequestButtonState = computed(() => {
-  // Loading state
-  if (sendingPayment.value) {
-    return {
-      label: 'Sending...',
-      icon: null,
-      variant: 'primary',
-      disabled: true,
-      showSpinner: true,
-    }
-  }
-
-  // Success state (brief)
-  if (paymentRequestSent.value) {
-    return {
-      label: 'Sent!',
-      icon: 'check',
-      variant: 'success',
-      disabled: true,
-      showSpinner: false,
-    }
-  }
-
-  // Resend state (after payment_sent)
-  if (editableData.value.payment_status === 'payment_sent') {
-    return {
-      label: 'Resend Payment Request',
-      icon: 'refresh',
-      variant: 'secondary',
-      disabled: false,
-      showSpinner: false,
-    }
-  }
-
-  // Initial send state
-  return {
-    label: 'Send Payment Request',
-    icon: 'send',
-    variant: 'primary',
-    disabled: !editableData.value.payment_price,
-    showSpinner: false,
-  }
-})
-
-/**
- * Payment status label
- */
-function getPaymentStatusLabel(status: string): string {
-  const labels = {
-    not_paid: 'Not Paid',
-    paid: 'Paid',
-    payment_sent: 'Request Sent',
-    waived: 'Waived',
-  }
-  return labels[status as keyof typeof labels] || 'Unknown'
-}
-
-/**
- * Payment status badge class
- */
-function getPaymentStatusBadgeClass(status: string): string {
-  const classes = {
-    not_paid: 'badge-warning',
-    paid: 'badge-success',
-    payment_sent: 'badge-info',
-    waived: 'badge-secondary',
-  }
-  return classes[status as keyof typeof classes] || 'badge-default'
-}
-
-/**
- * Check if appointment has payment data (for showing read-only historical data when payments disabled)
- */
-const hasPaymentData = computed(() => {
-  if (!props.appointment) return false
-  return (
-    (paymentPrice.value !== null && paymentPrice.value !== undefined) ||
-    (props.appointment.payment_status && props.appointment.payment_status !== 'unpaid')
-  )
-})
 
 /**
  * Check if completion is disabled due to missing payment price
@@ -593,6 +465,9 @@ async function sendPaymentRequest() {
 async function copyPaymentLink() {
   if (!props.appointment?.id) return
 
+  copyingLink.value = true
+  linkCopied.value = false
+
   try {
     const response = await apiClient.get<{
       payment_link: string
@@ -602,10 +477,18 @@ async function copyPaymentLink() {
     }>(`/appointments/${props.appointment.id}/payment-link`)
 
     await navigator.clipboard.writeText(response.data.payment_link)
+    linkCopied.value = true
     showSuccess('Payment link copied to clipboard')
+
+    // Reset after 2 seconds
+    setTimeout(() => {
+      linkCopied.value = false
+    }, 2000)
   } catch (error) {
     showError('Failed to copy payment link')
     console.error('Failed to copy payment link:', error)
+  } finally {
+    copyingLink.value = false
   }
 }
 
@@ -756,6 +639,28 @@ const calculatedDuration = computed(() => {
     editableData.value.scheduled_start,
     editableData.value.scheduled_end
   )
+})
+
+/**
+ * Check if appointment has any payment data
+ * Used to show read-only payment info when payments are disabled
+ */
+const hasPaymentData = computed(() => {
+  return !!(
+    editableData.value.payment_price ||
+    editableData.value.payment_status !== 'not_paid' ||
+    editableData.value.payment_method ||
+    editableData.value.payment_notes
+  )
+})
+
+/**
+ * Show payment section when:
+ * - Payments are enabled (editable), OR
+ * - Appointment has payment data from when payments were enabled (read-only)
+ */
+const showPaymentSection = computed(() => {
+  return paymentsEnabled.value || hasPaymentData.value
 })
 
 /**
@@ -1220,227 +1125,36 @@ watch(
               <p class="mt-1 text-xs text-slate-400">Changes are saved automatically</p>
             </div>
 
-            <!-- Payment Tracking Card -->
+            <!-- Payment Tracking Card (Phase 1: Manual tracking + Method/Notes) -->
+            <!-- Show when: payments enabled (editable) OR has payment data (read-only) -->
             <PaymentTrackingCard
+              v-if="showPaymentSection"
               v-model:payment-price="editableData.payment_price"
               v-model:payment-status="editableData.payment_status"
               v-model:payment-method="editableData.payment_method"
               v-model:payment-notes="editableData.payment_notes"
               :paid-at="appointment.paid_at"
+              :readonly="!paymentsEnabled"
               @blur="handlePaymentFieldBlur"
             />
 
-            <!-- Payment Section (show when enabled OR when has historical payment data) -->
-            <div
-              v-if="paymentsEnabled || hasPaymentData"
-              class="rounded-lg border border-slate-200 bg-white p-4"
-            >
-              <h3 class="mb-3 text-sm font-medium text-slate-500">Payment</h3>
-
-              <!-- READ-ONLY VIEW: When payments disabled but has historical data -->
-              <div v-if="!paymentsEnabled && hasPaymentData" class="space-y-3">
-                <!-- Disabled indicator -->
-                <div
-                  class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600"
-                >
-                  <svg
-                    class="h-4 w-4 flex-shrink-0"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fill-rule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                      clip-rule="evenodd"
-                    />
-                  </svg>
-                  <span>Payment processing is currently disabled</span>
-                  <router-link
-                    to="/settings/payments"
-                    class="ml-auto text-blue-600 hover:underline"
-                  >
-                    Enable in Settings
-                  </router-link>
-                </div>
-
-                <!-- Read-only payment data -->
-                <div class="space-y-2">
-                  <div
-                    v-if="paymentPrice !== null && paymentPrice !== undefined"
-                    class="flex items-center justify-between"
-                  >
-                    <span class="text-slate-600">Price</span>
-                    <span class="font-medium">{{ formatCurrency(paymentPrice) }}</span>
-                  </div>
-                  <div
-                    v-if="paymentStatusBadge"
-                    class="flex items-center justify-between"
-                  >
-                    <span class="text-slate-600">Status</span>
-                    <span
-                      :class="{
-                        'bg-green-100 text-green-800':
-                          paymentStatusBadge.color === 'green',
-                        'bg-yellow-100 text-yellow-800':
-                          paymentStatusBadge.color === 'yellow',
-                        'bg-red-100 text-red-800': paymentStatusBadge.color === 'red',
-                        'bg-gray-100 text-gray-800':
-                          paymentStatusBadge.color === 'gray',
-                      }"
-                      class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
-                    >
-                      {{ paymentStatusBadge.icon }} {{ paymentStatusBadge.label }}
-                    </span>
-                  </div>
-                </div>
-
-                <!-- Phase 2+: Payment transaction history will be displayed here -->
-              </div>
-
-              <!-- FULL INTERACTIVE VIEW: When payments enabled -->
-              <div v-else>
-                <!-- Price Input (before completion or if no payment request sent) -->
-                <div
-                  v-if="
-                    !appointment.payment_status || appointment.status !== 'attended'
-                  "
-                  class="mb-4"
-                >
-                  <label for="payment-price" class="mb-1 block text-xs text-slate-500">
-                    Price (₪)
-                  </label>
-                  <input
-                    id="payment-price"
-                    v-model.number="paymentPrice"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="Enter price"
-                    @blur="savePaymentPrice"
-                    class="block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
-                  />
-                  <p class="mt-1 text-xs text-slate-400">
-                    Set price before marking appointment as complete
-                  </p>
-                </div>
-
-                <!-- Payment Status (after payment request sent) -->
-                <div v-if="appointment.payment_status" class="mb-4">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-medium text-slate-500">Status:</span>
-                    <span
-                      v-if="paymentStatusBadge"
-                      :class="{
-                        'bg-green-100 text-green-800':
-                          paymentStatusBadge.color === 'green',
-                        'bg-yellow-100 text-yellow-800':
-                          paymentStatusBadge.color === 'yellow',
-                        'bg-red-100 text-red-800': paymentStatusBadge.color === 'red',
-                        'bg-gray-100 text-gray-800':
-                          paymentStatusBadge.color === 'gray',
-                      }"
-                      class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
-                    >
-                      {{ paymentStatusBadge.icon }} {{ paymentStatusBadge.label }}
-                    </span>
-                  </div>
-                </div>
-
-                <!-- Phase 1.5: Smart Payment Links UI -->
-                <div
-                  v-if="paymentsEnabled && props.appointment"
-                  class="payment-actions-section"
-                >
-                  <div class="section-divider"></div>
-
-                  <h4 class="section-title">Quick Payment Actions</h4>
-
-                  <!-- Payment status display -->
-                  <div class="payment-status-display">
-                    <div class="status-row">
-                      <span class="label">Status:</span>
-                      <span
-                        class="status-badge"
-                        :class="getPaymentStatusBadgeClass(editableData.payment_status)"
-                      >
-                        {{ getPaymentStatusLabel(editableData.payment_status) }}
-                      </span>
-                    </div>
-
-                    <div v-if="editableData.payment_price" class="status-row">
-                      <span class="label">Amount:</span>
-                      <span class="value">{{
-                        formatCurrency(editableData.payment_price)
-                      }}</span>
-                    </div>
-                  </div>
-
-                  <!-- Action buttons -->
-                  <div class="payment-action-buttons">
-                    <!-- Payment Request Button (single, stable position) -->
-                    <button
-                      v-if="showPaymentRequestButton"
-                      @click="sendPaymentRequest"
-                      :disabled="paymentRequestButtonState.disabled"
-                      class="payment-btn transition-all duration-200"
-                      :class="{
-                        'btn-primary': paymentRequestButtonState.variant === 'primary',
-                        'btn-secondary':
-                          paymentRequestButtonState.variant === 'secondary',
-                        'btn-success': paymentRequestButtonState.variant === 'success',
-                      }"
-                    >
-                      <span
-                        v-if="paymentRequestButtonState.showSpinner"
-                        class="inline-flex items-center gap-2"
-                      >
-                        <LoadingSpinner size="sm" />
-                        {{ paymentRequestButtonState.label }}
-                      </span>
-                      <span v-else class="inline-flex items-center gap-2">
-                        <IconSend
-                          v-if="paymentRequestButtonState.icon === 'send'"
-                          class="h-4 w-4"
-                          aria-hidden="true"
-                        />
-                        <IconRefresh
-                          v-if="paymentRequestButtonState.icon === 'refresh'"
-                          class="h-4 w-4"
-                          aria-hidden="true"
-                        />
-                        <IconCheck
-                          v-if="paymentRequestButtonState.icon === 'check'"
-                          class="h-4 w-4"
-                          aria-hidden="true"
-                        />
-                        {{ paymentRequestButtonState.label }}
-                      </span>
-                    </button>
-
-                    <!-- Copy Payment Link (stable secondary action) -->
-                    <button
-                      v-if="
-                        editableData.payment_price &&
-                        editableData.payment_status !== 'paid'
-                      "
-                      @click="copyPaymentLink"
-                      :disabled="!editableData.payment_price"
-                      class="btn-secondary payment-btn transition-all duration-200"
-                    >
-                      <span class="inline-flex items-center gap-2">
-                        <IconCopy class="h-4 w-4" aria-hidden="true" />
-                        Copy Payment Link
-                      </span>
-                    </button>
-                  </div>
-
-                  <!-- Info message (no price set) -->
-                  <div v-if="!editableData.payment_price" class="info-message">
-                    ℹ️ Set a price above to send payment requests
-                  </div>
-                </div>
-              </div>
-            </div>
+            <!-- Payment Section (Phase 1.5: Smart Payment Links - Responsive Tabs/Swiper) -->
+            <!-- Show when: payments enabled (editable) OR has payment data (read-only) -->
+            <PaymentSection
+              v-if="showPaymentSection && appointment"
+              :appointment-id="appointment.id"
+              v-model:price="editableData.payment_price"
+              v-model:status="editableData.payment_status"
+              :readonly="!paymentsEnabled"
+              :sending="sendingPayment"
+              :sent="paymentRequestSent"
+              :copying="copyingLink"
+              :copied="linkCopied"
+              @update:price="handlePaymentFieldBlur('price')"
+              @update:status="handlePaymentFieldBlur('status')"
+              @send-payment-request="sendPaymentRequest"
+              @copy-payment-link="copyPaymentLink"
+            />
 
             <!-- Appointment Status Management Card -->
             <!-- Hidden during in-progress appointments to avoid duplicate messaging -->
@@ -1715,175 +1429,5 @@ watch(
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-/* Payment Actions Section */
-.payment-actions-section {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-}
-
-.section-divider {
-  height: 1px;
-  background: var(--border-color, #e5e7eb);
-  margin-bottom: 1.5rem;
-}
-
-.section-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text-primary, #111827);
-  margin-bottom: 1rem;
-}
-
-.payment-status-display {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  background: var(--gray-50, #f9fafb);
-  border-radius: 6px;
-}
-
-.status-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.status-row .label {
-  font-weight: 500;
-  color: var(--text-secondary, #6b7280);
-  min-width: 80px;
-}
-
-.status-row .value {
-  color: var(--text-primary, #111827);
-  font-weight: 600;
-}
-
-.status-badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.badge-success {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-.badge-warning {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.badge-info {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.badge-secondary {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-.payment-action-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.payment-btn {
-  flex: 1;
-  min-width: 160px;
-  padding: 0.625rem 1rem;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background: #10b981;
-  color: white;
-  border: none;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #059669;
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background: white;
-  color: #374151;
-  border: 1px solid #d1d5db;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #f9fafb;
-  border-color: #9ca3af;
-}
-
-.btn-secondary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-success {
-  background-color: #10b981; /* Tailwind green-500 */
-  color: white;
-  cursor: default;
-  opacity: 0.95;
-}
-
-.btn-success:hover {
-  background-color: #10b981; /* Don't change on hover during success state */
-}
-
-.btn-loading {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.success-message {
-  padding: 0.75rem;
-  background: #d1fae5;
-  color: #065f46;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-}
-
-.info-message {
-  padding: 0.75rem;
-  background: #dbeafe;
-  color: #1e40af;
-  border-radius: 6px;
-  font-size: 0.9rem;
-}
-
-@media (max-width: 640px) {
-  .payment-action-buttons {
-    flex-direction: column;
-  }
-
-  .payment-btn {
-    width: 100%;
-    min-width: unset;
-  }
 }
 </style>
