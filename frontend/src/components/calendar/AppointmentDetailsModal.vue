@@ -549,7 +549,7 @@ async function copyPaymentLink() {
       payment_type: string
       amount: number
       display_text: string
-    }>(`/api/v1/appointments/${props.appointment.id}/payment-link`)
+    }>(`/appointments/${props.appointment.id}/payment-link`)
 
     await navigator.clipboard.writeText(response.data.payment_link)
     showSuccess('Payment link copied to clipboard')
