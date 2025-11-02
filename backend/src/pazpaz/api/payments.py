@@ -83,23 +83,29 @@ class UpdatePaymentConfigRequest(BaseModel):
             )
 
         if payment_link_type == "bit":
-            # Validate Israeli phone number
-            # Clean phone (remove dashes, spaces, parentheses)
-            clean_phone = (
-                v.replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
-            )
-
-            # Must start with 05 and be 10 digits
-            if not clean_phone.startswith("05") or len(clean_phone) != 10:
-                raise ValueError(
-                    "Bit phone number must be Israeli mobile format (05X-XXXXXXX or 05XXXXXXXX)"
+            # Bit supports two modes: phone number (SMS) or Bit Pay web URL
+            # Check if it's a URL first
+            if v.startswith(("http://", "https://")):
+                # URL mode - valid Bit Pay web URL
+                pass  # No additional validation needed
+            else:
+                # Phone number mode - validate Israeli mobile format
+                # Clean phone (remove dashes, spaces, parentheses)
+                clean_phone = (
+                    v.replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
                 )
 
-            # Check all characters are digits
-            if not clean_phone.isdigit():
-                raise ValueError(
-                    "Bit phone number must contain only digits (and optional dashes/spaces)"
-                )
+                # Must start with 05 and be 10 digits
+                if not clean_phone.startswith("05") or len(clean_phone) != 10:
+                    raise ValueError(
+                        "Bit must be Israeli mobile format (05X-XXXXXXX) or Bit Pay URL (https://...)"
+                    )
+
+                # Check all characters are digits
+                if not clean_phone.isdigit():
+                    raise ValueError(
+                        "Bit phone number must contain only digits (and optional dashes/spaces)"
+                    )
 
         elif payment_link_type in ("paybox", "custom"):
             # Validate URL format
