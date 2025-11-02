@@ -29,6 +29,10 @@ import DirectionsButton from '@/components/common/DirectionsButton.vue'
 import IconClose from '@/components/icons/IconClose.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 import IconClock from '@/components/icons/IconClock.vue'
+import IconSend from '@/components/icons/IconSend.vue'
+import IconRefresh from '@/components/icons/IconRefresh.vue'
+import IconCheck from '@/components/icons/IconCheck.vue'
+import IconCopy from '@/components/icons/IconCopy.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const appointmentsStore = useAppointmentsStore()
@@ -456,7 +460,7 @@ const paymentRequestButtonState = computed(() => {
   if (paymentRequestSent.value) {
     return {
       label: 'Sent!',
-      icon: '✅',
+      icon: 'check',
       variant: 'success',
       disabled: true,
       showSpinner: false,
@@ -467,7 +471,7 @@ const paymentRequestButtonState = computed(() => {
   if (editableData.value.payment_status === 'payment_sent') {
     return {
       label: 'Resend Payment Request',
-      icon: '🔄',
+      icon: 'refresh',
       variant: 'secondary',
       disabled: false,
       showSpinner: false,
@@ -477,7 +481,7 @@ const paymentRequestButtonState = computed(() => {
   // Initial send state
   return {
     label: 'Send Payment Request',
-    icon: '📧',
+    icon: 'send',
     variant: 'primary',
     disabled: !editableData.value.payment_price,
     showSpinner: false,
@@ -1394,9 +1398,21 @@ watch(
                         {{ paymentRequestButtonState.label }}
                       </span>
                       <span v-else class="inline-flex items-center gap-2">
-                        <span v-if="paymentRequestButtonState.icon">{{
-                          paymentRequestButtonState.icon
-                        }}</span>
+                        <IconSend
+                          v-if="paymentRequestButtonState.icon === 'send'"
+                          class="h-4 w-4"
+                          aria-hidden="true"
+                        />
+                        <IconRefresh
+                          v-if="paymentRequestButtonState.icon === 'refresh'"
+                          class="h-4 w-4"
+                          aria-hidden="true"
+                        />
+                        <IconCheck
+                          v-if="paymentRequestButtonState.icon === 'check'"
+                          class="h-4 w-4"
+                          aria-hidden="true"
+                        />
                         {{ paymentRequestButtonState.label }}
                       </span>
                     </button>
@@ -1411,7 +1427,10 @@ watch(
                       :disabled="!editableData.payment_price"
                       class="btn-secondary payment-btn transition-all duration-200"
                     >
-                      📋 Copy Payment Link
+                      <span class="inline-flex items-center gap-2">
+                        <IconCopy class="h-4 w-4" aria-hidden="true" />
+                        Copy Payment Link
+                      </span>
                     </button>
                   </div>
 
