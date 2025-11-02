@@ -92,7 +92,10 @@ class UpdatePaymentConfigRequest(BaseModel):
                 # Phone number mode - validate Israeli mobile format
                 # Clean phone (remove dashes, spaces, parentheses)
                 clean_phone = (
-                    v.replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
+                    v.replace("-", "")
+                    .replace(" ", "")
+                    .replace("(", "")
+                    .replace(")", "")
                 )
 
                 # Must start with 05 and be 10 digits
