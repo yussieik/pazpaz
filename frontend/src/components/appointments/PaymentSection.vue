@@ -175,16 +175,20 @@ const localStatus = computed({
           <Tab
             v-for="section in sections"
             :key="section.id"
-            v-slot="{ selected }"
-            class="flex-1 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-            :class="
-              selected
-                ? 'border-emerald-600 text-emerald-700'
-                : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900'
-            "
-            :aria-label="section.ariaLabel"
+            v-slot="slotProps"
+            as="template"
           >
-            {{ section.label }}
+            <button
+              class="flex-1 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+              :class="
+                (slotProps as any).selected
+                  ? 'border-emerald-600 text-emerald-700'
+                  : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900'
+              "
+              :aria-label="section.ariaLabel"
+            >
+              {{ section.label }}
+            </button>
           </Tab>
         </TabList>
 
@@ -192,7 +196,7 @@ const localStatus = computed({
         <TabPanels class="mt-4">
           <TabPanel
             v-show="activeIndex === 0"
-            :aria-labelledby="`tab-${sections[0].id}`"
+            :aria-labelledby="`tab-${sections[0]?.id}`"
             class="focus:outline-none"
           >
             <PaymentDetailsForm
@@ -206,7 +210,7 @@ const localStatus = computed({
 
           <TabPanel
             v-show="activeIndex === 1"
-            :aria-labelledby="`tab-${sections[1].id}`"
+            :aria-labelledby="`tab-${sections[1]?.id}`"
             class="focus:outline-none"
           >
             <PaymentActions
@@ -235,7 +239,7 @@ const localStatus = computed({
             class="min-w-0 flex-[0_0_100%] pr-4"
             role="region"
             aria-roledescription="slide"
-            :aria-label="sections[0].ariaLabel"
+            :aria-label="sections[0]?.ariaLabel"
           >
             <PaymentDetailsForm
               v-model:price="localPrice"
@@ -251,7 +255,7 @@ const localStatus = computed({
             class="min-w-0 flex-[0_0_100%] pr-4"
             role="region"
             aria-roledescription="slide"
-            :aria-label="sections[1].ariaLabel"
+            :aria-label="sections[1]?.ariaLabel"
           >
             <PaymentActions
               :price="price"
@@ -288,7 +292,7 @@ const localStatus = computed({
 
       <!-- Section Labels (mobile only - below dots) -->
       <div class="mt-2 text-center text-xs text-slate-600">
-        {{ sections[activeIndex].label }}
+        {{ sections[activeIndex]?.label }}
       </div>
     </div>
   </div>
