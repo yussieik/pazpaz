@@ -510,6 +510,17 @@ const paymentStatusBadge = computed(() => {
 })
 
 /**
+ * Check if appointment has payment data (for showing read-only historical data when payments disabled)
+ */
+const hasPaymentData = computed(() => {
+  if (!props.appointment) return false
+  return (
+    (paymentPrice.value !== null && paymentPrice.value !== undefined) ||
+    (props.appointment.payment_status && props.appointment.payment_status !== 'unpaid')
+  )
+})
+
+/**
  * Check if completion is disabled due to missing payment price
  * If payments enabled and no price set, can't complete appointment
  */
@@ -1152,130 +1163,228 @@ watch(
               @blur="handlePaymentFieldBlur"
             />
 
-            <!-- Payment Section (conditional on paymentsEnabled) -->
+            <!-- Payment Section (show when enabled OR when has historical payment data) -->
             <div
-              v-if="paymentsEnabled"
+              v-if="paymentsEnabled || hasPaymentData"
               class="rounded-lg border border-slate-200 bg-white p-4"
             >
               <h3 class="mb-3 text-sm font-medium text-slate-500">Payment</h3>
 
-              <!-- Price Input (before completion or if no payment request sent) -->
-              <div
-                v-if="!appointment.payment_status || appointment.status !== 'attended'"
-                class="mb-4"
-              >
-                <label for="payment-price" class="mb-1 block text-xs text-slate-500">
-                  Price (₪)
-                </label>
-                <input
-                  id="payment-price"
-                  v-model.number="paymentPrice"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="Enter price"
-                  @blur="savePaymentPrice"
-                  class="block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
-                />
-                <p class="mt-1 text-xs text-slate-400">
-                  Set price before marking appointment as complete
-                </p>
-              </div>
-
-              <!-- Payment Status (after payment request sent) -->
-              <div v-if="appointment.payment_status" class="mb-4">
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-medium text-slate-500">Status:</span>
-                  <span
-                    v-if="paymentStatusBadge"
-                    :class="{
-                      'bg-green-100 text-green-800':
-                        paymentStatusBadge.color === 'green',
-                      'bg-yellow-100 text-yellow-800':
-                        paymentStatusBadge.color === 'yellow',
-                      'bg-red-100 text-red-800': paymentStatusBadge.color === 'red',
-                      'bg-gray-100 text-gray-800': paymentStatusBadge.color === 'gray',
-                    }"
-                    class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
-                  >
-                    {{ paymentStatusBadge.icon }} {{ paymentStatusBadge.label }}
-                  </span>
-                </div>
-              </div>
-
-              <!-- Send Payment Request Button -->
-              <div v-if="canSendPayment" class="mb-4">
-                <label
-                  for="customer-email"
-                  class="mb-1 block text-xs font-medium text-slate-500"
+              <!-- READ-ONLY VIEW: When payments disabled but has historical data -->
+              <div v-if="!paymentsEnabled && hasPaymentData" class="space-y-3">
+                <!-- Disabled indicator -->
+                <div
+                  class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600"
                 >
-                  Client Email
-                </label>
-                <input
-                  id="customer-email"
-                  v-model="customerEmail"
-                  type="email"
-                  placeholder="client@example.com"
-                  class="mb-2 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
-                />
-                <button
-                  @click="sendPaymentRequest"
-                  :disabled="sendingPayment || !customerEmail"
-                  class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {{ sendingPayment ? 'Sending...' : 'Send Payment Request' }}
-                </button>
-              </div>
-
-              <!-- Payment Link (if payment sent) -->
-              <div
-                v-if="appointment.payment_status === 'payment_sent' && paymentLink"
-                class="mb-4"
-              >
-                <label class="mb-1 block text-xs font-medium text-slate-500">
-                  Payment Link
-                </label>
-                <div class="flex items-center gap-2">
-                  <input
-                    :value="paymentLink"
-                    type="text"
-                    readonly
-                    class="block min-h-[44px] flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:outline-none"
-                  />
-                  <button
-                    @click="copyPaymentLink"
-                    class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-slate-100 px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                  <svg
+                    class="h-4 w-4 flex-shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
                   >
-                    Copy
-                  </button>
+                    <path
+                      fill-rule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  <span>Payment processing is currently disabled</span>
+                  <router-link
+                    to="/settings/payments"
+                    class="ml-auto text-blue-600 hover:underline"
+                  >
+                    Enable in Settings
+                  </router-link>
                 </div>
-              </div>
 
-              <!-- Payment Transactions (if any exist) -->
-              <div v-if="paymentTransactions.length > 0" class="mt-4">
-                <h4 class="mb-2 text-xs font-medium text-slate-500">Payment History</h4>
+                <!-- Read-only payment data -->
                 <div class="space-y-2">
                   <div
-                    v-for="transaction in paymentTransactions"
-                    :key="transaction.id"
-                    class="rounded bg-slate-50 p-2 text-xs"
+                    v-if="paymentPrice !== null && paymentPrice !== undefined"
+                    class="flex items-center justify-between"
                   >
-                    <div class="flex justify-between">
-                      <span>{{
-                        formatCurrency(parseFloat(transaction.total_amount))
-                      }}</span>
-                      <span
-                        :class="{
-                          'text-green-600': transaction.status === 'completed',
-                          'text-yellow-600': transaction.status === 'pending',
-                          'text-red-600': transaction.status === 'failed',
-                        }"
-                      >
-                        {{ transaction.status }}
-                      </span>
+                    <span class="text-slate-600">Price</span>
+                    <span class="font-medium">{{ formatCurrency(paymentPrice) }}</span>
+                  </div>
+                  <div
+                    v-if="paymentStatusBadge"
+                    class="flex items-center justify-between"
+                  >
+                    <span class="text-slate-600">Status</span>
+                    <span
+                      :class="{
+                        'bg-green-100 text-green-800':
+                          paymentStatusBadge.color === 'green',
+                        'bg-yellow-100 text-yellow-800':
+                          paymentStatusBadge.color === 'yellow',
+                        'bg-red-100 text-red-800': paymentStatusBadge.color === 'red',
+                        'bg-gray-100 text-gray-800':
+                          paymentStatusBadge.color === 'gray',
+                      }"
+                      class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
+                    >
+                      {{ paymentStatusBadge.icon }} {{ paymentStatusBadge.label }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Read-only payment transactions -->
+                <div v-if="paymentTransactions.length > 0" class="mt-3">
+                  <h4 class="mb-2 text-xs font-medium text-slate-500">
+                    Payment History
+                  </h4>
+                  <div class="space-y-2">
+                    <div
+                      v-for="transaction in paymentTransactions"
+                      :key="transaction.id"
+                      class="rounded bg-slate-50 p-2 text-xs"
+                    >
+                      <div class="flex justify-between">
+                        <span>{{
+                          formatCurrency(parseFloat(transaction.total_amount))
+                        }}</span>
+                        <span
+                          :class="{
+                            'text-green-600': transaction.status === 'completed',
+                            'text-yellow-600': transaction.status === 'pending',
+                            'text-red-600': transaction.status === 'failed',
+                          }"
+                        >
+                          {{ transaction.status }}
+                        </span>
+                      </div>
+                      <div class="mt-1 text-slate-500">
+                        {{ new Date(transaction.created_at).toLocaleString() }}
+                      </div>
                     </div>
-                    <div class="mt-1 text-slate-500">
-                      {{ new Date(transaction.created_at).toLocaleString() }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- FULL INTERACTIVE VIEW: When payments enabled -->
+              <div v-else>
+                <!-- Price Input (before completion or if no payment request sent) -->
+                <div
+                  v-if="
+                    !appointment.payment_status || appointment.status !== 'attended'
+                  "
+                  class="mb-4"
+                >
+                  <label for="payment-price" class="mb-1 block text-xs text-slate-500">
+                    Price (₪)
+                  </label>
+                  <input
+                    id="payment-price"
+                    v-model.number="paymentPrice"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Enter price"
+                    @blur="savePaymentPrice"
+                    class="block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
+                  />
+                  <p class="mt-1 text-xs text-slate-400">
+                    Set price before marking appointment as complete
+                  </p>
+                </div>
+
+                <!-- Payment Status (after payment request sent) -->
+                <div v-if="appointment.payment_status" class="mb-4">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-medium text-slate-500">Status:</span>
+                    <span
+                      v-if="paymentStatusBadge"
+                      :class="{
+                        'bg-green-100 text-green-800':
+                          paymentStatusBadge.color === 'green',
+                        'bg-yellow-100 text-yellow-800':
+                          paymentStatusBadge.color === 'yellow',
+                        'bg-red-100 text-red-800': paymentStatusBadge.color === 'red',
+                        'bg-gray-100 text-gray-800':
+                          paymentStatusBadge.color === 'gray',
+                      }"
+                      class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
+                    >
+                      {{ paymentStatusBadge.icon }} {{ paymentStatusBadge.label }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Send Payment Request Button -->
+                <div v-if="canSendPayment" class="mb-4">
+                  <label
+                    for="customer-email"
+                    class="mb-1 block text-xs font-medium text-slate-500"
+                  >
+                    Client Email
+                  </label>
+                  <input
+                    id="customer-email"
+                    v-model="customerEmail"
+                    type="email"
+                    placeholder="client@example.com"
+                    class="mb-2 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
+                  />
+                  <button
+                    @click="sendPaymentRequest"
+                    :disabled="sendingPayment || !customerEmail"
+                    class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {{ sendingPayment ? 'Sending...' : 'Send Payment Request' }}
+                  </button>
+                </div>
+
+                <!-- Payment Link (if payment sent) -->
+                <div
+                  v-if="appointment.payment_status === 'payment_sent' && paymentLink"
+                  class="mb-4"
+                >
+                  <label class="mb-1 block text-xs font-medium text-slate-500">
+                    Payment Link
+                  </label>
+                  <div class="flex items-center gap-2">
+                    <input
+                      :value="paymentLink"
+                      type="text"
+                      readonly
+                      class="block min-h-[44px] flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:outline-none"
+                    />
+                    <button
+                      @click="copyPaymentLink"
+                      class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-slate-100 px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Payment Transactions (if any exist) -->
+                <div v-if="paymentTransactions.length > 0" class="mt-4">
+                  <h4 class="mb-2 text-xs font-medium text-slate-500">
+                    Payment History
+                  </h4>
+                  <div class="space-y-2">
+                    <div
+                      v-for="transaction in paymentTransactions"
+                      :key="transaction.id"
+                      class="rounded bg-slate-50 p-2 text-xs"
+                    >
+                      <div class="flex justify-between">
+                        <span>{{
+                          formatCurrency(parseFloat(transaction.total_amount))
+                        }}</span>
+                        <span
+                          :class="{
+                            'text-green-600': transaction.status === 'completed',
+                            'text-yellow-600': transaction.status === 'pending',
+                            'text-red-600': transaction.status === 'failed',
+                          }"
+                        >
+                          {{ transaction.status }}
+                        </span>
+                      </div>
+                      <div class="mt-1 text-slate-500">
+                        {{ new Date(transaction.created_at).toLocaleString() }}
+                      </div>
                     </div>
                   </div>
                 </div>
