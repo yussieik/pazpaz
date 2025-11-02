@@ -33,11 +33,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const appointmentsStore = useAppointmentsStore()
 const { showSuccess, showSuccessWithUndo, showError } = useToast()
-const {
-  paymentsEnabled,
-  getPaymentStatusBadge,
-  formatCurrency,
-} = usePayments()
+const { paymentsEnabled, getPaymentStatusBadge, formatCurrency } = usePayments()
 
 // Delete modal state
 const showDeleteModal = ref(false)
@@ -431,16 +427,61 @@ const paymentStatusBadge = computed(() => {
 const clientName = computed(() => props.appointment?.client?.full_name || 'client')
 
 /**
- * Can send payment request
+ * Show payment request button when payments enabled and price set
  */
-const canSendPaymentRequest = computed(() => {
+const showPaymentRequestButton = computed(() => {
   return (
     paymentsEnabled.value &&
     editableData.value.payment_price !== null &&
-    editableData.value.payment_price > 0 &&
-    (editableData.value.payment_status === 'not_paid' ||
-     editableData.value.payment_status === 'payment_sent')
+    editableData.value.payment_price > 0
   )
+})
+
+/**
+ * Determines button label and styling for payment request action
+ */
+const paymentRequestButtonState = computed(() => {
+  // Loading state
+  if (sendingPayment.value) {
+    return {
+      label: 'Sending...',
+      icon: null,
+      variant: 'primary',
+      disabled: true,
+      showSpinner: true,
+    }
+  }
+
+  // Success state (brief)
+  if (paymentRequestSent.value) {
+    return {
+      label: 'Sent!',
+      icon: '✅',
+      variant: 'success',
+      disabled: true,
+      showSpinner: false,
+    }
+  }
+
+  // Resend state (after payment_sent)
+  if (editableData.value.payment_status === 'payment_sent') {
+    return {
+      label: 'Resend Payment Request',
+      icon: '🔄',
+      variant: 'secondary',
+      disabled: false,
+      showSpinner: false,
+    }
+  }
+
+  // Initial send state
+  return {
+    label: 'Send Payment Request',
+    icon: '📧',
+    variant: 'primary',
+    disabled: !editableData.value.payment_price,
+    showSpinner: false,
+  }
 })
 
 /**
@@ -451,7 +492,7 @@ function getPaymentStatusLabel(status: string): string {
     not_paid: 'Not Paid',
     paid: 'Paid',
     payment_sent: 'Request Sent',
-    waived: 'Waived'
+    waived: 'Waived',
   }
   return labels[status as keyof typeof labels] || 'Unknown'
 }
@@ -464,7 +505,7 @@ function getPaymentStatusBadgeClass(status: string): string {
     not_paid: 'badge-warning',
     paid: 'badge-success',
     payment_sent: 'badge-info',
-    waived: 'badge-secondary'
+    waived: 'badge-secondary',
   }
   return classes[status as keyof typeof classes] || 'badge-default'
 }
@@ -527,6 +568,11 @@ async function sendPaymentRequest() {
 
     // Refresh appointment data
     emit('refresh')
+
+    // Transition from "Sent!" to "Resend" after 2 seconds
+    setTimeout(() => {
+      paymentRequestSent.value = false
+    }, 2000)
   } catch (error: unknown) {
     const err = error as { response?: { data?: { detail?: string } } }
     const errorMessage = err.response?.data?.detail || 'Failed to send payment request'
@@ -1297,7 +1343,10 @@ watch(
                 </div>
 
                 <!-- Phase 1.5: Smart Payment Links UI -->
-                <div v-if="paymentsEnabled && props.appointment" class="payment-actions-section">
+                <div
+                  v-if="paymentsEnabled && props.appointment"
+                  class="payment-actions-section"
+                >
                   <div class="section-divider"></div>
 
                   <h4 class="section-title">Quick Payment Actions</h4>
@@ -1316,54 +1365,54 @@ watch(
 
                     <div v-if="editableData.payment_price" class="status-row">
                       <span class="label">Amount:</span>
-                      <span class="value">{{ formatCurrency(editableData.payment_price) }}</span>
+                      <span class="value">{{
+                        formatCurrency(editableData.payment_price)
+                      }}</span>
                     </div>
                   </div>
 
                   <!-- Action buttons -->
                   <div class="payment-action-buttons">
-                    <!-- Send Payment Request (when not paid) -->
+                    <!-- Payment Request Button (single, stable position) -->
                     <button
-                      v-if="canSendPaymentRequest"
+                      v-if="showPaymentRequestButton"
                       @click="sendPaymentRequest"
-                      :disabled="sendingPayment || !editableData.payment_price"
-                      class="btn-primary payment-btn"
-                      :class="{ 'btn-loading': sendingPayment }"
+                      :disabled="paymentRequestButtonState.disabled"
+                      class="payment-btn transition-all duration-200"
+                      :class="{
+                        'btn-primary': paymentRequestButtonState.variant === 'primary',
+                        'btn-secondary':
+                          paymentRequestButtonState.variant === 'secondary',
+                        'btn-success': paymentRequestButtonState.variant === 'success',
+                      }"
                     >
-                      <span v-if="sendingPayment">
-                        <LoadingSpinner size="sm" /> Sending...
+                      <span
+                        v-if="paymentRequestButtonState.showSpinner"
+                        class="inline-flex items-center gap-2"
+                      >
+                        <LoadingSpinner size="sm" />
+                        {{ paymentRequestButtonState.label }}
                       </span>
-                      <span v-else>
-                        📧 Send Payment Request
+                      <span v-else class="inline-flex items-center gap-2">
+                        <span v-if="paymentRequestButtonState.icon">{{
+                          paymentRequestButtonState.icon
+                        }}</span>
+                        {{ paymentRequestButtonState.label }}
                       </span>
                     </button>
 
-                    <!-- Copy Payment Link -->
+                    <!-- Copy Payment Link (stable secondary action) -->
                     <button
-                      v-if="editableData.payment_price && editableData.payment_status !== 'paid'"
+                      v-if="
+                        editableData.payment_price &&
+                        editableData.payment_status !== 'paid'
+                      "
                       @click="copyPaymentLink"
                       :disabled="!editableData.payment_price"
-                      class="btn-secondary payment-btn"
+                      class="btn-secondary payment-btn transition-all duration-200"
                     >
                       📋 Copy Payment Link
                     </button>
-
-                    <!-- Resend (when payment_sent status) -->
-                    <button
-                      v-if="editableData.payment_status === 'payment_sent'"
-                      @click="sendPaymentRequest"
-                      class="btn-secondary payment-btn"
-                    >
-                      🔄 Resend Payment Request
-                    </button>
-                  </div>
-
-                  <!-- Success message (when payment sent) -->
-                  <div
-                    v-if="paymentRequestSent && editableData.payment_status === 'payment_sent'"
-                    class="success-message"
-                  >
-                    ✅ Payment request sent to {{ clientName }}
                   </div>
 
                   <!-- Info message (no price set) -->
@@ -1773,6 +1822,17 @@ watch(
 .btn-secondary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn-success {
+  background-color: #10b981; /* Tailwind green-500 */
+  color: white;
+  cursor: default;
+  opacity: 0.95;
+}
+
+.btn-success:hover {
+  background-color: #10b981; /* Don't change on hover during success state */
 }
 
 .btn-loading {
