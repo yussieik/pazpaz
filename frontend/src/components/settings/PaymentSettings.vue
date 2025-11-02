@@ -75,7 +75,8 @@ const paymentTemplate = computed(() => currentConfig.value?.payment_link_templat
 
 const isValidBitPhone = computed(() => {
   if (!bitPhoneNumber.value) return false
-  return validateIsraeliPhone(bitPhoneNumber.value)
+  // Accept either phone number or URL
+  return validateIsraeliPhone(bitPhoneNumber.value) || validateUrl(bitPhoneNumber.value)
 })
 
 const isValidPayboxUrl = computed(() => {
@@ -110,8 +111,12 @@ function validateBitPhone() {
     return
   }
 
-  if (!validateIsraeliPhone(bitPhoneNumber.value)) {
-    bitPhoneError.value = 'Invalid Israeli phone number. Must be 05X-XXXXXXX format.'
+  // Accept either phone number or URL
+  const isPhone = validateIsraeliPhone(bitPhoneNumber.value)
+  const isUrl = validateUrl(bitPhoneNumber.value)
+
+  if (!isPhone && !isUrl) {
+    bitPhoneError.value = 'Enter a valid Israeli phone (05X-XXXXXXX) or Bit Pay URL (https://...)'
   } else {
     bitPhoneError.value = ''
   }
@@ -483,22 +488,25 @@ onMounted(() => {
       <div v-if="selectedMethod === 'bit'" class="rounded-lg border border-slate-200 bg-white p-6">
         <h3 class="mb-2 text-lg font-semibold text-slate-900">Configure Bit Payment</h3>
         <p class="mb-4 text-sm text-slate-600">
-          Enter your Bit phone number (Israeli format: 05X-XXXXXXX)
+          Enter your Bit phone number (05X-XXXXXXX) or Bit Pay web URL
         </p>
 
         <div class="mb-4">
           <label for="bitPhone" class="mb-2 block text-sm font-medium text-slate-900">
-            Phone Number
+            Phone Number or Bit Pay URL
           </label>
           <input
             id="bitPhone"
             v-model="bitPhoneNumber"
             @input="validateBitPhone"
-            type="tel"
-            placeholder="050-123-4567"
+            type="text"
+            placeholder="050-123-4567 or https://www.bitpay.co.il/app/me/..."
             class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
             :class="{ 'border-red-500': bitPhoneError }"
           />
+          <p class="mt-1 text-xs text-slate-500">
+            📱 Phone: SMS link with Hebrew message | 🌐 URL: Direct Bit Pay link with amount
+          </p>
           <span v-if="bitPhoneError" class="mt-1 block text-sm text-red-600">{{
             bitPhoneError
           }}</span>
