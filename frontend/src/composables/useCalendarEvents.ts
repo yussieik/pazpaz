@@ -260,6 +260,10 @@ export function useCalendarEvents() {
           ...(isNoShow ? ['event-no-show'] : []),
           ...(isPastScheduled ? ['event-past-scheduled'] : []),
           ...(hasSession ? ['event-with-session'] : []),
+          // Payment status classes (Phase 1.5)
+          ...(appointment.payment_status
+            ? [`payment-${appointment.payment_status}`]
+            : []),
         ],
         extendedProps: {
           status: appointment.status,

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from email.message import EmailMessage
 from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import aiosmtplib
 
@@ -16,6 +18,37 @@ if TYPE_CHECKING:
     from pazpaz.models.workspace import Workspace
 
 logger = get_logger(__name__)
+
+
+def _convert_to_workspace_timezone(
+    utc_datetime: datetime,
+    workspace_timezone: str | None,
+) -> datetime:
+    """
+    Convert UTC datetime to workspace timezone.
+
+    Args:
+        utc_datetime: Datetime in UTC
+        workspace_timezone: IANA timezone name (e.g., 'Asia/Jerusalem')
+
+    Returns:
+        Datetime in workspace timezone
+
+    Note:
+        Falls back to UTC if timezone is None or invalid.
+    """
+    if not workspace_timezone:
+        return utc_datetime
+
+    try:
+        tz = ZoneInfo(workspace_timezone)
+        return utc_datetime.astimezone(tz)
+    except ZoneInfoNotFoundError:
+        logger.warning(
+            "invalid_workspace_timezone",
+            timezone=workspace_timezone,
+        )
+        return utc_datetime
 
 
 async def send_magic_link_email(email: str, token: str) -> None:
@@ -758,9 +791,15 @@ async def send_payment_request_email(
     # No need to call decrypt_field() manually
     client_name = appointment.client.full_name
 
-    # Format appointment date and time
-    appointment_date = appointment.scheduled_start.strftime("%d/%m/%Y")
-    appointment_time = appointment.scheduled_start.strftime("%H:%M")
+    # Convert UTC to workspace timezone
+    local_time = _convert_to_workspace_timezone(
+        appointment.scheduled_start,
+        workspace.timezone,
+    )
+
+    # Format appointment date and time in workspace timezone
+    appointment_date = local_time.strftime("%d/%m/%Y")
+    appointment_time = local_time.strftime("%H:%M")
 
     # Payment amount
     amount = appointment.payment_price or Decimal("0.00")

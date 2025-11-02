@@ -38,8 +38,11 @@ interface PaymentConfig {
  */
 interface PaymentBadge {
   label: string
-  color: 'green' | 'yellow' | 'red' | 'gray' | 'purple'
-  icon: string
+  borderColor: string // Hex color for left border
+  bgColor?: string // Hex color for icon badge background
+  iconColor?: string // Hex color for icon stroke
+  iconSvg?: string // SVG markup for icon
+  showBadge: boolean // Only show icon badge for non-default states
 }
 
 // Global state for payment configuration
@@ -144,10 +147,54 @@ export function usePayments() {
    */
   function getPaymentStatusBadge(status: string | null): PaymentBadge | null {
     const badges: Record<string, PaymentBadge> = {
-      paid: { label: 'Paid', color: 'green', icon: '💵' },
-      not_paid: { label: 'Not Paid', color: 'gray', icon: '⏳' },
-      payment_sent: { label: 'Payment Sent', color: 'yellow', icon: '📤' },
-      waived: { label: 'Waived', color: 'purple', icon: '🎁' },
+      paid: {
+        label: 'Paid',
+        borderColor: '#10B981', // emerald-500
+        bgColor: '#ECFDF5', // emerald-50
+        iconColor: '#059669', // emerald-600
+        iconSvg: `
+          <svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="6" cy="6" r="5.5" stroke="currentColor" stroke-width="1" fill="white"/>
+            <path d="M3.5 6L5 7.5L8.5 4" stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        `,
+        showBadge: true,
+      },
+      not_paid: {
+        label: 'Not Paid',
+        borderColor: '#D1D5DB', // gray-300
+        showBadge: false, // Don't show badge for default state
+      },
+      payment_sent: {
+        label: 'Payment Sent',
+        borderColor: '#F59E0B', // amber-500
+        bgColor: '#FFFBEB', // amber-50
+        iconColor: '#D97706', // amber-600
+        iconSvg: `
+          <svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10.5 1.5L5 7M10.5 1.5L7 10.5L5 7M10.5 1.5L1.5 4.5L5 7"
+                  stroke="currentColor" stroke-width="1.2" stroke-linecap="round"
+                  stroke-linejoin="round" fill="white"/>
+          </svg>
+        `,
+        showBadge: true,
+      },
+      waived: {
+        label: 'Waived',
+        borderColor: '#8B5CF6', // violet-500
+        bgColor: '#F5F3FF', // violet-50
+        iconColor: '#7C3AED', // violet-600
+        iconSvg: `
+          <svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="5" width="8" height="5" rx="0.5" stroke="currentColor"
+                  stroke-width="1" fill="white"/>
+            <path d="M2 5h8M6 5v5M4 3.5C4 3 4.5 2 6 2s2 1 2 1.5M8 3.5C8 3 7.5 2 6 2"
+                  stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+          </svg>
+        `,
+        showBadge: true,
+      },
     }
 
     return status ? badges[status] || null : null

@@ -569,21 +569,43 @@ const calendarOptions = computed(() => ({
 
     // Payment status indicator (only if payments enabled and status exists)
     const paymentStatus = event.extendedProps?.payment_status
-    if (paymentsEnabled.value && paymentStatus && paymentStatus !== 'unpaid') {
+    if (paymentsEnabled.value && paymentStatus) {
       const badge = getPaymentStatusBadge(paymentStatus)
-      if (badge) {
-        const paymentIndicator = document.createElement('div')
-        paymentIndicator.className = 'payment-indicator absolute top-1 left-1 z-10'
-        paymentIndicator.setAttribute('aria-label', `Payment: ${badge.label}`)
-        paymentIndicator.title = `Payment: ${badge.label}`
 
-        const iconSpan = document.createElement('span')
-        iconSpan.className = 'payment-icon text-xs'
-        iconSpan.textContent = badge.icon
-        iconSpan.style.filter = 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))'
+      if (badge?.showBadge) {
+        const paymentBadge = document.createElement('div')
+        paymentBadge.className = 'payment-badge absolute top-2 right-2 z-10'
+        paymentBadge.setAttribute('role', 'img')
+        paymentBadge.setAttribute('aria-label', `Payment: ${badge.label}`)
+        paymentBadge.title = `Payment: ${badge.label}`
 
-        paymentIndicator.appendChild(iconSpan)
-        wrapper.appendChild(paymentIndicator)
+        // Icon container with background circle
+        const iconContainer = document.createElement('div')
+        iconContainer.className = 'payment-icon-container'
+        iconContainer.style.cssText = `
+          width: 16px;
+          height: 16px;
+          background: white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        `
+
+        // SVG icon
+        const iconWrapper = document.createElement('div')
+        iconWrapper.innerHTML = badge.iconSvg || ''
+        iconWrapper.style.cssText = `
+          width: 12px;
+          height: 12px;
+          color: ${badge.iconColor};
+          filter: drop-shadow(0 0.5px 1px rgba(0, 0, 0, 0.15));
+        `
+
+        iconContainer.appendChild(iconWrapper)
+        paymentBadge.appendChild(iconContainer)
+        wrapper.appendChild(paymentBadge)
       }
     }
 
@@ -1979,6 +2001,46 @@ body.drag-mode-active::before {
 
   .fc-timegrid-now-indicator-arrow {
     border-width: 8px;
+  }
+}
+
+/* Payment status left border accent (Phase 1.5) */
+:deep(.fc-event.payment-not-paid) {
+  border-left: 3px solid #d1d5db !important; /* gray-300 */
+  padding-left: 4px;
+}
+
+:deep(.fc-event.payment-paid) {
+  border-left: 3px solid #10b981 !important; /* emerald-500 */
+  padding-left: 4px;
+}
+
+:deep(.fc-event.payment-sent) {
+  border-left: 3px solid #f59e0b !important; /* amber-500 */
+  padding-left: 4px;
+}
+
+:deep(.fc-event.payment-waived) {
+  border-left: 3px solid #8b5cf6 !important; /* violet-500 */
+  padding-left: 4px;
+}
+
+/* Priority: Session note border overrides payment border */
+:deep(.fc-event.event-with-session) {
+  border-left: 3px solid #10b981 !important; /* emerald-500 - session takes precedence */
+  padding-left: 4px;
+}
+
+/* Mobile: Slightly larger icon badge for better visibility */
+@media (max-width: 640px) {
+  .payment-badge .payment-icon-container {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .payment-badge .payment-icon-container > div {
+    width: 14px !important;
+    height: 14px !important;
   }
 }
 
