@@ -754,11 +754,9 @@ async def send_payment_request_email(
         ...     client_email="client@example.com"
         ... )
     """
-    # Import here to avoid circular dependency
-    from pazpaz.utils.encryption import decrypt_field
-
-    # Decrypt client name for personalization
-    client_name = decrypt_field(appointment.client.name, settings.encryption_key)
+    # Note: Client first_name and last_name are already decrypted by EncryptedString type
+    # No need to call decrypt_field() manually
+    client_name = appointment.client.full_name
 
     # Format appointment date and time
     appointment_date = appointment.scheduled_start.strftime("%d/%m/%Y")
