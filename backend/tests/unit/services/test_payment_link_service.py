@@ -240,7 +240,9 @@ class TestGenerateCustomLink:
     def test_custom_link_all_placeholders(self):
         """Test custom link with all placeholders."""
         # Arrange
-        template = "https://pay.example.com/{appointment_id}/{client_name}?amount={amount}"
+        template = (
+            "https://pay.example.com/{appointment_id}/{client_name}?amount={amount}"
+        )
         amount = Decimal("250.00")
         appointment_id = uuid.uuid4()
 

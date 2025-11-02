@@ -152,7 +152,8 @@ class WorkspaceResponse(BaseModel):
         None, description="Bank account details for manual payment tracking"
     )
     payment_provider: str | None = Field(
-        None, description="Payment provider name (manual, or future automated providers), or null"
+        None,
+        description="Payment provider name (manual, or future automated providers), or null",
     )
     payment_auto_send: bool = Field(
         ..., description="Automatically send payment requests (future feature)"
