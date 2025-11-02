@@ -426,9 +426,9 @@ const paymentStatusBadge = computed(() => {
 })
 
 /**
- * Client email for success message
+ * Client name for success message
  */
-const clientEmail = computed(() => props.appointment?.client?.email || 'client')
+const clientName = computed(() => props.appointment?.client?.full_name || 'client')
 
 /**
  * Can send payment request
@@ -523,7 +523,7 @@ async function sendPaymentRequest() {
     paymentRequestSent.value = true
 
     // Show success toast
-    showSuccess(response.message || `Payment request sent to ${clientEmail.value}`)
+    showSuccess(response.data.message || `Payment request sent to ${clientName.value}`)
 
     // Refresh appointment data
     emit('refresh')
@@ -551,7 +551,7 @@ async function copyPaymentLink() {
       display_text: string
     }>(`/api/v1/appointments/${props.appointment.id}/payment-link`)
 
-    await navigator.clipboard.writeText(response.payment_link)
+    await navigator.clipboard.writeText(response.data.payment_link)
     showSuccess('Payment link copied to clipboard')
   } catch (error) {
     showError('Failed to copy payment link')
@@ -1363,7 +1363,7 @@ watch(
                     v-if="paymentRequestSent && editableData.payment_status === 'payment_sent'"
                     class="success-message"
                   >
-                    ✅ Payment request sent to {{ clientEmail }}
+                    ✅ Payment request sent to {{ clientName }}
                   </div>
 
                   <!-- Info message (no price set) -->

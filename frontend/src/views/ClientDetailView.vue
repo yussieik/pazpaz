@@ -375,6 +375,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
       location_type: data.location_type,
       location_details: data.location_details || null,
       notes: data.notes || null,
+      payment_status: 'not_paid',
     })
 
     // Close modal
