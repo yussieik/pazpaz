@@ -18,7 +18,6 @@ from pazpaz.api.deps import (
     get_or_404,
     verify_client_in_workspace,
 )
-from pazpaz.core.config import settings
 from pazpaz.core.logging import get_logger
 from pazpaz.models.appointment import Appointment, AppointmentStatus
 from pazpaz.models.audit_event import AuditAction, ResourceType
@@ -1523,7 +1522,7 @@ async def send_payment_request(
             "payment_request_email_sent_successfully",
             appointment_id=str(appointment_id),
             workspace_id=str(workspace_id),
-            client_email_hash=hash(client_email_decrypted),
+            client_email_hash=hash(client_email),
             payment_amount=str(appointment.payment_price),
             payment_link_type=appointment.workspace.payment_link_type,
         )
