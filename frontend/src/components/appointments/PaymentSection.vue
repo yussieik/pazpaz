@@ -175,13 +175,13 @@ const localStatus = computed({
           <Tab
             v-for="section in sections"
             :key="section.id"
-            v-slot="slotProps"
+            v-slot="{ selected }"
             as="template"
           >
             <button
               class="flex-1 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
               :class="
-                (slotProps as any).selected
+                selected
                   ? 'border-emerald-600 text-emerald-700'
                   : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900'
               "
