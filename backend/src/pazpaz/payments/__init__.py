@@ -116,6 +116,7 @@ Phase 1 Implementation:
 
 # Import providers to trigger registration
 # This ensures provider classes register themselves with the factory
+# Note: PayPlus removed in Phase 1, will add Bit/PayBox in Phase 2+
 from pazpaz.payments import providers  # noqa: F401
 from pazpaz.payments.base import (
     PaymentLinkRequest,

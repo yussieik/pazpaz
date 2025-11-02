@@ -51,12 +51,14 @@ class PaymentMethod(str, Enum):
         CASH: Cash payment
         CARD: Credit/debit card payment (in-person or via terminal)
         BANK_TRANSFER: Direct bank transfer or wire
-        PAYMENT_LINK: Online payment via PayPlus/Stripe/etc. link
+        BIT: Payment via Bit app (Israeli mobile payment)
+        PAYBOX: Payment via PayBox (Israeli payment service)
         OTHER: Other payment method (specify in notes)
     """
 
     CASH = "cash"
     CARD = "card"
     BANK_TRANSFER = "bank_transfer"
-    PAYMENT_LINK = "payment_link"
+    BIT = "bit"
+    PAYBOX = "paybox"
     OTHER = "other"

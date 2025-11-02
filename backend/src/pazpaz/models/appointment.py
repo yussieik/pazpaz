@@ -27,7 +27,6 @@ from pazpaz.models.enums import PaymentStatus
 if TYPE_CHECKING:
     from pazpaz.models.client import Client
     from pazpaz.models.location import Location
-    from pazpaz.models.payment_transaction import PaymentTransaction
     from pazpaz.models.service import Service
     from pazpaz.models.session import Session
     from pazpaz.models.workspace import Workspace
@@ -201,11 +200,6 @@ class Appointment(Base):
         "Session",
         back_populates="appointment",
         uselist=False,
-    )
-    payment_transactions: Mapped[list[PaymentTransaction]] = relationship(
-        "PaymentTransaction",
-        back_populates="appointment",
-        cascade="all, delete-orphan",
     )
 
     # Indexes and constraints for performance-critical queries and data integrity

@@ -27,6 +27,6 @@ Example:
 
 # Import providers to trigger registration
 # When new providers are added, import them here
-from pazpaz.payments.providers import payplus  # noqa: F401
+# PayPlus removed in Phase 1 - will add Bit/PayBox in Phase 2+
 
-__all__ = ["payplus"]
+__all__ = []

@@ -29,7 +29,6 @@ if TYPE_CHECKING:
     from pazpaz.models.audit_event import AuditEvent
     from pazpaz.models.client import Client
     from pazpaz.models.location import Location
-    from pazpaz.models.payment_transaction import PaymentTransaction
     from pazpaz.models.service import Service
     from pazpaz.models.session import Session
     from pazpaz.models.user import User
@@ -162,11 +161,19 @@ class Workspace(Base):
         comment="Auto-incrementing counter for receipt numbers",
     )
 
-    # Payment provider configuration (feature flag)
+    # Payment tracking configuration
+    # Manual tracking (always available) - therapist manually marks payments
+    bank_account_details: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Bank account details for manual payment tracking (account number, bank name, branch, etc.)",
+    )
+
+    # Automated payment provider integration (optional future feature)
     payment_provider: Mapped[str | None] = mapped_column(
         String(50),
         nullable=True,
-        comment="Payment provider: payplus, meshulam, stripe, null (disabled)",
+        comment="Automated payment provider: bit, paybox, payplus, null (manual only)",
     )
     payment_provider_config: Mapped[dict | None] = mapped_column(
         JSONB,
@@ -178,13 +185,13 @@ class Workspace(Base):
         nullable=False,
         default=False,
         server_default="false",
-        comment="Automatically send payment requests",
+        comment="Automatically send payment requests when provider is configured",
     )
     payment_send_timing: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
-        default="immediately",
-        server_default="immediately",
+        default="manual",
+        server_default="manual",
         comment="When to send payment requests: immediately, end_of_day, end_of_month, manual",
     )
 
@@ -238,11 +245,6 @@ class Workspace(Base):
     )
     notification_settings: Mapped[list[UserNotificationSettings]] = relationship(
         "UserNotificationSettings",
-        back_populates="workspace",
-        cascade="all, delete-orphan",
-    )
-    payment_transactions: Mapped[list[PaymentTransaction]] = relationship(
-        "PaymentTransaction",
         back_populates="workspace",
         cascade="all, delete-orphan",
     )
@@ -309,20 +311,47 @@ class Workspace(Base):
     @property
     def payments_enabled(self) -> bool:
         """
-        Check if payment processing is enabled for this workspace.
+        Check if payment tracking is enabled for this workspace.
+
+        Payment tracking is enabled if EITHER manual tracking is configured
+        (bank_account_details) OR automated provider is configured (payment_provider).
+        This supports a dual-mode payment system where therapists can use:
+        - Manual tracking only (bank transfers, cash, etc.)
+        - Automated provider only (Bit, PayBox, PayPlus)
+        - Both manual and automated simultaneously
 
         Returns:
-            True if payment_provider is configured, False otherwise
+            True if any payment method is configured, False otherwise
 
-        Example:
-            >>> workspace.payment_provider = "payplus"
+        Examples:
+            >>> # Manual tracking only
+            >>> workspace.bank_account_details = "Bank Leumi, Account: 12345"
+            >>> workspace.payment_provider = None
             >>> workspace.payments_enabled
             True
+
+            >>> # Automated provider only
+            >>> workspace.bank_account_details = None
+            >>> workspace.payment_provider = "bit"
+            >>> workspace.payments_enabled
+            True
+
+            >>> # Both configured (dual-mode)
+            >>> workspace.bank_account_details = "Bank Leumi, Account: 12345"
+            >>> workspace.payment_provider = "bit"
+            >>> workspace.payments_enabled
+            True
+
+            >>> # Neither configured
+            >>> workspace.bank_account_details = None
             >>> workspace.payment_provider = None
             >>> workspace.payments_enabled
             False
         """
-        return self.payment_provider is not None
+        return (
+            self.bank_account_details is not None
+            or self.payment_provider is not None
+        )
 
     def __repr__(self) -> str:
         return f"<Workspace(id={self.id}, name={self.name})>"
