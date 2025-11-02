@@ -1507,19 +1507,17 @@ async def send_payment_request(
 
     # Send payment request email to client
     from pazpaz.services.email_service import send_payment_request_email
-    from pazpaz.utils.encryption import decrypt_field
 
-    # Decrypt client email for sending
-    client_email_decrypted = decrypt_field(
-        appointment.client.email, settings.encryption_key
-    )
+    # Note: appointment.client.email is already decrypted by EncryptedString type
+    # No need to call decrypt_field() manually
+    client_email = appointment.client.email
 
     try:
         await send_payment_request_email(
             appointment=appointment,
             workspace=appointment.workspace,
             payment_link=payment_link,
-            client_email=client_email_decrypted,
+            client_email=client_email,
         )
         logger.info(
             "payment_request_email_sent_successfully",

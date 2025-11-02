@@ -701,3 +701,4 @@ Use when:
 - Making architectural decisions
 - Debugging issues
 - Working with unfamiliar codebase areas
+- to create an admin user - use the script `scripts/create_platform_admin.py`
