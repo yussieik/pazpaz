@@ -32,8 +32,6 @@
     "@vueuse/integrations": "^13.9.0",
     "axios": "^1.12.2",
     "date-fns": "^4.1.0",
-    "embla-carousel": "^8.6.0",
-    "embla-carousel-vue": "^8.6.0",
     "focus-trap": "^7.6.5",
     "idb": "^8.0.3",
     "pinia": "^3.0.3",

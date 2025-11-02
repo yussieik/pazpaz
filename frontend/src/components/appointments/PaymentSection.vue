@@ -1,13 +1,12 @@
 <script setup lang="ts">
 /**
- * PaymentSection - Responsive Tabs/Swiper Payment UI
+ * PaymentSection - Responsive Payment UI
  *
  * November 2025 Best Practices:
  * - Desktop (≥640px): Horizontal tabs with labeled navigation (Headless UI)
- * - Mobile (<640px): Swiper/carousel with swipe gestures (Embla Carousel)
- * - Preserves active section across responsive breakpoints
+ * - Mobile (<640px): Stacked sections, no carousel complexity
  * - Accessible: ARIA labels, keyboard navigation, touch targets
- * - Performance: Lazy-loaded Embla only on mobile, v-show for tab panels
+ * - Performance: v-show for tab panels
  *
  * Usage:
  *   <PaymentSection
@@ -22,9 +21,8 @@
  * Phase 2+: Easy to expand by adding to sections array
  */
 
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
-import emblaCarouselVue from 'embla-carousel-vue'
 import PaymentDetailsForm from './PaymentDetailsForm.vue'
 import PaymentActions from './PaymentActions.vue'
 
@@ -56,15 +54,12 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
-// Responsive detection using window.matchMedia (preferred over @vueuse/core for this use case)
+// Responsive detection using window.matchMedia
 const isMobile = ref(false)
 const mediaQuery = ref<MediaQueryList | null>(null)
 
-// Active section index (synced across tabs and swiper)
+// Active section index (for desktop tabs only)
 const activeIndex = ref(0)
-
-// Embla carousel instance
-const [emblaRef, emblaApi] = emblaCarouselVue({ loop: false, align: 'start' })
 
 /**
  * Payment sections configuration
@@ -100,13 +95,6 @@ onMounted(() => {
 
   // Listen for breakpoint changes
   mediaQuery.value.addEventListener('change', updateMediaQuery)
-
-  // Sync embla carousel with active index on mobile
-  if (emblaApi.value) {
-    emblaApi.value.on('select', () => {
-      activeIndex.value = emblaApi.value?.selectedScrollSnap() || 0
-    })
-  }
 })
 
 /**
@@ -119,34 +107,10 @@ onBeforeUnmount(() => {
 })
 
 /**
- * Handle tab change from Headless UI
+ * Handle tab change from Headless UI (desktop only)
  */
 function handleTabChange(index: number) {
   activeIndex.value = index
-
-  // If transitioning to mobile, scroll embla to match
-  if (isMobile.value && emblaApi.value) {
-    emblaApi.value.scrollTo(index)
-  }
-}
-
-/**
- * Watch active index changes to sync embla on mobile
- */
-watch(activeIndex, (newIndex) => {
-  if (isMobile.value && emblaApi.value) {
-    emblaApi.value.scrollTo(newIndex)
-  }
-})
-
-/**
- * Handle progress dot clicks (mobile only)
- */
-function handleDotClick(index: number) {
-  activeIndex.value = index
-  if (emblaApi.value) {
-    emblaApi.value.scrollTo(index)
-  }
 }
 
 /**
@@ -229,91 +193,30 @@ const localStatus = computed({
       </TabGroup>
     </div>
 
-    <!-- MOBILE: Swiper (<640px) -->
-    <div v-else class="block sm:hidden">
-      <!-- Embla Carousel -->
-      <div ref="emblaRef" class="overflow-hidden">
-        <div class="flex touch-pan-y">
-          <!-- Slide 1: Payment Details -->
-          <div
-            class="min-w-0 flex-[0_0_100%] pr-4"
-            role="region"
-            aria-roledescription="slide"
-            :aria-label="sections[0]?.ariaLabel"
-          >
-            <PaymentDetailsForm
-              v-model:price="localPrice"
-              v-model:status="localStatus"
-              :readonly="readonly"
-              @update:price="$emit('update:price', $event)"
-              @update:status="$emit('update:status', $event)"
-            />
-          </div>
+    <!-- MOBILE: Stacked sections (<640px) -->
+    <div v-else class="block space-y-6 sm:hidden">
+      <!-- Payment Details -->
+      <PaymentDetailsForm
+        v-model:price="localPrice"
+        v-model:status="localStatus"
+        :readonly="readonly"
+        @update:price="$emit('update:price', $event)"
+        @update:status="$emit('update:status', $event)"
+      />
 
-          <!-- Slide 2: Payment Actions -->
-          <div
-            class="min-w-0 flex-[0_0_100%] pr-4"
-            role="region"
-            aria-roledescription="slide"
-            :aria-label="sections[1]?.ariaLabel"
-          >
-            <PaymentActions
-              :price="price"
-              :status="status"
-              :readonly="readonly"
-              :sending="sending"
-              :sent="sent"
-              :copying="copying"
-              :copied="copied"
-              @send-payment-request="$emit('send-payment-request')"
-              @copy-payment-link="$emit('copy-payment-link')"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Progress Dots (mobile only) -->
-      <div class="mt-4 flex justify-center gap-2" role="tablist" aria-label="Payment sections">
-        <button
-          v-for="(section, index) in sections"
-          :key="section.id"
-          @click="handleDotClick(index)"
-          :aria-label="`Go to ${section.label}`"
-          :aria-selected="activeIndex === index"
-          role="tab"
-          class="h-2 w-2 rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-          :class="
-            activeIndex === index
-              ? 'w-6 bg-emerald-600'
-              : 'bg-slate-300 hover:bg-slate-400 active:bg-slate-500'
-          "
-        ></button>
-      </div>
-
-      <!-- Section Labels (mobile only - below dots) -->
-      <div class="mt-2 text-center text-xs text-slate-600">
-        {{ sections[activeIndex]?.label }}
-      </div>
+      <!-- Payment Actions -->
+      <PaymentActions
+        :price="price"
+        :status="status"
+        :readonly="readonly"
+        :sending="sending"
+        :sent="sent"
+        :copying="copying"
+        :copied="copied"
+        @send-payment-request="$emit('send-payment-request')"
+        @copy-payment-link="$emit('copy-payment-link')"
+      />
     </div>
   </div>
 </template>
 
-<style scoped>
-/**
- * Smooth touch scrolling for mobile swiper
- * Support for reduced motion preferences
- */
-@media (prefers-reduced-motion: no-preference) {
-  .touch-pan-y {
-    scroll-behavior: smooth;
-  }
-}
-
-/**
- * Ensure proper touch targets (44px minimum)
- */
-button {
-  min-width: 44px;
-  min-height: 44px;
-}
-</style>
