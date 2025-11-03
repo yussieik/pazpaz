@@ -173,6 +173,16 @@
         "monthShort": "M",
         "switchToMonth": "Switch to Month view"
       }
+    },
+    "cancelDialog": {
+      "title": "Cancel Appointment?",
+      "description": "This will mark the appointment as cancelled but keep it in your records.",
+      "unknownClient": "Unknown Client",
+      "reasonLabel": "Reason (optional)",
+      "reasonPlaceholder": "e.g., Client requested cancellation, therapist illness...",
+      "reasonHelp": "This note will be added to the appointment record.",
+      "keepButton": "Keep Appointment",
+      "confirmButton": "Cancel Appointment"
     }
   }
 }

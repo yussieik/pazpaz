@@ -173,6 +173,16 @@
         "monthShort": "ח",
         "switchToMonth": "מעבר לתצוגת חודש"
       }
+    },
+    "cancelDialog": {
+      "title": "לבטל פגישה?",
+      "description": "הפעולה תסמן את הפגישה כמבוטלת אך תשמור אותה ברשומות שלך.",
+      "unknownClient": "לקוח לא ידוע",
+      "reasonLabel": "סיבה (אופציונלי)",
+      "reasonPlaceholder": "לדוגמה: הלקוח ביקש ביטול, מחלת המטפל...",
+      "reasonHelp": "הערה זו תתווסף לרשומת הפגישה.",
+      "keepButton": "שמור פגישה",
+      "confirmButton": "בטל פגישה"
     }
   }
 }
