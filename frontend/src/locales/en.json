@@ -327,5 +327,20 @@
         "restored": "Appointment restored"
       }
     }
+  },
+  "clients": {
+    "quickAddForm": {
+      "title": "Add New Client",
+      "firstNameLabel": "First Name",
+      "firstNamePlaceholder": "First Name *",
+      "firstNameRequired": "First name is required",
+      "lastNameLabel": "Last Name",
+      "lastNamePlaceholder": "Last Name *",
+      "lastNameRequired": "Last name is required",
+      "phoneLabel": "Phone (optional)",
+      "phonePlaceholder": "Phone (for reminders, optional)",
+      "addButton": "Add Client",
+      "keyboardHint": "Press Enter to add, Escape to cancel"
+    }
   }
 }

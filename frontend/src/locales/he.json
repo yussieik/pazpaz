@@ -327,5 +327,20 @@
         "restored": "הפגישה שוחזרה"
       }
     }
+  },
+  "clients": {
+    "quickAddForm": {
+      "title": "הוסף מטופל חדש",
+      "firstNameLabel": "שם פרטי",
+      "firstNamePlaceholder": "שם פרטי *",
+      "firstNameRequired": "שם פרטי הוא שדה חובה",
+      "lastNameLabel": "שם משפחה",
+      "lastNamePlaceholder": "שם משפחה *",
+      "lastNameRequired": "שם משפחה הוא שדה חובה",
+      "phoneLabel": "טלפון (אופציונלי)",
+      "phonePlaceholder": "טלפון (לתזכורות, אופציונלי)",
+      "addButton": "הוסף מטופל",
+      "keyboardHint": "לחץ Enter להוספה, Escape לביטול"
+    }
   }
 }

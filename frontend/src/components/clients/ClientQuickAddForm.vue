@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import type { ClientCreate } from '@/types/client'
+
+const { t } = useI18n()
 
 interface Emits {
   (e: 'submit', data: ClientCreate): void
@@ -40,11 +43,11 @@ function validate(): boolean {
   errors.value = {}
 
   if (!formData.value.first_name.trim()) {
-    errors.value.first_name = 'First name is required'
+    errors.value.first_name = t('clients.quickAddForm.firstNameRequired')
   }
 
   if (!formData.value.last_name.trim()) {
-    errors.value.last_name = 'Last name is required'
+    errors.value.last_name = t('clients.quickAddForm.lastNameRequired')
   }
 
   return Object.keys(errors.value).length === 0
@@ -114,20 +117,20 @@ function handleKeydown(e: KeyboardEvent) {
           d="M12 4v16m8-8H4"
         />
       </svg>
-      <h3 class="text-sm font-semibold text-slate-900">Add New Client</h3>
+      <h3 class="text-sm font-semibold text-slate-900">{{ t('clients.quickAddForm.title') }}</h3>
     </div>
 
     <form @submit.prevent="handleSubmit" class="space-y-3">
       <!-- First Name -->
       <div>
-        <label for="quick-add-first-name" class="sr-only">First Name</label>
+        <label for="quick-add-first-name" class="sr-only">{{ t('clients.quickAddForm.firstNameLabel') }}</label>
         <input
           id="quick-add-first-name"
           ref="firstNameInput"
           v-model="formData.first_name"
           v-rtl
           type="text"
-          placeholder="First Name *"
+          :placeholder="t('clients.quickAddForm.firstNamePlaceholder')"
           autocomplete="given-name"
           @keydown="handleKeydown"
           :class="[
@@ -145,13 +148,13 @@ function handleKeydown(e: KeyboardEvent) {
 
       <!-- Last Name -->
       <div>
-        <label for="quick-add-last-name" class="sr-only">Last Name</label>
+        <label for="quick-add-last-name" class="sr-only">{{ t('clients.quickAddForm.lastNameLabel') }}</label>
         <input
           id="quick-add-last-name"
           v-model="formData.last_name"
           v-rtl
           type="text"
-          placeholder="Last Name *"
+          :placeholder="t('clients.quickAddForm.lastNamePlaceholder')"
           autocomplete="family-name"
           @keydown="handleKeydown"
           :class="[
@@ -169,12 +172,12 @@ function handleKeydown(e: KeyboardEvent) {
 
       <!-- Phone (Optional) -->
       <div>
-        <label for="quick-add-phone" class="sr-only">Phone (optional)</label>
+        <label for="quick-add-phone" class="sr-only">{{ t('clients.quickAddForm.phoneLabel') }}</label>
         <input
           id="quick-add-phone"
           v-model="formData.phone"
           type="tel"
-          placeholder="Phone (for reminders, optional)"
+          :placeholder="t('clients.quickAddForm.phonePlaceholder')"
           autocomplete="tel"
           @keydown="handleKeydown"
           class="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm placeholder-slate-400 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
@@ -187,18 +190,18 @@ function handleKeydown(e: KeyboardEvent) {
           type="submit"
           class="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
         >
-          Add Client
+          {{ t('clients.quickAddForm.addButton') }}
         </button>
         <button
           type="button"
           @click="handleCancel"
           class="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
         >
-          Cancel
+          {{ t('common.actions.cancel') }}
         </button>
       </div>
     </form>
 
-    <p class="mt-2 text-xs text-slate-500">Press Enter to add, Escape to cancel</p>
+    <p class="mt-2 text-xs text-slate-500">{{ t('clients.quickAddForm.keyboardHint') }}</p>
   </div>
 </template>
