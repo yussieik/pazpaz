@@ -139,6 +139,20 @@
         "extendingLink": "מאריך...",
         "dismissLabel": "סגור אזהרה"
       }
+    },
+    "logout": {
+      "modal": {
+        "titleUnsaved": "יש לך עבודה לא שמורה",
+        "titleConfirm": "אישור התנתקות",
+        "messageUnsaved": "יש לך עבודה לא שמורה שתאבד אם תתנתק:",
+        "messageConfirm": "האם אתה בטוח שברצונך להתנתק?",
+        "noticeUnsaved": "הטיוטות שלך נשמרות מקומית ויימחקו לצמיתות כאשר תתנתק.",
+        "noticeRegular": "תצטרך להתחבר שוב כדי לגשת לסביבת העבודה שלך.",
+        "cancelButton": "בטל",
+        "logoutButton": "התנתק בכל זאת",
+        "loggingOutButton": "מתנתק...",
+        "hipaaNotice": "לציות ל-HIPAA, כל הנתונים המקומיים נמחקים בהתנתקות."
+      }
     }
   }
 }

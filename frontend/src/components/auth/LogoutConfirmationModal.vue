@@ -46,9 +46,9 @@
             <!-- Description with Unsaved Changes List -->
             <div id="logout-modal-description" class="mb-6 text-slate-700">
               <p v-if="hasUnsavedChanges" class="mb-3">
-                You have unsaved work that will be lost if you logout:
+                {{ t('auth.logout.modal.messageUnsaved') }}
               </p>
-              <p v-else class="mb-3">Are you sure you want to logout?</p>
+              <p v-else class="mb-3">{{ t('auth.logout.modal.messageConfirm') }}</p>
 
               <!-- Unsaved Changes List -->
               <ul
@@ -66,11 +66,10 @@
               </ul>
 
               <p v-if="hasUnsavedChanges" class="text-sm text-slate-600">
-                Your drafts are saved locally and will be permanently deleted when you
-                logout.
+                {{ t('auth.logout.modal.noticeUnsaved') }}
               </p>
               <p v-else class="text-sm text-slate-600">
-                You will need to sign in again to access your workspace.
+                {{ t('auth.logout.modal.noticeRegular') }}
               </p>
             </div>
 
@@ -87,7 +86,7 @@
                 ]"
                 type="button"
               >
-                Cancel
+                {{ t('auth.logout.modal.cancelButton') }}
               </button>
               <button
                 @click="handleLogout"
@@ -102,13 +101,17 @@
                 type="button"
                 :disabled="isLoggingOut"
               >
-                {{ isLoggingOut ? 'Logging out...' : 'Logout Anyway' }}
+                {{
+                  isLoggingOut
+                    ? t('auth.logout.modal.loggingOutButton')
+                    : t('auth.logout.modal.logoutButton')
+                }}
               </button>
             </div>
 
             <!-- HIPAA Compliance Notice (only if unsaved changes) -->
             <p v-if="hasUnsavedChanges" class="mt-4 text-center text-xs text-slate-500">
-              For HIPAA compliance, all local data is cleared on logout.
+              {{ t('auth.logout.modal.hipaaNotice') }}
             </p>
           </div>
         </Transition>
@@ -119,6 +122,9 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 /**
  * Logout Confirmation Modal
@@ -173,9 +179,9 @@ const cancelButtonRef = ref<HTMLElement | null>(null)
  */
 const title = computed(() => {
   if (props.hasUnsavedChanges) {
-    return 'You Have Unsaved Work'
+    return t('auth.logout.modal.titleUnsaved')
   }
-  return 'Confirm Logout'
+  return t('auth.logout.modal.titleConfirm')
 })
 
 /**

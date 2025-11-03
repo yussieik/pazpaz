@@ -139,6 +139,20 @@
         "extendingLink": "Extending...",
         "dismissLabel": "Dismiss warning"
       }
+    },
+    "logout": {
+      "modal": {
+        "titleUnsaved": "You Have Unsaved Work",
+        "titleConfirm": "Confirm Logout",
+        "messageUnsaved": "You have unsaved work that will be lost if you logout:",
+        "messageConfirm": "Are you sure you want to logout?",
+        "noticeUnsaved": "Your drafts are saved locally and will be permanently deleted when you logout.",
+        "noticeRegular": "You will need to sign in again to access your workspace.",
+        "cancelButton": "Cancel",
+        "logoutButton": "Logout Anyway",
+        "loggingOutButton": "Logging out...",
+        "hipaaNotice": "For HIPAA compliance, all local data is cleared on logout."
+      }
     }
   }
 }
