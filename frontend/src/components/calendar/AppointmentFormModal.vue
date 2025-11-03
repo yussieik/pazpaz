@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
+import { useI18n } from '@/composables/useI18n'
 import type {
   AppointmentListItem,
   AppointmentFormData,
@@ -20,6 +21,8 @@ import {
 } from '@/utils/calendar/dateFormatters'
 import { useClientsStore } from '@/stores/clients'
 import { useDeviceType } from '@/composables/useDeviceType'
+
+const { t } = useI18n()
 
 interface Props {
   visible: boolean
@@ -450,11 +453,11 @@ const hasConflicts = computed(() => conflicts.value.length > 0)
 const firstConflict = computed(() => conflicts.value[0] || null)
 
 const modalTitle = computed(() =>
-  props.mode === 'create' ? 'New Appointment' : 'Edit Appointment'
+  props.mode === 'create' ? t('calendar.appointmentForm.createTitle') : t('calendar.appointmentForm.editTitle')
 )
 
 const submitButtonText = computed(() =>
-  props.mode === 'create' ? 'Create' : 'Save Changes'
+  props.mode === 'create' ? t('calendar.appointmentForm.createButton') : t('calendar.appointmentForm.updateButton')
 )
 
 const isPastAppointment = computed(() => {
@@ -599,7 +602,7 @@ watch(
             <button
               @click="closeModal"
               class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 sm:min-h-0 sm:min-w-0 sm:p-2"
-              aria-label="Close dialog"
+              :aria-label="t('calendar.appointmentForm.closeDialog')"
             >
               <IconClose class="h-6 w-6 sm:h-5 sm:w-5" />
             </button>
@@ -635,7 +638,7 @@ watch(
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 ></path>
               </svg>
-              <span>Checking availability...</span>
+              <span>{{ t('calendar.appointmentForm.checkingAvailability') }}</span>
             </div>
 
             <!-- Conflict Warning (amber styling, non-blocking) -->
@@ -649,15 +652,15 @@ watch(
                 <IconWarning size="md" class="flex-shrink-0 text-amber-600" />
                 <div class="flex-1">
                   <p class="text-sm font-semibold text-amber-900">
-                    Time slot overlap detected
+                    {{ t('calendar.appointmentForm.conflictDetected') }}
                   </p>
                   <p class="mt-1 text-sm text-amber-700">
                     {{
                       conflicts.length === 1
-                        ? '1 existing appointment'
-                        : `${conflicts.length} existing appointments`
+                        ? t('calendar.appointmentForm.conflictSingular')
+                        : t('calendar.appointmentForm.conflictPlural', { count: conflicts.length })
                     }}
-                    conflict with this time slot.
+                    {{ t('calendar.appointmentForm.conflictWith') }}
                   </p>
                   <!-- Show first conflict details inline for quick reference -->
                   <div v-if="firstConflict" class="mt-2 text-xs text-amber-700">
@@ -668,7 +671,7 @@ watch(
                       )
                     }}</span>
                     <span class="mx-1">&bull;</span>
-                    <span>Client: {{ firstConflict.client_initials }}</span>
+                    <span>{{ t('calendar.appointmentForm.conflictClient') }} {{ firstConflict.client_initials }}</span>
                     <span class="mx-1">&bull;</span>
                     <span>{{ getLocationLabel(firstConflict.location_type) }}</span>
                   </div>
@@ -705,7 +708,7 @@ watch(
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <span>Time slot available</span>
+                <span>{{ t('calendar.appointmentForm.timeSlotAvailable') }}</span>
               </div>
             </Transition>
           </div>
@@ -731,8 +734,7 @@ watch(
                 <div class="flex gap-2">
                   <IconWarning size="md" class="flex-shrink-0 text-amber-600" />
                   <p class="text-sm text-amber-800">
-                    This appointment is in the past. You can still create it if you're
-                    logging a past session.
+                    {{ t('calendar.appointmentForm.pastAppointmentWarning') }}
                   </p>
                 </div>
               </div>
@@ -744,7 +746,7 @@ watch(
               v-model="formData.client_id"
               :disabled="isClientLocked"
               :error="errors.client_id"
-              :help-text="isClientLocked ? 'Client is pre-selected' : undefined"
+              :help-text="isClientLocked ? t('calendar.appointmentForm.clientPreSelected') : undefined"
             />
 
             <!-- Date -->
@@ -753,14 +755,14 @@ watch(
                 for="appointment-date"
                 class="mb-1.5 block text-sm font-medium text-slate-900"
               >
-                Date <span class="ml-0.5 text-red-500">*</span>
+                {{ t('calendar.appointmentForm.dateLabel') }} <span class="ml-0.5 text-red-500">*</span>
               </label>
               <input
                 id="appointment-date"
                 ref="dateInputRef"
                 v-model="appointmentDate"
                 type="date"
-                aria-label="Appointment date"
+                :aria-label="t('calendar.appointmentForm.dateAriaLabel')"
                 class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               />
             </div>
@@ -770,7 +772,7 @@ watch(
               <!-- Start Time -->
               <TimePickerDropdown
                 v-model="formData.scheduled_start"
-                label="Start Time *"
+                :label="t('calendar.appointmentForm.startTimeLabel')"
                 :error="errors.scheduled_start"
                 min-time="06:00"
                 max-time="22:00"
@@ -780,7 +782,7 @@ watch(
               <!-- End Time -->
               <TimePickerDropdown
                 v-model="formData.scheduled_end"
-                label="End Time *"
+                :label="t('calendar.appointmentForm.endTimeLabel')"
                 :error="errors.scheduled_end"
                 min-time="06:00"
                 max-time="22:00"
@@ -792,13 +794,13 @@ watch(
             <div v-if="formData.scheduled_start" class="space-y-3">
               <!-- Duration Display -->
               <div class="text-sm text-slate-600">
-                Duration: {{ calculatedDuration }} min
+                {{ t('calendar.appointmentForm.durationLabel', { duration: calculatedDuration }) }}
               </div>
 
               <!-- Quick Duration Pills -->
               <div>
                 <label class="mb-2 block text-sm font-medium text-slate-700">
-                  Quick Duration:
+                  {{ t('calendar.appointmentForm.quickDurationLabel') }}
                 </label>
                 <div class="flex flex-wrap gap-2">
                   <button
@@ -806,7 +808,7 @@ watch(
                     :key="duration"
                     type="button"
                     @click="setDuration(duration)"
-                    :aria-label="`Set duration to ${duration} minutes`"
+                    :aria-label="t('calendar.appointmentForm.setDurationAriaLabel', { duration })"
                     :aria-pressed="calculatedDuration === duration"
                     :class="[
                       'rounded-full px-3 py-1.5 text-sm transition-all',
@@ -827,7 +829,7 @@ watch(
                 for="location-type"
                 class="mb-1.5 block text-sm font-medium text-slate-900"
               >
-                Location Type <span class="ml-0.5 text-red-500">*</span>
+                {{ t('calendar.appointmentForm.locationTypeLabel') }} <span class="ml-0.5 text-red-500">*</span>
               </label>
               <select
                 id="location-type"
@@ -835,9 +837,9 @@ watch(
                 v-model="formData.location_type"
                 class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               >
-                <option value="clinic">Clinic</option>
-                <option value="home">Home Visit</option>
-                <option value="online">Online (Video/Phone)</option>
+                <option value="clinic">{{ t('calendar.appointmentForm.locationClinic') }}</option>
+                <option value="home">{{ t('calendar.appointmentForm.locationHome') }}</option>
+                <option value="online">{{ t('calendar.appointmentForm.locationOnline') }}</option>
               </select>
             </div>
 
@@ -847,14 +849,14 @@ watch(
                 for="location-details"
                 class="mb-1.5 block text-sm font-medium text-slate-900"
               >
-                Location Details
+                {{ t('calendar.appointmentForm.locationDetailsLabel') }}
               </label>
               <input
                 id="location-details"
                 v-model="formData.location_details"
                 v-rtl
                 type="text"
-                placeholder="e.g., Zoom link, room number, address"
+                :placeholder="t('calendar.appointmentForm.locationDetailsPlaceholder')"
                 class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               />
 
@@ -885,7 +887,7 @@ watch(
                       d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                  <span>Using address from client profile</span>
+                  <span>{{ t('calendar.appointmentForm.addressAutoFilled') }}</span>
                 </div>
               </Transition>
             </div>
@@ -896,14 +898,14 @@ watch(
                 for="notes"
                 class="mb-1.5 block text-sm font-medium text-slate-900"
               >
-                Notes
+                {{ t('calendar.appointmentForm.notesLabel') }}
               </label>
               <textarea
                 id="notes"
                 v-model="formData.notes"
                 v-rtl
                 rows="6"
-                placeholder="Optional notes about this appointment"
+                :placeholder="t('calendar.appointmentForm.notesPlaceholder')"
                 class="sm:rows-3 mt-1 block min-h-[120px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               ></textarea>
             </div>
@@ -927,7 +929,7 @@ watch(
                 type="button"
                 class="order-2 inline-flex min-h-[44px] w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:order-1 sm:w-auto"
               >
-                Cancel
+                {{ t('calendar.appointmentForm.cancelButton') }}
               </button>
               <button
                 @click="handleSubmit"
@@ -939,12 +941,12 @@ watch(
                     : 'bg-emerald-600 hover:bg-emerald-700',
                 ]"
               >
-                <span v-if="hasConflicts">⚠️ {{ submitButtonText }} Anyway</span>
+                <span v-if="hasConflicts">⚠️ {{ t(props.mode === 'create' ? 'calendar.appointmentForm.createAnywayButton' : 'calendar.appointmentForm.updateAnywayButton') }}</span>
                 <span v-else>{{ submitButtonText }}</span>
               </button>
             </div>
             <p class="mt-3 hidden text-center text-xs text-slate-500 sm:block">
-              or press
+              {{ t('calendar.appointmentForm.keyboardHint') }}
               <kbd
                 class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700"
                 >{{ modifierKey }}Enter</kbd

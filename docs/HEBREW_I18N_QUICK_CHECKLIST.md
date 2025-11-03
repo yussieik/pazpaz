@@ -59,7 +59,7 @@
 
 ### Calendar (~150 strings)
 - [ ] CalendarView
-- [ ] AppointmentFormModal
+- [x] AppointmentFormModal (~36 strings) ✅ Complete
 - [ ] AppointmentDetailsModal
 - [x] CalendarToolbar (~14 strings) ✅ Complete
 - [x] CancelAppointmentDialog (~8 strings) ✅ Complete
