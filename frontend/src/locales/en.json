@@ -154,5 +154,25 @@
         "hipaaNotice": "For HIPAA compliance, all local data is cleared on logout."
       }
     }
+  },
+  "calendar": {
+    "toolbar": {
+      "todayButton": "Today",
+      "previousPeriod": "Previous period",
+      "nextPeriod": "Next period",
+      "inThisPeriod": "in this period",
+      "viewSwitcher": "Calendar view switcher",
+      "views": {
+        "week": "Week",
+        "weekShort": "W",
+        "switchToWeek": "Switch to Week view",
+        "day": "Day",
+        "dayShort": "D",
+        "switchToDay": "Switch to Day view",
+        "month": "Month",
+        "monthShort": "M",
+        "switchToMonth": "Switch to Month view"
+      }
+    }
   }
 }

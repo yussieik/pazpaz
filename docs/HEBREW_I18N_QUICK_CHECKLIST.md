@@ -61,7 +61,7 @@
 - [ ] CalendarView
 - [ ] AppointmentFormModal
 - [ ] AppointmentDetailsModal
-- [ ] CalendarToolbar
+- [x] CalendarToolbar (~14 strings) ✅ Complete
 - [ ] CancelAppointmentDialog
 - [ ] DragConflictModal
 - [ ] MobileRescheduleModal

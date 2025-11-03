@@ -154,5 +154,25 @@
         "hipaaNotice": "לציות ל-HIPAA, כל הנתונים המקומיים נמחקים בהתנתקות."
       }
     }
+  },
+  "calendar": {
+    "toolbar": {
+      "todayButton": "היום",
+      "previousPeriod": "תקופה קודמת",
+      "nextPeriod": "תקופה הבאה",
+      "inThisPeriod": "בתקופה זו",
+      "viewSwitcher": "החלפת תצוגת יומן",
+      "views": {
+        "week": "שבוע",
+        "weekShort": "ש",
+        "switchToWeek": "מעבר לתצוגת שבוע",
+        "day": "יום",
+        "dayShort": "י",
+        "switchToDay": "מעבר לתצוגת יום",
+        "month": "חודש",
+        "monthShort": "ח",
+        "switchToMonth": "מעבר לתצוגת חודש"
+      }
+    }
   }
 }

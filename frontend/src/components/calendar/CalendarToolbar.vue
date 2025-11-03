@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import type { ViewType } from '@/types/calendar'
+
+const { t } = useI18n()
 
 interface Props {
   currentView: ViewType
@@ -62,7 +65,7 @@ defineExpose({
           @click="emit('today')"
           class="min-h-[44px] rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
-          Today
+          {{ t('calendar.toolbar.todayButton') }}
         </button>
 
         <!-- Navigation arrows - Hidden on mobile (≤640px), visible on desktop -->
@@ -71,7 +74,7 @@ defineExpose({
             ref="previousButtonRef"
             @click="emit('previous')"
             class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2.5 text-slate-600 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:min-h-0 sm:min-w-0 sm:p-2"
-            aria-label="Previous period"
+            :aria-label="t('calendar.toolbar.previousPeriod')"
           >
             <svg
               class="h-5 w-5 flex-shrink-0"
@@ -91,7 +94,7 @@ defineExpose({
             ref="nextButtonRef"
             @click="emit('next')"
             class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2.5 text-slate-600 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:min-h-0 sm:min-w-0 sm:p-2"
-            aria-label="Next period"
+            :aria-label="t('calendar.toolbar.nextPeriod')"
           >
             <svg
               class="h-5 w-5 flex-shrink-0"
@@ -120,7 +123,7 @@ defineExpose({
             v-if="appointmentSummary"
             class="text-sm font-medium text-slate-600"
             aria-live="polite"
-            :aria-label="`${appointmentSummary} in this period`"
+            :aria-label="`${appointmentSummary} ${t('calendar.toolbar.inThisPeriod')}`"
           >
             <span class="hidden text-slate-400 sm:inline" aria-hidden="true">·</span>
             {{ appointmentSummary }}
@@ -133,7 +136,7 @@ defineExpose({
         <div
           class="inline-flex items-center"
           role="group"
-          aria-label="Calendar view switcher"
+          :aria-label="t('calendar.toolbar.viewSwitcher')"
         >
           <!-- Week Button -->
           <button
@@ -148,10 +151,10 @@ defineExpose({
                 : 'border-slate-200 bg-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900',
             ]"
             :aria-pressed="currentView === 'timeGridWeek'"
-            aria-label="Switch to Week view"
+            :aria-label="t('calendar.toolbar.views.switchToWeek')"
           >
-            <span class="hidden sm:inline">Week</span>
-            <span class="sm:hidden">W</span>
+            <span class="hidden sm:inline">{{ t('calendar.toolbar.views.week') }}</span>
+            <span class="sm:hidden">{{ t('calendar.toolbar.views.weekShort') }}</span>
           </button>
 
           <!-- Day Button -->
@@ -167,10 +170,10 @@ defineExpose({
                 : 'border-slate-200 bg-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900',
             ]"
             :aria-pressed="currentView === 'timeGridDay'"
-            aria-label="Switch to Day view"
+            :aria-label="t('calendar.toolbar.views.switchToDay')"
           >
-            <span class="hidden sm:inline">Day</span>
-            <span class="sm:hidden">D</span>
+            <span class="hidden sm:inline">{{ t('calendar.toolbar.views.day') }}</span>
+            <span class="sm:hidden">{{ t('calendar.toolbar.views.dayShort') }}</span>
           </button>
 
           <!-- Month Button -->
@@ -186,10 +189,10 @@ defineExpose({
                 : 'border-slate-200 bg-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900',
             ]"
             :aria-pressed="currentView === 'dayGridMonth'"
-            aria-label="Switch to Month view"
+            :aria-label="t('calendar.toolbar.views.switchToMonth')"
           >
-            <span class="hidden sm:inline">Month</span>
-            <span class="sm:hidden">M</span>
+            <span class="hidden sm:inline">{{ t('calendar.toolbar.views.month') }}</span>
+            <span class="sm:hidden">{{ t('calendar.toolbar.views.monthShort') }}</span>
           </button>
         </div>
       </div>
