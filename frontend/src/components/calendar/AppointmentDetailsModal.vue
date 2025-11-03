@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 import { useFocusTrap } from '@vueuse/integrations/useFocusTrap'
 import { useScrollLock, onKeyStroke } from '@vueuse/core'
+import { useI18n } from '@/composables/useI18n'
 import type {
   AppointmentListItem,
   SessionStatus,
@@ -22,6 +23,8 @@ import { useToast } from '@/composables/useToast'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { usePayments } from '@/composables/usePayments'
 import apiClient from '@/api/client'
+
+const { t } = useI18n()
 import AppointmentStatusCard from './AppointmentStatusCard.vue'
 import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentModal.vue'
 import PaymentTrackingCard from '@/components/appointments/PaymentTrackingCard.vue'
@@ -820,7 +823,7 @@ watch(
                   :id="`appointment-details-modal-title-${appointment.id}`"
                   class="text-lg font-semibold text-slate-900 sm:text-xl"
                 >
-                  Appointment Details
+                  {{ t('calendar.appointmentDetails.title') }}
                 </h2>
 
                 <!-- Edit Success Badge -->
@@ -842,7 +845,7 @@ watch(
                         d="M5 13l4 4L19 7"
                       />
                     </svg>
-                    Changes saved
+                    {{ t('calendar.appointmentDetails.changesSaved') }}
                   </div>
                 </Transition>
               </div>
@@ -868,7 +871,7 @@ watch(
                     class="h-1.5 w-1.5 rounded-full bg-emerald-500"
                     aria-hidden="true"
                   ></span>
-                  In Progress
+                  {{ t('calendar.appointmentDetails.statusInProgress') }}
                 </span>
 
                 <!-- WARNING BADGE: Only for past scheduled appointments (not in progress) -->
@@ -882,7 +885,7 @@ watch(
                 >
                   <!-- Clock Icon -->
                   <IconClock size="sm" />
-                  Needs Completion
+                  {{ t('calendar.appointmentDetails.statusNeedsCompletion') }}
                 </span>
 
                 <!-- Edit Indicator (disabled - waiting for backend edit tracking) -->
@@ -900,7 +903,7 @@ watch(
                   <!-- Saving -->
                   <template v-if="isSaving">
                     <LoadingSpinner size="sm" color="slate" />
-                    <span class="text-slate-600">Saving...</span>
+                    <span class="text-slate-600">{{ t('calendar.appointmentDetails.saving') }}</span>
                   </template>
 
                   <!-- Saved -->
@@ -918,7 +921,7 @@ watch(
                         d="M5 13l4 4L19 7"
                       />
                     </svg>
-                    <span class="text-slate-500">Saved at {{ lastSavedText }}</span>
+                    <span class="text-slate-500">{{ t('calendar.appointmentDetails.savedAt', { time: lastSavedText }) }}</span>
                   </template>
 
                   <!-- Error -->
@@ -932,7 +935,7 @@ watch(
             <button
               @click="closeModal"
               class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 sm:min-h-0 sm:min-w-0 sm:p-2"
-              aria-label="Close dialog"
+              :aria-label="t('calendar.appointmentDetails.closeDialog')"
             >
               <IconClose class="h-6 w-6 sm:h-5 sm:w-5" />
             </button>
@@ -942,7 +945,7 @@ watch(
           <TabGroup>
             <TabList
               role="tablist"
-              aria-label="Appointment and payment information tabs"
+              :aria-label="t('calendar.appointmentDetails.tabsAriaLabel')"
               class="flex border-b border-slate-200 gap-1 px-5"
             >
               <!-- Appointment Tab -->
@@ -957,7 +960,7 @@ watch(
                       : 'border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300',
                   ]"
                 >
-                  Appointment
+                  {{ t('calendar.appointmentDetails.appointmentTab') }}
                 </button>
               </Tab>
 
@@ -973,7 +976,7 @@ watch(
                       : 'border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300',
                   ]"
                 >
-                  Payment
+                  {{ t('calendar.appointmentDetails.paymentTab') }}
                 </button>
               </Tab>
             </TabList>
@@ -983,18 +986,18 @@ watch(
               <TabPanel class="space-y-4 px-5 py-6 sm:px-6 focus:outline-none">
                 <!-- Time Card (Editable) -->
                 <div class="rounded-lg border border-slate-200 bg-white p-4">
-                  <div class="mb-3 text-sm font-medium text-slate-500">Time</div>
+                  <div class="mb-3 text-sm font-medium text-slate-500">{{ t('calendar.appointmentDetails.timeCardTitle') }}</div>
 
                   <!-- Date -->
                   <div class="mb-3">
                     <label for="edit-date" class="block text-xs text-slate-500">
-                      Date
+                      {{ t('calendar.appointmentDetails.dateLabel') }}
                     </label>
                     <input
                       id="edit-date"
                       v-model="appointmentDate"
                       type="date"
-                      aria-label="Appointment date"
+                      :aria-label="t('calendar.appointmentDetails.dateAriaLabel')"
                       class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                     />
                   </div>
@@ -1212,7 +1215,7 @@ watch(
 
                   <!-- No Session Note - Context-Aware Messaging -->
                   <div v-else-if="!sessionStatus?.hasSession">
-                    <!-- In Progress: Allow session note creation -->
+                    <!-- {{ t('calendar.appointmentDetails.statusInProgress') }}: Allow session note creation -->
                     <div v-if="isInProgressAppointment" class="space-y-3">
                       <div class="flex items-start gap-3">
                         <svg
