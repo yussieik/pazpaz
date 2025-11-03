@@ -24,6 +24,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useToast } from '@/composables/useToast'
 import apiClient from '@/api/client'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import IconBitLogo from '@/components/icons/IconBitLogo.vue'
 
 // State
 const selectedMethod = ref<'bit' | 'paybox' | 'bank' | 'custom' | null>(null)
@@ -421,7 +422,7 @@ onMounted(() => {
             }"
           >
             <div class="flex items-center gap-3">
-              <div class="text-4xl">💳</div>
+              <IconBitLogo class="h-12 w-12" />
               <h4 class="font-semibold text-slate-900">Bit (ביט)</h4>
             </div>
           </div>
