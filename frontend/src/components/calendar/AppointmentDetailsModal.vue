@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
+import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 import { useFocusTrap } from '@vueuse/integrations/useFocusTrap'
 import { useScrollLock, onKeyStroke } from '@vueuse/core'
 import type {
@@ -24,7 +25,7 @@ import apiClient from '@/api/client'
 import AppointmentStatusCard from './AppointmentStatusCard.vue'
 import DeleteAppointmentModal from '@/components/appointments/DeleteAppointmentModal.vue'
 import PaymentTrackingCard from '@/components/appointments/PaymentTrackingCard.vue'
-import PaymentSection from '@/components/appointments/PaymentSection.vue'
+import PaymentActions from '@/components/appointments/PaymentActions.vue'
 import TimePickerDropdown from '@/components/common/TimePickerDropdown.vue'
 import DirectionsButton from '@/components/common/DirectionsButton.vue'
 import IconClose from '@/components/icons/IconClose.vue'
@@ -937,386 +938,428 @@ watch(
             </button>
           </div>
 
-          <!-- Body with Editable Fields -->
-          <div class="space-y-4 px-5 py-6 sm:px-6">
-            <!-- Time Card (Editable) -->
-            <div class="rounded-lg border border-slate-200 bg-white p-4">
-              <div class="mb-3 text-sm font-medium text-slate-500">Time</div>
-
-              <!-- Date -->
-              <div class="mb-3">
-                <label for="edit-date" class="block text-xs text-slate-500">
-                  Date
-                </label>
-                <input
-                  id="edit-date"
-                  v-model="appointmentDate"
-                  type="date"
-                  aria-label="Appointment date"
-                  class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
-                />
-              </div>
-
-              <!-- Start Time -->
-              <div class="mb-3">
-                <TimePickerDropdown
-                  v-model="editableData.scheduled_start"
-                  label="Start"
-                  min-time="06:00"
-                  max-time="22:00"
-                  :interval="15"
-                  @update:model-value="handleDateTimeChange('scheduled_start')"
-                />
-              </div>
-
-              <!-- End Time -->
-              <div class="mb-3">
-                <TimePickerDropdown
-                  v-model="editableData.scheduled_end"
-                  label="End"
-                  min-time="06:00"
-                  max-time="22:00"
-                  :interval="15"
-                  @update:model-value="handleDateTimeChange('scheduled_end')"
-                />
-              </div>
-
-              <!-- Duration Display & Quick Duration Pills -->
-              <div class="mt-3 space-y-3">
-                <!-- Duration Display -->
-                <div class="text-sm text-slate-600">
-                  Duration: {{ calculatedDuration }} min
-                </div>
-
-                <!-- Quick Duration Pills -->
-                <div>
-                  <label class="mb-2 block text-xs text-slate-500">
-                    Quick Duration:
-                  </label>
-                  <div class="flex flex-wrap gap-2">
-                    <button
-                      v-for="duration in [30, 45, 60, 90]"
-                      :key="duration"
-                      type="button"
-                      @click="setDuration(duration)"
-                      :aria-label="`Set duration to ${duration} minutes`"
-                      :aria-pressed="calculatedDuration === duration"
-                      :class="[
-                        'rounded-full px-3 py-1.5 text-sm transition-all',
-                        calculatedDuration === duration
-                          ? 'border border-emerald-600 bg-emerald-50 font-medium text-emerald-900'
-                          : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
-                      ]"
-                    >
-                      {{ duration }} min
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Location Card (Editable) -->
-            <div class="rounded-lg border border-slate-200 bg-white p-4">
-              <div class="mb-2 text-sm font-medium text-slate-500">Location</div>
-
-              <!-- Location Type -->
-              <div class="mb-3">
-                <label for="edit-location-type" class="block text-xs text-slate-500">
-                  Type
-                </label>
-                <select
-                  id="edit-location-type"
-                  v-model="editableData.location_type"
-                  @change="handleLocationTypeChange"
-                  class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 capitalize focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
-                >
-                  <option value="clinic">Clinic</option>
-                  <option value="home">Home Visit</option>
-                  <option value="online">Online (Video/Phone)</option>
-                </select>
-              </div>
-
-              <!-- Location Details -->
-              <div>
-                <label for="edit-location-details" class="block text-xs text-slate-500">
-                  Details
-                </label>
-                <div class="mt-1 flex items-center gap-2">
-                  <input
-                    id="edit-location-details"
-                    v-model="editableData.location_details"
-                    type="text"
-                    placeholder="e.g., Zoom link, room number, address"
-                    @blur="handleTextFieldBlur('location_details')"
-                    class="block min-h-[44px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
-                  />
-                  <!-- Directions Button - Only show for physical locations with address -->
-                  <DirectionsButton
-                    v-if="
-                      editableData.location_details &&
-                      editableData.location_type !== 'online'
-                    "
-                    :address="editableData.location_details"
-                    size="md"
-                    :show-label="false"
-                    class="min-h-[44px] min-w-[44px]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- P1-3: Client Information (Entire Card is Clickable) -->
-            <button
-              @click="emit('viewClient', appointment.client_id)"
-              class="group w-full rounded-lg border border-slate-200 bg-slate-50 p-4 text-left transition-all hover:border-slate-300 hover:bg-white hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+          <!-- Tab Navigation -->
+          <TabGroup>
+            <TabList
+              role="tablist"
+              aria-label="Appointment and payment information tabs"
+              class="flex border-b border-slate-200 gap-1 px-5"
             >
-              <div class="mb-2 text-sm font-medium text-slate-500">Client</div>
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <div
-                    class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 font-medium text-emerald-700 transition-colors group-hover:bg-emerald-200"
-                  >
-                    {{ appointment.client?.first_name?.[0] || 'C'
-                    }}{{ appointment.client?.last_name?.[0] || '' }}
-                  </div>
-                  <div>
-                    <div class="font-medium text-slate-900">
-                      {{ appointment.client?.full_name || 'Unknown Client' }}
-                    </div>
-                    <div
-                      class="flex items-center gap-1.5 text-sm font-medium text-emerald-600 group-hover:text-emerald-700"
-                    >
-                      View full profile
-                      <svg
-                        class="h-4 w-4 transition-transform group-hover:translate-x-0.5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </button>
-
-            <!-- Notes (Editable) -->
-            <div class="rounded-lg border border-slate-200 bg-white p-4">
-              <label
-                for="edit-notes"
-                class="mb-2 block text-sm font-medium text-slate-500"
-              >
-                Notes
-              </label>
-              <textarea
-                id="edit-notes"
-                v-model="editableData.notes"
-                rows="6"
-                placeholder="Optional notes about this appointment"
-                @blur="handleTextFieldBlur('notes')"
-                class="sm:rows-4 block min-h-[120px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-700 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
-              ></textarea>
-              <p class="mt-1 text-xs text-slate-400">Changes are saved automatically</p>
-            </div>
-
-            <!-- Payment Tracking Card (Phase 1: Manual tracking + Method/Notes) -->
-            <!-- Show when: payments enabled (editable) OR has payment data (read-only) -->
-            <PaymentTrackingCard
-              v-if="showPaymentSection"
-              v-model:payment-price="editableData.payment_price"
-              v-model:payment-status="editableData.payment_status"
-              v-model:payment-method="editableData.payment_method"
-              v-model:payment-notes="editableData.payment_notes"
-              :paid-at="appointment.paid_at"
-              :readonly="!paymentsEnabled"
-              @blur="handlePaymentFieldBlur"
-            />
-
-            <!-- Payment Section (Phase 1.5: Smart Payment Links - Responsive Tabs/Swiper) -->
-            <!-- Show when: payments enabled (editable) OR has payment data (read-only) -->
-            <PaymentSection
-              v-if="showPaymentSection && appointment"
-              :appointment-id="appointment.id"
-              v-model:price="editableData.payment_price"
-              v-model:status="editableData.payment_status"
-              :readonly="!paymentsEnabled"
-              :sending="sendingPayment"
-              :sent="paymentRequestSent"
-              :copying="copyingLink"
-              :copied="linkCopied"
-              @update:price="handlePaymentFieldBlur('price')"
-              @update:status="handlePaymentFieldBlur('status')"
-              @send-payment-request="sendPaymentRequest"
-              @copy-payment-link="copyPaymentLink"
-            />
-
-            <!-- Appointment Status Management Card -->
-            <!-- Hidden during in-progress appointments to avoid duplicate messaging -->
-            <AppointmentStatusCard
-              v-if="appointment && !isInProgressAppointment"
-              :appointment="appointment"
-              :session-status="sessionStatus"
-              :completion-disabled="completionDisabled"
-              :completion-disabled-message="completionDisabledMessage"
-              @update-status="handleStatusUpdate"
-              @complete-and-document="handleCompleteAndDocument"
-            />
-
-            <!-- Session Status Section (P0 Feature) -->
-            <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <!-- Has Session Note -->
-              <div v-if="sessionStatus?.hasSession" class="flex items-start gap-3">
-                <svg
-                  class="h-5 w-5 shrink-0 text-emerald-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+              <!-- Appointment Tab -->
+              <Tab as="template" v-slot="{ selected }">
+                <button
+                  role="tab"
+                  :class="[
+                    'px-4 py-3 text-sm font-medium transition-colors min-h-[44px]',
+                    'focus:outline-none',
+                    selected
+                      ? 'border-b-2 border-emerald-600 text-emerald-700 font-semibold'
+                      : 'border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300',
+                  ]"
                 >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <div class="flex-1">
-                  <p class="text-sm font-medium text-slate-900">
-                    Session Note:
-                    {{ sessionStatus.isDraft ? 'Draft' : 'Finalized' }}
-                  </p>
-                  <button
-                    @click="emit('viewSession', sessionStatus.sessionId!)"
-                    class="mt-1 text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-700 focus:underline focus:outline-none"
-                  >
-                    {{ sessionStatus.isDraft ? 'Continue Editing →' : 'View Note →' }}
-                  </button>
-                </div>
-              </div>
+                  Appointment
+                </button>
+              </Tab>
 
-              <!-- No Session Note - Context-Aware Messaging -->
-              <div v-else-if="!sessionStatus?.hasSession">
-                <!-- In Progress: Allow session note creation -->
-                <div v-if="isInProgressAppointment" class="space-y-3">
-                  <div class="flex items-start gap-3">
+              <!-- Payment Tab (conditional) -->
+              <Tab v-if="showPaymentSection" as="template" v-slot="{ selected }">
+                <button
+                  role="tab"
+                  :class="[
+                    'px-4 py-3 text-sm font-medium transition-colors min-h-[44px]',
+                    'focus:outline-none',
+                    selected
+                      ? 'border-b-2 border-emerald-600 text-emerald-700 font-semibold'
+                      : 'border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300',
+                  ]"
+                >
+                  Payment
+                </button>
+              </Tab>
+            </TabList>
+
+            <TabPanels>
+              <!-- Tab Panel 1: Appointment Details -->
+              <TabPanel class="space-y-4 px-5 py-6 sm:px-6 focus:outline-none">
+                <!-- Time Card (Editable) -->
+                <div class="rounded-lg border border-slate-200 bg-white p-4">
+                  <div class="mb-3 text-sm font-medium text-slate-500">Time</div>
+
+                  <!-- Date -->
+                  <div class="mb-3">
+                    <label for="edit-date" class="block text-xs text-slate-500">
+                      Date
+                    </label>
+                    <input
+                      id="edit-date"
+                      v-model="appointmentDate"
+                      type="date"
+                      aria-label="Appointment date"
+                      class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
+                    />
+                  </div>
+
+                  <!-- Start Time -->
+                  <div class="mb-3">
+                    <TimePickerDropdown
+                      v-model="editableData.scheduled_start"
+                      label="Start"
+                      min-time="06:00"
+                      max-time="22:00"
+                      :interval="15"
+                      @update:model-value="handleDateTimeChange('scheduled_start')"
+                    />
+                  </div>
+
+                  <!-- End Time -->
+                  <div class="mb-3">
+                    <TimePickerDropdown
+                      v-model="editableData.scheduled_end"
+                      label="End"
+                      min-time="06:00"
+                      max-time="22:00"
+                      :interval="15"
+                      @update:model-value="handleDateTimeChange('scheduled_end')"
+                    />
+                  </div>
+
+                  <!-- Duration Display & Quick Duration Pills -->
+                  <div class="mt-3 space-y-3">
+                    <!-- Duration Display -->
+                    <div class="text-sm text-slate-600">
+                      Duration: {{ calculatedDuration }} min
+                    </div>
+
+                    <!-- Quick Duration Pills -->
+                    <div>
+                      <label class="mb-2 block text-xs text-slate-500">
+                        Quick Duration:
+                      </label>
+                      <div class="flex flex-wrap gap-2">
+                        <button
+                          v-for="duration in [30, 45, 60, 90]"
+                          :key="duration"
+                          type="button"
+                          @click="setDuration(duration)"
+                          :aria-label="`Set duration to ${duration} minutes`"
+                          :aria-pressed="calculatedDuration === duration"
+                          :class="[
+                            'rounded-full px-3 py-1.5 text-sm transition-all',
+                            calculatedDuration === duration
+                              ? 'border border-emerald-600 bg-emerald-50 font-medium text-emerald-900'
+                              : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
+                          ]"
+                        >
+                          {{ duration }} min
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Location Card (Editable) -->
+                <div class="rounded-lg border border-slate-200 bg-white p-4">
+                  <div class="mb-2 text-sm font-medium text-slate-500">Location</div>
+
+                  <!-- Location Type -->
+                  <div class="mb-3">
+                    <label for="edit-location-type" class="block text-xs text-slate-500">
+                      Type
+                    </label>
+                    <select
+                      id="edit-location-type"
+                      v-model="editableData.location_type"
+                      @change="handleLocationTypeChange"
+                      class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 capitalize focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
+                    >
+                      <option value="clinic">Clinic</option>
+                      <option value="home">Home Visit</option>
+                      <option value="online">Online (Video/Phone)</option>
+                    </select>
+                  </div>
+
+                  <!-- Location Details -->
+                  <div>
+                    <label for="edit-location-details" class="block text-xs text-slate-500">
+                      Details
+                    </label>
+                    <div class="mt-1 flex items-center gap-2">
+                      <input
+                        id="edit-location-details"
+                        v-model="editableData.location_details"
+                        type="text"
+                        placeholder="e.g., Zoom link, room number, address"
+                        @blur="handleTextFieldBlur('location_details')"
+                        class="block min-h-[44px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
+                      />
+                      <!-- Directions Button - Only show for physical locations with address -->
+                      <DirectionsButton
+                        v-if="
+                          editableData.location_details &&
+                          editableData.location_type !== 'online'
+                        "
+                        :address="editableData.location_details"
+                        size="md"
+                        :show-label="false"
+                        class="min-h-[44px] min-w-[44px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- P1-3: Client Information (Entire Card is Clickable) -->
+                <button
+                  @click="emit('viewClient', appointment.client_id)"
+                  class="group w-full rounded-lg border border-slate-200 bg-slate-50 p-4 text-left transition-all hover:border-slate-300 hover:bg-white hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                >
+                  <div class="mb-2 text-sm font-medium text-slate-500">Client</div>
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 font-medium text-emerald-700 transition-colors group-hover:bg-emerald-200"
+                      >
+                        {{ appointment.client?.first_name?.[0] || 'C'
+                        }}{{ appointment.client?.last_name?.[0] || '' }}
+                      </div>
+                      <div>
+                        <div class="font-medium text-slate-900">
+                          {{ appointment.client?.full_name || 'Unknown Client' }}
+                        </div>
+                        <div
+                          class="flex items-center gap-1.5 text-sm font-medium text-emerald-600 group-hover:text-emerald-700"
+                        >
+                          View full profile
+                          <svg
+                            class="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+
+                <!-- Notes (Editable) -->
+                <div class="rounded-lg border border-slate-200 bg-white p-4">
+                  <label
+                    for="edit-notes"
+                    class="mb-2 block text-sm font-medium text-slate-500"
+                  >
+                    Notes
+                  </label>
+                  <textarea
+                    id="edit-notes"
+                    v-model="editableData.notes"
+                    rows="6"
+                    placeholder="Optional notes about this appointment"
+                    @blur="handleTextFieldBlur('notes')"
+                    class="sm:rows-4 block min-h-[120px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-700 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
+                  ></textarea>
+                  <p class="mt-1 text-xs text-slate-400">Changes are saved automatically</p>
+                </div>
+
+                <!-- Appointment Status Management Card -->
+                <!-- Hidden during in-progress appointments to avoid duplicate messaging -->
+                <AppointmentStatusCard
+                  v-if="appointment && !isInProgressAppointment"
+                  :appointment="appointment"
+                  :session-status="sessionStatus"
+                  :completion-disabled="completionDisabled"
+                  :completion-disabled-message="completionDisabledMessage"
+                  @update-status="handleStatusUpdate"
+                  @complete-and-document="handleCompleteAndDocument"
+                />
+
+                <!-- Session Status Section (P0 Feature) -->
+                <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <!-- Has Session Note -->
+                  <div v-if="sessionStatus?.hasSession" class="flex items-start gap-3">
                     <svg
                       class="h-5 w-5 shrink-0 text-emerald-600"
                       fill="none"
-                      stroke="currentColor"
                       viewBox="0 0 24 24"
-                      aria-hidden="true"
+                      stroke="currentColor"
                     >
                       <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
                         stroke-width="2"
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
                     <div class="flex-1">
                       <p class="text-sm font-medium text-slate-900">
-                        Session in progress
-                      </p>
-                      <p class="mt-1 text-xs text-slate-600">
-                        You can document SOAP notes in real-time
+                        Session Note:
+                        {{ sessionStatus.isDraft ? 'Draft' : 'Finalized' }}
                       </p>
                       <button
-                        @click="emit('startSessionNotes', appointment)"
-                        class="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-                        aria-label="Document session notes in real-time while appointment is in progress"
+                        @click="emit('viewSession', sessionStatus.sessionId!)"
+                        class="mt-1 text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-700 focus:underline focus:outline-none"
                       >
-                        Document Session
+                        {{ sessionStatus.isDraft ? 'Continue Editing →' : 'View Note →' }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- No Session Note - Context-Aware Messaging -->
+                  <div v-else-if="!sessionStatus?.hasSession">
+                    <!-- In Progress: Allow session note creation -->
+                    <div v-if="isInProgressAppointment" class="space-y-3">
+                      <div class="flex items-start gap-3">
                         <svg
-                          class="h-4 w-4"
+                          class="h-5 w-5 shrink-0 text-emerald-600"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
+                          aria-hidden="true"
                         >
                           <path
                             stroke-linecap="round"
                             stroke-linejoin="round"
                             stroke-width="2"
-                            d="M9 5l7 7-7 7"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                           />
                         </svg>
-                      </button>
+                        <div class="flex-1">
+                          <p class="text-sm font-medium text-slate-900">
+                            Session in progress
+                          </p>
+                          <p class="mt-1 text-xs text-slate-600">
+                            You can document SOAP notes in real-time
+                          </p>
+                          <button
+                            @click="emit('startSessionNotes', appointment)"
+                            class="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                            aria-label="Document session notes in real-time while appointment is in progress"
+                          >
+                            Document Session
+                            <svg
+                              class="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Attended - Encourage documentation -->
+                    <div
+                      v-else-if="appointment.status === 'attended'"
+                      class="flex items-start gap-3"
+                    >
+                      <IconWarning size="md" class="shrink-0 text-amber-600" />
+                      <div>
+                        <p class="text-sm font-medium text-slate-900">
+                          No session note yet
+                        </p>
+                        <p class="mt-0.5 text-xs text-slate-600">
+                          Document this appointment with SOAP notes
+                        </p>
+                        <button
+                          @click="emit('startSessionNotes', appointment)"
+                          class="mt-2 text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-700 focus:underline focus:outline-none"
+                        >
+                          Start Session Note →
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Scheduled - Future -->
+                    <div v-else-if="isFutureAppointment" class="text-sm text-slate-600">
+                      <p>Session notes will be available when the appointment starts</p>
+                    </div>
+
+                    <!-- Scheduled - Past (prompt to complete) -->
+                    <div
+                      v-else-if="isPastAppointment && appointment.status === 'scheduled'"
+                      class="flex items-start gap-3"
+                    >
+                      <svg
+                        class="h-5 w-5 shrink-0 text-blue-600"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <div>
+                        <p class="text-sm font-medium text-slate-900">
+                          This appointment has ended
+                        </p>
+                        <p class="mt-0.5 text-xs text-slate-600">
+                          Mark it as attended to create session notes
+                        </p>
+                      </div>
+                    </div>
+
+                    <!-- No-Show / Cancelled -->
+                    <div
+                      v-else-if="['no_show', 'cancelled'].includes(appointment.status)"
+                      class="text-sm text-slate-500"
+                    >
+                      <p>
+                        No session notes for
+                        {{ appointment.status.replace('_', ' ') }} appointments
+                      </p>
                     </div>
                   </div>
                 </div>
+              </TabPanel>
 
-                <!-- Attended - Encourage documentation -->
-                <div
-                  v-else-if="appointment.status === 'attended'"
-                  class="flex items-start gap-3"
-                >
-                  <IconWarning size="md" class="shrink-0 text-amber-600" />
-                  <div>
-                    <p class="text-sm font-medium text-slate-900">
-                      No session note yet
-                    </p>
-                    <p class="mt-0.5 text-xs text-slate-600">
-                      Document this appointment with SOAP notes
-                    </p>
-                    <button
-                      @click="emit('startSessionNotes', appointment)"
-                      class="mt-2 text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-700 focus:underline focus:outline-none"
-                    >
-                      Start Session Note →
-                    </button>
-                  </div>
-                </div>
+              <!-- Tab Panel 2: Payment (conditional) -->
+              <TabPanel
+                v-if="showPaymentSection"
+                class="space-y-6 px-5 py-6 sm:px-6 focus:outline-none"
+              >
+                <!-- Payment Tracking -->
+                <PaymentTrackingCard
+                  v-model:payment-price="editableData.payment_price"
+                  v-model:payment-status="editableData.payment_status"
+                  v-model:payment-method="editableData.payment_method"
+                  v-model:payment-notes="editableData.payment_notes"
+                  :paid-at="appointment.paid_at"
+                  :readonly="!paymentsEnabled"
+                  @blur="handlePaymentFieldBlur"
+                />
 
-                <!-- Scheduled - Future -->
-                <div v-else-if="isFutureAppointment" class="text-sm text-slate-600">
-                  <p>Session notes will be available when the appointment starts</p>
-                </div>
-
-                <!-- Scheduled - Past (prompt to complete) -->
-                <div
-                  v-else-if="isPastAppointment && appointment.status === 'scheduled'"
-                  class="flex items-start gap-3"
-                >
-                  <svg
-                    class="h-5 w-5 shrink-0 text-blue-600"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <div>
-                    <p class="text-sm font-medium text-slate-900">
-                      This appointment has ended
-                    </p>
-                    <p class="mt-0.5 text-xs text-slate-600">
-                      Mark it as attended to create session notes
-                    </p>
-                  </div>
-                </div>
-
-                <!-- No-Show / Cancelled -->
-                <div
-                  v-else-if="['no_show', 'cancelled'].includes(appointment.status)"
-                  class="text-sm text-slate-500"
-                >
-                  <p>
-                    No session notes for
-                    {{ appointment.status.replace('_', ' ') }} appointments
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+                <!-- Payment Actions -->
+                <PaymentActions
+                  :price="editableData.payment_price"
+                  :status="editableData.payment_status"
+                  :readonly="!paymentsEnabled"
+                  :sending="sendingPayment"
+                  :sent="paymentRequestSent"
+                  :copying="copyingLink"
+                  :copied="linkCopied"
+                  @send-payment-request="sendPaymentRequest"
+                  @copy-payment-link="copyPaymentLink"
+                />
+              </TabPanel>
+            </TabPanels>
+          </TabGroup>
 
           <!-- Actions Footer -->
           <div
