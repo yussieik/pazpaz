@@ -14,6 +14,7 @@
  */
 
 import { ref, computed } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import { useFileUpload } from '@/composables/useFileUpload'
 import { useToast } from '@/composables/useToast'
 import FileUpload from './FileUpload.vue'
@@ -28,6 +29,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const { t } = useI18n()
 const { downloadAttachment } = useFileUpload()
 const { showError } = useToast()
 
@@ -72,7 +74,7 @@ async function handleDownloadFromPreview(attachment: AttachmentResponse) {
     if (error instanceof Error) {
       showError(error.message)
     } else {
-      showError('Failed to download file')
+      showError(t('sessions.attachments.wrapper.downloadError'))
     }
   }
 }

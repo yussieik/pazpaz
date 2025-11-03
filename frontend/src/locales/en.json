@@ -612,6 +612,50 @@
       },
       "copyTooltip": "Copy to clipboard",
       "copiedTooltip": "Copied!"
+    },
+    "attachments": {
+      "upload": {
+        "ariaLabelUploading": "Uploading files...",
+        "ariaLabelDefault": "Upload files - JPEG, PNG, WebP, or PDF up to 10 MB each",
+        "clickToUpload": "Click to upload",
+        "dragAndDrop": "or drag and drop",
+        "fileConstraints": "JPEG, PNG, WebP, or PDF (max 10 MB each)",
+        "successSingle": "Uploaded {fileName}",
+        "successMultiple": "Uploaded {count} file | Uploaded {count} files"
+      },
+      "list": {
+        "loadError": "Failed to load attachments",
+        "tryAgain": "Try again",
+        "downloadError": "Failed to download file",
+        "downloading": "Downloading {fileName}...",
+        "deleteError": "Failed to delete attachment",
+        "deleteSuccess": "Deleted {fileName}",
+        "dateToday": "Today",
+        "dateYesterday": "Yesterday",
+        "dateDaysAgo": "{days} days ago",
+        "renameTooltip": "{fileName} (Click or press F2 to rename)",
+        "renameAriaLabel": "Rename {fileName}",
+        "newFilenameLabel": "New filename",
+        "saveRenameAriaLabel": "Save rename",
+        "saveRenameTitle": "Save (Enter)",
+        "saveButton": "Save",
+        "cancelRenameAriaLabel": "Cancel rename",
+        "cancelRenameTitle": "Cancel (Esc)",
+        "cancelButton": "Cancel",
+        "downloadAriaLabel": "Download {fileName}",
+        "downloadTitle": "Download",
+        "deleteAriaLabel": "Delete {fileName}",
+        "deleteTitle": "Delete",
+        "deletingButton": "Deleting...",
+        "deleteButton": "Delete",
+        "deleteDialogTitle": "Delete Attachment",
+        "deleteDialogMessage": "Are you sure you want to delete <strong>{fileName}</strong>? This action cannot be undone.",
+        "emptyStateTitle": "No attachments yet",
+        "emptyStateDescription": "Upload files to attach them to this session"
+      },
+      "wrapper": {
+        "downloadError": "Failed to download file"
+      }
     }
   }
 }

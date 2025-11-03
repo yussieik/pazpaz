@@ -26,6 +26,7 @@
  */
 
 import { ref, computed, unref, type Ref } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import { useFileUpload } from '@/composables/useFileUpload'
 import { useToast } from '@/composables/useToast'
 import type { UploadProgress } from '@/types/attachments'
@@ -43,6 +44,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<Emits>()
 
+const { t } = useI18n()
 const { uploadFiles } = useFileUpload()
 const { showSuccess, showError } = useToast()
 
@@ -162,8 +164,8 @@ async function processFiles(files: File[]) {
       const firstFile = validFiles[0]
       showSuccess(
         successCount === 1 && firstFile
-          ? `Uploaded ${firstFile.name}`
-          : `Uploaded ${successCount} file${successCount > 1 ? 's' : ''}`
+          ? t('sessions.attachments.upload.successSingle', { fileName: firstFile.name })
+          : t('sessions.attachments.upload.successMultiple', { count: successCount })
       )
 
       // Emit event to refresh attachment list
@@ -220,8 +222,8 @@ function handleKeydown(e: KeyboardEvent) {
       tabindex="0"
       :aria-label="
         isUploading
-          ? 'Uploading files...'
-          : 'Upload files - JPEG, PNG, WebP, or PDF up to 10 MB each'
+          ? t('sessions.attachments.upload.ariaLabelUploading')
+          : t('sessions.attachments.upload.ariaLabelDefault')
       "
       :aria-busy="isUploading"
     >
@@ -244,11 +246,11 @@ function handleKeydown(e: KeyboardEvent) {
 
       <!-- Primary Action Text -->
       <p class="mt-3 text-sm text-gray-700">
-        <span class="font-medium text-blue-600">Click to upload</span> or drag and drop
+        <span class="font-medium text-blue-600">{{ t('sessions.attachments.upload.clickToUpload') }}</span> {{ t('sessions.attachments.upload.dragAndDrop') }}
       </p>
 
       <!-- File Constraints -->
-      <p class="mt-1 text-xs text-gray-500">JPEG, PNG, WebP, or PDF (max 10 MB each)</p>
+      <p class="mt-1 text-xs text-gray-500">{{ t('sessions.attachments.upload.fileConstraints') }}</p>
 
       <!-- Hidden file input -->
       <input

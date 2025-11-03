@@ -17,6 +17,7 @@
  */
 
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import { useFileUpload } from '@/composables/useFileUpload'
 import { useToast } from '@/composables/useToast'
 import { useAttachmentRename } from '@/composables/useAttachmentRename'
@@ -37,6 +38,7 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+const { t } = useI18n()
 const { listAttachments, downloadAttachment, deleteAttachment } = useFileUpload()
 const { showSuccess, showError, showInfo } = useToast()
 const {
@@ -77,7 +79,7 @@ async function loadAttachmentsList() {
     if (error instanceof Error) {
       loadError.value = error.message
     } else {
-      loadError.value = 'Failed to load attachments'
+      loadError.value = t('sessions.attachments.list.loadError')
     }
   } finally {
     isLoading.value = false
@@ -89,14 +91,14 @@ async function loadAttachmentsList() {
 async function handleDownload(attachment: AttachmentResponse) {
   try {
     // Show info toast for download started
-    showInfo(`Downloading ${attachment.file_name}...`, { timeout: 2000 })
+    showInfo(t('sessions.attachments.list.downloading', { fileName: attachment.file_name }), { timeout: 2000 })
     await downloadAttachment(props.sessionId, attachment.id, attachment.file_name)
   } catch (error) {
     console.error('Download error:', error)
     if (error instanceof Error) {
       showError(error.message)
     } else {
-      showError('Failed to download file')
+      showError(t('sessions.attachments.list.downloadError'))
     }
   }
 }
@@ -121,7 +123,7 @@ async function handleDelete() {
 
   try {
     await deleteAttachment(props.sessionId, attachmentToDelete.value.id)
-    showSuccess(`Deleted ${attachmentToDelete.value.file_name}`)
+    showSuccess(t('sessions.attachments.list.deleteSuccess', { fileName: attachmentToDelete.value.file_name }))
 
     // Remove from local list
     attachments.value = attachments.value.filter(
@@ -136,7 +138,7 @@ async function handleDelete() {
     if (error instanceof Error) {
       showError(error.message)
     } else {
-      showError('Failed to delete attachment')
+      showError(t('sessions.attachments.list.deleteError'))
     }
   } finally {
     isDeleting.value = false
@@ -158,11 +160,11 @@ function formatDate(dateString: string): string {
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
 
   if (days === 0) {
-    return 'Today'
+    return t('sessions.attachments.list.dateToday')
   } else if (days === 1) {
-    return 'Yesterday'
+    return t('sessions.attachments.list.dateYesterday')
   } else if (days < 7) {
-    return `${days} days ago`
+    return t('sessions.attachments.list.dateDaysAgo', { days })
   } else {
     return date.toLocaleDateString(undefined, {
       month: 'short',
@@ -270,7 +272,7 @@ defineExpose({
         @click="loadAttachmentsList"
         class="mt-2 text-sm font-medium text-red-600 hover:text-red-700 focus:underline focus:outline-none"
       >
-        Try again
+        {{ t('sessions.attachments.list.tryAgain') }}
       </button>
     </div>
 
@@ -357,8 +359,8 @@ defineExpose({
             <button
               @click="handleRenameClick(attachment)"
               class="truncate text-left text-sm font-medium text-slate-900 transition-colors hover:text-blue-600 focus:text-blue-600 focus:underline focus:outline-none"
-              :title="`${attachment.file_name} (Click or press F2 to rename)`"
-              :aria-label="`Rename ${attachment.file_name}`"
+              :title="t('sessions.attachments.list.renameTooltip', { fileName: attachment.file_name })"
+              :aria-label="t('sessions.attachments.list.renameAriaLabel', { fileName: attachment.file_name })"
             >
               {{ attachment.file_name }}
             </button>
@@ -395,7 +397,7 @@ defineExpose({
                       : 'border-blue-500 focus:ring-2 focus:ring-blue-500'
                   "
                   :disabled="isRenaming(attachment.id)"
-                  :aria-label="'New filename'"
+                  :aria-label="t('sessions.attachments.list.newFilenameLabel')"
                   :aria-invalid="!!getError(attachment.id)"
                   :aria-describedby="
                     getError(attachment.id) ? `error-${attachment.id}` : undefined
@@ -421,8 +423,8 @@ defineExpose({
                 type="submit"
                 :disabled="isRenaming(attachment.id)"
                 class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded p-1 text-green-600 transition-colors hover:bg-green-50 focus:ring-2 focus:ring-green-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:h-auto md:w-auto md:px-3 md:py-1.5"
-                :aria-label="'Save rename'"
-                title="Save (Enter)"
+                :aria-label="t('sessions.attachments.list.saveRenameAriaLabel')"
+                :title="t('sessions.attachments.list.saveRenameTitle')"
               >
                 <svg
                   v-if="!isRenaming(attachment.id)"
@@ -458,7 +460,7 @@ defineExpose({
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
-                <span class="ml-1.5 hidden text-sm font-medium md:inline">Save</span>
+                <span class="ml-1.5 hidden text-sm font-medium md:inline">{{ t('sessions.attachments.list.saveButton') }}</span>
               </button>
 
               <!-- Cancel Button -->
@@ -467,8 +469,8 @@ defineExpose({
                 @click="cancelRename(attachment.id)"
                 :disabled="isRenaming(attachment.id)"
                 class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded p-1 text-red-600 transition-colors hover:bg-red-50 focus:ring-2 focus:ring-red-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:h-auto md:w-auto md:px-3 md:py-1.5"
-                :aria-label="'Cancel rename'"
-                title="Cancel (Esc)"
+                :aria-label="t('sessions.attachments.list.cancelRenameAriaLabel')"
+                :title="t('sessions.attachments.list.cancelRenameTitle')"
               >
                 <svg
                   class="h-5 w-5 md:h-4 md:w-4"
@@ -483,7 +485,7 @@ defineExpose({
                     d="M6 18L18 6M6 6l12 12"
                   />
                 </svg>
-                <span class="ml-1.5 hidden text-sm font-medium md:inline">Cancel</span>
+                <span class="ml-1.5 hidden text-sm font-medium md:inline">{{ t('sessions.attachments.list.cancelButton') }}</span>
               </button>
             </form>
 
@@ -510,8 +512,8 @@ defineExpose({
           <button
             @click="handleDownload(attachment)"
             class="rounded p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none"
-            :aria-label="`Download ${attachment.file_name}`"
-            title="Download"
+            :aria-label="t('sessions.attachments.list.downloadAriaLabel', { fileName: attachment.file_name })"
+            :title="t('sessions.attachments.list.downloadTitle')"
           >
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
@@ -527,8 +529,8 @@ defineExpose({
           <button
             @click="confirmDelete(attachment)"
             class="rounded p-2 text-slate-600 transition-colors hover:bg-red-50 hover:text-red-600 focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:outline-none"
-            :aria-label="`Delete ${attachment.file_name}`"
-            title="Delete"
+            :aria-label="t('sessions.attachments.list.deleteAriaLabel', { fileName: attachment.file_name })"
+            :title="t('sessions.attachments.list.deleteTitle')"
           >
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
@@ -547,8 +549,8 @@ defineExpose({
     <EmptyState
       v-else
       icon="document"
-      title="No attachments yet"
-      description="Upload files to attach them to this session"
+      :title="t('sessions.attachments.list.emptyStateTitle')"
+      :description="t('sessions.attachments.list.emptyStateDescription')"
     />
 
     <!-- Delete Confirmation Dialog -->
@@ -584,14 +586,9 @@ defineExpose({
             </div>
             <div>
               <h3 id="delete-dialog-title" class="text-lg font-semibold text-slate-900">
-                Delete Attachment
+                {{ t('sessions.attachments.list.deleteDialogTitle') }}
               </h3>
-              <p class="mt-2 text-sm text-slate-600">
-                Are you sure you want to delete
-                <strong class="font-medium text-slate-900">{{
-                  attachmentToDelete?.file_name
-                }}</strong
-                >? This action cannot be undone.
+              <p class="mt-2 text-sm text-slate-600" v-html="t('sessions.attachments.list.deleteDialogMessage', { fileName: attachmentToDelete?.file_name })">
               </p>
             </div>
           </div>
@@ -602,7 +599,7 @@ defineExpose({
               :disabled="isDeleting"
               class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Cancel
+              {{ t('sessions.attachments.list.cancelButton') }}
             </button>
             <button
               @click="handleDelete"
@@ -630,7 +627,7 @@ defineExpose({
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
-              {{ isDeleting ? 'Deleting...' : 'Delete' }}
+              {{ isDeleting ? t('sessions.attachments.list.deletingButton') : t('sessions.attachments.list.deleteButton') }}
             </button>
           </div>
         </div>

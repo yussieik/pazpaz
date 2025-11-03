@@ -612,6 +612,50 @@
       },
       "copyTooltip": "העתק ללוח",
       "copiedTooltip": "הועתק!"
+    },
+    "attachments": {
+      "upload": {
+        "ariaLabelUploading": "מעלה קבצים...",
+        "ariaLabelDefault": "העלאת קבצים - JPEG, PNG, WebP או PDF עד 10 MB לקובץ",
+        "clickToUpload": "לחץ להעלאה",
+        "dragAndDrop": "או גרור ושחרר",
+        "fileConstraints": "JPEG, PNG, WebP או PDF (מקסימום 10 MB לקובץ)",
+        "successSingle": "הועלה {fileName}",
+        "successMultiple": "הועלה קובץ {count} | הועלו {count} קבצים"
+      },
+      "list": {
+        "loadError": "טעינת קבצים מצורפים נכשלה",
+        "tryAgain": "נסה שוב",
+        "downloadError": "הורדת הקובץ נכשלה",
+        "downloading": "מוריד את {fileName}...",
+        "deleteError": "מחיקת הקובץ המצורף נכשלה",
+        "deleteSuccess": "נמחק {fileName}",
+        "dateToday": "היום",
+        "dateYesterday": "אתמול",
+        "dateDaysAgo": "לפני {days} ימים",
+        "renameTooltip": "{fileName} (לחץ או הקש F2 לשינוי שם)",
+        "renameAriaLabel": "שנה שם {fileName}",
+        "newFilenameLabel": "שם קובץ חדש",
+        "saveRenameAriaLabel": "שמור שינוי שם",
+        "saveRenameTitle": "שמור (Enter)",
+        "saveButton": "שמור",
+        "cancelRenameAriaLabel": "בטל שינוי שם",
+        "cancelRenameTitle": "בטל (Esc)",
+        "cancelButton": "בטל",
+        "downloadAriaLabel": "הורד את {fileName}",
+        "downloadTitle": "הורד",
+        "deleteAriaLabel": "מחק את {fileName}",
+        "deleteTitle": "מחק",
+        "deletingButton": "מוחק...",
+        "deleteButton": "מחק",
+        "deleteDialogTitle": "מחיקת קובץ מצורף",
+        "deleteDialogMessage": "האם אתה בטוח שברצונך למחוק את <strong>{fileName}</strong>? פעולה זו לא ניתנת לביטול.",
+        "emptyStateTitle": "אין קבצים מצורפים עדיין",
+        "emptyStateDescription": "העלה קבצים כדי לצרף אותם לטיפול זה"
+      },
+      "wrapper": {
+        "downloadError": "הורדת הקובץ נכשלה"
+      }
     }
   }
 }
