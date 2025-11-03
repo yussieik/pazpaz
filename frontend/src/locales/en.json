@@ -17,6 +17,18 @@
       "submit": "Submit",
       "confirm": "Confirm"
     },
+    "navigation": {
+      "calendar": "Calendar",
+      "clients": "Clients",
+      "settings": "Settings",
+      "admin": "Admin",
+      "signOut": "Sign Out",
+      "signingOut": "Signing out...",
+      "toggleMobileMenu": "Toggle mobile menu",
+      "closeMenu": "Close menu",
+      "keyboardShortcutCalendar": "g c",
+      "keyboardShortcutClients": "g l"
+    },
     "status": {
       "loading": "Loading...",
       "error": "Error",

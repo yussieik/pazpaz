@@ -17,6 +17,18 @@
       "submit": "שלח",
       "confirm": "אשר"
     },
+    "navigation": {
+      "calendar": "לוח שנה",
+      "clients": "מטופלים",
+      "settings": "הגדרות",
+      "admin": "ניהול",
+      "signOut": "התנתק",
+      "signingOut": "מתנתק...",
+      "toggleMobileMenu": "פתח/סגור תפריט",
+      "closeMenu": "סגור תפריט",
+      "keyboardShortcutCalendar": "g c",
+      "keyboardShortcutClients": "g l"
+    },
     "status": {
       "loading": "טוען...",
       "error": "שגיאה",

@@ -4,9 +4,11 @@ import { RouterLink, useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { useAuthSessionStore } from '@/stores/authSession'
 import { useAuthStore } from '@/stores/auth'
+import { useI18n } from '@/composables/useI18n'
 import LogoutConfirmationModal from '@/components/auth/LogoutConfirmationModal.vue'
 
 const route = useRoute()
+const { t } = useI18n()
 const mobileMenuOpen = ref(false)
 const showLogoutModal = ref(false)
 const { logout, isLoggingOut } = useAuth()
@@ -109,11 +111,11 @@ onUnmounted(() => {
                   : 'text-gray-600 hover:text-gray-900',
               ]"
             >
-              <span>Calendar</span>
+              <span>{{ t('common.navigation.calendar') }}</span>
               <kbd
                 class="absolute top-1/2 right-1 -translate-y-1/2 rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity delay-500 group-hover:opacity-100"
               >
-                g c
+                {{ t('common.navigation.keyboardShortcutCalendar') }}
               </kbd>
             </RouterLink>
             <RouterLink
@@ -125,11 +127,11 @@ onUnmounted(() => {
                   : 'text-gray-600 hover:text-gray-900',
               ]"
             >
-              <span>Clients</span>
+              <span>{{ t('common.navigation.clients') }}</span>
               <kbd
                 class="absolute top-1/2 right-1 -translate-y-1/2 rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity delay-500 group-hover:opacity-100"
               >
-                g l
+                {{ t('common.navigation.keyboardShortcutClients') }}
               </kbd>
             </RouterLink>
             <RouterLink
@@ -141,7 +143,7 @@ onUnmounted(() => {
                   : 'text-gray-600 hover:text-gray-900',
               ]"
             >
-              Settings
+              {{ t('common.navigation.settings') }}
             </RouterLink>
             <RouterLink
               v-if="authStore.user?.is_platform_admin"
@@ -153,7 +155,7 @@ onUnmounted(() => {
                   : 'text-gray-600 hover:text-gray-900',
               ]"
             >
-              Admin
+              {{ t('common.navigation.admin') }}
             </RouterLink>
           </div>
         </div>
@@ -166,14 +168,14 @@ onUnmounted(() => {
             @click="initiateLogout"
             :disabled="isLoggingOut"
           >
-            {{ isLoggingOut ? 'Signing out...' : 'Sign Out' }}
+            {{ isLoggingOut ? t('common.navigation.signingOut') : t('common.navigation.signOut') }}
           </button>
 
           <!-- Mobile menu button -->
           <button
             class="rounded-md p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none md:hidden"
             @click="toggleMobileMenu"
-            aria-label="Toggle mobile menu"
+            :aria-label="t('common.navigation.toggleMobileMenu')"
           >
             <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -220,7 +222,7 @@ onUnmounted(() => {
               <button
                 class="rounded-md p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
                 @click="closeMobileMenu"
-                aria-label="Close menu"
+                :aria-label="t('common.navigation.closeMenu')"
               >
                 <svg
                   class="h-6 w-6"
@@ -250,7 +252,7 @@ onUnmounted(() => {
                 ]"
                 @click="closeMobileMenu"
               >
-                Calendar
+                {{ t('common.navigation.calendar') }}
               </RouterLink>
               <RouterLink
                 to="/clients"
@@ -262,7 +264,7 @@ onUnmounted(() => {
                 ]"
                 @click="closeMobileMenu"
               >
-                Clients
+                {{ t('common.navigation.clients') }}
               </RouterLink>
               <RouterLink
                 to="/settings"
@@ -274,7 +276,7 @@ onUnmounted(() => {
                 ]"
                 @click="closeMobileMenu"
               >
-                Settings
+                {{ t('common.navigation.settings') }}
               </RouterLink>
               <RouterLink
                 v-if="authStore.user?.is_platform_admin"
@@ -287,7 +289,7 @@ onUnmounted(() => {
                 ]"
                 @click="closeMobileMenu"
               >
-                Admin
+                {{ t('common.navigation.admin') }}
               </RouterLink>
             </nav>
 
@@ -298,7 +300,7 @@ onUnmounted(() => {
                 @click="initiateLogout"
                 :disabled="isLoggingOut"
               >
-                {{ isLoggingOut ? 'Signing out...' : 'Sign Out' }}
+                {{ isLoggingOut ? t('common.navigation.signingOut') : t('common.navigation.signOut') }}
               </button>
             </div>
           </div>
