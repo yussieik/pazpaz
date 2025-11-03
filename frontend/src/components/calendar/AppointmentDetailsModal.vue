@@ -1332,7 +1332,7 @@ watch(
               <!-- Tab Panel 2: Payment (conditional) -->
               <TabPanel
                 v-if="showPaymentSection"
-                class="space-y-6 px-5 py-6 sm:px-6 focus:outline-none"
+                class="space-y-4 px-5 py-6 sm:px-6 focus:outline-none"
               >
                 <!-- Payment Tracking -->
                 <PaymentTrackingCard
