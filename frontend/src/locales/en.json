@@ -496,5 +496,20 @@
         "updateFailed": "Failed to update client. Please try again."
       }
     }
+  },
+  "sessions": {
+    "view": {
+      "pageTitle": "Session Note - {firstName} {lastName}",
+      "pageTitleDefault": "Session Note",
+      "statusDraft": "Draft",
+      "statusFinalized": "Finalized",
+      "backToClient": "Back to Client",
+      "backToCalendar": "Back to Calendar",
+      "errorTitle": "Error Loading Session",
+      "errorNotFound": "Session not found",
+      "errorPermission": "You do not have permission to view this session",
+      "errorGeneric": "Failed to load session",
+      "goBackButton": "Go Back"
+    }
   }
 }

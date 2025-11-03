@@ -496,5 +496,20 @@
         "updateFailed": "עדכון המטופל נכשל. אנא נסה שוב."
       }
     }
+  },
+  "sessions": {
+    "view": {
+      "pageTitle": "תיעוד טיפול - {firstName} {lastName}",
+      "pageTitleDefault": "תיעוד טיפול",
+      "statusDraft": "טיוטה",
+      "statusFinalized": "מאושר",
+      "backToClient": "חזור למטופל",
+      "backToCalendar": "חזור ליומן",
+      "errorTitle": "שגיאה בטעינת התיעוד",
+      "errorNotFound": "תיעוד הטיפול לא נמצא",
+      "errorPermission": "אין לך הרשאה לצפות בתיעוד זה",
+      "errorGeneric": "טעינת התיעוד נכשלה",
+      "goBackButton": "חזור"
+    }
   }
 }

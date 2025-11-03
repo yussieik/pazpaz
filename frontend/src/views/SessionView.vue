@@ -17,11 +17,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { onKeyStroke } from '@vueuse/core'
+import { useI18n } from '@/composables/useI18n'
 import apiClient from '@/api/client'
 import type { AxiosError } from 'axios'
 import type { SessionResponse } from '@/types/sessions'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SessionEditor from '@/components/sessions/SessionEditor.vue'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -49,9 +52,12 @@ const sessionId = computed(() => route.params.id as string)
 
 const pageTitle = computed(() => {
   if (client.value) {
-    return `Session Note - ${client.value.first_name} ${client.value.last_name}`
+    return t('sessions.view.pageTitle', {
+      firstName: client.value.first_name,
+      lastName: client.value.last_name
+    })
   }
-  return 'Session Note'
+  return t('sessions.view.pageTitleDefault')
 })
 
 const pageMetadata = computed(() => {
@@ -68,7 +74,9 @@ const pageMetadata = computed(() => {
       minute: '2-digit',
     })
 
-    const status = session.value.is_draft ? 'Draft' : 'Finalized'
+    const status = session.value.is_draft
+      ? t('sessions.view.statusDraft')
+      : t('sessions.view.statusFinalized')
     return `${formattedDate} at ${formattedTime} • ${status}`
   }
   return ''
@@ -125,11 +133,11 @@ async function loadSession(silent = false) {
     const axiosError = error as AxiosError<{ detail?: string }>
 
     if (axiosError.response?.status === 404) {
-      loadError.value = 'Session not found'
+      loadError.value = t('sessions.view.errorNotFound')
     } else if (axiosError.response?.status === 403) {
-      loadError.value = 'You do not have permission to view this session'
+      loadError.value = t('sessions.view.errorPermission')
     } else {
-      loadError.value = axiosError.response?.data?.detail || 'Failed to load session'
+      loadError.value = axiosError.response?.data?.detail || t('sessions.view.errorGeneric')
     }
   } finally {
     if (!silent) {
@@ -229,7 +237,7 @@ onKeyStroke('Escape', (e) => {
               d="M15 19l-7-7 7-7"
             />
           </svg>
-          Back to {{ session?.client_id ? 'Client' : 'Calendar' }}
+          {{ session?.client_id ? t('sessions.view.backToClient') : t('sessions.view.backToCalendar') }}
         </button>
       </Transition>
     </div>
@@ -254,7 +262,7 @@ onKeyStroke('Escape', (e) => {
           </svg>
         </div>
         <div class="ml-3">
-          <h3 class="text-sm font-medium text-red-800">Error Loading Session</h3>
+          <h3 class="text-sm font-medium text-red-800">{{ t('sessions.view.errorTitle') }}</h3>
           <div class="mt-2 text-sm text-red-700">
             <p>{{ loadError }}</p>
           </div>
@@ -264,7 +272,7 @@ onKeyStroke('Escape', (e) => {
               @click="goBack"
               class="rounded-md bg-red-100 px-3 py-2 text-sm font-semibold text-red-800 transition-colors hover:bg-red-200 focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-red-50 focus:outline-none"
             >
-              Go Back
+              {{ t('sessions.view.goBackButton') }}
             </button>
           </div>
         </div>
