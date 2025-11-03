@@ -75,7 +75,7 @@
 
 ---
 
-## Phase 4: Medium-Priority Components 🟡 IN PROGRESS (8/12 components) ⏱️ 15-20 hours
+## Phase 4: Medium-Priority Components 🟡 IN PROGRESS (9/12 components) ⏱️ 15-20 hours
 
 ### Sessions (~99 strings total) ✅ COMPLETE (4/4 complete)
 - [x] SessionView (~13 strings) ✅ Complete
@@ -83,12 +83,12 @@
 - [x] PreviousSessionPanel (~8 strings) ✅ Complete
 - [x] SessionAttachments + FileUpload + AttachmentList (~33 strings) ✅ Complete
 
-### Settings (~112 strings total) 🟡 IN PROGRESS (4/5 complete)
+### Settings (~120 strings total) ✅ COMPLETE (5/5 complete)
 - [x] SettingsLayout (~3 strings) ✅ Complete
 - [x] SettingsSidebar (~9 strings) ✅ Complete
 - [x] NotificationsView (~50+ strings) ✅ Complete
 - [x] IntegrationsView + GoogleCalendarSettings (~40+ strings) ✅ Complete
-- [ ] **Add language switcher to Settings**
+- [x] LanguageView (~8 strings) ✅ Complete
 
 ### Common (~40 strings)
 - [ ] AppNavigation
