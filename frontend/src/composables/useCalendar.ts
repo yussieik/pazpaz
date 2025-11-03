@@ -45,7 +45,8 @@ export function useCalendar() {
       currentDateRange.value.start,
       currentDateRange.value.end,
       currentView.value,
-      currentDate.value
+      currentDate.value,
+      locale.value
     )
 
     if (isViewChanging.value) {

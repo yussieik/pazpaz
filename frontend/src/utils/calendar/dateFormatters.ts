@@ -1,12 +1,27 @@
 import { format } from 'date-fns'
+import { he } from 'date-fns/locale'
 
 export type ViewType = 'timeGridWeek' | 'timeGridDay' | 'dayGridMonth'
 
 /**
- * Format date using date-fns
+ * Get date-fns locale based on current language
+ * Used internally by formatting functions
  */
-export function formatDate(dateString: string, formatStr: string): string {
-  return format(new Date(dateString), formatStr)
+function getDateFnsLocale(locale?: string): Locale | undefined {
+  return locale === 'he' ? he : undefined
+}
+
+/**
+ * Format date using date-fns with locale support
+ */
+export function formatDate(
+  dateString: string,
+  formatStr: string,
+  locale?: string
+): string {
+  return format(new Date(dateString), formatStr, {
+    locale: getDateFnsLocale(locale),
+  })
 }
 
 /**
@@ -17,20 +32,23 @@ export function formatDateRange(
   start: Date,
   end: Date,
   view: ViewType,
-  currentDate?: Date
+  currentDate?: Date,
+  locale?: string
 ): string {
+  const localeObj = getDateFnsLocale(locale)
+
   if (view === 'timeGridDay') {
     // For day view, always use currentDate to avoid flicker during view transitions
     // When switching views, currentDateRange updates before the view stabilizes,
     // but currentDate remains stable thanks to the isViewChanging flag
     const dateToFormat = currentDate || start
-    return format(dateToFormat, 'MMMM d, yyyy')
+    return format(dateToFormat, 'MMMM d, yyyy', { locale: localeObj })
   } else if (view === 'timeGridWeek') {
-    const startMonth = format(start, 'MMM')
-    const endMonth = format(end, 'MMM')
-    const startDay = format(start, 'd')
-    const endDay = format(end, 'd')
-    const year = format(start, 'yyyy')
+    const startMonth = format(start, 'MMM', { locale: localeObj })
+    const endMonth = format(end, 'MMM', { locale: localeObj })
+    const startDay = format(start, 'd', { locale: localeObj })
+    const endDay = format(end, 'd', { locale: localeObj })
+    const year = format(start, 'yyyy', { locale: localeObj })
 
     if (startMonth === endMonth) {
       return `${startMonth} ${startDay} - ${endDay}, ${year}`
@@ -40,7 +58,7 @@ export function formatDateRange(
     // For month view, use currentDate to avoid showing previous month
     // when calendar includes padding days from previous/next months
     const dateToFormat = currentDate || start
-    return format(dateToFormat, 'MMMM yyyy')
+    return format(dateToFormat, 'MMMM yyyy', { locale: localeObj })
   }
 }
 
@@ -90,14 +108,11 @@ export function formatRelativeTime(pastDate: string): string {
 
 /**
  * Format a date for display in long form
- * Example: "January 15, 2025"
+ * Example: "January 15, 2025" or "15 בינואר 2025"
  */
-export function formatLongDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+export function formatLongDate(dateString: string, locale?: string): string {
+  const localeObj = getDateFnsLocale(locale)
+  return format(new Date(dateString), 'PPP', { locale: localeObj })
 }
 
 /**
