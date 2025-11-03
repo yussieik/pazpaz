@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from '@/composables/useI18n'
 import { useClientsStore } from '@/stores/clients'
 import { useClientListKeyboard } from '@/composables/useClientListKeyboard'
 import { useScreenReader } from '@/composables/useScreenReader'
@@ -10,6 +11,7 @@ import type { ClientListItem, ClientCreate } from '@/types/client'
 import FloatingActionButton from '@/components/common/FloatingActionButton.vue'
 import ClientFormModal from '@/components/clients/ClientFormModal.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const clientsStore = useClientsStore()
 const { showSuccess, showError } = useToast()
@@ -70,11 +72,14 @@ async function handleCreateClient(data: ClientCreate) {
     router.push(`/clients/${newClient.id}`)
 
     // Show success toast
-    showSuccess(`${newClient.first_name} ${newClient.last_name} added successfully`)
+    showSuccess(t('clients.view.toasts.clientAdded', {
+      firstName: newClient.first_name,
+      lastName: newClient.last_name
+    }))
   } catch (error) {
     // Keep modal open and show error
     console.error('Failed to create client:', error)
-    showError('Failed to add client. Please try again.')
+    showError(t('clients.view.toasts.addFailed'))
   }
 }
 
@@ -158,17 +163,20 @@ onUnmounted(() => {
           type="search"
           :placeholder="
             shouldDeferKeyboard
-              ? 'Tap to search clients...'
-              : 'Search clients by name, email, or phone... (press / to focus)'
+              ? t('clients.view.searchPlaceholderMobile')
+              : t('clients.view.searchPlaceholderDesktop')
           "
-          :aria-label="shouldDeferKeyboard ? 'Search clients' : undefined"
+          :aria-label="shouldDeferKeyboard ? t('clients.view.searchAriaLabel') : undefined"
           class="block w-full rounded-lg border border-slate-300 bg-white py-3 pr-3 pl-10 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
         />
       </div>
 
       <!-- Client count (subtle, right-aligned on desktop) -->
       <div class="text-sm text-slate-600" aria-live="polite" aria-atomic="true">
-        {{ filteredClients.length }} client{{ filteredClients.length === 1 ? '' : 's' }}
+        {{ filteredClients.length === 1
+          ? t('clients.view.clientCountSingular', { count: filteredClients.length })
+          : t('clients.view.clientCountPlural', { count: filteredClients.length })
+        }}
       </div>
     </div>
 
@@ -178,7 +186,7 @@ onUnmounted(() => {
         <div
           class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-emerald-600 border-r-transparent"
         ></div>
-        <p class="mt-4 text-sm text-slate-600">Loading clients...</p>
+        <p class="mt-4 text-sm text-slate-600">{{ t('clients.view.loadingMessage') }}</p>
       </div>
     </div>
 
@@ -187,7 +195,7 @@ onUnmounted(() => {
       v-else-if="clientsStore.error"
       class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"
     >
-      <p class="font-semibold">Error loading clients</p>
+      <p class="font-semibold">{{ t('clients.view.errorTitle') }}</p>
       <p class="mt-1 text-sm">{{ clientsStore.error }}</p>
     </div>
 
@@ -211,10 +219,9 @@ onUnmounted(() => {
           />
         </svg>
       </div>
-      <h2 class="mb-3 text-xl font-semibold text-slate-900">No clients yet</h2>
+      <h2 class="mb-3 text-xl font-semibold text-slate-900">{{ t('clients.view.emptyState.title') }}</h2>
       <p class="mb-6 text-slate-600">
-        Get started by adding your first client to begin managing their treatment
-        journey.
+        {{ t('clients.view.emptyState.description') }}
       </p>
       <button
         @click="createNewClient"
@@ -228,7 +235,7 @@ onUnmounted(() => {
             d="M12 4v16m8-8H4"
           />
         </svg>
-        <span>Add First Client</span>
+        <span>{{ t('clients.view.emptyState.button') }}</span>
       </button>
     </div>
 
@@ -237,12 +244,12 @@ onUnmounted(() => {
       v-else-if="filteredClients.length === 0"
       class="mx-auto max-w-2xl py-12 text-center"
     >
-      <p class="text-slate-600">No clients match your search.</p>
+      <p class="text-slate-600">{{ t('clients.view.emptySearch.message') }}</p>
       <button
         @click="searchQuery = ''"
         class="mt-4 text-sm font-medium text-emerald-600 hover:text-emerald-700"
       >
-        Clear search
+        {{ t('clients.view.emptySearch.clearButton') }}
       </button>
     </div>
 
@@ -283,18 +290,18 @@ onUnmounted(() => {
         <!-- Client Metadata -->
         <div class="space-y-1 text-sm text-slate-600">
           <p v-if="client.phone">
-            <span class="font-medium">Phone:</span> {{ client.phone }}
+            <span class="font-medium">{{ t('clients.view.clientCard.phoneLabel') }}</span> {{ client.phone }}
           </p>
           <p v-if="client.next_appointment">
-            <span class="font-medium">Next:</span>
+            <span class="font-medium">{{ t('clients.view.clientCard.nextLabel') }}</span>
             {{ new Date(client.next_appointment).toLocaleDateString() }}
           </p>
           <p v-else-if="client.last_appointment">
-            <span class="font-medium">Last:</span>
+            <span class="font-medium">{{ t('clients.view.clientCard.lastLabel') }}</span>
             {{ new Date(client.last_appointment).toLocaleDateString() }}
           </p>
           <p v-if="client.appointment_count !== undefined">
-            <span class="font-medium">Appointments:</span>
+            <span class="font-medium">{{ t('clients.view.clientCard.appointmentsLabel') }}</span>
             {{ client.appointment_count }}
           </p>
         </div>
@@ -303,8 +310,8 @@ onUnmounted(() => {
 
     <!-- Floating Action Button -->
     <FloatingActionButton
-      label="Add Client"
-      title="Add Client (N)"
+      :label="t('clients.view.floatingButton.label')"
+      :title="t('clients.view.floatingButton.title')"
       @click="createNewClient"
     />
 

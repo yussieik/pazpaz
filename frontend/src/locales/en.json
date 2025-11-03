@@ -358,6 +358,38 @@
         "selectionCleared": "Client selection cleared",
         "clientCreated": "Client {clientName} created and selected"
       }
+    },
+    "view": {
+      "searchPlaceholderMobile": "Tap to search clients...",
+      "searchPlaceholderDesktop": "Search clients by name, email, or phone... (press / to focus)",
+      "searchAriaLabel": "Search clients",
+      "clientCountSingular": "{count} client",
+      "clientCountPlural": "{count} clients",
+      "loadingMessage": "Loading clients...",
+      "errorTitle": "Error loading clients",
+      "emptyState": {
+        "title": "No clients yet",
+        "description": "Get started by adding your first client to begin managing their treatment journey.",
+        "button": "Add First Client"
+      },
+      "emptySearch": {
+        "message": "No clients match your search.",
+        "clearButton": "Clear search"
+      },
+      "clientCard": {
+        "phoneLabel": "Phone:",
+        "nextLabel": "Next:",
+        "lastLabel": "Last:",
+        "appointmentsLabel": "Appointments:"
+      },
+      "floatingButton": {
+        "label": "Add Client",
+        "title": "Add Client (N)"
+      },
+      "toasts": {
+        "clientAdded": "{firstName} {lastName} added successfully",
+        "addFailed": "Failed to add client. Please try again."
+      }
     }
   }
 }

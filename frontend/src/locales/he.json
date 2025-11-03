@@ -358,6 +358,38 @@
         "selectionCleared": "בחירת המטופל נוקתה",
         "clientCreated": "מטופל {clientName} נוצר ונבחר"
       }
+    },
+    "view": {
+      "searchPlaceholderMobile": "הקש לחיפוש מטופלים...",
+      "searchPlaceholderDesktop": "חפש מטופלים לפי שם, אימייל או טלפון... (לחץ / למיקוד)",
+      "searchAriaLabel": "חפש מטופלים",
+      "clientCountSingular": "מטופל {count}",
+      "clientCountPlural": "{count} מטופלים",
+      "loadingMessage": "טוען מטופלים...",
+      "errorTitle": "שגיאה בטעינת מטופלים",
+      "emptyState": {
+        "title": "אין מטופלים עדיין",
+        "description": "התחל על ידי הוספת המטופל הראשון שלך כדי להתחיל לנהל את מסע הטיפול שלו.",
+        "button": "הוסף מטופל ראשון"
+      },
+      "emptySearch": {
+        "message": "אין מטופלים התואמים את החיפוש.",
+        "clearButton": "נקה חיפוש"
+      },
+      "clientCard": {
+        "phoneLabel": "טלפון:",
+        "nextLabel": "הבא:",
+        "lastLabel": "אחרון:",
+        "appointmentsLabel": "פגישות:"
+      },
+      "floatingButton": {
+        "label": "הוסף מטופל",
+        "title": "הוסף מטופל (N)"
+      },
+      "toasts": {
+        "clientAdded": "{firstName} {lastName} נוסף בהצלחה",
+        "addFailed": "הוספת המטופל נכשלה. אנא נסה שוב."
+      }
     }
   }
 }
