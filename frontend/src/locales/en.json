@@ -433,7 +433,7 @@
         },
         "email": {
           "label": "Email",
-          "placeholder": "client@example.com",
+          "placeholder": "client{'@'}example.com",
           "invalid": "Please enter a valid email address"
         },
         "calendarConsent": {

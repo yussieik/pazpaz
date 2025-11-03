@@ -433,7 +433,7 @@
         },
         "email": {
           "label": "אימייל",
-          "placeholder": "example@client.com",
+          "placeholder": "example{'@'}client.com",
           "invalid": "אנא הזן כתובת אימייל תקינה"
         },
         "calendarConsent": {

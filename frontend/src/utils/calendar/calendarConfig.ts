@@ -79,7 +79,7 @@ export function getCalendarOptions(currentLocale: string) {
   const timeFormatConfig = getTimeFormatConfig(currentLocale)
 
   return {
-    headerToolbar: false,
+    headerToolbar: false as false,
     allDaySlot: false,
     nowIndicator: true,
     editable: true,

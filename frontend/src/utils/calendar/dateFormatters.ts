@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import { he } from 'date-fns/locale'
+import type { Locale } from 'date-fns'
 
 export type ViewType = 'timeGridWeek' | 'timeGridDay' | 'dayGridMonth'
 

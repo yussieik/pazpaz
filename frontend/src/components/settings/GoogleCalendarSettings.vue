@@ -66,11 +66,11 @@ const formattedLastSync = computed(() => {
   // Relative time
   if (diffMins < 1) return t('settings.googleCalendar.timeAgo.justNow')
   if (diffMins < 60)
-    return t('settings.googleCalendar.timeAgo.minutesAgo', diffMins, { count: diffMins })
+    return t('settings.googleCalendar.timeAgo.minutesAgo', { count: diffMins })
   if (diffHours < 24)
-    return t('settings.googleCalendar.timeAgo.hoursAgo', diffHours, { count: diffHours })
+    return t('settings.googleCalendar.timeAgo.hoursAgo', { count: diffHours })
   if (diffDays < 7)
-    return t('settings.googleCalendar.timeAgo.daysAgo', diffDays, { count: diffDays })
+    return t('settings.googleCalendar.timeAgo.daysAgo', { count: diffDays })
 
   // Absolute date for older syncs
   return date.toLocaleDateString(undefined, {
