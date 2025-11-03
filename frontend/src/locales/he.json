@@ -657,5 +657,27 @@
         "downloadError": "הורדת הקובץ נכשלה"
       }
     }
+  },
+  "settings": {
+    "layout": {
+      "notifications": "התראות",
+      "integrations": "אינטגרציות",
+      "payments": "תשלומים"
+    },
+    "sidebar": {
+      "ariaLabel": "ניווט הגדרות",
+      "notifications": {
+        "name": "התראות",
+        "description": "התראות במייל ותזכורות"
+      },
+      "integrations": {
+        "name": "אינטגרציות",
+        "description": "סנכרון יומן ואפליקציות צד שלישי"
+      },
+      "payments": {
+        "name": "תשלומים",
+        "description": "עיבוד תשלומים וחשבוניות"
+      }
+    }
   }
 }

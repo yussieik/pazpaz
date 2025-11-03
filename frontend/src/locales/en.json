@@ -657,5 +657,27 @@
         "downloadError": "Failed to download file"
       }
     }
+  },
+  "settings": {
+    "layout": {
+      "notifications": "Notifications",
+      "integrations": "Integrations",
+      "payments": "Payments"
+    },
+    "sidebar": {
+      "ariaLabel": "Settings navigation",
+      "notifications": {
+        "name": "Notifications",
+        "description": "Email notifications and reminders"
+      },
+      "integrations": {
+        "name": "Integrations",
+        "description": "Calendar sync and third-party apps"
+      },
+      "payments": {
+        "name": "Payments",
+        "description": "Payment processing and invoicing"
+      }
+    }
   }
 }

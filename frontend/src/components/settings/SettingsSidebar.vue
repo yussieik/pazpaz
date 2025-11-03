@@ -13,6 +13,9 @@
 
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 /**
  * Settings category definition
@@ -32,24 +35,24 @@ interface SettingsCategory {
 const categories = computed<SettingsCategory[]>(() => [
   {
     id: 'notifications',
-    name: 'Notifications',
+    name: t('settings.sidebar.notifications.name'),
     path: '/settings/notifications',
     icon: 'bell',
-    description: 'Email notifications and reminders',
+    description: t('settings.sidebar.notifications.description'),
   },
   {
     id: 'integrations',
-    name: 'Integrations',
+    name: t('settings.sidebar.integrations.name'),
     path: '/settings/integrations',
     icon: 'link',
-    description: 'Calendar sync and third-party apps',
+    description: t('settings.sidebar.integrations.description'),
   },
   {
     id: 'payments',
-    name: 'Payments',
+    name: t('settings.sidebar.payments.name'),
     path: '/settings/payments',
     icon: 'credit-card',
-    description: 'Payment processing and invoicing',
+    description: t('settings.sidebar.payments.description'),
   },
   // Future categories - uncomment when ready to enable
   // {
@@ -113,7 +116,7 @@ function getIconPath(iconName: string): string {
 <template>
   <nav
     class="w-48 border-r border-slate-200 bg-slate-50 px-3 py-6"
-    aria-label="Settings navigation"
+    :aria-label="t('settings.sidebar.ariaLabel')"
   >
     <ul class="space-y-1" role="list">
       <li v-for="category in categories" :key="category.id">

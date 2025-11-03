@@ -130,8 +130,8 @@
 - [ ] Replace all `format()` calls with `useDateFormat()`
 - [ ] Test Hebrew date formatting
 
-###
-- 
+### Code integration validation (! VERY IMPORTANT)
+- [ ] Verify the Frontend CI is passing the build and deplyoment phases (monitor actively until its sucessful)
 ---
 
 ## Phase 7: Testing & QA ⏱️ 12-15 hours
