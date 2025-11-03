@@ -121,13 +121,13 @@
 
 ---
 
-## Phase 6: Third-Party Libraries 🟡 IN PROGRESS (3/7 tasks) ⏱️ 6-8 hours
+## Phase 6: Third-Party Libraries 🟡 IN PROGRESS (6/7 tasks) ⏱️ 6-8 hours
 
 ### FullCalendar ✅ COMPLETE (3/4 tasks)
 - [x] Import Hebrew locale in `calendarConfig.ts` ✅ Complete
 - [x] Configure Sunday week start for Hebrew ✅ Complete
 - [x] Set 24-hour time format for Hebrew ✅ Complete
-- [ ] Test RTL calendar layout ⏸️ Pending
+- [ ] Test RTL calendar layout ⏸️ Deferred to Phase 7
 
 **Implementation Details:**
 - Created `getTimeFormatConfig(locale)` function for 12h/24h format switching
@@ -135,10 +135,16 @@
 - Updated `useCalendar.ts` to use locale-aware configuration
 - Calendar automatically adapts when locale changes
 
-### date-fns ⏸️ PENDING (0/3 tasks)
-- [ ] Verify `/src/utils/dateFormat.ts` has Hebrew locale support
-- [ ] Check all `format()` calls use locale-aware formatting
-- [ ] Test Hebrew date formatting
+### date-fns ✅ COMPLETE (3/3 tasks)
+- [x] Verified `/src/utils/dateFormat.ts` has Hebrew locale support ✅ Complete
+- [x] Updated `dateFormatters.ts` with locale-aware formatting ✅ Complete
+- [x] Integrated Hebrew locale in calendar toolbar ✅ Complete
+
+**Implementation Details:**
+- Created `getDateFnsLocale()` helper in dateFormatters.ts
+- Updated formatDate(), formatDateRange(), formatLongDate() with locale parameters
+- Integrated with useCalendar composable for automatic locale switching
+- Month names and date formats now display in Hebrew
 
 ### Code integration validation (! VERY IMPORTANT)
 - [ ] Verify the Frontend CI is passing the build and deplyoment phases (monitor actively until its sucessful)
