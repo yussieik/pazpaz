@@ -709,6 +709,81 @@
       "hebrew": "עברית",
       "changeSuccess": "השפה שונתה בהצלחה"
     },
+    "payments": {
+      "currentSettings": {
+        "title": "אמצעי תשלום נוכחי: {method}",
+        "description": "אמצעי התשלום שלך מוגדר ופעיל",
+        "active": "פעיל",
+        "paymentDetailsLabel": "פרטי תשלום",
+        "copyButton": "העתק פרטים",
+        "editButton": "ערוך הגדרות",
+        "disableButton": "השבת תשלומים",
+        "disabling": "משבית..."
+      },
+      "methods": {
+        "bit": "ביט (Bit)",
+        "paybox": "פייבוקס (PayBox)",
+        "bank": "העברה בנקאית",
+        "custom": "קישור מותאם אישית"
+      },
+      "bit": {
+        "title": "הגדר תשלום ביט",
+        "description": "הזן את מספר הטלפון שלך לביט (05X-XXXXXXX) או כתובת Bit Pay",
+        "label": "מספר טלפון או כתובת Bit Pay",
+        "placeholder": "050-123-4567 או https://www.bitpay.co.il/app/me/...",
+        "errorInvalid": "הזן מספר טלפון ישראלי תקין (05X-XXXXXXX) או כתובת Bit Pay (https://...)",
+        "saveButton": "שמור תשלום ביט",
+        "saving": "שומר..."
+      },
+      "paybox": {
+        "title": "הגדר תשלום פייבוקס",
+        "description": "הזן את כתובת דף התשלום שלך בפייבוקס",
+        "label": "כתובת פייבוקס",
+        "placeholder": "https://paybox.co.il/p/yourname",
+        "errorInvalid": "כתובת לא תקינה. חייב להתחיל ב-http:// או https://",
+        "saveButton": "שמור תשלום פייבוקס",
+        "saving": "שומר..."
+      },
+      "bank": {
+        "title": "הגדר העברה בנקאית",
+        "description": "הזן את פרטי חשבון הבנק שבו המטופלים ישתמשו להעברות",
+        "label": "פרטי חשבון בנק",
+        "placeholder": "בנק: לאומי\nמספר חשבון: 12345\nסניף: 678\nשם בעל החשבון: שמך",
+        "saveButton": "שמור העברה בנקאית",
+        "saving": "שומר..."
+      },
+      "custom": {
+        "title": "הגדר קישור תשלום מותאם אישית",
+        "description": "הזן את כתובת קישור התשלום המותאם אישית שלך. אפשר להשתמש במשתנים: {amount}, {client_name}, {appointment_id}",
+        "label": "כתובת קישור תשלום",
+        "placeholder": "https://example.com/pay?amount={amount}",
+        "errorInvalid": "כתובת לא תקינה. חייב להתחיל ב-http:// או https://",
+        "variablesTitle": "משתנים זמינים:",
+        "variableAmount": "סכום התשלום (לדוגמה, 150.00)",
+        "variableClientName": "שם המטופל (מקודד לכתובת URL)",
+        "variableAppointmentId": "מזהה פגישה ייחודי (UUID)",
+        "saveButton": "שמור קישור מותאם",
+        "saving": "שומר..."
+      },
+      "common": {
+        "cancelButton": "ביטול"
+      },
+      "toasts": {
+        "loadError": "טעינת הגדרות התשלום נכשלה",
+        "bitSuccess": "תשלום ביט הוגדר בהצלחה",
+        "bitError": "שמירת תשלום ביט נכשלה",
+        "payboxSuccess": "תשלום פייבוקס הוגדר בהצלחה",
+        "payboxError": "שמירת תשלום פייבוקס נכשלה",
+        "bankSuccess": "העברה בנקאית הוגדרה בהצלחה",
+        "bankError": "שמירת העברה בנקאית נכשלה",
+        "customSuccess": "קישור מותאם הוגדר בהצלחה",
+        "customError": "שמירת קישור מותאם נכשלה",
+        "disableSuccess": "מעקב תשלומים הושבת",
+        "disableError": "השבתת מעקב תשלומים נכשלה",
+        "copySuccess": "פרטי תשלום הועתקו ללוח",
+        "copyError": "העתקה ללוח נכשלה"
+      }
+    },
     "notifications": {
       "errorPrefix": "שגיאה:",
       "masterToggle": {

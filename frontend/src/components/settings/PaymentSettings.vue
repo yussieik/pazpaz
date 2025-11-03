@@ -22,6 +22,7 @@
 
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from '@/composables/useToast'
+import { useI18n } from '@/composables/useI18n'
 import apiClient from '@/api/client'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import IconBitLogo from '@/components/icons/IconBitLogo.vue'
@@ -58,18 +59,13 @@ const customUrlError = ref('')
 
 // Composables
 const { showSuccess, showError } = useToast()
+const { t } = useI18n()
 
 // Computed
 const paymentTypeLabel = computed(() => {
-  const labels: Record<string, string> = {
-    bit: 'Bit (ביט)',
-    paybox: 'PayBox',
-    bank: 'Bank Transfer',
-    custom: 'Custom Link',
-  }
-  return currentConfig.value?.payment_link_type
-    ? labels[currentConfig.value.payment_link_type] || ''
-    : ''
+  const type = currentConfig.value?.payment_link_type
+  if (!type) return ''
+  return t(`settings.payments.methods.${type}` as any)
 })
 
 const paymentTemplate = computed(() => currentConfig.value?.payment_link_template || '')
@@ -117,7 +113,7 @@ function validateBitPhone() {
   const isUrl = validateUrl(bitPhoneNumber.value)
 
   if (!isPhone && !isUrl) {
-    bitPhoneError.value = 'Enter a valid Israeli phone (05X-XXXXXXX) or Bit Pay URL (https://...)'
+    bitPhoneError.value = t('settings.payments.bit.errorInvalid')
   } else {
     bitPhoneError.value = ''
   }
@@ -130,7 +126,7 @@ function validatePayboxUrl() {
   }
 
   if (!validateUrl(payboxUrl.value)) {
-    payboxUrlError.value = 'Invalid URL. Must start with http:// or https://'
+    payboxUrlError.value = t('settings.payments.paybox.errorInvalid')
   } else {
     payboxUrlError.value = ''
   }
@@ -143,7 +139,7 @@ function validateCustomUrl() {
   }
 
   if (!validateUrl(customUrl.value)) {
-    customUrlError.value = 'Invalid URL. Must start with http:// or https://'
+    customUrlError.value = t('settings.payments.custom.errorInvalid')
   } else {
     customUrlError.value = ''
   }
@@ -157,7 +153,7 @@ async function fetchConfig() {
     currentConfig.value = response.data
   } catch (error) {
     console.error('Failed to fetch payment config:', error)
-    showError('Failed to load payment settings')
+    showError(t('settings.payments.toasts.loadError'))
   } finally {
     loading.value = false
   }
@@ -182,12 +178,12 @@ async function saveBitPayment() {
     isEditing.value = false
     bitPhoneNumber.value = ''
 
-    showSuccess('Bit payment configured successfully')
+    showSuccess(t('settings.payments.toasts.bitSuccess'))
   } catch (error: unknown) {
     console.error('Failed to save Bit payment:', error)
     const errorMessage =
       (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
-      'Failed to save Bit payment'
+      t('settings.payments.toasts.bitError')
     bitPhoneError.value = errorMessage
     showError(errorMessage)
   } finally {
@@ -210,12 +206,12 @@ async function savePayboxPayment() {
     isEditing.value = false
     payboxUrl.value = ''
 
-    showSuccess('PayBox payment configured successfully')
+    showSuccess(t('settings.payments.toasts.payboxSuccess'))
   } catch (error: unknown) {
     console.error('Failed to save PayBox payment:', error)
     const errorMessage =
       (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
-      'Failed to save PayBox payment'
+      t('settings.payments.toasts.payboxError')
     payboxUrlError.value = errorMessage
     showError(errorMessage)
   } finally {
@@ -239,12 +235,12 @@ async function saveBankPayment() {
     isEditing.value = false
     bankDetails.value = ''
 
-    showSuccess('Bank transfer configured successfully')
+    showSuccess(t('settings.payments.toasts.bankSuccess'))
   } catch (error: unknown) {
     console.error('Failed to save bank transfer:', error)
     const errorMessage =
       (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
-      'Failed to save bank transfer'
+      t('settings.payments.toasts.bankError')
     bankDetailsError.value = errorMessage
     showError(errorMessage)
   } finally {
@@ -267,12 +263,12 @@ async function saveCustomPayment() {
     isEditing.value = false
     customUrl.value = ''
 
-    showSuccess('Custom link configured successfully')
+    showSuccess(t('settings.payments.toasts.customSuccess'))
   } catch (error: unknown) {
     console.error('Failed to save custom link:', error)
     const errorMessage =
       (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
-      'Failed to save custom link'
+      t('settings.payments.toasts.customError')
     customUrlError.value = errorMessage
     showError(errorMessage)
   } finally {
@@ -293,10 +289,10 @@ async function disablePayments() {
     selectedMethod.value = null
     isEditing.value = false
 
-    showSuccess('Payment tracking disabled')
+    showSuccess(t('settings.payments.toasts.disableSuccess'))
   } catch (error) {
     console.error('Failed to disable payments:', error)
-    showError('Failed to disable payment tracking')
+    showError(t('settings.payments.toasts.disableError'))
   } finally {
     saving.value = false
   }
@@ -337,10 +333,10 @@ function cancel() {
 async function copyPaymentLink() {
   try {
     await navigator.clipboard.writeText(paymentTemplate.value)
-    showSuccess('Payment details copied to clipboard')
+    showSuccess(t('settings.payments.toasts.copySuccess'))
   } catch (error) {
     console.error('Failed to copy:', error)
-    showError('Failed to copy to clipboard')
+    showError(t('settings.payments.toasts.copyError'))
   }
 }
 
@@ -367,18 +363,18 @@ onMounted(() => {
         <div class="mb-4 flex items-start justify-between">
           <div>
             <h3 class="mb-1 text-lg font-semibold text-slate-900">
-              Current Payment Method: {{ paymentTypeLabel }}
+              {{ t('settings.payments.currentSettings.title', { method: paymentTypeLabel }) }}
             </h3>
-            <p class="text-sm text-slate-600">Your payment method is configured and active</p>
+            <p class="text-sm text-slate-600">{{ t('settings.payments.currentSettings.description') }}</p>
           </div>
           <span class="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
-            Active
+            {{ t('settings.payments.currentSettings.active') }}
           </span>
         </div>
 
         <div class="mb-4 rounded-lg bg-slate-50 p-4">
           <p class="mb-1 text-xs font-medium uppercase text-slate-500">
-            Payment Details
+            {{ t('settings.payments.currentSettings.paymentDetailsLabel') }}
           </p>
           <p class="font-mono text-sm text-slate-900">{{ paymentTemplate }}</p>
         </div>
@@ -389,14 +385,14 @@ onMounted(() => {
             type="button"
             class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
           >
-            Copy Details
+            {{ t('settings.payments.currentSettings.copyButton') }}
           </button>
           <button
             @click="editSettings"
             type="button"
             class="rounded-lg bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-200"
           >
-            Edit Settings
+            {{ t('settings.payments.currentSettings.editButton') }}
           </button>
           <button
             @click="disablePayments"
@@ -404,7 +400,7 @@ onMounted(() => {
             class="ml-auto rounded-lg bg-red-100 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-200"
             :disabled="saving"
           >
-            {{ saving ? 'Disabling...' : 'Disable Payments' }}
+            {{ saving ? t('settings.payments.currentSettings.disabling') : t('settings.payments.currentSettings.disableButton') }}
           </button>
         </div>
       </div>
@@ -431,21 +427,21 @@ onMounted(() => {
 
       <!-- Bit Configuration Form -->
       <div v-if="selectedMethod === 'bit'" class="rounded-lg border border-slate-200 bg-white p-6">
-        <h3 class="mb-2 text-lg font-semibold text-slate-900">Configure Bit Payment</h3>
+        <h3 class="mb-2 text-lg font-semibold text-slate-900">{{ t('settings.payments.bit.title') }}</h3>
         <p class="mb-4 text-sm text-slate-600">
-          Enter your Bit phone number (05X-XXXXXXX) or Bit Pay web URL
+          {{ t('settings.payments.bit.description') }}
         </p>
 
         <div class="mb-4">
           <label for="bitPhone" class="mb-2 block text-sm font-medium text-slate-900">
-            Phone Number or Bit Pay URL
+            {{ t('settings.payments.bit.label') }}
           </label>
           <input
             id="bitPhone"
             v-model="bitPhoneNumber"
             @input="validateBitPhone"
             type="text"
-            placeholder="050-123-4567 or https://www.bitpay.co.il/app/me/..."
+            :placeholder="t('settings.payments.bit.placeholder')"
             class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
             :class="{ 'border-red-500': bitPhoneError }"
           />
@@ -462,14 +458,14 @@ onMounted(() => {
             :disabled="!isValidBitPhone || saving"
           >
             <LoadingSpinner v-if="saving" size="sm" />
-            <span>{{ saving ? 'Saving...' : 'Save Bit Payment' }}</span>
+            <span>{{ saving ? t('settings.payments.bit.saving') : t('settings.payments.bit.saveButton') }}</span>
           </button>
           <button
             @click="cancel"
             type="button"
             class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
           >
-            Cancel
+            {{ t('settings.payments.common.cancelButton') }}
           </button>
         </div>
       </div>
@@ -479,19 +475,19 @@ onMounted(() => {
         v-if="selectedMethod === 'paybox'"
         class="rounded-lg border border-slate-200 bg-white p-6"
       >
-        <h3 class="mb-2 text-lg font-semibold text-slate-900">Configure PayBox Payment</h3>
-        <p class="mb-4 text-sm text-slate-600">Enter your PayBox payment page URL</p>
+        <h3 class="mb-2 text-lg font-semibold text-slate-900">{{ t('settings.payments.paybox.title') }}</h3>
+        <p class="mb-4 text-sm text-slate-600">{{ t('settings.payments.paybox.description') }}</p>
 
         <div class="mb-4">
           <label for="payboxUrl" class="mb-2 block text-sm font-medium text-slate-900">
-            PayBox URL
+            {{ t('settings.payments.paybox.label') }}
           </label>
           <input
             id="payboxUrl"
             v-model="payboxUrl"
             @input="validatePayboxUrl"
             type="url"
-            placeholder="https://paybox.co.il/p/yourname"
+            :placeholder="t('settings.payments.paybox.placeholder')"
             class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
             :class="{ 'border-red-500': payboxUrlError }"
           />
@@ -508,14 +504,14 @@ onMounted(() => {
             :disabled="!isValidPayboxUrl || saving"
           >
             <LoadingSpinner v-if="saving" size="sm" />
-            <span>{{ saving ? 'Saving...' : 'Save PayBox Payment' }}</span>
+            <span>{{ saving ? t('settings.payments.paybox.saving') : t('settings.payments.paybox.saveButton') }}</span>
           </button>
           <button
             @click="cancel"
             type="button"
             class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
           >
-            Cancel
+            {{ t('settings.payments.common.cancelButton') }}
           </button>
         </div>
       </div>
@@ -525,20 +521,20 @@ onMounted(() => {
         v-if="selectedMethod === 'bank'"
         class="rounded-lg border border-slate-200 bg-white p-6"
       >
-        <h3 class="mb-2 text-lg font-semibold text-slate-900">Configure Bank Transfer</h3>
+        <h3 class="mb-2 text-lg font-semibold text-slate-900">{{ t('settings.payments.bank.title') }}</h3>
         <p class="mb-4 text-sm text-slate-600">
-          Enter your bank account details that clients will use for transfers
+          {{ t('settings.payments.bank.description') }}
         </p>
 
         <div class="mb-4">
           <label for="bankDetails" class="mb-2 block text-sm font-medium text-slate-900">
-            Bank Account Details
+            {{ t('settings.payments.bank.label') }}
           </label>
           <textarea
             id="bankDetails"
             v-model="bankDetails"
             rows="6"
-            placeholder="Bank: Leumi&#10;Account: 12345&#10;Branch: 678&#10;Account Name: Your Name"
+            :placeholder="t('settings.payments.bank.placeholder')"
             class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
             :class="{ 'border-red-500': bankDetailsError }"
           ></textarea>
@@ -555,14 +551,14 @@ onMounted(() => {
             :disabled="!bankDetails || saving"
           >
             <LoadingSpinner v-if="saving" size="sm" />
-            <span>{{ saving ? 'Saving...' : 'Save Bank Transfer' }}</span>
+            <span>{{ saving ? t('settings.payments.bank.saving') : t('settings.payments.bank.saveButton') }}</span>
           </button>
           <button
             @click="cancel"
             type="button"
             class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
           >
-            Cancel
+            {{ t('settings.payments.common.cancelButton') }}
           </button>
         </div>
       </div>
@@ -572,22 +568,21 @@ onMounted(() => {
         v-if="selectedMethod === 'custom'"
         class="rounded-lg border border-slate-200 bg-white p-6"
       >
-        <h3 class="mb-2 text-lg font-semibold text-slate-900">Configure Custom Payment Link</h3>
+        <h3 class="mb-2 text-lg font-semibold text-slate-900">{{ t('settings.payments.custom.title') }}</h3>
         <p class="mb-4 text-sm text-slate-600">
-          Enter your custom payment link URL. You can use variables: {amount}, {client_name},
-          {appointment_id}
+          {{ t('settings.payments.custom.description') }}
         </p>
 
         <div class="mb-4">
           <label for="customUrl" class="mb-2 block text-sm font-medium text-slate-900">
-            Payment Link URL
+            {{ t('settings.payments.custom.label') }}
           </label>
           <input
             id="customUrl"
             v-model="customUrl"
             @input="validateCustomUrl"
             type="url"
-            placeholder="https://example.com/pay?amount={amount}"
+            :placeholder="t('settings.payments.custom.placeholder')"
             class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
             :class="{ 'border-red-500': customUrlError }"
           />
@@ -597,19 +592,16 @@ onMounted(() => {
         </div>
 
         <div class="mb-4 rounded-lg bg-blue-50 p-4">
-          <p class="mb-2 text-sm font-semibold text-slate-900">Available Variables:</p>
+          <p class="mb-2 text-sm font-semibold text-slate-900">{{ t('settings.payments.custom.variablesTitle') }}</p>
           <ul class="space-y-1 text-sm text-slate-700">
             <li>
-              <code class="rounded bg-slate-200 px-1 py-0.5">{amount}</code> - Payment amount
-              (e.g., 150.00)
+              <code class="rounded bg-slate-200 px-1 py-0.5">{amount}</code> - {{ t('settings.payments.custom.variableAmount') }}
             </li>
             <li>
-              <code class="rounded bg-slate-200 px-1 py-0.5">{client_name}</code> - Client name
-              (URL-encoded)
+              <code class="rounded bg-slate-200 px-1 py-0.5">{client_name}</code> - {{ t('settings.payments.custom.variableClientName') }}
             </li>
             <li>
-              <code class="rounded bg-slate-200 px-1 py-0.5">{appointment_id}</code> - Appointment
-              UUID
+              <code class="rounded bg-slate-200 px-1 py-0.5">{appointment_id}</code> - {{ t('settings.payments.custom.variableAppointmentId') }}
             </li>
           </ul>
         </div>
@@ -622,14 +614,14 @@ onMounted(() => {
             :disabled="!isValidCustomUrl || saving"
           >
             <LoadingSpinner v-if="saving" size="sm" />
-            <span>{{ saving ? 'Saving...' : 'Save Custom Link' }}</span>
+            <span>{{ saving ? t('settings.payments.custom.saving') : t('settings.payments.custom.saveButton') }}</span>
           </button>
           <button
             @click="cancel"
             type="button"
             class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
           >
-            Cancel
+            {{ t('settings.payments.common.cancelButton') }}
           </button>
         </div>
       </div>

@@ -709,6 +709,81 @@
       "hebrew": "עברית (Hebrew)",
       "changeSuccess": "Language changed successfully"
     },
+    "payments": {
+      "currentSettings": {
+        "title": "Current Payment Method: {method}",
+        "description": "Your payment method is configured and active",
+        "active": "Active",
+        "paymentDetailsLabel": "Payment Details",
+        "copyButton": "Copy Details",
+        "editButton": "Edit Settings",
+        "disableButton": "Disable Payments",
+        "disabling": "Disabling..."
+      },
+      "methods": {
+        "bit": "Bit (ביט)",
+        "paybox": "PayBox",
+        "bank": "Bank Transfer",
+        "custom": "Custom Link"
+      },
+      "bit": {
+        "title": "Configure Bit Payment",
+        "description": "Enter your Bit phone number (05X-XXXXXXX) or Bit Pay web URL",
+        "label": "Phone Number or Bit Pay URL",
+        "placeholder": "050-123-4567 or https://www.bitpay.co.il/app/me/...",
+        "errorInvalid": "Enter a valid Israeli phone (05X-XXXXXXX) or Bit Pay URL (https://...)",
+        "saveButton": "Save Bit Payment",
+        "saving": "Saving..."
+      },
+      "paybox": {
+        "title": "Configure PayBox Payment",
+        "description": "Enter your PayBox payment page URL",
+        "label": "PayBox URL",
+        "placeholder": "https://paybox.co.il/p/yourname",
+        "errorInvalid": "Invalid URL. Must start with http:// or https://",
+        "saveButton": "Save PayBox Payment",
+        "saving": "Saving..."
+      },
+      "bank": {
+        "title": "Configure Bank Transfer",
+        "description": "Enter your bank account details that clients will use for transfers",
+        "label": "Bank Account Details",
+        "placeholder": "Bank: Leumi\nAccount: 12345\nBranch: 678\nAccount Name: Your Name",
+        "saveButton": "Save Bank Transfer",
+        "saving": "Saving..."
+      },
+      "custom": {
+        "title": "Configure Custom Payment Link",
+        "description": "Enter your custom payment link URL. You can use variables: {amount}, {client_name}, {appointment_id}",
+        "label": "Payment Link URL",
+        "placeholder": "https://example.com/pay?amount={amount}",
+        "errorInvalid": "Invalid URL. Must start with http:// or https://",
+        "variablesTitle": "Available Variables:",
+        "variableAmount": "Payment amount (e.g., 150.00)",
+        "variableClientName": "Client name (URL-encoded)",
+        "variableAppointmentId": "Appointment UUID",
+        "saveButton": "Save Custom Link",
+        "saving": "Saving..."
+      },
+      "common": {
+        "cancelButton": "Cancel"
+      },
+      "toasts": {
+        "loadError": "Failed to load payment settings",
+        "bitSuccess": "Bit payment configured successfully",
+        "bitError": "Failed to save Bit payment",
+        "payboxSuccess": "PayBox payment configured successfully",
+        "payboxError": "Failed to save PayBox payment",
+        "bankSuccess": "Bank transfer configured successfully",
+        "bankError": "Failed to save bank transfer",
+        "customSuccess": "Custom link configured successfully",
+        "customError": "Failed to save custom link",
+        "disableSuccess": "Payment tracking disabled",
+        "disableError": "Failed to disable payment tracking",
+        "copySuccess": "Payment details copied to clipboard",
+        "copyError": "Failed to copy to clipboard"
+      }
+    },
     "notifications": {
       "errorPrefix": "Error:",
       "masterToggle": {
