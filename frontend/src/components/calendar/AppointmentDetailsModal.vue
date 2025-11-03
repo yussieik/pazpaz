@@ -1006,7 +1006,7 @@ watch(
                   <div class="mb-3">
                     <TimePickerDropdown
                       v-model="editableData.scheduled_start"
-                      label="Start"
+                      :label="t('calendar.appointmentDetails.startLabel')"
                       min-time="06:00"
                       max-time="22:00"
                       :interval="15"
@@ -1018,7 +1018,7 @@ watch(
                   <div class="mb-3">
                     <TimePickerDropdown
                       v-model="editableData.scheduled_end"
-                      label="End"
+                      :label="t('calendar.appointmentDetails.endLabel')"
                       min-time="06:00"
                       max-time="22:00"
                       :interval="15"
@@ -1030,13 +1030,13 @@ watch(
                   <div class="mt-3 space-y-3">
                     <!-- Duration Display -->
                     <div class="text-sm text-slate-600">
-                      Duration: {{ calculatedDuration }} min
+                      {{ t('calendar.appointmentDetails.durationLabel', { duration: calculatedDuration }) }}
                     </div>
 
                     <!-- Quick Duration Pills -->
                     <div>
                       <label class="mb-2 block text-xs text-slate-500">
-                        Quick Duration:
+                        {{ t('calendar.appointmentDetails.quickDurationLabel') }}
                       </label>
                       <div class="flex flex-wrap gap-2">
                         <button
@@ -1044,7 +1044,7 @@ watch(
                           :key="duration"
                           type="button"
                           @click="setDuration(duration)"
-                          :aria-label="`Set duration to ${duration} minutes`"
+                          :aria-label="t('calendar.appointmentDetails.setDurationAriaLabel', { duration })"
                           :aria-pressed="calculatedDuration === duration"
                           :class="[
                             'rounded-full px-3 py-1.5 text-sm transition-all',
@@ -1062,12 +1062,14 @@ watch(
 
                 <!-- Location Card (Editable) -->
                 <div class="rounded-lg border border-slate-200 bg-white p-4">
-                  <div class="mb-2 text-sm font-medium text-slate-500">Location</div>
+                  <div class="mb-2 text-sm font-medium text-slate-500">
+                    {{ t('calendar.appointmentDetails.locationCardTitle') }}
+                  </div>
 
                   <!-- Location Type -->
                   <div class="mb-3">
                     <label for="edit-location-type" class="block text-xs text-slate-500">
-                      Type
+                      {{ t('calendar.appointmentDetails.locationTypeLabel') }}
                     </label>
                     <select
                       id="edit-location-type"
@@ -1075,23 +1077,23 @@ watch(
                       @change="handleLocationTypeChange"
                       class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 capitalize focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                     >
-                      <option value="clinic">Clinic</option>
-                      <option value="home">Home Visit</option>
-                      <option value="online">Online (Video/Phone)</option>
+                      <option value="clinic">{{ t('calendar.appointmentDetails.locationClinic') }}</option>
+                      <option value="home">{{ t('calendar.appointmentDetails.locationHome') }}</option>
+                      <option value="online">{{ t('calendar.appointmentDetails.locationOnline') }}</option>
                     </select>
                   </div>
 
                   <!-- Location Details -->
                   <div>
                     <label for="edit-location-details" class="block text-xs text-slate-500">
-                      Details
+                      {{ t('calendar.appointmentDetails.locationDetailsLabel') }}
                     </label>
                     <div class="mt-1 flex items-center gap-2">
                       <input
                         id="edit-location-details"
                         v-model="editableData.location_details"
                         type="text"
-                        placeholder="e.g., Zoom link, room number, address"
+                        :placeholder="t('calendar.appointmentDetails.locationDetailsPlaceholder')"
                         @blur="handleTextFieldBlur('location_details')"
                         class="block min-h-[44px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                       />
@@ -1115,7 +1117,9 @@ watch(
                   @click="emit('viewClient', appointment.client_id)"
                   class="group w-full rounded-lg border border-slate-200 bg-slate-50 p-4 text-left transition-all hover:border-slate-300 hover:bg-white hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                 >
-                  <div class="mb-2 text-sm font-medium text-slate-500">Client</div>
+                  <div class="mb-2 text-sm font-medium text-slate-500">
+                    {{ t('calendar.appointmentDetails.clientCardTitle') }}
+                  </div>
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
                       <div
@@ -1126,12 +1130,12 @@ watch(
                       </div>
                       <div>
                         <div class="font-medium text-slate-900">
-                          {{ appointment.client?.full_name || 'Unknown Client' }}
+                          {{ appointment.client?.full_name || t('calendar.appointmentDetails.unknownClient') }}
                         </div>
                         <div
                           class="flex items-center gap-1.5 text-sm font-medium text-emerald-600 group-hover:text-emerald-700"
                         >
-                          View full profile
+                          {{ t('calendar.appointmentDetails.viewFullProfile') }}
                           <svg
                             class="h-4 w-4 transition-transform group-hover:translate-x-0.5"
                             fill="none"
@@ -1157,17 +1161,19 @@ watch(
                     for="edit-notes"
                     class="mb-2 block text-sm font-medium text-slate-500"
                   >
-                    Notes
+                    {{ t('calendar.appointmentDetails.notesLabel') }}
                   </label>
                   <textarea
                     id="edit-notes"
                     v-model="editableData.notes"
                     rows="6"
-                    placeholder="Optional notes about this appointment"
+                    :placeholder="t('calendar.appointmentDetails.notesPlaceholder')"
                     @blur="handleTextFieldBlur('notes')"
                     class="sm:rows-4 block min-h-[120px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-700 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                   ></textarea>
-                  <p class="mt-1 text-xs text-slate-400">Changes are saved automatically</p>
+                  <p class="mt-1 text-xs text-slate-400">
+                    {{ t('calendar.appointmentDetails.autoSaveHint') }}
+                  </p>
                 </div>
 
                 <!-- Appointment Status Management Card -->
@@ -1202,20 +1208,20 @@ watch(
                     <div class="flex-1">
                       <p class="text-sm font-medium text-slate-900">
                         Session Note:
-                        {{ sessionStatus.isDraft ? 'Draft' : 'Finalized' }}
+                        {{ sessionStatus.isDraft ? t('calendar.appointmentDetails.sessionNoteDraft') : t('calendar.appointmentDetails.sessionNoteFinalized') }}
                       </p>
                       <button
                         @click="emit('viewSession', sessionStatus.sessionId!)"
                         class="mt-1 text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-700 focus:underline focus:outline-none"
                       >
-                        {{ sessionStatus.isDraft ? 'Continue Editing →' : 'View Note →' }}
+                        {{ sessionStatus.isDraft ? t('calendar.appointmentDetails.continueEditing') : t('calendar.appointmentDetails.viewNote') }}
                       </button>
                     </div>
                   </div>
 
                   <!-- No Session Note - Context-Aware Messaging -->
                   <div v-else-if="!sessionStatus?.hasSession">
-                    <!-- {{ t('calendar.appointmentDetails.statusInProgress') }}: Allow session note creation -->
+                    <!-- In Progress: Allow session note creation -->
                     <div v-if="isInProgressAppointment" class="space-y-3">
                       <div class="flex items-start gap-3">
                         <svg
@@ -1234,17 +1240,17 @@ watch(
                         </svg>
                         <div class="flex-1">
                           <p class="text-sm font-medium text-slate-900">
-                            Session in progress
+                            {{ t('calendar.appointmentDetails.sessionInProgress') }}
                           </p>
                           <p class="mt-1 text-xs text-slate-600">
-                            You can document SOAP notes in real-time
+                            {{ t('calendar.appointmentDetails.sessionInProgressHint') }}
                           </p>
                           <button
                             @click="emit('startSessionNotes', appointment)"
                             class="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-                            aria-label="Document session notes in real-time while appointment is in progress"
+                            :aria-label="t('calendar.appointmentDetails.documentSessionAriaLabel')"
                           >
-                            Document Session
+                            {{ t('calendar.appointmentDetails.documentSession') }}
                             <svg
                               class="h-4 w-4"
                               fill="none"
@@ -1271,23 +1277,23 @@ watch(
                       <IconWarning size="md" class="shrink-0 text-amber-600" />
                       <div>
                         <p class="text-sm font-medium text-slate-900">
-                          No session note yet
+                          {{ t('calendar.appointmentDetails.noSessionNoteYet') }}
                         </p>
                         <p class="mt-0.5 text-xs text-slate-600">
-                          Document this appointment with SOAP notes
+                          {{ t('calendar.appointmentDetails.documentWithSoap') }}
                         </p>
                         <button
                           @click="emit('startSessionNotes', appointment)"
                           class="mt-2 text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-700 focus:underline focus:outline-none"
                         >
-                          Start Session Note →
+                          {{ t('calendar.appointmentDetails.startSessionNote') }}
                         </button>
                       </div>
                     </div>
 
                     <!-- Scheduled - Future -->
                     <div v-else-if="isFutureAppointment" class="text-sm text-slate-600">
-                      <p>Session notes will be available when the appointment starts</p>
+                      <p>{{ t('calendar.appointmentDetails.sessionNotesAvailable') }}</p>
                     </div>
 
                     <!-- Scheduled - Past (prompt to complete) -->
@@ -1310,10 +1316,10 @@ watch(
                       </svg>
                       <div>
                         <p class="text-sm font-medium text-slate-900">
-                          This appointment has ended
+                          {{ t('calendar.appointmentDetails.appointmentEnded') }}
                         </p>
                         <p class="mt-0.5 text-xs text-slate-600">
-                          Mark it as attended to create session notes
+                          {{ t('calendar.appointmentDetails.markAttendedHint') }}
                         </p>
                       </div>
                     </div>
@@ -1324,8 +1330,7 @@ watch(
                       class="text-sm text-slate-500"
                     >
                       <p>
-                        No session notes for
-                        {{ appointment.status.replace('_', ' ') }} appointments
+                        {{ t('calendar.appointmentDetails.noSessionNoteFor', { status: appointment.status.replace('_', ' ') }) }}
                       </p>
                     </div>
                   </div>
@@ -1391,7 +1396,7 @@ watch(
                       d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                     />
                   </svg>
-                  <span>Restore Appointment</span>
+                  <span>{{ t('calendar.appointmentDetails.restoreButton') }}</span>
                 </button>
 
                 <!-- Start Session Notes button (if has session, show View/Continue) -->
@@ -1402,8 +1407,8 @@ watch(
                 >
                   {{
                     sessionStatus.isDraft
-                      ? 'Continue Editing Session'
-                      : 'View Session Note'
+                      ? t('calendar.appointmentDetails.continueEditingSession')
+                      : t('calendar.appointmentDetails.viewSessionNote')
                   }}
                 </button>
 
@@ -1413,7 +1418,7 @@ watch(
                   @click="emit('startSessionNotes', appointment)"
                   class="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:w-auto"
                 >
-                  Start Session Notes
+                  {{ t('calendar.appointmentDetails.startSessionNotes') }}
                 </button>
               </div>
 
@@ -1421,7 +1426,7 @@ watch(
                 <!-- Delete button - always enabled -->
                 <button
                   @click.stop="handleDeleteClick"
-                  title="Delete this appointment"
+                  :title="t('calendar.appointmentDetails.deleteTitle')"
                   class="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 sm:w-auto"
                 >
                   <svg
@@ -1437,7 +1442,7 @@ watch(
                       d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                     />
                   </svg>
-                  <span>Delete</span>
+                  <span>{{ t('calendar.appointmentDetails.deleteButton') }}</span>
                 </button>
 
                 <!-- Cancel button (only for scheduled/no_show, not attended or cancelled) -->
@@ -1446,7 +1451,7 @@ watch(
                   @click="emit('cancel', appointment)"
                   class="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:w-auto"
                 >
-                  Cancel Appointment
+                  {{ t('calendar.appointmentDetails.cancelAppointmentButton') }}
                 </button>
               </div>
             </div>
