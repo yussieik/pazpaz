@@ -678,6 +678,70 @@
         "name": "תשלומים",
         "description": "עיבוד תשלומים וחשבוניות"
       }
+    },
+    "notifications": {
+      "errorPrefix": "שגיאה:",
+      "masterToggle": {
+        "title": "התראות במייל",
+        "description": "הישאר מעודכן עם תזכורות אוטומטיות ותקצירים יומיים",
+        "label": "הפעל התראות במייל",
+        "labelDescription": "מתג ראשי לכל התראות המייל",
+        "warningDisabled": "כל התראות המייל מושבתות כעת"
+      },
+      "todayDigest": {
+        "title": "לוח הזמנים להיום",
+        "description": "קבל תקציר בוקר של הטיפולים להיום",
+        "label": "הפעל תקציר לוח הזמנים להיום",
+        "sendAtLabel": "שלח בשעה",
+        "sendOnLabel": "שלח בימים",
+        "weekdaysOnly": "ימי חול בלבד",
+        "everyDay": "כל יום",
+        "warningNoDays": "בחר לפחות יום אחד כדי לקבל את התקציר היומי",
+        "dayAriaLabel": "{day}, {status}"
+      },
+      "tomorrowDigest": {
+        "title": "לוח הזמנים למחר",
+        "description": "קבל תצוגה מקדימה ערב של הטיפולים למחר",
+        "label": "הפעל תקציר לוח הזמנים למחר",
+        "sendAtLabel": "שלח בשעה",
+        "sendOnLabel": "שלח בימים",
+        "weekdaysOnly": "ימי חול בלבד",
+        "everyDay": "כל יום",
+        "warningNoDays": "בחר לפחות יום אחד כדי לקבל את התקציר של מחר"
+      },
+      "appointmentReminders": {
+        "title": "תזכורות לטיפולים",
+        "description": "קבל התראה לפני תחילת כל טיפול",
+        "label": "הפעל תזכורות לטיפולים",
+        "remindMeLabel": "הזכר לי"
+      },
+      "sessionNotesReminder": {
+        "title": "תזכורת לתיעוד טיפולים",
+        "description": "תזכורת יומית להשלמת תיעוד טיפולים שלא הושלם",
+        "label": "הפעל תזכורת לתיעוד טיפולים",
+        "sendAtLabel": "שלח בשעה"
+      },
+      "weekDays": {
+        "sunday": "ראשון",
+        "monday": "שני",
+        "tuesday": "שלישי",
+        "wednesday": "רביעי",
+        "thursday": "חמישי",
+        "friday": "שישי",
+        "saturday": "שבת",
+        "sundayShort": "א׳",
+        "mondayShort": "ב׳",
+        "tuesdayShort": "ג׳",
+        "wednesdayShort": "ד׳",
+        "thursdayShort": "ה׳",
+        "fridayShort": "ו׳",
+        "saturdayShort": "ש׳"
+      },
+      "dayStatus": {
+        "ariaLabel": "{day}, {status}",
+        "selected": "נבחר",
+        "notSelected": "לא נבחר"
+      }
     }
   }
 }

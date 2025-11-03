@@ -12,12 +12,14 @@
  */
 
 import { onMounted, computed } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import SettingsCard from '@/components/settings/SettingsCard.vue'
 import { useNotificationSettings } from '@/composables/useNotificationSettings'
 import { REMINDER_MINUTE_OPTIONS } from '@/types/notification-settings'
 
+const { t } = useI18n()
 const { settings, isLoading, error, loadSettings } = useNotificationSettings()
 
 /**
@@ -33,17 +35,17 @@ onMounted(async () => {
 const showSettingsContainer = computed(() => settings.value?.email_enabled ?? false)
 
 /**
- * Day of week configuration
+ * Day of week configuration (computed to support i18n)
  */
-const weekDays = [
-  { value: 0, label: 'Sunday', shortLabel: 'S' },
-  { value: 1, label: 'Monday', shortLabel: 'M' },
-  { value: 2, label: 'Tuesday', shortLabel: 'T' },
-  { value: 3, label: 'Wednesday', shortLabel: 'W' },
-  { value: 4, label: 'Thursday', shortLabel: 'T' },
-  { value: 5, label: 'Friday', shortLabel: 'F' },
-  { value: 6, label: 'Saturday', shortLabel: 'S' },
-]
+const weekDays = computed(() => [
+  { value: 0, label: t('settings.notifications.weekDays.sunday'), shortLabel: t('settings.notifications.weekDays.sundayShort') },
+  { value: 1, label: t('settings.notifications.weekDays.monday'), shortLabel: t('settings.notifications.weekDays.mondayShort') },
+  { value: 2, label: t('settings.notifications.weekDays.tuesday'), shortLabel: t('settings.notifications.weekDays.tuesdayShort') },
+  { value: 3, label: t('settings.notifications.weekDays.wednesday'), shortLabel: t('settings.notifications.weekDays.wednesdayShort') },
+  { value: 4, label: t('settings.notifications.weekDays.thursday'), shortLabel: t('settings.notifications.weekDays.thursdayShort') },
+  { value: 5, label: t('settings.notifications.weekDays.friday'), shortLabel: t('settings.notifications.weekDays.fridayShort') },
+  { value: 6, label: t('settings.notifications.weekDays.saturday'), shortLabel: t('settings.notifications.weekDays.saturdayShort') },
+])
 
 /**
  * Check if a specific day is selected for today's digest
@@ -155,15 +157,15 @@ function selectTomorrowAllDays(): void {
       v-else-if="error"
       class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
     >
-      <strong>Error:</strong> {{ error }}
+      <strong>{{ t('settings.notifications.errorPrefix') }}</strong> {{ error }}
     </div>
 
     <!-- Notification Settings -->
     <div v-else-if="settings">
       <!-- Master Toggle Card -->
       <SettingsCard
-        title="Email Notifications"
-        description="Stay on top of your schedule with automated email reminders and daily summaries"
+        :title="t('settings.notifications.masterToggle.title')"
+        :description="t('settings.notifications.masterToggle.description')"
         class="mb-8"
       >
         <template #icon>
@@ -185,8 +187,8 @@ function selectTomorrowAllDays(): void {
         <template #toggle>
           <ToggleSwitch
             v-model="settings.email_enabled"
-            label="Enable email notifications"
-            description="Master toggle for all email notifications"
+            :label="t('settings.notifications.masterToggle.label')"
+            :description="t('settings.notifications.masterToggle.labelDescription')"
           />
         </template>
 
@@ -208,7 +210,7 @@ function selectTomorrowAllDays(): void {
                   clip-rule="evenodd"
                 />
               </svg>
-              <span>All email notifications are currently disabled</span>
+              <span>{{ t('settings.notifications.masterToggle.warningDisabled') }}</span>
             </div>
           </div>
         </template>
@@ -221,14 +223,14 @@ function selectTomorrowAllDays(): void {
       >
         <!-- Today's Schedule Group -->
         <SettingsCard
-          title="Today's Schedule"
-          description="Receive a morning summary of today's appointments"
+          :title="t('settings.notifications.todayDigest.title')"
+          :description="t('settings.notifications.todayDigest.description')"
           :expanded="settings.digest_enabled"
         >
           <template #toggle>
             <ToggleSwitch
               v-model="settings.digest_enabled"
-              label="Enable today's schedule digest"
+              :label="t('settings.notifications.todayDigest.label')"
             />
           </template>
 
@@ -236,7 +238,9 @@ function selectTomorrowAllDays(): void {
             <div class="space-y-4">
               <!-- Send Time -->
               <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <label class="text-sm font-medium text-slate-900">Send at</label>
+                <label class="text-sm font-medium text-slate-900">{{
+                  t('settings.notifications.todayDigest.sendAtLabel')
+                }}</label>
                 <input
                   v-model="settings.digest_time"
                   type="time"
@@ -247,7 +251,9 @@ function selectTomorrowAllDays(): void {
               <!-- Day Selector -->
               <div class="flex flex-col gap-3">
                 <div class="flex items-center justify-between">
-                  <label class="text-sm font-medium text-slate-900">Send on</label>
+                  <label class="text-sm font-medium text-slate-900">{{
+                    t('settings.notifications.todayDigest.sendOnLabel')
+                  }}</label>
 
                   <!-- Quick Actions -->
                   <div class="flex gap-2 text-xs">
@@ -256,7 +262,7 @@ function selectTomorrowAllDays(): void {
                       class="text-emerald-600 hover:text-emerald-700 focus:underline focus:outline-none"
                       @click="selectWeekdays"
                     >
-                      Weekdays only
+                      {{ t('settings.notifications.todayDigest.weekdaysOnly') }}
                     </button>
                     <span class="text-slate-300">|</span>
                     <button
@@ -264,7 +270,7 @@ function selectTomorrowAllDays(): void {
                       class="text-emerald-600 hover:text-emerald-700 focus:underline focus:outline-none"
                       @click="selectAllDays"
                     >
-                      Every day
+                      {{ t('settings.notifications.todayDigest.everyDay') }}
                     </button>
                   </div>
                 </div>
@@ -282,7 +288,14 @@ function selectTomorrowAllDays(): void {
                         ? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700'
                         : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50',
                     ]"
-                    :aria-label="`${day.label}, ${isDaySelected(day.value) ? 'selected' : 'not selected'}`"
+                    :aria-label="
+                      t('settings.notifications.dayStatus.ariaLabel', {
+                        day: day.label,
+                        status: isDaySelected(day.value)
+                          ? t('settings.notifications.dayStatus.selected')
+                          : t('settings.notifications.dayStatus.notSelected'),
+                      })
+                    "
                     @click="toggleDay(day.value)"
                   >
                     <span class="hidden sm:inline">{{ day.label }}</span>
@@ -306,7 +319,7 @@ function selectTomorrowAllDays(): void {
                       clip-rule="evenodd"
                     />
                   </svg>
-                  <span>Select at least one day to receive the daily digest</span>
+                  <span>{{ t('settings.notifications.todayDigest.warningNoDays') }}</span>
                 </div>
               </div>
             </div>
@@ -315,14 +328,14 @@ function selectTomorrowAllDays(): void {
 
         <!-- Tomorrow's Schedule Group -->
         <SettingsCard
-          title="Tomorrow's Schedule"
-          description="Receive an evening preview of tomorrow's appointments"
+          :title="t('settings.notifications.tomorrowDigest.title')"
+          :description="t('settings.notifications.tomorrowDigest.description')"
           :expanded="settings.tomorrow_digest_enabled"
         >
           <template #toggle>
             <ToggleSwitch
               v-model="settings.tomorrow_digest_enabled"
-              label="Enable tomorrow's schedule digest"
+              :label="t('settings.notifications.tomorrowDigest.label')"
             />
           </template>
 
@@ -330,7 +343,9 @@ function selectTomorrowAllDays(): void {
             <div class="space-y-4">
               <!-- Send Time -->
               <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <label class="text-sm font-medium text-slate-900">Send at</label>
+                <label class="text-sm font-medium text-slate-900">{{
+                  t('settings.notifications.tomorrowDigest.sendAtLabel')
+                }}</label>
                 <input
                   v-model="settings.tomorrow_digest_time"
                   type="time"
@@ -341,7 +356,9 @@ function selectTomorrowAllDays(): void {
               <!-- Day Selector -->
               <div class="flex flex-col gap-3">
                 <div class="flex items-center justify-between">
-                  <label class="text-sm font-medium text-slate-900">Send on</label>
+                  <label class="text-sm font-medium text-slate-900">{{
+                    t('settings.notifications.tomorrowDigest.sendOnLabel')
+                  }}</label>
 
                   <!-- Quick Actions -->
                   <div class="flex gap-2 text-xs">
@@ -350,7 +367,7 @@ function selectTomorrowAllDays(): void {
                       class="text-emerald-600 hover:text-emerald-700 focus:underline focus:outline-none"
                       @click="selectTomorrowWeekdays"
                     >
-                      Weekdays only
+                      {{ t('settings.notifications.tomorrowDigest.weekdaysOnly') }}
                     </button>
                     <span class="text-slate-300">|</span>
                     <button
@@ -358,7 +375,7 @@ function selectTomorrowAllDays(): void {
                       class="text-emerald-600 hover:text-emerald-700 focus:underline focus:outline-none"
                       @click="selectTomorrowAllDays"
                     >
-                      Every day
+                      {{ t('settings.notifications.tomorrowDigest.everyDay') }}
                     </button>
                   </div>
                 </div>
@@ -376,7 +393,14 @@ function selectTomorrowAllDays(): void {
                         ? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700'
                         : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50',
                     ]"
-                    :aria-label="`${day.label}, ${isTomorrowDaySelected(day.value) ? 'selected' : 'not selected'}`"
+                    :aria-label="
+                      t('settings.notifications.dayStatus.ariaLabel', {
+                        day: day.label,
+                        status: isTomorrowDaySelected(day.value)
+                          ? t('settings.notifications.dayStatus.selected')
+                          : t('settings.notifications.dayStatus.notSelected'),
+                      })
+                    "
                     @click="toggleTomorrowDay(day.value)"
                   >
                     <span class="hidden sm:inline">{{ day.label }}</span>
@@ -400,7 +424,7 @@ function selectTomorrowAllDays(): void {
                       clip-rule="evenodd"
                     />
                   </svg>
-                  <span>Select at least one day to receive the tomorrow's digest</span>
+                  <span>{{ t('settings.notifications.tomorrowDigest.warningNoDays') }}</span>
                 </div>
               </div>
             </div>
@@ -409,20 +433,22 @@ function selectTomorrowAllDays(): void {
 
         <!-- Appointment Reminders Group -->
         <SettingsCard
-          title="Appointment Reminders"
-          description="Get notified before each appointment starts"
+          :title="t('settings.notifications.appointmentReminders.title')"
+          :description="t('settings.notifications.appointmentReminders.description')"
           :expanded="settings.reminder_enabled"
         >
           <template #toggle>
             <ToggleSwitch
               v-model="settings.reminder_enabled"
-              label="Enable appointment reminders"
+              :label="t('settings.notifications.appointmentReminders.label')"
             />
           </template>
 
           <template #content>
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <label class="text-sm font-medium text-slate-900">Remind me</label>
+              <label class="text-sm font-medium text-slate-900">{{
+                t('settings.notifications.appointmentReminders.remindMeLabel')
+              }}</label>
               <select
                 v-model.number="settings.reminder_minutes"
                 class="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
@@ -441,20 +467,22 @@ function selectTomorrowAllDays(): void {
 
         <!-- Session Notes Reminders Group -->
         <SettingsCard
-          title="Session Notes Reminder"
-          description="Daily reminder to complete unfinished session notes"
+          :title="t('settings.notifications.sessionNotesReminder.title')"
+          :description="t('settings.notifications.sessionNotesReminder.description')"
           :expanded="settings.notes_reminder_enabled"
         >
           <template #toggle>
             <ToggleSwitch
               v-model="settings.notes_reminder_enabled"
-              label="Enable session notes reminder"
+              :label="t('settings.notifications.sessionNotesReminder.label')"
             />
           </template>
 
           <template #content>
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <label class="text-sm font-medium text-slate-900">Send at</label>
+              <label class="text-sm font-medium text-slate-900">{{
+                t('settings.notifications.sessionNotesReminder.sendAtLabel')
+              }}</label>
               <input
                 v-model="settings.notes_reminder_time"
                 type="time"

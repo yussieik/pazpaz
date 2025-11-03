@@ -678,6 +678,70 @@
         "name": "Payments",
         "description": "Payment processing and invoicing"
       }
+    },
+    "notifications": {
+      "errorPrefix": "Error:",
+      "masterToggle": {
+        "title": "Email Notifications",
+        "description": "Stay on top of your schedule with automated email reminders and daily summaries",
+        "label": "Enable email notifications",
+        "labelDescription": "Master toggle for all email notifications",
+        "warningDisabled": "All email notifications are currently disabled"
+      },
+      "todayDigest": {
+        "title": "Today's Schedule",
+        "description": "Receive a morning summary of today's appointments",
+        "label": "Enable today's schedule digest",
+        "sendAtLabel": "Send at",
+        "sendOnLabel": "Send on",
+        "weekdaysOnly": "Weekdays only",
+        "everyDay": "Every day",
+        "warningNoDays": "Select at least one day to receive the daily digest",
+        "dayAriaLabel": "{day}, {status}"
+      },
+      "tomorrowDigest": {
+        "title": "Tomorrow's Schedule",
+        "description": "Receive an evening preview of tomorrow's appointments",
+        "label": "Enable tomorrow's schedule digest",
+        "sendAtLabel": "Send at",
+        "sendOnLabel": "Send on",
+        "weekdaysOnly": "Weekdays only",
+        "everyDay": "Every day",
+        "warningNoDays": "Select at least one day to receive the tomorrow's digest"
+      },
+      "appointmentReminders": {
+        "title": "Appointment Reminders",
+        "description": "Get notified before each appointment starts",
+        "label": "Enable appointment reminders",
+        "remindMeLabel": "Remind me"
+      },
+      "sessionNotesReminder": {
+        "title": "Session Notes Reminder",
+        "description": "Daily reminder to complete unfinished session notes",
+        "label": "Enable session notes reminder",
+        "sendAtLabel": "Send at"
+      },
+      "weekDays": {
+        "sunday": "Sunday",
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sundayShort": "S",
+        "mondayShort": "M",
+        "tuesdayShort": "T",
+        "wednesdayShort": "W",
+        "thursdayShort": "T",
+        "fridayShort": "F",
+        "saturdayShort": "S"
+      },
+      "dayStatus": {
+        "ariaLabel": "{day}, {status}",
+        "selected": "selected",
+        "notSelected": "not selected"
+      }
     }
   }
 }
