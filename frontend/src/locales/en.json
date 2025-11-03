@@ -196,6 +196,18 @@
       "warningMessage": "Keeping both appointments will result in overlapping schedules. You may want to reschedule one of them.",
       "cancelButton": "Cancel Move",
       "confirmButton": "Keep Both Appointments"
+    },
+    "mobileRescheduleModal": {
+      "title": "Reschedule Appointment",
+      "closeDialog": "Close dialog",
+      "clientFallback": "Client",
+      "currentTimeLabel": "Current time:",
+      "newDateLabel": "New Date",
+      "newTimeLabel": "New Time",
+      "timeIncrementHelp": "Time will be rounded to 15-minute increments",
+      "previewLabel": "New appointment time:",
+      "cancelButton": "Cancel",
+      "confirmButton": "Reschedule"
     }
   }
 }

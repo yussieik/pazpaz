@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import type { AppointmentListItem } from '@/types/calendar'
 import {
   formatTimeRange,
@@ -7,6 +8,8 @@ import {
   calculateEndTime,
 } from '@/utils/dragHelpers'
 import IconClose from '@/components/icons/IconClose.vue'
+
+const { t } = useI18n()
 
 /**
  * Mobile Reschedule Modal
@@ -146,13 +149,13 @@ function getTodayDate(): string {
         <div class="border-b border-gray-200 px-6 py-4">
           <div class="flex items-center justify-between">
             <h3 id="reschedule-title" class="text-lg font-semibold text-gray-900">
-              Reschedule Appointment
+              {{ t('calendar.mobileRescheduleModal.title') }}
             </h3>
             <button
               type="button"
               class="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
               @click="handleClose"
-              aria-label="Close dialog"
+              :aria-label="t('calendar.mobileRescheduleModal.closeDialog')"
             >
               <IconClose class="h-6 w-6" />
             </button>
@@ -164,10 +167,10 @@ function getTodayDate(): string {
           <!-- Client info -->
           <div class="mb-4 rounded-lg bg-blue-50 p-4">
             <p class="text-sm font-medium text-blue-900">
-              {{ appointment.client?.full_name || 'Client' }}
+              {{ appointment.client?.full_name || t('calendar.mobileRescheduleModal.clientFallback') }}
             </p>
             <p class="mt-1 text-sm text-blue-700">
-              Current time: <span class="font-semibold">{{ currentTimeDisplay }}</span>
+              {{ t('calendar.mobileRescheduleModal.currentTimeLabel') }} <span class="font-semibold">{{ currentTimeDisplay }}</span>
             </p>
           </div>
 
@@ -179,7 +182,7 @@ function getTodayDate(): string {
                 for="reschedule-date"
                 class="block text-sm font-medium text-gray-700"
               >
-                New Date
+                {{ t('calendar.mobileRescheduleModal.newDateLabel') }}
               </label>
               <input
                 id="reschedule-date"
@@ -197,7 +200,7 @@ function getTodayDate(): string {
                 for="reschedule-time"
                 class="block text-sm font-medium text-gray-700"
               >
-                New Time
+                {{ t('calendar.mobileRescheduleModal.newTimeLabel') }}
               </label>
               <input
                 id="reschedule-time"
@@ -208,13 +211,13 @@ function getTodayDate(): string {
                 class="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 focus-visible:outline-none"
               />
               <p class="mt-1.5 text-xs text-gray-500">
-                Time will be rounded to 15-minute increments
+                {{ t('calendar.mobileRescheduleModal.timeIncrementHelp') }}
               </p>
             </div>
 
             <!-- Preview -->
             <div v-if="newTimePreview" class="rounded-lg bg-emerald-50 p-4">
-              <p class="text-sm font-medium text-emerald-900">New appointment time:</p>
+              <p class="text-sm font-medium text-emerald-900">{{ t('calendar.mobileRescheduleModal.previewLabel') }}</p>
               <p class="mt-1 text-base font-semibold text-emerald-700">
                 {{ newTimePreview }}
               </p>
@@ -229,7 +232,7 @@ function getTodayDate(): string {
             class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 focus-visible:outline-none"
             @click="handleClose"
           >
-            Cancel
+            {{ t('calendar.mobileRescheduleModal.cancelButton') }}
           </button>
           <button
             type="button"
@@ -237,7 +240,7 @@ function getTodayDate(): string {
             class="flex-1 rounded-lg bg-emerald-600 px-4 py-3 text-base font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             @click="handleReschedule"
           >
-            Reschedule
+            {{ t('calendar.mobileRescheduleModal.confirmButton') }}
           </button>
         </div>
       </div>

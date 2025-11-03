@@ -196,6 +196,18 @@
       "warningMessage": "שמירת שתי הפגישות תגרום לחפיפה בלוח הזמנים. כדאי לשקול תזמון מחדש של אחת מהן.",
       "cancelButton": "בטל העברה",
       "confirmButton": "שמור שתי פגישות"
+    },
+    "mobileRescheduleModal": {
+      "title": "תזמון מחדש של פגישה",
+      "closeDialog": "סגור דיאלוג",
+      "clientFallback": "לקוח",
+      "currentTimeLabel": "זמן נוכחי:",
+      "newDateLabel": "תאריך חדש",
+      "newTimeLabel": "שעה חדשה",
+      "timeIncrementHelp": "השעה תעוגל למרווחים של 15 דקות",
+      "previewLabel": "זמן הפגישה החדש:",
+      "cancelButton": "בטל",
+      "confirmButton": "קבע תזמון מחדש"
     }
   }
 }
