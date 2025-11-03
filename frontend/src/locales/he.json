@@ -510,6 +510,95 @@
       "errorPermission": "אין לך הרשאה לצפות בתיעוד זה",
       "errorGeneric": "טעינת התיעוד נכשלה",
       "goBackButton": "חזור"
+    },
+    "editor": {
+      "soapGuide": {
+        "title": "מדריך תיעוד SOAP",
+        "subjective": {
+          "title": "S - סובייקטיבי:",
+          "description": "מה המטופל מדווח",
+          "example": "דוגמה: \"המטופל מדווח על כאב בכתף שהתחיל לפני שבועיים לאחר עבודה בגינה...\""
+        },
+        "objective": {
+          "title": "O - אובייקטיבי:",
+          "description": "מה אתה מודד ומתבונן",
+          "example": "דוגמה: \"טווח תנועה: 120° אבדוקציה, מישוש מגלה רגישות בהחדרת הסופרספינטוס...\""
+        },
+        "assessment": {
+          "title": "A - הערכה:",
+          "description": "הפרשנות הקלינית שלך",
+          "example": "דוגמה: \"ככל הנראה דלקת גיד של השרוול המסובב, חומרה בינונית...\""
+        },
+        "plan": {
+          "title": "P - תכנית:",
+          "description": "תכנית הטיפול והשלבים הבאים",
+          "example": "דוגמה: \"קרח 15 דקות 3 פעמים ביום, תרגילי טווח תנועה עדינים, מעקב בעוד שבוע...\""
+        },
+        "dismissAriaLabel": "סגור מדריך SOAP"
+      },
+      "versionHistory": {
+        "viewButton": "הצג גרסה מקורית"
+      },
+      "finalize": {
+        "buttonFinalize": "אשר",
+        "buttonRevert": "בטל אישור",
+        "buttonFinalizeSession": "אשר טיפול",
+        "buttonRevertToDraft": "החזר לטיוטה",
+        "buttonFinalizing": "מאשר...",
+        "buttonReverting": "מבטל אישור...",
+        "errorEmpty": "לא ניתן לאשר טיפול ריק. הוסף תוכן לפחות לשדה אחד.",
+        "errorGeneric": "אישור הטיפול נכשל",
+        "errorRevert": "ביטול האישור נכשל"
+      },
+      "metadata": {
+        "sessionDateLabel": "תאריך ושעת טיפול",
+        "durationLabel": "משך זמן (דקות)",
+        "durationPlaceholder": "60"
+      },
+      "fields": {
+        "subjective": {
+          "label": "סובייקטיבי",
+          "description": "תסמינים, תלונות והיסטוריה שהמטופל מדווח",
+          "placeholder": "מה המטופל סיפר לך על מצבו?"
+        },
+        "objective": {
+          "label": "אובייקטיבי",
+          "description": "תצפיות המטפל, מדידות ותוצאות בדיקות",
+          "placeholder": "מה תצפית במהלך הבדיקה?"
+        },
+        "assessment": {
+          "label": "הערכה",
+          "description": "הפרשנות הקלינית ואבחנה",
+          "placeholder": "מהי ההערכה הקלינית שלך למצב המטופל?"
+        },
+        "plan": {
+          "label": "תכנית",
+          "description": "תכנית הטיפול, שלבים הבאים ומעקב",
+          "placeholder": "מהי תכנית הטיפול להמשך?"
+        }
+      },
+      "attachments": {
+        "title": "קבצים מצורפים"
+      },
+      "restorePrompt": {
+        "title": "לשחזר שינויים שלא נשמרו?",
+        "message": "יש לך שינויים שלא נשמרו מפגישה קודמת שנשמרו מקומית. האם תרצה לשחזר אותם?",
+        "discardButton": "מחק",
+        "restoreButton": "שחזר שינויים"
+      },
+      "bottomSheet": {
+        "title": "הקשר טיפולי",
+        "closeAriaLabel": "סגור הקשר טיפולי"
+      },
+      "autosave": {
+        "offline": "לא מקוון - שומר מקומית",
+        "error": "לא ניתן לשמור שינויים",
+        "willSync": "השינויים יסונכרנו כשתחזור להיות מקוון",
+        "retryButton": "נסה שוב עכשיו"
+      },
+      "errors": {
+        "loadFailed": "טעינת הטיפול נכשלה"
+      }
     }
   }
 }

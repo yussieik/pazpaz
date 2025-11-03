@@ -510,6 +510,95 @@
       "errorPermission": "You do not have permission to view this session",
       "errorGeneric": "Failed to load session",
       "goBackButton": "Go Back"
+    },
+    "editor": {
+      "soapGuide": {
+        "title": "SOAP Note Guide",
+        "subjective": {
+          "title": "S - Subjective:",
+          "description": "What the patient reports",
+          "example": "Example: \"Patient states shoulder pain started 2 weeks ago after gardening...\""
+        },
+        "objective": {
+          "title": "O - Objective:",
+          "description": "What you observe & measure",
+          "example": "Example: \"ROM: 120° abduction, palpation reveals tenderness at supraspinatus insertion...\""
+        },
+        "assessment": {
+          "title": "A - Assessment:",
+          "description": "Your clinical interpretation",
+          "example": "Example: \"Likely rotator cuff tendinitis, moderate severity...\""
+        },
+        "plan": {
+          "title": "P - Plan:",
+          "description": "Treatment plan & next steps",
+          "example": "Example: \"Ice 15min 3x/day, gentle ROM exercises, follow-up in 1 week...\""
+        },
+        "dismissAriaLabel": "Dismiss SOAP guide"
+      },
+      "versionHistory": {
+        "viewButton": "View Original Version"
+      },
+      "finalize": {
+        "buttonFinalize": "Finalize",
+        "buttonRevert": "Revert",
+        "buttonFinalizeSession": "Finalize Session",
+        "buttonRevertToDraft": "Revert to Draft",
+        "buttonFinalizing": "Finalizing...",
+        "buttonReverting": "Reverting...",
+        "errorEmpty": "Cannot finalize empty session. Add content to at least one field.",
+        "errorGeneric": "Failed to finalize session",
+        "errorRevert": "Failed to revert to draft"
+      },
+      "metadata": {
+        "sessionDateLabel": "Session Date & Time",
+        "durationLabel": "Duration (minutes)",
+        "durationPlaceholder": "60"
+      },
+      "fields": {
+        "subjective": {
+          "label": "Subjective",
+          "description": "Patient-reported symptoms, complaints, and history",
+          "placeholder": "What did the patient tell you about their condition?"
+        },
+        "objective": {
+          "label": "Objective",
+          "description": "Therapist observations, measurements, and test results",
+          "placeholder": "What did you observe during the examination?"
+        },
+        "assessment": {
+          "label": "Assessment",
+          "description": "Clinical interpretation and diagnosis",
+          "placeholder": "What is your clinical assessment of the patient's condition?"
+        },
+        "plan": {
+          "label": "Plan",
+          "description": "Treatment plan, next steps, and follow-up",
+          "placeholder": "What is the treatment plan going forward?"
+        }
+      },
+      "attachments": {
+        "title": "Attachments"
+      },
+      "restorePrompt": {
+        "title": "Restore Unsaved Changes?",
+        "message": "You have unsaved changes from a previous session that were saved locally. Would you like to restore them?",
+        "discardButton": "Discard",
+        "restoreButton": "Restore Changes"
+      },
+      "bottomSheet": {
+        "title": "Treatment Context",
+        "closeAriaLabel": "Close treatment context"
+      },
+      "autosave": {
+        "offline": "Offline - Saving locally",
+        "error": "Unable to save changes",
+        "willSync": "Changes will sync when online",
+        "retryButton": "Retry now"
+      },
+      "errors": {
+        "loadFailed": "Failed to load session"
+      }
     }
   }
 }

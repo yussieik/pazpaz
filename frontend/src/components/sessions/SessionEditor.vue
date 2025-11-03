@@ -23,6 +23,7 @@
 
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { onKeyStroke } from '@vueuse/core'
+import { useI18n } from '@/composables/useI18n'
 import { useInvisibleAutosave } from '@/composables/useInvisibleAutosave'
 import { useSecureOfflineBackup } from '@/composables/useSecureOfflineBackup'
 import { useLocalStorage } from '@vueuse/core'
@@ -39,6 +40,8 @@ import PreviousSessionSummaryStrip from './PreviousSessionSummaryStrip.vue'
 import SessionAttachments from './SessionAttachments.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 import AutosaveBanner from '@/components/common/AutosaveBanner.vue'
+
+const { t } = useI18n()
 
 interface Props {
   sessionId: string
@@ -201,17 +204,17 @@ const bannerSeverity = computed(() =>
 
 const bannerMessage = computed(() => {
   if (autosaveState.value.type === 'offline') {
-    return 'Offline - Saving locally'
+    return t('sessions.editor.autosave.offline')
   }
   if (autosaveState.value.type === 'error') {
-    return 'Unable to save changes'
+    return t('sessions.editor.autosave.error')
   }
   return ''
 })
 
 const bannerDescription = computed(() => {
   if (autosaveState.value.type === 'offline') {
-    return 'Changes will sync when online'
+    return t('sessions.editor.autosave.willSync')
   }
   if (autosaveState.value.type === 'error') {
     return autosaveState.value.error.message
@@ -221,7 +224,7 @@ const bannerDescription = computed(() => {
 
 const bannerActions = computed(() => {
   if (autosaveState.value.type === 'error' && autosaveState.value.recoverable) {
-    return [{ label: 'Retry now', onClick: retryNow }]
+    return [{ label: t('sessions.editor.autosave.retryButton'), onClick: retryNow }]
   }
   return []
 })
@@ -289,9 +292,9 @@ async function loadSession(silent = false) {
     const axiosError = error as AxiosError<{ detail?: string }>
 
     if (axiosError.response?.status === 404) {
-      loadError.value = 'Session not found'
+      loadError.value = t('sessions.view.errorNotFound')
     } else {
-      loadError.value = axiosError.response?.data?.detail || 'Failed to load session'
+      loadError.value = axiosError.response?.data?.detail || t('sessions.editor.errors.loadFailed')
     }
   } finally {
     if (!silent) {
@@ -311,8 +314,7 @@ async function toggleFinalizeStatus() {
   if (!isFinalized.value) {
     // Finalize the session
     if (!hasContent.value) {
-      finalizeError.value =
-        'Cannot finalize empty session. Add content to at least one field.'
+      finalizeError.value = t('sessions.editor.finalize.errorEmpty')
       return
     }
 
@@ -347,7 +349,7 @@ async function toggleFinalizeStatus() {
       console.error('Failed to finalize session:', error)
       const axiosError = error as AxiosError<{ detail?: string }>
       finalizeError.value =
-        axiosError.response?.data?.detail || 'Failed to finalize session'
+        axiosError.response?.data?.detail || t('sessions.editor.finalize.errorGeneric')
 
       // Rollback optimistic update on error
       if (session.value) {
@@ -383,7 +385,7 @@ async function toggleFinalizeStatus() {
       console.error('Failed to unfinalize session:', error)
       const axiosError = error as AxiosError<{ detail?: string }>
       finalizeError.value =
-        axiosError.response?.data?.detail || 'Failed to revert to draft'
+        axiosError.response?.data?.detail || t('sessions.editor.finalize.errorRevert')
 
       // Rollback optimistic update on error
       if (session.value) {
