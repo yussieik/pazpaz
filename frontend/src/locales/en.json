@@ -662,7 +662,8 @@
     "layout": {
       "notifications": "Notifications",
       "integrations": "Integrations",
-      "payments": "Payments"
+      "payments": "Payments",
+      "language": "Language"
     },
     "sidebar": {
       "ariaLabel": "Settings navigation",
@@ -677,7 +678,19 @@
       "payments": {
         "name": "Payments",
         "description": "Payment processing and invoicing"
+      },
+      "language": {
+        "name": "Language",
+        "description": "Interface language preferences"
       }
+    },
+    "language": {
+      "title": "Language Settings",
+      "description": "Choose your preferred language for the PazPaz interface",
+      "currentLanguage": "Current Language",
+      "english": "English",
+      "hebrew": "עברית (Hebrew)",
+      "changeSuccess": "Language changed successfully"
     },
     "notifications": {
       "errorPrefix": "Error:",

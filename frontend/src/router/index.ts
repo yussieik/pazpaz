@@ -114,6 +114,16 @@ const router = createRouter({
             category: 'Payments',
           },
         },
+        {
+          path: 'language',
+          name: 'settings-language',
+          component: () => import('@/views/settings/LanguageView.vue'),
+          meta: {
+            title: 'Language - Settings - PazPaz',
+            requiresAuth: true,
+            category: 'Language',
+          },
+        },
         // Future settings categories will be added here
         // Example:
         // {

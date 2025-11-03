@@ -662,7 +662,8 @@
     "layout": {
       "notifications": "התראות",
       "integrations": "אינטגרציות",
-      "payments": "תשלומים"
+      "payments": "תשלומים",
+      "language": "שפה"
     },
     "sidebar": {
       "ariaLabel": "ניווט הגדרות",
@@ -677,7 +678,19 @@
       "payments": {
         "name": "תשלומים",
         "description": "עיבוד תשלומים וחשבוניות"
+      },
+      "language": {
+        "name": "שפה",
+        "description": "העדפות שפת הממשק"
       }
+    },
+    "language": {
+      "title": "הגדרות שפה",
+      "description": "בחר את השפה המועדפת עליך לממשק PazPaz",
+      "currentLanguage": "שפה נוכחית",
+      "english": "English",
+      "hebrew": "עברית",
+      "changeSuccess": "השפה שונתה בהצלחה"
     },
     "notifications": {
       "errorPrefix": "שגיאה:",
