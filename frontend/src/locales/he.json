@@ -183,6 +183,19 @@
       "reasonHelp": "הערה זו תתווסף לרשומת הפגישה.",
       "keepButton": "שמור פגישה",
       "confirmButton": "בטל פגישה"
+    },
+    "conflictModal": {
+      "title": "התגלתה התנגשות בלוח הזמנים",
+      "descriptionSingular": "פגישה זו חופפת לפגישה קיימת אחת.",
+      "descriptionPlural": "פגישה זו חופפת ל-{count} פגישות קיימות.",
+      "closeDialog": "סגור דיאלוג",
+      "newTimeLabel": "זמן הפגישה החדש:",
+      "conflictsWithLabel": "מתנגשת עם:",
+      "clientLabel": "לקוח:",
+      "noteLabel": "הערה:",
+      "warningMessage": "שמירת שתי הפגישות תגרום לחפיפה בלוח הזמנים. כדאי לשקול תזמון מחדש של אחת מהן.",
+      "cancelButton": "בטל העברה",
+      "confirmButton": "שמור שתי פגישות"
     }
   }
 }

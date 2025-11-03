@@ -183,6 +183,19 @@
       "reasonHelp": "This note will be added to the appointment record.",
       "keepButton": "Keep Appointment",
       "confirmButton": "Cancel Appointment"
+    },
+    "conflictModal": {
+      "title": "Scheduling Conflict Detected",
+      "descriptionSingular": "This appointment overlaps with {count} existing appointment.",
+      "descriptionPlural": "This appointment overlaps with {count} existing appointments.",
+      "closeDialog": "Close dialog",
+      "newTimeLabel": "New appointment time:",
+      "conflictsWithLabel": "Conflicts with:",
+      "clientLabel": "Client:",
+      "noteLabel": "Note:",
+      "warningMessage": "Keeping both appointments will result in overlapping schedules. You may want to reschedule one of them.",
+      "cancelButton": "Cancel Move",
+      "confirmButton": "Keep Both Appointments"
     }
   }
 }

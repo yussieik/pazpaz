@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import type { ConflictingAppointment } from '@/api/client'
 import { formatTimeRange } from '@/utils/dragHelpers'
 import IconClose from '@/components/icons/IconClose.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 import IconClock from '@/components/icons/IconClock.vue'
+
+const { t } = useI18n()
 
 /**
  * Drag Conflict Modal
@@ -139,11 +142,14 @@ function handleKeydown(event: KeyboardEvent) {
 
             <div class="flex-1">
               <h3 id="conflict-title" class="text-lg font-semibold text-gray-900">
-                Scheduling Conflict Detected
+                {{ t('calendar.conflictModal.title') }}
               </h3>
               <p id="conflict-description" class="mt-1 text-sm text-gray-600">
-                This appointment overlaps with {{ conflicts.length }} existing
-                {{ conflicts.length === 1 ? 'appointment' : 'appointments' }}.
+                {{
+                  conflicts.length === 1
+                    ? t('calendar.conflictModal.descriptionSingular', { count: conflicts.length })
+                    : t('calendar.conflictModal.descriptionPlural', { count: conflicts.length })
+                }}
               </p>
             </div>
 
@@ -152,7 +158,7 @@ function handleKeydown(event: KeyboardEvent) {
               type="button"
               class="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none"
               @click="handleCancel"
-              aria-label="Close dialog"
+              :aria-label="t('calendar.conflictModal.closeDialog')"
             >
               <IconClose class="h-5 w-5" />
             </button>
@@ -163,7 +169,9 @@ function handleKeydown(event: KeyboardEvent) {
         <div class="px-6 py-4">
           <!-- New time info -->
           <div class="mb-4 rounded-lg bg-blue-50 p-3">
-            <p class="text-sm font-medium text-blue-900">New appointment time:</p>
+            <p class="text-sm font-medium text-blue-900">
+              {{ t('calendar.conflictModal.newTimeLabel') }}
+            </p>
             <p class="mt-1 text-base font-semibold text-blue-700">
               {{ formattedNewTime }}
             </p>
@@ -171,7 +179,9 @@ function handleKeydown(event: KeyboardEvent) {
 
           <!-- Conflicting appointments list -->
           <div class="space-y-3">
-            <p class="text-sm font-medium text-gray-700">Conflicts with:</p>
+            <p class="text-sm font-medium text-gray-700">
+              {{ t('calendar.conflictModal.conflictsWithLabel') }}
+            </p>
 
             <div
               v-for="conflict in conflicts"
@@ -189,7 +199,7 @@ function handleKeydown(event: KeyboardEvent) {
                     </div>
                     <div class="min-w-0 flex-1">
                       <p class="truncate text-sm font-medium text-gray-900">
-                        Client: {{ conflict.client_initials }}
+                        {{ t('calendar.conflictModal.clientLabel') }} {{ conflict.client_initials }}
                       </p>
                     </div>
                   </div>
@@ -241,8 +251,8 @@ function handleKeydown(event: KeyboardEvent) {
           <!-- Warning message -->
           <div class="mt-4 rounded-lg bg-yellow-50 p-3">
             <p class="text-sm text-yellow-800">
-              <strong>Note:</strong> Keeping both appointments will result in
-              overlapping schedules. You may want to reschedule one of them.
+              <strong>{{ t('calendar.conflictModal.noteLabel') }}</strong>
+              {{ t('calendar.conflictModal.warningMessage') }}
             </p>
           </div>
         </div>
@@ -254,7 +264,7 @@ function handleKeydown(event: KeyboardEvent) {
             class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 focus-visible:outline-none"
             @click="handleCancel"
           >
-            Cancel Move
+            {{ t('calendar.conflictModal.cancelButton') }}
           </button>
           <button
             type="button"
@@ -262,7 +272,7 @@ function handleKeydown(event: KeyboardEvent) {
             @click="handleConfirm"
             autofocus
           >
-            Keep Both Appointments
+            {{ t('calendar.conflictModal.confirmButton') }}
           </button>
         </div>
       </div>
