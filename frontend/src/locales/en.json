@@ -131,6 +131,13 @@
         "extendingButton": "Extending...",
         "logoutButton": "Logout Now",
         "hipaaNotice": "Automatic session timeout is required for HIPAA compliance to protect patient data."
+      },
+      "banner": {
+        "title": "Session expiring soon.",
+        "message": "Your session will expire in",
+        "extendLink": "Click here to extend",
+        "extendingLink": "Extending...",
+        "dismissLabel": "Dismiss warning"
       }
     }
   }

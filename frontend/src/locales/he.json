@@ -131,6 +131,13 @@
         "extendingButton": "מאריך...",
         "logoutButton": "התנתק עכשיו",
         "hipaaNotice": "זמן קצוב להתחברות אוטומטי נדרש לציות ל-HIPAA להגנה על נתוני מטופלים."
+      },
+      "banner": {
+        "title": "ההתחברות עומדת לפוג בקרוב.",
+        "message": "ההתחברות תפוג בעוד",
+        "extendLink": "לחץ כאן להארכה",
+        "extendingLink": "מאריך...",
+        "dismissLabel": "סגור אזהרה"
       }
     }
   }

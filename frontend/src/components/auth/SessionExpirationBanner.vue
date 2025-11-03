@@ -25,8 +25,8 @@
             </svg>
             <div class="flex-1">
               <p class="text-sm text-amber-900">
-                <span class="font-medium">Session expiring soon.</span>
-                Your session will expire in
+                <span class="font-medium">{{ t('auth.sessionExpiration.banner.title') }}</span>
+                {{ t('auth.sessionExpiration.banner.message') }}
                 <strong class="font-mono">{{ formattedTime }}</strong
                 >.
                 <button
@@ -34,7 +34,11 @@
                   class="rounded underline hover:no-underline focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:outline-none"
                   :disabled="isExtending"
                 >
-                  {{ isExtending ? 'Extending...' : 'Click here to extend' }}
+                  {{
+                    isExtending
+                      ? t('auth.sessionExpiration.banner.extendingLink')
+                      : t('auth.sessionExpiration.banner.extendLink')
+                  }}
                 </button>
               </p>
             </div>
@@ -45,7 +49,7 @@
             @click="handleDismiss"
             class="ml-4 rounded-md p-1 text-amber-700 transition-colors hover:bg-amber-100 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-amber-50 focus:outline-none"
             type="button"
-            aria-label="Dismiss warning"
+            :aria-label="t('auth.sessionExpiration.banner.dismissLabel')"
           >
             <svg
               class="h-5 w-5"
@@ -68,6 +72,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 /**
  * Session Expiration Banner (5-minute warning)
