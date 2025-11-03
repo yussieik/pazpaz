@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig, loadEnv, type UserConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 import type { Plugin } from 'vite'
 import crypto from 'crypto'
 
@@ -62,7 +63,18 @@ export function getViteConfig(mode: string): UserConfig {
   const wsProxyTarget = apiProxyTarget.replace('http://', 'ws://')
 
   return {
-    plugins: [vue(), cspHtmlTransform(mode, env)],
+    plugins: [
+      vue(),
+      cspHtmlTransform(mode, env),
+      VueI18nPlugin({
+        // Locale files directory
+        include: fileURLToPath(new URL('./src/locales/**/*.json', import.meta.url)),
+        // Enable strict mode for development
+        strictMessage: mode === 'development',
+        // Enable ESLint plugin integration
+        escapeHtml: false,
+      }),
+    ],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

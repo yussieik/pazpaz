@@ -1,0 +1,34 @@
+{
+  "common": {
+    "actions": {
+      "save": "שמור",
+      "cancel": "בטל",
+      "delete": "מחק",
+      "edit": "ערוך",
+      "close": "סגור",
+      "add": "הוסף",
+      "remove": "הסר",
+      "search": "חפש",
+      "filter": "סנן",
+      "copy": "העתק",
+      "back": "חזור",
+      "next": "הבא",
+      "previous": "הקודם",
+      "submit": "שלח",
+      "confirm": "אשר"
+    },
+    "status": {
+      "loading": "טוען...",
+      "error": "שגיאה",
+      "success": "הצלחה",
+      "warning": "אזהרה",
+      "info": "מידע"
+    },
+    "messages": {
+      "confirmDelete": "האם אתה בטוח שברצונך למחוק פריט זה?",
+      "saved": "נשמר בהצלחה",
+      "deleted": "נמחק בהצלחה",
+      "error": "אירעה שגיאה. אנא נסה שוב."
+    }
+  }
+}

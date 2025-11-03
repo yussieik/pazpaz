@@ -10,6 +10,7 @@ import App from './App.vue'
 import { useAuthStore } from './stores/auth'
 import { configureApiClient } from './api/config'
 import { vRtl } from './directives/rtl'
+import { i18n } from './plugins/i18n'
 
 /**
  * Application Bootstrap
@@ -63,6 +64,7 @@ const toastOptions: PluginOptions = {
 // Install plugins
 app.use(pinia)
 app.use(Toast, toastOptions)
+app.use(i18n)
 
 // Register global directives
 app.directive('rtl', vRtl)
