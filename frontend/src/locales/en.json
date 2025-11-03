@@ -742,6 +742,69 @@
         "selected": "selected",
         "notSelected": "not selected"
       }
+    },
+    "googleCalendar": {
+      "notConnected": {
+        "title": "Google Calendar Integration",
+        "description": "Automatically sync your PazPaz appointments to Google Calendar. Never miss a session.",
+        "hipaaWarningTitle": "Important: HIPAA Compliance",
+        "hipaaWarningIntro": "Google Calendar is not HIPAA-compliant. By enabling this integration, you understand:",
+        "hipaaPoint1": "Appointment times and locations will be synced to your Google Calendar",
+        "hipaaPoint2": "Client names and other PHI will NOT be included by default",
+        "hipaaPoint3": "Google Calendar data is stored on Google's servers, not PazPaz's HIPAA-compliant infrastructure",
+        "hipaaPoint4": "You are responsible for ensuring your use complies with applicable privacy laws",
+        "hipaaRecommendation": "We recommend using generic labels like \"Client Session\" instead of client names.",
+        "connectButton": "Connect to Google Calendar",
+        "connecting": "Connecting..."
+      },
+      "connected": {
+        "successTitle": "Connected to Google Calendar",
+        "lastSynced": "Last synced: {time}",
+        "settingsTitle": "Sync Settings",
+        "autoSyncLabel": "Automatic sync",
+        "autoSyncDescription": "Keep your Google Calendar up to date with new and updated appointments",
+        "autoSyncToggleLabel": "Enable automatic sync",
+        "baaCheckboxLabel": "I confirm my Google Workspace account has a signed Business Associate Agreement (BAA)",
+        "baaCheckboxDescription": "Required for HIPAA compliance when sending notifications to clients. {link}",
+        "baaLinkText": "Learn more about Google Workspace BAA",
+        "clientNotificationsLabel": "Send appointment invitations to clients",
+        "clientNotificationsDescription": "Clients receive email invitations and calendar reminders from Google (24h and 1h before appointments)",
+        "clientNotificationsBaaWarning": "Note: You must confirm Google Workspace BAA before enabling client notifications",
+        "privacyNoticeTitle": "Privacy Notice",
+        "privacyNoticeDescription": "Client email addresses will be shared with Google Calendar. Only appointments with client email addresses will be sent.",
+        "disconnectButton": "Disconnect Google Calendar"
+      },
+      "disconnectModal": {
+        "title": "Disconnect Google Calendar?",
+        "description": "This will stop syncing appointments to your Google Calendar.",
+        "existingEventsNote": "Existing events in Google Calendar will not be deleted, but no new appointments will be synced.",
+        "cancelButton": "Cancel",
+        "disconnectButton": "Disconnect"
+      },
+      "timeAgo": {
+        "justNow": "Just now",
+        "minutesAgo": "{count} minute ago | {count} minutes ago",
+        "hoursAgo": "{count} hour ago | {count} hours ago",
+        "daysAgo": "{count} day ago | {count} days ago"
+      },
+      "toasts": {
+        "popupBlocked": "Pop-up blocked. Please allow pop-ups and try again.",
+        "connectionSuccess": "Successfully connected to Google Calendar!",
+        "authCancelled": "Authorization was cancelled.",
+        "connectionError": "Failed to connect. Please try again.",
+        "disconnectSuccess": "Google Calendar disconnected",
+        "disconnectError": "Failed to disconnect. Please try again.",
+        "autoSyncEnabled": "Automatic sync enabled",
+        "autoSyncPaused": "Automatic sync paused",
+        "settingsUpdateError": "Failed to update settings. Please try again.",
+        "baaConfirmationSaved": "BAA confirmation saved",
+        "baaConfirmationRemoved": "BAA confirmation removed",
+        "baaUpdateError": "Failed to update BAA status. Please try again.",
+        "clientInvitationsEnabled": "Client invitations enabled",
+        "clientInvitationsDisabled": "Client invitations disabled",
+        "clientInvitationsBaaRequired": "You must confirm Google Workspace BAA before enabling client notifications.",
+        "clientInvitationsUpdateError": "Failed to update settings. Please try again."
+      }
     }
   }
 }

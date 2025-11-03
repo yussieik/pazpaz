@@ -27,8 +27,11 @@
 import { ref, onMounted, computed } from 'vue'
 import { useGoogleCalendarIntegration } from '@/composables/useGoogleCalendarIntegration'
 import { useToast } from '@/composables/useToast'
+import { useI18n } from '@/composables/useI18n'
 import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
+const { t } = useI18n()
 
 // State
 const isWarningExpanded = ref(false)
@@ -61,10 +64,13 @@ const formattedLastSync = computed(() => {
   const diffDays = Math.floor(diffHours / 24)
 
   // Relative time
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`
-  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
-  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
+  if (diffMins < 1) return t('settings.googleCalendar.timeAgo.justNow')
+  if (diffMins < 60)
+    return t('settings.googleCalendar.timeAgo.minutesAgo', diffMins, { count: diffMins })
+  if (diffHours < 24)
+    return t('settings.googleCalendar.timeAgo.hoursAgo', diffHours, { count: diffHours })
+  if (diffDays < 7)
+    return t('settings.googleCalendar.timeAgo.daysAgo', diffDays, { count: diffDays })
 
   // Absolute date for older syncs
   return date.toLocaleDateString(undefined, {
@@ -94,7 +100,7 @@ async function handleConnect() {
     )
 
     if (!popup) {
-      showError('Pop-up blocked. Please allow pop-ups and try again.')
+      showError(t('settings.googleCalendar.toasts.popupBlocked'))
       isConnecting.value = false
       return
     }
@@ -110,16 +116,16 @@ async function handleConnect() {
         await fetchStatus()
 
         if (isConnected.value) {
-          showSuccess('Successfully connected to Google Calendar!')
+          showSuccess(t('settings.googleCalendar.toasts.connectionSuccess'))
         } else {
           // User closed popup without completing auth (neutral message)
-          showError('Authorization was cancelled.')
+          showError(t('settings.googleCalendar.toasts.authCancelled'))
         }
       }
     }, 2000) // Poll every 2 seconds
   } catch (err) {
     console.error('[GoogleCalendar] OAuth error:', err)
-    showError('Failed to connect. Please try again.')
+    showError(t('settings.googleCalendar.toasts.connectionError'))
     isConnecting.value = false
   }
 }
@@ -128,37 +134,49 @@ async function handleDisconnect() {
   try {
     await disconnect()
     showDisconnectModal.value = false
-    showSuccess('Google Calendar disconnected')
+    showSuccess(t('settings.googleCalendar.toasts.disconnectSuccess'))
   } catch (err) {
     console.error('[GoogleCalendar] Disconnect error:', err)
-    showError('Failed to disconnect. Please try again.')
+    showError(t('settings.googleCalendar.toasts.disconnectError'))
   }
 }
 
 async function handleToggleAutoSync(enabled: boolean) {
   try {
     await updateSettings({ auto_sync_enabled: enabled })
-    showSuccess(enabled ? 'Automatic sync enabled' : 'Automatic sync paused')
+    showSuccess(
+      enabled
+        ? t('settings.googleCalendar.toasts.autoSyncEnabled')
+        : t('settings.googleCalendar.toasts.autoSyncPaused')
+    )
   } catch (err) {
     console.error('[GoogleCalendar] Settings update error:', err)
-    showError('Failed to update settings. Please try again.')
+    showError(t('settings.googleCalendar.toasts.settingsUpdateError'))
   }
 }
 
 async function handleToggleBaa(enabled: boolean) {
   try {
     await updateSettings({ has_google_baa: enabled })
-    showSuccess(enabled ? 'BAA confirmation saved' : 'BAA confirmation removed')
+    showSuccess(
+      enabled
+        ? t('settings.googleCalendar.toasts.baaConfirmationSaved')
+        : t('settings.googleCalendar.toasts.baaConfirmationRemoved')
+    )
   } catch (err: unknown) {
     console.error('[GoogleCalendar] Failed to update BAA status:', err)
-    showError('Failed to update BAA status. Please try again.')
+    showError(t('settings.googleCalendar.toasts.baaUpdateError'))
   }
 }
 
 async function handleToggleNotifyClients(enabled: boolean) {
   try {
     await updateSettings({ notify_clients: enabled })
-    showSuccess(enabled ? 'Client invitations enabled' : 'Client invitations disabled')
+    showSuccess(
+      enabled
+        ? t('settings.googleCalendar.toasts.clientInvitationsEnabled')
+        : t('settings.googleCalendar.toasts.clientInvitationsDisabled')
+    )
   } catch (err: unknown) {
     console.error('[GoogleCalendar] Failed to update client invitations:', err)
     // Check if error is due to missing BAA
@@ -177,11 +195,9 @@ async function handleToggleNotifyClients(enabled: boolean) {
       typeof err.response.data.detail === 'string' &&
       err.response.data.detail.includes('BAA')
     ) {
-      showError(
-        'You must confirm Google Workspace BAA before enabling client notifications.'
-      )
+      showError(t('settings.googleCalendar.toasts.clientInvitationsBaaRequired'))
     } else {
-      showError('Failed to update settings. Please try again.')
+      showError(t('settings.googleCalendar.toasts.clientInvitationsUpdateError'))
     }
   }
 }
@@ -229,11 +245,10 @@ onMounted(async () => {
 
         <div class="flex-1">
           <h2 class="text-lg font-semibold text-slate-900">
-            Google Calendar Integration
+            {{ t('settings.googleCalendar.notConnected.title') }}
           </h2>
           <p class="mt-1 text-sm text-slate-600">
-            Automatically sync your PazPaz appointments to Google Calendar. Never miss a
-            session.
+            {{ t('settings.googleCalendar.notConnected.description') }}
           </p>
         </div>
       </div>
@@ -260,7 +275,7 @@ onMounted(async () => {
               />
             </svg>
             <span class="text-sm font-medium text-amber-900">
-              Important: HIPAA Compliance
+              {{ t('settings.googleCalendar.notConnected.hipaaWarningTitle') }}
             </span>
           </div>
           <svg
@@ -291,29 +306,24 @@ onMounted(async () => {
           <div v-if="isWarningExpanded" class="overflow-hidden px-4 pb-4">
             <div class="space-y-3 text-sm text-amber-900">
               <p>
-                <strong>Google Calendar is not HIPAA-compliant.</strong> By enabling
-                this integration, you understand:
+                {{ t('settings.googleCalendar.notConnected.hipaaWarningIntro') }}
               </p>
               <ul class="list-inside list-disc space-y-2 pl-2">
                 <li>
-                  Appointment times and locations will be synced to your Google Calendar
+                  {{ t('settings.googleCalendar.notConnected.hipaaPoint1') }}
                 </li>
                 <li>
-                  Client names and other PHI will <strong>NOT</strong> be included by
-                  default
+                  {{ t('settings.googleCalendar.notConnected.hipaaPoint2') }}
                 </li>
                 <li>
-                  Google Calendar data is stored on Google's servers, not PazPaz's
-                  HIPAA-compliant infrastructure
+                  {{ t('settings.googleCalendar.notConnected.hipaaPoint3') }}
                 </li>
                 <li>
-                  You are responsible for ensuring your use complies with applicable
-                  privacy laws
+                  {{ t('settings.googleCalendar.notConnected.hipaaPoint4') }}
                 </li>
               </ul>
               <p class="text-xs text-amber-800">
-                We recommend using generic labels like "Client Session" instead of
-                client names.
+                {{ t('settings.googleCalendar.notConnected.hipaaRecommendation') }}
               </p>
             </div>
           </div>
@@ -350,7 +360,9 @@ onMounted(async () => {
           </svg>
           <LoadingSpinner v-else class="h-5 w-5" />
           <span>{{
-            isConnecting ? 'Connecting...' : 'Connect to Google Calendar'
+            isConnecting
+              ? t('settings.googleCalendar.notConnected.connecting')
+              : t('settings.googleCalendar.notConnected.connectButton')
           }}</span>
         </button>
       </div>
@@ -375,10 +387,10 @@ onMounted(async () => {
           </svg>
           <div class="flex-1">
             <h3 class="text-sm font-semibold text-green-900">
-              Connected to Google Calendar
+              {{ t('settings.googleCalendar.connected.successTitle') }}
             </h3>
             <p v-if="formattedLastSync" class="mt-1 text-xs text-green-700">
-              Last synced: {{ formattedLastSync }}
+              {{ t('settings.googleCalendar.connected.lastSynced', { time: formattedLastSync }) }}
             </p>
           </div>
         </div>
@@ -386,21 +398,25 @@ onMounted(async () => {
 
       <!-- Settings Card -->
       <div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 class="text-base font-semibold text-slate-900">Sync Settings</h3>
+        <h3 class="text-base font-semibold text-slate-900">
+          {{ t('settings.googleCalendar.connected.settingsTitle') }}
+        </h3>
 
         <div class="mt-6 space-y-6">
           <!-- Auto Sync Toggle -->
           <div class="flex items-start justify-between gap-4">
             <div class="flex-1">
-              <label class="text-sm font-medium text-slate-900"> Automatic sync </label>
+              <label class="text-sm font-medium text-slate-900">
+                {{ t('settings.googleCalendar.connected.autoSyncLabel') }}
+              </label>
               <p class="mt-1 text-sm text-slate-600">
-                Keep your Google Calendar up to date with new and updated appointments
+                {{ t('settings.googleCalendar.connected.autoSyncDescription') }}
               </p>
             </div>
             <div class="flex-shrink-0">
               <ToggleSwitch
                 :model-value="settings.auto_sync_enabled"
-                label="Enable automatic sync"
+                :label="t('settings.googleCalendar.connected.autoSyncToggleLabel')"
                 @update:model-value="handleToggleAutoSync"
               />
             </div>
@@ -418,18 +434,21 @@ onMounted(async () => {
               />
               <div class="flex-1">
                 <label for="has-google-baa" class="text-sm font-medium text-slate-900">
-                  I confirm my Google Workspace account has a signed Business Associate
-                  Agreement (BAA)
+                  {{ t('settings.googleCalendar.connected.baaCheckboxLabel') }}
                 </label>
                 <p class="mt-1 text-sm text-slate-600">
-                  Required for HIPAA compliance when sending notifications to clients.
+                  {{
+                    t('settings.googleCalendar.connected.baaCheckboxDescription', {
+                      link: '',
+                    })
+                  }}
                   <a
                     href="https://support.google.com/a/answer/3407054"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="text-blue-600 underline hover:text-blue-700"
                   >
-                    Learn more about Google Workspace BAA
+                    {{ t('settings.googleCalendar.connected.baaLinkText') }}
                   </a>
                 </p>
               </div>
@@ -441,18 +460,16 @@ onMounted(async () => {
             <div class="flex items-start justify-between gap-4">
               <div class="flex-1">
                 <label class="text-sm font-medium text-slate-900">
-                  Send appointment invitations to clients
+                  {{ t('settings.googleCalendar.connected.clientNotificationsLabel') }}
                 </label>
                 <p class="mt-1 text-sm text-slate-600">
-                  Clients receive email invitations and calendar reminders from Google
-                  (24h and 1h before appointments)
+                  {{ t('settings.googleCalendar.connected.clientNotificationsDescription') }}
                 </p>
                 <p
                   v-if="!settings.has_google_baa"
                   class="mt-2 text-xs font-medium text-amber-700"
                 >
-                  Note: You must confirm Google Workspace BAA before enabling client
-                  notifications
+                  {{ t('settings.googleCalendar.connected.clientNotificationsBaaWarning') }}
                 </p>
               </div>
               <div class="flex-shrink-0">
@@ -493,10 +510,11 @@ onMounted(async () => {
                     />
                   </svg>
                   <div class="flex-1">
-                    <p class="text-xs font-medium text-slate-900">Privacy Notice</p>
+                    <p class="text-xs font-medium text-slate-900">
+                      {{ t('settings.googleCalendar.connected.privacyNoticeTitle') }}
+                    </p>
                     <p class="mt-1 text-xs text-slate-700">
-                      Client email addresses will be shared with Google Calendar. Only
-                      appointments with client email addresses will be sent.
+                      {{ t('settings.googleCalendar.connected.privacyNoticeDescription') }}
                     </p>
                   </div>
                 </div>
@@ -546,7 +564,7 @@ onMounted(async () => {
           class="rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none"
           @click="showDisconnectModal = true"
         >
-          Disconnect Google Calendar
+          {{ t('settings.googleCalendar.connected.disconnectButton') }}
         </button>
       </div>
     </div>
@@ -590,7 +608,7 @@ onMounted(async () => {
                     id="disconnect-modal-title"
                     class="text-lg font-semibold text-slate-900"
                   >
-                    Disconnect Google Calendar?
+                    {{ t('settings.googleCalendar.disconnectModal.title') }}
                   </h3>
                 </div>
               </div>
@@ -598,11 +616,10 @@ onMounted(async () => {
               <!-- Description -->
               <div id="disconnect-modal-description" class="mb-6 text-slate-700">
                 <p class="mb-3">
-                  This will stop syncing appointments to your Google Calendar.
+                  {{ t('settings.googleCalendar.disconnectModal.description') }}
                 </p>
                 <p class="text-sm text-slate-600">
-                  Existing events in Google Calendar will not be deleted, but no new
-                  appointments will be synced.
+                  {{ t('settings.googleCalendar.disconnectModal.existingEventsNote') }}
                 </p>
               </div>
 
@@ -613,7 +630,7 @@ onMounted(async () => {
                   class="flex-1 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
                   @click="showDisconnectModal = false"
                 >
-                  Cancel
+                  {{ t('settings.googleCalendar.disconnectModal.cancelButton') }}
                 </button>
                 <button
                   type="button"
@@ -621,7 +638,9 @@ onMounted(async () => {
                   class="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                   @click="handleDisconnect"
                 >
-                  <span v-if="!isLoading">Disconnect</span>
+                  <span v-if="!isLoading">{{
+                    t('settings.googleCalendar.disconnectModal.disconnectButton')
+                  }}</span>
                   <LoadingSpinner v-else class="mx-auto h-4 w-4" />
                 </button>
               </div>

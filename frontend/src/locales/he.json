@@ -742,6 +742,69 @@
         "selected": "נבחר",
         "notSelected": "לא נבחר"
       }
+    },
+    "googleCalendar": {
+      "notConnected": {
+        "title": "אינטגרציה ליומן Google",
+        "description": "סנכרן אוטומטית את הטיפולים שלך ליומן Google. לעולם לא תפספס פגישה.",
+        "hipaaWarningTitle": "חשוב: תאימות HIPAA",
+        "hipaaWarningIntro": "יומן Google אינו תואם HIPAA. על ידי הפעלת האינטגרציה הזו, אתה מבין כי:",
+        "hipaaPoint1": "זמני ומיקומי הטיפולים יסונכרנו ליומן Google שלך",
+        "hipaaPoint2": "שמות מטופלים ומידע רפואי מזהה אחר לא ייכללו כברירת מחדל",
+        "hipaaPoint3": "נתוני יומן Google מאוחסנים בשרתי Google, ולא בתשתית התואמת HIPAA של PazPaz",
+        "hipaaPoint4": "אתה אחראי להבטיח שהשימוש שלך עומד בדיני הפרטיות החלים",
+        "hipaaRecommendation": "אנו ממליצים להשתמש בתיוגים כלליים כמו \"טיפול\" במקום שמות מטופלים.",
+        "connectButton": "התחבר ליומן Google",
+        "connecting": "מתחבר..."
+      },
+      "connected": {
+        "successTitle": "מחובר ליומן Google",
+        "lastSynced": "סונכרן לאחרונה: {time}",
+        "settingsTitle": "הגדרות סנכרון",
+        "autoSyncLabel": "סנכרון אוטומטי",
+        "autoSyncDescription": "שמור את יומן Google שלך מעודכן עם טיפולים חדשים ומעודכנים",
+        "autoSyncToggleLabel": "הפעל סנכרון אוטומטי",
+        "baaCheckboxLabel": "אני מאשר שלחשבון Google Workspace שלי יש הסכם שותף עסקי (BAA) חתום",
+        "baaCheckboxDescription": "נדרש לתאימות HIPAA בעת שליחת התראות למטופלים. {link}",
+        "baaLinkText": "למידע נוסף על Google Workspace BAA",
+        "clientNotificationsLabel": "שלח הזמנות לפגישות למטופלים",
+        "clientNotificationsDescription": "מטופלים יקבלו הזמנות במייל ותזכורות לוח שנה מ-Google (24 שעות ושעה לפני הטיפולים)",
+        "clientNotificationsBaaWarning": "הערה: יש לאשר Google Workspace BAA לפני הפעלת התראות למטופלים",
+        "privacyNoticeTitle": "הודעת פרטיות",
+        "privacyNoticeDescription": "כתובות דוא\"ל של מטופלים ישותפו עם יומן Google. רק טיפולים עם כתובות דוא\"ל של מטופלים יישלחו.",
+        "disconnectButton": "התנתק מיומן Google"
+      },
+      "disconnectModal": {
+        "title": "להתנתק מיומן Google?",
+        "description": "פעולה זו תפסיק את סנכרון הטיפולים ליומן Google שלך.",
+        "existingEventsNote": "אירועים קיימים ביומן Google לא יימחקו, אך טיפולים חדשים לא יסונכרנו.",
+        "cancelButton": "ביטול",
+        "disconnectButton": "התנתק"
+      },
+      "timeAgo": {
+        "justNow": "ממש עכשיו",
+        "minutesAgo": "לפני דקה | לפני {count} דקות",
+        "hoursAgo": "לפני שעה | לפני {count} שעות",
+        "daysAgo": "לפני יום | לפני {count} ימים"
+      },
+      "toasts": {
+        "popupBlocked": "חלון קופץ נחסם. אנא אפשר חלונות קופצים ונסה שוב.",
+        "connectionSuccess": "התחברת בהצלחה ליומן Google!",
+        "authCancelled": "ההרשאה בוטלה.",
+        "connectionError": "ההתחברות נכשלה. אנא נסה שוב.",
+        "disconnectSuccess": "יומן Google נותק",
+        "disconnectError": "הניתוק נכשל. אנא נסה שוב.",
+        "autoSyncEnabled": "סנכרון אוטומטי הופעל",
+        "autoSyncPaused": "סנכרון אוטומטי הושהה",
+        "settingsUpdateError": "עדכון ההגדרות נכשל. אנא נסה שוב.",
+        "baaConfirmationSaved": "אישור BAA נשמר",
+        "baaConfirmationRemoved": "אישור BAA הוסר",
+        "baaUpdateError": "עדכון סטטוס BAA נכשל. אנא נסה שוב.",
+        "clientInvitationsEnabled": "הזמנות למטופלים הופעלו",
+        "clientInvitationsDisabled": "הזמנות למטופלים הושבתו",
+        "clientInvitationsBaaRequired": "יש לאשר Google Workspace BAA לפני הפעלת התראות למטופלים.",
+        "clientInvitationsUpdateError": "עדכון ההגדרות נכשל. אנא נסה שוב."
+      }
     }
   }
 }
