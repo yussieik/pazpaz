@@ -1,12 +1,18 @@
 import timeGridPlugin from '@fullcalendar/timegrid'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
+import heLocale from '@fullcalendar/core/locales/he'
 
 /**
  * FullCalendar plugins configuration
  * Centralized array of required plugins
  */
 export const CALENDAR_PLUGINS = [timeGridPlugin, dayGridPlugin, interactionPlugin]
+
+/**
+ * FullCalendar locales
+ */
+export const CALENDAR_LOCALES = [heLocale]
 
 /**
  * Time slot configuration for calendar views
@@ -26,19 +32,31 @@ export const TIME_SLOT_CONFIG = {
 
 /**
  * Time format configuration for calendar
+ * Returns locale-specific time format (12h for English, 24h for Hebrew)
  */
-export const TIME_FORMAT_CONFIG = {
-  eventTimeFormat: {
-    hour: '2-digit' as const,
-    minute: '2-digit' as const,
-    meridiem: 'short' as const,
-  },
-  slotLabelFormat: {
-    hour: '2-digit' as const,
-    minute: '2-digit' as const,
-    meridiem: 'short' as const,
-  },
+export function getTimeFormatConfig(locale: string) {
+  const is24Hour = locale === 'he'
+
+  return {
+    eventTimeFormat: {
+      hour: '2-digit' as const,
+      minute: '2-digit' as const,
+      hour12: !is24Hour,
+      ...(is24Hour ? {} : { meridiem: 'short' as const }),
+    },
+    slotLabelFormat: {
+      hour: '2-digit' as const,
+      minute: '2-digit' as const,
+      hour12: !is24Hour,
+      ...(is24Hour ? {} : { meridiem: 'short' as const }),
+    },
+  }
 }
+
+/**
+ * Default time format config (for backwards compatibility)
+ */
+export const TIME_FORMAT_CONFIG = getTimeFormatConfig('en')
 
 /**
  * Business hours configuration
@@ -54,27 +72,40 @@ export const BUSINESS_HOURS_CONFIG = {
 } as const
 
 /**
- * Base calendar options shared across all views
+ * Get locale-specific calendar options
+ * Configures locale, first day of week, and time format based on current language
  */
-export const BASE_CALENDAR_OPTIONS = {
-  headerToolbar: false,
-  allDaySlot: false,
-  nowIndicator: true,
-  editable: true, // Enable drag-and-drop rescheduling
-  selectable: false,
-  selectMirror: true,
-  dayMaxEvents: true,
-  weekends: true,
-  eventDurationEditable: false, // Duration is preserved when dragging
-  eventStartEditable: true, // Allow changing start time
-  snapDuration: '00:15:00', // Snap to 15-minute increments
-  displayEventEnd: true, // CRITICAL: Show end times so FullCalendar uses actual duration for visual height
-  forceEventDuration: true, // Force FullCalendar to use provided end time instead of defaultTimedEventDuration
-  defaultTimedEventDuration: '01:00:00', // Set explicit default (shouldn't matter with forceEventDuration)
-  ...TIME_SLOT_CONFIG,
-  ...TIME_FORMAT_CONFIG,
-  ...BUSINESS_HOURS_CONFIG,
-} as const
+export function getCalendarOptions(currentLocale: string) {
+  const timeFormatConfig = getTimeFormatConfig(currentLocale)
+
+  return {
+    headerToolbar: false,
+    allDaySlot: false,
+    nowIndicator: true,
+    editable: true,
+    selectable: false,
+    selectMirror: true,
+    dayMaxEvents: true,
+    weekends: true,
+    eventDurationEditable: false,
+    eventStartEditable: true,
+    snapDuration: '00:15:00',
+    displayEventEnd: true,
+    forceEventDuration: true,
+    defaultTimedEventDuration: '01:00:00',
+    locale: currentLocale,
+    locales: CALENDAR_LOCALES,
+    firstDay: currentLocale === 'he' ? 0 : 1, // Sunday for Hebrew, Monday for English
+    ...TIME_SLOT_CONFIG,
+    ...timeFormatConfig,
+    ...BUSINESS_HOURS_CONFIG,
+  }
+}
+
+/**
+ * Base calendar options shared across all views (default English)
+ */
+export const BASE_CALENDAR_OPTIONS = getCalendarOptions('en')
 
 /**
  * Per-view height strategies for visual consistency

@@ -5,10 +5,11 @@ import type { ViewType } from '@/types/calendar'
 import { formatDateRange } from '@/utils/calendar/dateFormatters'
 import {
   CALENDAR_PLUGINS,
-  BASE_CALENDAR_OPTIONS,
+  getCalendarOptions,
   VIEW_SPECIFIC_OPTIONS,
 } from '@/utils/calendar/calendarConfig'
 import { useAppointmentsStore } from '@/stores/appointments'
+import { useI18n } from '@/composables/useI18n'
 
 /**
  * Composable for managing calendar state and navigation
@@ -22,6 +23,7 @@ import { useAppointmentsStore } from '@/stores/appointments'
  */
 export function useCalendar() {
   const appointmentsStore = useAppointmentsStore()
+  const { locale } = useI18n()
 
   const currentView = ref<ViewType>('timeGridWeek')
   const currentDate = ref<Date>(new Date())
@@ -195,7 +197,7 @@ export function useCalendar() {
       eventClick,
       dateClick,
       datesSet: handleDatesSet,
-      ...BASE_CALENDAR_OPTIONS,
+      ...getCalendarOptions(locale.value),
       // Apply view-specific options based on current view
       ...(VIEW_SPECIFIC_OPTIONS[
         currentView.value as keyof typeof VIEW_SPECIFIC_OPTIONS

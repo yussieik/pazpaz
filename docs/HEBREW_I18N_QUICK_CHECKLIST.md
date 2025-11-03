@@ -99,21 +99,25 @@
 
 ---
 
-## Phase 5: Low-Priority Components ⏱️ 10-15 hours
+## Phase 5: Low-Priority Components 🟡 PARTIAL (1/7 components) ⏱️ 10-15 hours
 
-### Payments (~30 strings)
-- [ ] PaymentsView
-- [ ] PaymentDetailsForm
+### Payments (~60 strings) ✅ COMPLETE (1/1)
+- [x] PaymentSettings (~60 strings) ✅ Complete
+- Note: PaymentDetailsForm does not exist as separate component
 
-### Admin (~40 strings)
-- [ ] PlatformAdminPage
-- [ ] WorkspaceDetailsModal
+### Admin (~100+ strings) ⏸️ DEFERRED
+- [ ] PlatformAdminPage (~70 strings) - Deferred (919 lines, admin-only)
+- [ ] WorkspaceDetailsModal (~30 strings) - Deferred (admin-only)
+- Note: Admin components are low-priority (platform admin use only), can be translated in future iteration
 
-### Modals (~30 strings)
-- [ ] SessionTimeoutModal
-- [ ] DeleteAppointmentModal
-- [ ] ImagePreviewModal
-- [ ] PDFPreviewModal
+### Modals (~40 strings) ⏸️ DEFERRED
+- [ ] SessionTimeoutModal - Deferred (utility modal)
+- [ ] DeleteAppointmentModal - Deferred (utility modal)
+- [ ] ImagePreviewModal - Deferred (utility modal)
+- [ ] PDFPreviewModal - Deferred (utility modal)
+- Note: Preview/utility modals are low-priority, can be translated in future iteration
+
+**Decision:** Prioritize Phase 6 (Third-party library integration) and Phase 7 (Testing & QA) to ensure existing translations work correctly before translating remaining low-priority admin/utility components.
 
 ---
 
