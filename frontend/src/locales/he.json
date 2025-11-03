@@ -299,6 +299,33 @@
       "deleteButton": "מחק",
       "deleteTitle": "מחק פגישה זו",
       "cancelAppointmentButton": "בטל פגישה"
+    },
+    "calendarView": {
+      "errorLoading": "שגיאה בטעינת פגישות",
+      "newAppointmentButton": "פגישה חדשה",
+      "newAppointmentTitle": "פגישה חדשה (N)",
+      "deleteKeyHint": "מחק (Del)",
+      "deleteAriaLabel": "מחק פגישה",
+      "appointmentFallback": "פגישה",
+      "messages": {
+        "attended": "{clientName} השתתף/ה",
+        "attendedAnnouncement": "הפגישה סומנה כהשתתפות",
+        "attendedError": "נכשל לסמן פגישה כהשתתפות",
+        "deletedWithNote": "הפגישה והערת הפגישה נמחקו",
+        "deletedNoteKept": "הפגישה נמחקה (הערת הפגישה נשמרה)",
+        "deleted": "הפגישה נמחקה",
+        "deleteError": "נכשל למחוק פגישה",
+        "rescheduled": "{clientName} תוזמן מחדש",
+        "statusUpdateError": "נכשל לעדכן סטטוס",
+        "created": "הפגישה נוצרה",
+        "createdAnnouncement": "פגישה נוצרה עבור {clientName}",
+        "updated": "הפגישה עודכנה",
+        "updatedAnnouncement": "הפגישה עודכנה",
+        "cancelled": "{clientName} בוטל/ה",
+        "cancelledAnnouncement": "פגישה עבור {clientName} בוטלה",
+        "undoCancelled": "ביטול הפגישה בוטל",
+        "restored": "הפגישה שוחזרה"
+      }
     }
   }
 }

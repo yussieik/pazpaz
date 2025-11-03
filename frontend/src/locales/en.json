@@ -299,6 +299,33 @@
       "deleteButton": "Delete",
       "deleteTitle": "Delete this appointment",
       "cancelAppointmentButton": "Cancel Appointment"
+    },
+    "calendarView": {
+      "errorLoading": "Error loading appointments",
+      "newAppointmentButton": "New Appointment",
+      "newAppointmentTitle": "New Appointment (N)",
+      "deleteKeyHint": "Delete (Del)",
+      "deleteAriaLabel": "Delete appointment",
+      "appointmentFallback": "Appointment",
+      "messages": {
+        "attended": "{clientName} attended",
+        "attendedAnnouncement": "Appointment marked as attended",
+        "attendedError": "Failed to mark appointment as attended",
+        "deletedWithNote": "Appointment and session note deleted",
+        "deletedNoteKept": "Appointment deleted (session note kept)",
+        "deleted": "Appointment deleted",
+        "deleteError": "Failed to delete appointment",
+        "rescheduled": "{clientName} rescheduled",
+        "statusUpdateError": "Failed to update status",
+        "created": "Appointment created",
+        "createdAnnouncement": "Appointment created for {clientName}",
+        "updated": "Appointment updated",
+        "updatedAnnouncement": "Appointment updated",
+        "cancelled": "{clientName} cancelled",
+        "cancelledAnnouncement": "Appointment for {clientName} cancelled",
+        "undoCancelled": "Appointment cancellation undone",
+        "restored": "Appointment restored"
+      }
     }
   }
 }

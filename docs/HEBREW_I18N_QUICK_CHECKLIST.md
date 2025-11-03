@@ -57,8 +57,8 @@
 - [x] SessionExpirationBanner (~5 strings) ✅ Complete
 - [x] LogoutConfirmationModal (~12 strings) ✅ Complete
 
-### Calendar (~150 strings)
-- [ ] CalendarView
+### Calendar (~150 strings) ✅ COMPLETE
+- [x] CalendarView (~20 strings) ✅ Complete
 - [x] AppointmentFormModal (~36 strings) ✅ Complete
 - [x] AppointmentDetailsModal (~54 strings) ✅ Complete
 - [x] CalendarToolbar (~14 strings) ✅ Complete
