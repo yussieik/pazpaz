@@ -42,9 +42,11 @@
                   id="session-expiration-title"
                   class="text-xl font-semibold text-slate-900"
                 >
-                  Session Expiring
+                  {{ t('auth.sessionExpiration.modal.title') }}
                 </h3>
-                <p class="mt-1 text-sm text-slate-600">Action required</p>
+                <p class="mt-1 text-sm text-slate-600">
+                  {{ t('auth.sessionExpiration.modal.subtitle') }}
+                </p>
               </div>
             </div>
 
@@ -52,7 +54,9 @@
             <div id="session-expiration-description" class="mb-6">
               <div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
                 <div class="text-center">
-                  <p class="mb-2 text-sm text-red-900">Your session expires in:</p>
+                  <p class="mb-2 text-sm text-red-900">
+                    {{ t('auth.sessionExpiration.modal.expiresIn') }}
+                  </p>
                   <div
                     class="font-mono text-4xl font-bold text-red-600 tabular-nums"
                     :class="{
@@ -65,15 +69,15 @@
               </div>
 
               <p class="mb-2 text-sm text-slate-700">
-                You will be automatically logged out to protect your patient data.
+                {{ t('auth.sessionExpiration.modal.description') }}
               </p>
 
               <p
                 v-if="hasUnsavedChanges"
                 class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
               >
-                <strong>Warning:</strong> You have unsaved work that will be lost if you
-                logout.
+                <strong>{{ t('auth.sessionExpiration.modal.unsavedWarningLabel') }}</strong>
+                {{ t('auth.sessionExpiration.modal.unsavedWarning') }}
               </p>
             </div>
 
@@ -93,8 +97,10 @@
                 type="button"
                 :disabled="isExtending"
               >
-                <span v-if="!isExtending">Extend Session</span>
-                <span v-else>Extending...</span>
+                <span v-if="!isExtending">{{
+                  t('auth.sessionExpiration.modal.extendButton')
+                }}</span>
+                <span v-else>{{ t('auth.sessionExpiration.modal.extendingButton') }}</span>
               </button>
               <button
                 @click="handleLogout"
@@ -106,14 +112,13 @@
                 ]"
                 type="button"
               >
-                Logout Now
+                {{ t('auth.sessionExpiration.modal.logoutButton') }}
               </button>
             </div>
 
             <!-- HIPAA Compliance Notice -->
             <p class="mt-4 text-center text-xs text-slate-500">
-              Automatic session timeout is required for HIPAA compliance to protect
-              patient data.
+              {{ t('auth.sessionExpiration.modal.hipaaNotice') }}
             </p>
           </div>
         </Transition>
@@ -124,6 +129,9 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 /**
  * Session Expiration Modal (1-minute warning)

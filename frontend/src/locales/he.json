@@ -118,6 +118,20 @@
         "noToken": "לא סופק אסימון אימות",
         "invalidToken": "קישור קסם לא תקין או שפג תוקפו"
       }
+    },
+    "sessionExpiration": {
+      "modal": {
+        "title": "ההתחברות עומדת לפוג",
+        "subtitle": "נדרשת פעולה",
+        "expiresIn": "ההתחברות פוגה בעוד:",
+        "description": "תנותק אוטומטית כדי להגן על נתוני המטופלים שלך.",
+        "unsavedWarning": "יש לך עבודה לא שמורה שתאבד אם תתנתק.",
+        "unsavedWarningLabel": "אזהרה:",
+        "extendButton": "הארך התחברות",
+        "extendingButton": "מאריך...",
+        "logoutButton": "התנתק עכשיו",
+        "hipaaNotice": "זמן קצוב להתחברות אוטומטי נדרש לציות ל-HIPAA להגנה על נתוני מטופלים."
+      }
     }
   }
 }

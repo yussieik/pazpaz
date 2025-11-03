@@ -118,6 +118,20 @@
         "noToken": "No verification token provided",
         "invalidToken": "Invalid or expired magic link"
       }
+    },
+    "sessionExpiration": {
+      "modal": {
+        "title": "Session Expiring",
+        "subtitle": "Action required",
+        "expiresIn": "Your session expires in:",
+        "description": "You will be automatically logged out to protect your patient data.",
+        "unsavedWarning": "You have unsaved work that will be lost if you logout.",
+        "unsavedWarningLabel": "Warning:",
+        "extendButton": "Extend Session",
+        "extendingButton": "Extending...",
+        "logoutButton": "Logout Now",
+        "hipaaNotice": "Automatic session timeout is required for HIPAA compliance to protect patient data."
+      }
     }
   }
 }
