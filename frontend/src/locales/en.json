@@ -93,6 +93,31 @@
         "bannerMailHog": "MailHog",
         "bannerDismiss": "Dismiss development mode banner"
       }
+    },
+    "verify": {
+      "loading": {
+        "title": "Signing you in...",
+        "subtitle": "Verifying your magic link"
+      },
+      "success": {
+        "title": "Welcome back!",
+        "subtitle": "Taking you to your calendar..."
+      },
+      "alreadyAuthenticated": {
+        "title": "You're already signed in",
+        "subtitle": "Taking you back to your calendar..."
+      },
+      "error": {
+        "title": "Link expired or invalid",
+        "securityNote": "Magic links expire after 15 minutes for security",
+        "requestNewButton": "Request new magic link",
+        "returnHomeButton": "Return to home",
+        "keyboardHint": "Press {enter} to request new link or {esc} to go home",
+        "enterKey": "Enter",
+        "escKey": "Esc",
+        "noToken": "No verification token provided",
+        "invalidToken": "Invalid or expired magic link"
+      }
     }
   }
 }

@@ -3,12 +3,14 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useCrossTabAuth } from '@/composables/useCrossTabAuth'
+import { useI18n } from '@/composables/useI18n'
 import apiClient from '@/api/client'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const { notifyAuthSuccess } = useCrossTabAuth()
+const { t } = useI18n()
 
 const status = ref<'loading' | 'success' | 'error' | 'already-authenticated'>('loading')
 const errorMessage = ref<string>('')
@@ -88,7 +90,7 @@ onMounted(async () => {
 
   if (!token) {
     status.value = 'error'
-    errorMessage.value = 'No verification token provided'
+    errorMessage.value = t('auth.verify.error.noToken')
     return
   }
 
@@ -121,7 +123,7 @@ onMounted(async () => {
     status.value = 'error'
     const axiosError = error as { response?: { data?: { detail?: string } } }
     errorMessage.value =
-      axiosError?.response?.data?.detail || 'Invalid or expired magic link'
+      axiosError?.response?.data?.detail || t('auth.verify.error.invalidToken')
 
     console.error('[AuthVerify] Verification failed:', error)
 
@@ -166,8 +168,10 @@ onMounted(async () => {
           </div>
         </div>
 
-        <h2 class="text-2xl font-semibold text-slate-900">Signing you in...</h2>
-        <p class="mt-2 text-slate-600">Verifying your magic link</p>
+        <h2 class="text-2xl font-semibold text-slate-900">
+          {{ t('auth.verify.loading.title') }}
+        </h2>
+        <p class="mt-2 text-slate-600">{{ t('auth.verify.loading.subtitle') }}</p>
 
         <!-- Bouncing dots -->
         <div class="mt-6 flex justify-center space-x-2">
@@ -206,8 +210,10 @@ onMounted(async () => {
             />
           </svg>
         </div>
-        <h2 class="text-2xl font-semibold text-slate-900">Welcome back!</h2>
-        <p class="mt-2 text-slate-600">Taking you to your calendar...</p>
+        <h2 class="text-2xl font-semibold text-slate-900">
+          {{ t('auth.verify.success.title') }}
+        </h2>
+        <p class="mt-2 text-slate-600">{{ t('auth.verify.success.subtitle') }}</p>
       </div>
 
       <!-- Task 1.1: Already Authenticated State -->
@@ -230,8 +236,12 @@ onMounted(async () => {
             />
           </svg>
         </div>
-        <h2 class="text-2xl font-semibold text-slate-900">You're already signed in</h2>
-        <p class="mt-2 text-slate-600">Taking you back to your calendar...</p>
+        <h2 class="text-2xl font-semibold text-slate-900">
+          {{ t('auth.verify.alreadyAuthenticated.title') }}
+        </h2>
+        <p class="mt-2 text-slate-600">
+          {{ t('auth.verify.alreadyAuthenticated.subtitle') }}
+        </p>
       </div>
 
       <!-- Task 1.3: Enhanced Error State with Task 1.2: Manual Actions -->
@@ -256,10 +266,12 @@ onMounted(async () => {
           </svg>
         </div>
 
-        <h2 class="text-2xl font-semibold text-slate-900">Link expired or invalid</h2>
+        <h2 class="text-2xl font-semibold text-slate-900">
+          {{ t('auth.verify.error.title') }}
+        </h2>
         <p class="mt-3 text-slate-700">{{ errorMessage }}</p>
         <p class="mt-2 text-sm text-slate-500">
-          Magic links expire after 15 minutes for security
+          {{ t('auth.verify.error.securityNote') }}
         </p>
 
         <!-- Task 1.2: Manual action buttons -->
@@ -271,7 +283,7 @@ onMounted(async () => {
             class="w-full rounded-lg bg-emerald-600 px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none"
             autofocus
           >
-            Request new magic link
+            {{ t('auth.verify.error.requestNewButton') }}
           </button>
 
           <button
@@ -279,15 +291,18 @@ onMounted(async () => {
             type="button"
             class="w-full rounded-lg border-2 border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 transition-all duration-200 hover:border-slate-400 hover:bg-slate-50 focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 focus:outline-none"
           >
-            Return to home
+            {{ t('auth.verify.error.returnHomeButton') }}
           </button>
         </div>
 
         <!-- Keyboard shortcuts hint -->
         <p class="mt-4 text-xs text-slate-500">
-          Press <kbd class="rounded bg-slate-100 px-2 py-1 font-mono">Enter</kbd> to
-          request new link or
-          <kbd class="rounded bg-slate-100 px-2 py-1 font-mono">Esc</kbd> to go home
+          {{
+            t('auth.verify.error.keyboardHint', {
+              enter: t('auth.verify.error.enterKey'),
+              esc: t('auth.verify.error.escKey'),
+            })
+          }}
         </p>
       </div>
     </div>

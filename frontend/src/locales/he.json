@@ -93,6 +93,31 @@
         "bannerMailHog": "MailHog",
         "bannerDismiss": "סגור הודעת מצב פיתוח"
       }
+    },
+    "verify": {
+      "loading": {
+        "title": "מחבר אותך...",
+        "subtitle": "מאמת את קישור הקסם"
+      },
+      "success": {
+        "title": "ברוך שובך!",
+        "subtitle": "לוקח אותך ליומן שלך..."
+      },
+      "alreadyAuthenticated": {
+        "title": "כבר מחובר למערכת",
+        "subtitle": "חוזר ליומן שלך..."
+      },
+      "error": {
+        "title": "הקישור פג תוקף או לא תקין",
+        "securityNote": "קישורי קסם פגים לאחר 15 דקות למען האבטחה",
+        "requestNewButton": "בקש קישור קסם חדש",
+        "returnHomeButton": "חזור לדף הבית",
+        "keyboardHint": "לחץ {enter} לבקש קישור חדש או {esc} לחזור לדף הבית",
+        "enterKey": "Enter",
+        "escKey": "Esc",
+        "noToken": "לא סופק אסימון אימות",
+        "invalidToken": "קישור קסם לא תקין או שפג תוקפו"
+      }
     }
   }
 }
