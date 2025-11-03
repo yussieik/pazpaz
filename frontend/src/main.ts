@@ -10,7 +10,8 @@ import App from './App.vue'
 import { useAuthStore } from './stores/auth'
 import { configureApiClient } from './api/config'
 import { vRtl } from './directives/rtl'
-import { i18n } from './plugins/i18n'
+import { i18n, getLocaleDirection } from './plugins/i18n'
+import type { SupportedLocale } from './locales'
 
 /**
  * Application Bootstrap
@@ -65,6 +66,14 @@ const toastOptions: PluginOptions = {
 app.use(pinia)
 app.use(Toast, toastOptions)
 app.use(i18n)
+
+// Set initial document direction based on detected locale
+const initialLocale = i18n.global.locale.value as SupportedLocale
+const initialDir = getLocaleDirection(initialLocale)
+document.documentElement.setAttribute('dir', initialDir)
+document.documentElement.setAttribute('lang', initialLocale)
+
+console.debug(`[i18n] Initial locale: ${initialLocale} (${initialDir})`)
 
 // Register global directives
 app.directive('rtl', vRtl)

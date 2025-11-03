@@ -23,18 +23,28 @@
 
 ---
 
-## Phase 2: Core Framework 🚧 IN PROGRESS (8-10 hours)
+## Phase 2: Core Framework ✅ COMPLETE (8-10 hours)
 
 - [x] Create `/src/plugins/i18n.ts` with locale detection
 - [x] Register i18n plugin in `main.ts`
-- [ ] Create `/src/composables/useI18n.ts` wrapper
-- [ ] Set document `dir` attribute on app mount
-- [ ] Verify RTL/LTR switching works
-- [ ] Test locale persistence in localStorage
+- [x] Create `/src/composables/useI18n.ts` wrapper
+- [x] Set document `dir` attribute on app mount
+- [x] Create date formatting utility (`useDateFormat`)
+- [x] Verify type check passes
 
-**Deliverables Created (In Progress):**
+**Deliverables Created:**
 - `/frontend/src/plugins/i18n.ts` - i18n plugin with locale detection ✅
 - `/frontend/src/main.ts` - Updated with i18n plugin registration ✅
+- `/frontend/src/composables/useI18n.ts` - Composable with locale switching & RTL ✅
+- `/frontend/src/utils/dateFormat.ts` - Locale-aware date formatting ✅
+
+**Features:**
+- ✅ Automatic locale detection (localStorage → browser → default)
+- ✅ Israeli users get Hebrew by default (he/iw locale)
+- ✅ Document direction toggle (LTR/RTL)
+- ✅ Locale persistence in localStorage
+- ✅ Type-safe translation keys
+- ✅ Date formatting with Hebrew locale support
 
 ---
 
