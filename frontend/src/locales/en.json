@@ -390,6 +390,71 @@
         "clientAdded": "{firstName} {lastName} added successfully",
         "addFailed": "Failed to add client. Please try again."
       }
+    },
+    "formModal": {
+      "createTitle": "New Client",
+      "editTitle": "Edit Client",
+      "closeDialogAriaLabel": "Close dialog",
+      "addButton": "Add Client",
+      "saveButton": "Save Changes",
+      "addingStatus": "Adding...",
+      "savingStatus": "Saving...",
+      "cancelButton": "Cancel",
+      "keyboardHint": "or press",
+      "fields": {
+        "firstName": {
+          "label": "First Name",
+          "required": "First name is required"
+        },
+        "lastName": {
+          "label": "Last Name",
+          "required": "Last name is required"
+        },
+        "phone": {
+          "label": "Phone",
+          "placeholder": "555-123-4567"
+        },
+        "email": {
+          "label": "Email",
+          "placeholder": "client@example.com",
+          "invalid": "Please enter a valid email address"
+        },
+        "calendarConsent": {
+          "label": "Send appointment reminders via Google Calendar",
+          "description": "Client will receive calendar invitations with appointment details. Uncheck to opt out.",
+          "consentGrantedLabel": "Consent granted:",
+          "emailRequiredWarning": "Email address required to send calendar reminders"
+        },
+        "toggleDetails": {
+          "addMore": "Add More",
+          "hide": "Hide",
+          "optional": "(optional)"
+        },
+        "dateOfBirth": {
+          "label": "Date of Birth"
+        },
+        "address": {
+          "label": "Address",
+          "placeholder": "123 Main St, City, State ZIP"
+        },
+        "emergencyContactName": {
+          "label": "Emergency Contact Name",
+          "placeholder": "Full name"
+        },
+        "emergencyContactPhone": {
+          "label": "Emergency Contact Phone",
+          "placeholder": "555-123-4567"
+        },
+        "medicalHistory": {
+          "label": "Medical History",
+          "encryptedNote": "🔒 Encrypted and private",
+          "placeholder": "Relevant medical history, conditions, medications, allergies..."
+        },
+        "intakeNotes": {
+          "label": "Intake Notes",
+          "placeholder": "Initial assessment, treatment goals, preferences..."
+        }
+      }
     }
   }
 }

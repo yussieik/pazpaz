@@ -390,6 +390,71 @@
         "clientAdded": "{firstName} {lastName} נוסף בהצלחה",
         "addFailed": "הוספת המטופל נכשלה. אנא נסה שוב."
       }
+    },
+    "formModal": {
+      "createTitle": "מטופל חדש",
+      "editTitle": "ערוך מטופל",
+      "closeDialogAriaLabel": "סגור חלונית",
+      "addButton": "הוסף מטופל",
+      "saveButton": "שמור שינויים",
+      "addingStatus": "מוסיף...",
+      "savingStatus": "שומר...",
+      "cancelButton": "ביטול",
+      "keyboardHint": "או לחץ",
+      "fields": {
+        "firstName": {
+          "label": "שם פרטי",
+          "required": "שם פרטי הוא שדה חובה"
+        },
+        "lastName": {
+          "label": "שם משפחה",
+          "required": "שם משפחה הוא שדה חובה"
+        },
+        "phone": {
+          "label": "טלפון",
+          "placeholder": "050-123-4567"
+        },
+        "email": {
+          "label": "אימייל",
+          "placeholder": "example@client.com",
+          "invalid": "אנא הזן כתובת אימייל תקינה"
+        },
+        "calendarConsent": {
+          "label": "שלח תזכורות פגישות דרך Google Calendar",
+          "description": "המטופל יקבל הזמנות ביומן עם פרטי הפגישה. בטל סימון כדי לבטל.",
+          "consentGrantedLabel": "הסכמה ניתנה:",
+          "emailRequiredWarning": "נדרשת כתובת אימייל כדי לשלוח תזכורות ביומן"
+        },
+        "toggleDetails": {
+          "addMore": "הוסף עוד",
+          "hide": "הסתר",
+          "optional": "(אופציונלי)"
+        },
+        "dateOfBirth": {
+          "label": "תאריך לידה"
+        },
+        "address": {
+          "label": "כתובת",
+          "placeholder": "רחוב 123, עיר, מיקוד"
+        },
+        "emergencyContactName": {
+          "label": "שם איש קשר לחירום",
+          "placeholder": "שם מלא"
+        },
+        "emergencyContactPhone": {
+          "label": "טלפון איש קשר לחירום",
+          "placeholder": "050-123-4567"
+        },
+        "medicalHistory": {
+          "label": "היסטוריה רפואית",
+          "encryptedNote": "🔒 מוצפן ופרטי",
+          "placeholder": "היסטוריה רפואית רלוונטית, מצבים רפואיים, תרופות, אלרגיות..."
+        },
+        "intakeNotes": {
+          "label": "הערות קבלה",
+          "placeholder": "הערכה ראשונית, מטרות טיפול, העדפות..."
+        }
+      }
     }
   }
 }

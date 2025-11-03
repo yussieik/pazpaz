@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import type { ClientCreate, Client } from '@/types/client'
 import IconClose from '@/components/icons/IconClose.vue'
+
+const { t } = useI18n()
 
 interface Props {
   visible: boolean
@@ -49,11 +52,11 @@ const modifierKey = computed(() => (isMac.value ? '⌘' : 'Ctrl'))
 
 // Computed properties
 const modalTitle = computed(() =>
-  props.mode === 'create' ? 'New Client' : 'Edit Client'
+  props.mode === 'create' ? t('clients.formModal.createTitle') : t('clients.formModal.editTitle')
 )
 
 const submitButtonText = computed(() =>
-  props.mode === 'create' ? 'Add Client' : 'Save Changes'
+  props.mode === 'create' ? t('clients.formModal.addButton') : t('clients.formModal.saveButton')
 )
 
 // Check if email is provided for calendar consent
@@ -157,16 +160,16 @@ function validate(): boolean {
 
   // Only first name and last name are required
   if (!formData.value.first_name?.trim()) {
-    errors.value.first_name = 'First name is required'
+    errors.value.first_name = t('clients.formModal.fields.firstName.required')
   }
   if (!formData.value.last_name?.trim()) {
-    errors.value.last_name = 'Last name is required'
+    errors.value.last_name = t('clients.formModal.fields.lastName.required')
   }
 
   // Email format validation (only if provided)
   const hasEmail = formData.value.email?.trim()
   if (hasEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.value.email || '')) {
-    errors.value.email = 'Please enter a valid email address'
+    errors.value.email = t('clients.formModal.fields.email.invalid')
   }
 
   return Object.keys(errors.value).length === 0
@@ -175,13 +178,13 @@ function validate(): boolean {
 function handleBlur(field: 'first_name' | 'last_name') {
   // Real-time validation on blur
   if (field === 'first_name' && !formData.value.first_name?.trim()) {
-    errors.value.first_name = 'First name is required'
+    errors.value.first_name = t('clients.formModal.fields.firstName.required')
   } else if (field === 'first_name') {
     delete errors.value.first_name
   }
 
   if (field === 'last_name' && !formData.value.last_name?.trim()) {
-    errors.value.last_name = 'Last name is required'
+    errors.value.last_name = t('clients.formModal.fields.lastName.required')
   } else if (field === 'last_name') {
     delete errors.value.last_name
   }
@@ -311,7 +314,7 @@ onUnmounted(() => {
             <button
               @click="closeModal"
               class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 sm:min-h-0 sm:min-w-0 sm:p-2"
-              aria-label="Close dialog"
+              :aria-label="t('clients.formModal.closeDialogAriaLabel')"
             >
               <IconClose class="h-6 w-6 sm:h-5 sm:w-5" />
             </button>
@@ -330,7 +333,7 @@ onUnmounted(() => {
                   for="first-name"
                   class="mb-1.5 block text-sm font-medium text-slate-900"
                 >
-                  First Name
+                  {{ t('clients.formModal.fields.firstName.label') }}
                   <span class="ml-0.5 text-red-500" aria-label="required">*</span>
                 </label>
                 <input
@@ -367,7 +370,7 @@ onUnmounted(() => {
                   for="last-name"
                   class="mb-1.5 block text-sm font-medium text-slate-900"
                 >
-                  Last Name
+                  {{ t('clients.formModal.fields.lastName.label') }}
                   <span class="ml-0.5 text-red-500" aria-label="required">*</span>
                 </label>
                 <input
@@ -403,14 +406,14 @@ onUnmounted(() => {
                   for="phone"
                   class="mb-1.5 block text-sm font-medium text-slate-900"
                 >
-                  Phone
+                  {{ t('clients.formModal.fields.phone.label') }}
                 </label>
                 <input
                   id="phone"
                   v-model="formData.phone"
                   type="tel"
                   autocomplete="tel"
-                  placeholder="555-123-4567"
+                  :placeholder="t('clients.formModal.fields.phone.placeholder')"
                   aria-required="false"
                   class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                 />
@@ -422,14 +425,14 @@ onUnmounted(() => {
                   for="email"
                   class="mb-1.5 block text-sm font-medium text-slate-900"
                 >
-                  Email
+                  {{ t('clients.formModal.fields.email.label') }}
                 </label>
                 <input
                   id="email"
                   v-model="formData.email"
                   type="email"
                   autocomplete="email"
-                  placeholder="client@example.com"
+                  :placeholder="t('clients.formModal.fields.email.placeholder')"
                   aria-required="false"
                   :aria-invalid="!!errors.email"
                   :aria-describedby="errors.email ? 'email-error' : undefined"
@@ -463,11 +466,10 @@ onUnmounted(() => {
                     for="google-calendar-consent"
                     class="cursor-pointer text-sm font-medium text-slate-700"
                   >
-                    Send appointment reminders via Google Calendar
+                    {{ t('clients.formModal.fields.calendarConsent.label') }}
                   </label>
                   <p class="mt-1 text-xs text-slate-500">
-                    Client will receive calendar invitations with appointment details.
-                    Uncheck to opt out.
+                    {{ t('clients.formModal.fields.calendarConsent.description') }}
                   </p>
                   <p
                     v-if="
@@ -476,7 +478,7 @@ onUnmounted(() => {
                     "
                     class="mt-1 text-xs text-slate-400"
                   >
-                    Consent granted:
+                    {{ t('clients.formModal.fields.calendarConsent.consentGrantedLabel') }}
                     {{ formatDate(props.client.google_calendar_consent_date) }}
                   </p>
                 </div>
@@ -500,7 +502,7 @@ onUnmounted(() => {
                       clip-rule="evenodd"
                     />
                   </svg>
-                  <span>Email address required to send calendar reminders</span>
+                  <span>{{ t('clients.formModal.fields.calendarConsent.emailRequiredWarning') }}</span>
                 </p>
               </div>
             </div>
@@ -514,8 +516,8 @@ onUnmounted(() => {
               class="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             >
               <span>
-                {{ isAdditionalDetailsExpanded ? 'Hide' : 'Add More' }} Details
-                <span class="text-slate-500">(optional)</span>
+                {{ isAdditionalDetailsExpanded ? t('clients.formModal.fields.toggleDetails.hide') : t('clients.formModal.fields.toggleDetails.addMore') }} Details
+                <span class="text-slate-500">{{ t('clients.formModal.fields.toggleDetails.optional') }}</span>
               </span>
               <svg
                 :class="[
@@ -557,7 +559,7 @@ onUnmounted(() => {
                     for="date-of-birth"
                     class="mb-1.5 block text-sm font-medium text-slate-900"
                   >
-                    Date of Birth
+                    {{ t('clients.formModal.fields.dateOfBirth.label') }}
                   </label>
                   <input
                     id="date-of-birth"
@@ -574,7 +576,7 @@ onUnmounted(() => {
                     for="address"
                     class="mb-1.5 block text-sm font-medium text-slate-900"
                   >
-                    Address
+                    {{ t('clients.formModal.fields.address.label') }}
                   </label>
                   <input
                     id="address"
@@ -582,7 +584,7 @@ onUnmounted(() => {
                     v-rtl
                     type="text"
                     autocomplete="street-address"
-                    placeholder="123 Main St, City, State ZIP"
+                    :placeholder="t('clients.formModal.fields.address.placeholder')"
                     class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                   />
                 </div>
@@ -593,14 +595,14 @@ onUnmounted(() => {
                     for="emergency-contact-name"
                     class="mb-1.5 block text-sm font-medium text-slate-900"
                   >
-                    Emergency Contact Name
+                    {{ t('clients.formModal.fields.emergencyContactName.label') }}
                   </label>
                   <input
                     id="emergency-contact-name"
                     v-model="formData.emergency_contact_name"
                     v-rtl
                     type="text"
-                    placeholder="Full name"
+                    :placeholder="t('clients.formModal.fields.emergencyContactName.placeholder')"
                     class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                   />
                 </div>
@@ -611,13 +613,13 @@ onUnmounted(() => {
                     for="emergency-contact-phone"
                     class="mb-1.5 block text-sm font-medium text-slate-900"
                   >
-                    Emergency Contact Phone
+                    {{ t('clients.formModal.fields.emergencyContactPhone.label') }}
                   </label>
                   <input
                     id="emergency-contact-phone"
                     v-model="formData.emergency_contact_phone"
                     type="tel"
-                    placeholder="555-123-4567"
+                    :placeholder="t('clients.formModal.fields.emergencyContactPhone.placeholder')"
                     class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                   />
                 </div>
@@ -628,11 +630,11 @@ onUnmounted(() => {
                     for="medical-history"
                     class="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-900"
                   >
-                    <span>Medical History</span>
+                    <span>{{ t('clients.formModal.fields.medicalHistory.label') }}</span>
                     <span
                       class="text-xs text-slate-500"
                       aria-label="Encrypted and private"
-                      >🔒 Encrypted and private</span
+                      >{{ t('clients.formModal.fields.medicalHistory.encryptedNote') }}</span
                     >
                   </label>
                   <textarea
@@ -640,7 +642,7 @@ onUnmounted(() => {
                     v-model="formData.medical_history"
                     v-rtl
                     rows="4"
-                    placeholder="Relevant medical history, conditions, medications, allergies..."
+                    :placeholder="t('clients.formModal.fields.medicalHistory.placeholder')"
                     class="mt-1 block min-h-[100px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                   ></textarea>
                 </div>
@@ -651,14 +653,14 @@ onUnmounted(() => {
                     for="notes"
                     class="mb-1.5 block text-sm font-medium text-slate-900"
                   >
-                    Intake Notes
+                    {{ t('clients.formModal.fields.intakeNotes.label') }}
                   </label>
                   <textarea
                     id="notes"
                     v-model="formData.notes"
                     v-rtl
                     rows="4"
-                    placeholder="Initial assessment, treatment goals, preferences..."
+                    :placeholder="t('clients.formModal.fields.intakeNotes.placeholder')"
                     class="mt-1 block min-h-[100px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                   ></textarea>
                 </div>
@@ -677,7 +679,7 @@ onUnmounted(() => {
                 :disabled="isSubmitting"
                 class="order-2 inline-flex min-h-[44px] w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:order-1 sm:w-auto"
               >
-                Cancel
+                {{ t('clients.formModal.cancelButton') }}
               </button>
               <button
                 @click="handleSubmit"
@@ -707,13 +709,13 @@ onUnmounted(() => {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  {{ mode === 'edit' ? 'Saving...' : 'Adding...' }}
+                  {{ mode === 'edit' ? t('clients.formModal.savingStatus') : t('clients.formModal.addingStatus') }}
                 </span>
                 <span v-else>{{ submitButtonText }}</span>
               </button>
             </div>
             <p class="mt-3 hidden text-center text-xs text-slate-500 sm:block">
-              or press
+              {{ t('clients.formModal.keyboardHint') }}
               <kbd
                 class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700"
                 >{{ modifierKey }}Enter</kbd
