@@ -341,6 +341,23 @@
       "phonePlaceholder": "Phone (for reminders, optional)",
       "addButton": "Add Client",
       "keyboardHint": "Press Enter to add, Escape to cancel"
+    },
+    "combobox": {
+      "label": "Client",
+      "clearButton": "Clear",
+      "clearAriaLabel": "Clear client selection",
+      "placeholderEmpty": "Search for a client...",
+      "searchingStatus": "Searching...",
+      "loadingStatus": "Loading...",
+      "recentClientsHeader": "Recent Clients",
+      "noResultsMessage": "No clients found for \"{query}\"",
+      "addNewButton": "Add New Client",
+      "creatingStatus": "Creating client...",
+      "announcements": {
+        "clientSelected": "Client selected: {clientName}",
+        "selectionCleared": "Client selection cleared",
+        "clientCreated": "Client {clientName} created and selected"
+      }
     }
   }
 }

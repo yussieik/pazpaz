@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { onClickOutside } from '@vueuse/core'
+import { useI18n } from '@/composables/useI18n'
 import { useClientSearch } from '@/composables/useClientSearch'
 import { useScreenReader } from '@/composables/useScreenReader'
 import { useDeviceType } from '@/composables/useDeviceType'
 import ClientDropdownItem from './ClientDropdownItem.vue'
 import ClientQuickAddForm from './ClientQuickAddForm.vue'
 import type { Client, ClientListItem, ClientCreate } from '@/types/client'
+
+const { t } = useI18n()
 
 interface Props {
   modelValue: string // client_id
@@ -151,7 +154,7 @@ function selectClient(client: Client) {
   searchQuery.value = ''
   emit('update:modelValue', client.id)
   closeDropdown()
-  announce(`Client selected: ${client.full_name}`)
+  announce(t('clients.combobox.announcements.clientSelected', { clientName: client.full_name }))
 }
 
 /**
@@ -162,7 +165,7 @@ function clearSelection() {
   searchQuery.value = ''
   emit('update:modelValue', '')
   inputRef.value?.focus()
-  announce('Client selection cleared')
+  announce(t('clients.combobox.announcements.selectionCleared'))
 }
 
 /**
@@ -182,7 +185,7 @@ async function handleQuickAddSubmit(clientData: ClientCreate) {
   const newClient = await createClient(clientData)
   if (newClient) {
     selectClient(newClient)
-    announce(`Client ${newClient.full_name} created and selected`)
+    announce(t('clients.combobox.announcements.clientCreated', { clientName: newClient.full_name }))
   }
 }
 
@@ -295,16 +298,16 @@ defineExpose({
     <!-- Label (if needed, can be passed via slot) -->
     <div class="flex items-center justify-between">
       <label :for="comboboxId" class="mb-1.5 block text-sm font-medium text-slate-900">
-        Client <span class="ml-0.5 text-red-500">*</span>
+        {{ t('clients.combobox.label') }} <span class="ml-0.5 text-red-500">*</span>
       </label>
       <button
         v-if="selectedClient"
         @click="clearSelection"
         type="button"
         class="flex min-h-[44px] items-center text-xs text-slate-500 hover:text-slate-700 focus:outline-none focus-visible:underline sm:min-h-0"
-        aria-label="Clear client selection"
+        :aria-label="t('clients.combobox.clearAriaLabel')"
       >
-        Clear
+        {{ t('clients.combobox.clearButton') }}
       </button>
     </div>
 
@@ -324,7 +327,7 @@ defineExpose({
         "
         aria-autocomplete="list"
         :placeholder="
-          selectedClient ? selectedClient.full_name : 'Search for a client...'
+          selectedClient ? selectedClient.full_name : t('clients.combobox.placeholderEmpty')
         "
         :disabled="disabled"
         @focus="handleInputFocus"
@@ -414,7 +417,7 @@ defineExpose({
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             ></path>
           </svg>
-          <span>{{ isSearching ? 'Searching...' : 'Loading...' }}</span>
+          <span>{{ isSearching ? t('clients.combobox.searchingStatus') : t('clients.combobox.loadingStatus') }}</span>
         </div>
 
         <!-- Error State -->
@@ -436,7 +439,7 @@ defineExpose({
               class="border-b border-slate-200 bg-slate-50 px-4 py-2"
             >
               <h3 class="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                Recent Clients
+                {{ t('clients.combobox.recentClientsHeader') }}
               </h3>
             </div>
 
@@ -466,7 +469,7 @@ defineExpose({
             v-else-if="searchQuery.trim()"
             class="px-4 py-6 text-center text-sm text-slate-500"
           >
-            No clients found for "{{ searchQuery }}"
+            {{ t('clients.combobox.noResultsMessage', { query: searchQuery }) }}
           </div>
 
           <!-- Add New Client Option -->
@@ -498,7 +501,7 @@ defineExpose({
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              <span>Add New Client</span>
+              <span>{{ t('clients.combobox.addNewButton') }}</span>
             </button>
           </div>
         </div>
@@ -537,7 +540,7 @@ defineExpose({
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               ></path>
             </svg>
-            <span>Creating client...</span>
+            <span>{{ t('clients.combobox.creatingStatus') }}</span>
           </div>
         </div>
       </div>

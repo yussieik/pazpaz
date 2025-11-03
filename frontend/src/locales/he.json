@@ -341,6 +341,23 @@
       "phonePlaceholder": "טלפון (לתזכורות, אופציונלי)",
       "addButton": "הוסף מטופל",
       "keyboardHint": "לחץ Enter להוספה, Escape לביטול"
+    },
+    "combobox": {
+      "label": "מטופל",
+      "clearButton": "נקה",
+      "clearAriaLabel": "נקה בחירת מטופל",
+      "placeholderEmpty": "חפש מטופל...",
+      "searchingStatus": "מחפש...",
+      "loadingStatus": "טוען...",
+      "recentClientsHeader": "מטופלים אחרונים",
+      "noResultsMessage": "לא נמצאו מטופלים עבור \"{query}\"",
+      "addNewButton": "הוסף מטופל חדש",
+      "creatingStatus": "יוצר מטופל...",
+      "announcements": {
+        "clientSelected": "מטופל נבחר: {clientName}",
+        "selectionCleared": "בחירת המטופל נוקתה",
+        "clientCreated": "מטופל {clientName} נוצר ונבחר"
+      }
     }
   }
 }
