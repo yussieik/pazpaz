@@ -599,33 +599,30 @@ onBeforeUnmount(() => {
                 />
               </svg>
               <div class="flex-1">
-                <h3 class="text-sm font-semibold text-blue-900">SOAP Note Guide</h3>
+                <h3 class="text-sm font-semibold text-blue-900">{{ t('sessions.editor.soapGuide.title') }}</h3>
                 <div class="mt-2 space-y-2 text-sm text-blue-800">
                   <div>
-                    <strong>S - Subjective:</strong> What the patient reports
+                    <strong>{{ t('sessions.editor.soapGuide.subjective.title') }}</strong> {{ t('sessions.editor.soapGuide.subjective.description') }}
                     <span class="mt-0.5 block text-xs text-blue-700">
-                      Example: "Patient states shoulder pain started 2 weeks ago after
-                      gardening..."
+                      {{ t('sessions.editor.soapGuide.subjective.example') }}
                     </span>
                   </div>
                   <div>
-                    <strong>O - Objective:</strong> What you observe & measure
+                    <strong>{{ t('sessions.editor.soapGuide.objective.title') }}</strong> {{ t('sessions.editor.soapGuide.objective.description') }}
                     <span class="mt-0.5 block text-xs text-blue-700">
-                      Example: "ROM: 120° abduction, palpation reveals tenderness at
-                      supraspinatus insertion..."
+                      {{ t('sessions.editor.soapGuide.objective.example') }}
                     </span>
                   </div>
                   <div>
-                    <strong>A - Assessment:</strong> Your clinical interpretation
+                    <strong>{{ t('sessions.editor.soapGuide.assessment.title') }}</strong> {{ t('sessions.editor.soapGuide.assessment.description') }}
                     <span class="mt-0.5 block text-xs text-blue-700">
-                      Example: "Likely rotator cuff tendinitis, moderate severity..."
+                      {{ t('sessions.editor.soapGuide.assessment.example') }}
                     </span>
                   </div>
                   <div>
-                    <strong>P - Plan:</strong> Treatment plan & next steps
+                    <strong>{{ t('sessions.editor.soapGuide.plan.title') }}</strong> {{ t('sessions.editor.soapGuide.plan.description') }}
                     <span class="mt-0.5 block text-xs text-blue-700">
-                      Example: "Ice 15min 3x/day, gentle ROM exercises, follow-up in 1
-                      week..."
+                      {{ t('sessions.editor.soapGuide.plan.example') }}
                     </span>
                   </div>
                 </div>
@@ -634,7 +631,7 @@ onBeforeUnmount(() => {
             <button
               @click="dismissSoapGuide"
               class="text-blue-600 hover:text-blue-800"
-              aria-label="Dismiss SOAP guide"
+              :aria-label="t('sessions.editor.soapGuide.dismissAriaLabel')"
             >
               <svg
                 class="h-5 w-5"
@@ -679,7 +676,7 @@ onBeforeUnmount(() => {
                 type="button"
                 class="text-sm text-blue-600 hover:text-blue-700 focus:underline focus:outline-none"
               >
-                View Original Version
+                {{ t('sessions.editor.versionHistory.viewButton') }}
               </button>
             </Transition>
           </div>
@@ -748,11 +745,11 @@ onBeforeUnmount(() => {
               {{
                 isFinalizing
                   ? isFinalized
-                    ? 'Reverting...'
-                    : 'Finalizing...'
+                    ? t('sessions.editor.finalize.buttonReverting')
+                    : t('sessions.editor.finalize.buttonFinalizing')
                   : isFinalized
-                    ? 'Revert'
-                    : 'Finalize'
+                    ? t('sessions.editor.finalize.buttonRevert')
+                    : t('sessions.editor.finalize.buttonFinalize')
               }}
             </span>
 
@@ -761,11 +758,11 @@ onBeforeUnmount(() => {
               {{
                 isFinalizing
                   ? isFinalized
-                    ? 'Reverting...'
-                    : 'Finalizing...'
+                    ? t('sessions.editor.finalize.buttonReverting')
+                    : t('sessions.editor.finalize.buttonFinalizing')
                   : isFinalized
-                    ? 'Revert to Draft'
-                    : 'Finalize Session'
+                    ? t('sessions.editor.finalize.buttonRevertToDraft')
+                    : t('sessions.editor.finalize.buttonFinalizeSession')
               }}
             </span>
 
@@ -796,7 +793,7 @@ onBeforeUnmount(() => {
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label for="session-date" class="block text-sm font-medium text-slate-700">
-              Session Date & Time
+              {{ t('sessions.editor.metadata.sessionDateLabel') }}
             </label>
             <input
               id="session-date"
@@ -809,7 +806,7 @@ onBeforeUnmount(() => {
 
           <div>
             <label for="duration" class="block text-sm font-medium text-slate-700">
-              Duration (minutes)
+              {{ t('sessions.editor.metadata.durationLabel') }}
             </label>
             <input
               id="duration"
@@ -818,7 +815,7 @@ onBeforeUnmount(() => {
               min="0"
               max="480"
               @blur="handleFieldBlur"
-              placeholder="60"
+              :placeholder="t('sessions.editor.metadata.durationPlaceholder')"
               class="mt-1 block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             />
           </div>
@@ -833,14 +830,14 @@ onBeforeUnmount(() => {
                 for="subjective"
                 class="block text-sm font-semibold text-slate-900"
               >
-                Subjective
+                {{ t('sessions.editor.fields.subjective.label') }}
               </label>
               <span class="text-xs" :class="getCharCountClass(subjectiveCount)">
                 {{ subjectiveCount }} / {{ CHAR_LIMIT }}
               </span>
             </div>
             <p class="mb-2 text-xs text-slate-600">
-              Patient-reported symptoms, complaints, and history
+              {{ t('sessions.editor.fields.subjective.description') }}
             </p>
             <textarea
               id="subjective"
@@ -849,7 +846,7 @@ onBeforeUnmount(() => {
               :maxlength="CHAR_LIMIT"
               @blur="handleFieldBlur"
               rows="6"
-              placeholder="What did the patient tell you about their condition?"
+              :placeholder="t('sessions.editor.fields.subjective.placeholder')"
               class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             ></textarea>
           </div>
@@ -858,14 +855,14 @@ onBeforeUnmount(() => {
           <div>
             <div class="mb-1 flex items-center justify-between">
               <label for="objective" class="block text-sm font-semibold text-slate-900">
-                Objective
+                {{ t('sessions.editor.fields.objective.label') }}
               </label>
               <span class="text-xs" :class="getCharCountClass(objectiveCount)">
                 {{ objectiveCount }} / {{ CHAR_LIMIT }}
               </span>
             </div>
             <p class="mb-2 text-xs text-slate-600">
-              Therapist observations, measurements, and test results
+              {{ t('sessions.editor.fields.objective.description') }}
             </p>
             <textarea
               id="objective"
@@ -874,7 +871,7 @@ onBeforeUnmount(() => {
               :maxlength="CHAR_LIMIT"
               @blur="handleFieldBlur"
               rows="6"
-              placeholder="What did you observe during the examination?"
+              :placeholder="t('sessions.editor.fields.objective.placeholder')"
               class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             ></textarea>
           </div>
@@ -886,14 +883,14 @@ onBeforeUnmount(() => {
                 for="assessment"
                 class="block text-sm font-semibold text-slate-900"
               >
-                Assessment
+                {{ t('sessions.editor.fields.assessment.label') }}
               </label>
               <span class="text-xs" :class="getCharCountClass(assessmentCount)">
                 {{ assessmentCount }} / {{ CHAR_LIMIT }}
               </span>
             </div>
             <p class="mb-2 text-xs text-slate-600">
-              Clinical interpretation and diagnosis
+              {{ t('sessions.editor.fields.assessment.description') }}
             </p>
             <textarea
               id="assessment"
@@ -902,7 +899,7 @@ onBeforeUnmount(() => {
               :maxlength="CHAR_LIMIT"
               @blur="handleFieldBlur"
               rows="6"
-              placeholder="What is your clinical assessment of the patient's condition?"
+              :placeholder="t('sessions.editor.fields.assessment.placeholder')"
               class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             ></textarea>
           </div>
@@ -911,14 +908,14 @@ onBeforeUnmount(() => {
           <div>
             <div class="mb-1 flex items-center justify-between">
               <label for="plan" class="block text-sm font-semibold text-slate-900">
-                Plan
+                {{ t('sessions.editor.fields.plan.label') }}
               </label>
               <span class="text-xs" :class="getCharCountClass(planCount)">
                 {{ planCount }} / {{ CHAR_LIMIT }}
               </span>
             </div>
             <p class="mb-2 text-xs text-slate-600">
-              Treatment plan, next steps, and follow-up
+              {{ t('sessions.editor.fields.plan.description') }}
             </p>
             <textarea
               id="plan"
@@ -927,7 +924,7 @@ onBeforeUnmount(() => {
               :maxlength="CHAR_LIMIT"
               @blur="handleFieldBlur"
               rows="6"
-              placeholder="What is the treatment plan going forward?"
+              :placeholder="t('sessions.editor.fields.plan.placeholder')"
               class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             ></textarea>
           </div>
@@ -935,7 +932,7 @@ onBeforeUnmount(() => {
 
         <!-- Attachments Section (only for existing sessions) -->
         <div v-if="session && !session.deleted_at" class="mt-8">
-          <h3 class="mb-4 text-lg font-semibold text-slate-900">Attachments</h3>
+          <h3 class="mb-4 text-lg font-semibold text-slate-900">{{ t('sessions.editor.attachments.title') }}</h3>
           <SessionAttachments :session-id="props.sessionId" />
         </div>
       </div>
@@ -969,11 +966,10 @@ onBeforeUnmount(() => {
             <IconWarning size="lg" class="mt-0.5 flex-shrink-0 text-blue-600" />
             <div>
               <h3 class="text-lg font-semibold text-slate-900">
-                Restore Unsaved Changes?
+                {{ t('sessions.editor.restorePrompt.title') }}
               </h3>
               <p class="mt-2 text-sm text-slate-600">
-                You have unsaved changes from a previous session that were saved
-                locally. Would you like to restore them?
+                {{ t('sessions.editor.restorePrompt.message') }}
               </p>
             </div>
           </div>
@@ -983,14 +979,14 @@ onBeforeUnmount(() => {
               type="button"
               class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:outline-none"
             >
-              Discard
+              {{ t('sessions.editor.restorePrompt.discardButton') }}
             </button>
             <button
               @click="restoreFromBackup"
               type="button"
               class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 focus:outline-none"
             >
-              Restore Changes
+              {{ t('sessions.editor.restorePrompt.restoreButton') }}
             </button>
           </div>
         </div>
@@ -1026,12 +1022,12 @@ onBeforeUnmount(() => {
               class="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 pb-3"
             >
               <h2 id="bottom-sheet-title" class="text-lg font-semibold text-gray-900">
-                Treatment Context
+                {{ t('sessions.editor.bottomSheet.title') }}
               </h2>
               <button
                 @click="closePreviousSessionBottomSheet"
                 class="rounded p-2 text-gray-600 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                aria-label="Close treatment context"
+                :aria-label="t('sessions.editor.bottomSheet.closeAriaLabel')"
               >
                 <svg
                   class="h-5 w-5"
