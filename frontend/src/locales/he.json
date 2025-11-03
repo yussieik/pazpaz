@@ -455,6 +455,46 @@
           "placeholder": "הערכה ראשונית, מטרות טיפול, העדפות..."
         }
       }
+    },
+    "detailView": {
+      "backToAppointment": "חזור לפגישה",
+      "backToClients": "חזור למטופלים",
+      "backToCalendar": "חזור ליומן",
+      "appointmentBanner": {
+        "title": "צפייה מפגישה",
+        "locationClinic": "מרפאה",
+        "locationHome": "ביקור בית",
+        "locationTelehealth": "טלה-רפואה",
+        "backButtonMobile": "חזור",
+        "backButtonDesktop": "חזור לפגישה",
+        "dismissAriaLabel": "סגור הודעה"
+      },
+      "loadingMessage": "טוען מטופל...",
+      "errorTitle": "שגיאה בטעינת מטופל",
+      "emergencyContactHeader": "איש קשר לחירום",
+      "editButton": "ערוך",
+      "scheduleButton": "קבע פגישה",
+      "tabs": {
+        "overview": "סקירה",
+        "history": "היסטוריה",
+        "files": "קבצים"
+      },
+      "overview": {
+        "title": "מידע על המטופל",
+        "dateOfBirthLabel": "תאריך לידה",
+        "addressLabel": "כתובת",
+        "emergencyContactLabel": "איש קשר לחירום",
+        "notProvided": "לא צוין",
+        "medicalHistoryTitle": "היסטוריה רפואית",
+        "notesTitle": "הערות"
+      },
+      "history": {
+        "title": "היסטוריית טיפולים"
+      },
+      "toasts": {
+        "updateSuccess": "{firstName} {lastName} עודכן בהצלחה",
+        "updateFailed": "עדכון המטופל נכשל. אנא נסה שוב."
+      }
     }
   }
 }

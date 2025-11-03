@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from '@/composables/useI18n'
 import { useClientsStore } from '@/stores/clients'
 import { useAppointmentsStore } from '@/stores/appointments'
 import { useScreenReader } from '@/composables/useScreenReader'
@@ -17,6 +18,7 @@ import DirectionsButton from '@/components/common/DirectionsButton.vue'
 import ClientFilesTab from '@/components/client/ClientFilesTab.vue'
 import type { ClientCreate } from '@/types/client'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const clientsStore = useClientsStore()
@@ -156,7 +158,7 @@ const backDestination = computed(() => {
   // Priority 1: Check if we have appointment context in history.state
   if (sourceAppointment.value) {
     return {
-      label: 'Back to Appointment',
+      label: t('clients.detailView.backToAppointment'),
       action: () =>
         router.push({
           path: '/',
@@ -170,14 +172,14 @@ const backDestination = computed(() => {
 
   if (previousRoute === '/clients') {
     return {
-      label: 'Back to Clients',
+      label: t('clients.detailView.backToClients'),
       action: () => router.push('/clients'),
     }
   }
 
   // Priority 3: Default to calendar (therapist's main view)
   return {
-    label: 'Back to Calendar',
+    label: t('clients.detailView.backToCalendar'),
     action: () => router.push('/'),
   }
 })
@@ -330,7 +332,10 @@ async function handleEditClient(data: ClientCreate) {
     showEditModal.value = false
 
     // Show success toast
-    showSuccess(`${data.first_name} ${data.last_name} updated successfully`)
+    showSuccess(t('clients.detailView.toasts.clientUpdated', {
+      firstName: data.first_name,
+      lastName: data.last_name
+    }))
     announce('Client information updated')
 
     // Background API call
@@ -348,8 +353,8 @@ async function handleEditClient(data: ClientCreate) {
 
     // Show error and re-open modal
     showEditModal.value = true
-    showError('Failed to update client. Please try again.')
-    announce('Failed to update client. Please try again.')
+    showError(t('clients.detailView.toasts.updateFailed'))
+    announce(t('clients.detailView.toasts.updateFailed'))
   }
 }
 
@@ -473,16 +478,16 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
 
           <!-- Content -->
           <div class="min-w-0 flex-1">
-            <p class="text-sm font-semibold text-blue-900">Viewing from appointment</p>
+            <p class="text-sm font-semibold text-blue-900">{{ t('clients.detailView.appointmentBanner.title') }}</p>
             <p class="truncate text-xs text-blue-700 sm:text-sm">
               {{ formatDate(sourceAppointment.scheduled_start, "MMM d 'at' h:mm a") }}
               •
               {{
                 sourceAppointment.location_type === 'clinic'
-                  ? 'Clinic'
+                  ? t('clients.detailView.appointmentBanner.locationClinic')
                   : sourceAppointment.location_type === 'home'
-                    ? 'Home Visit'
-                    : 'Telehealth'
+                    ? t('clients.detailView.appointmentBanner.locationHome')
+                    : t('clients.detailView.appointmentBanner.locationTelehealth')
               }}
             </p>
           </div>
@@ -507,8 +512,8 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
                 d="M10 19l-7-7m0 0l7-7m-7 7h18"
               />
             </svg>
-            <span class="hidden sm:inline">Back to Appointment</span>
-            <span class="inline sm:hidden">Back</span>
+            <span class="hidden sm:inline">{{ t('clients.detailView.appointmentBanner.backButton') }}</span>
+            <span class="inline sm:hidden">{{ t('clients.detailView.appointmentBanner.backButtonShort') }}</span>
             <kbd
               class="ml-1 hidden rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs text-blue-700 sm:inline"
             >
@@ -518,7 +523,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
           <button
             @click="dismissBanner"
             class="min-h-[44px] min-w-[44px] rounded-lg p-2.5 text-blue-400 transition-colors hover:bg-blue-100 hover:text-blue-600"
-            aria-label="Dismiss banner"
+            :aria-label="t('clients.detailView.appointmentBanner.dismissAriaLabel')"
           >
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -539,7 +544,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
         <div
           class="inline-block h-10 w-10 animate-spin rounded-full border-4 border-solid border-emerald-600 border-r-transparent sm:h-8 sm:w-8"
         ></div>
-        <p class="mt-4 text-sm text-slate-600">Loading client...</p>
+        <p class="mt-4 text-sm text-slate-600">{{ t('clients.detailView.loadingMessage') }}</p>
       </div>
     </div>
 
@@ -548,7 +553,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
       v-else-if="clientsStore.error"
       class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"
     >
-      <p class="font-semibold">Error loading client</p>
+      <p class="font-semibold">{{ t('clients.detailView.errorMessage') }}</p>
       <p class="mt-1 text-sm">{{ clientsStore.error }}</p>
     </div>
 
@@ -584,7 +589,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
           </div>
           <div class="flex-1">
             <p class="text-sm font-semibold tracking-wide text-red-800 uppercase">
-              Emergency Contact
+              {{ t('clients.detailView.emergencyContactHeader') }}
             </p>
             <p class="mt-1 text-lg font-semibold text-red-900">
               {{ client.emergency_contact_name }}
@@ -643,7 +648,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
               @click="editClient"
               class="group relative inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none sm:flex-none"
             >
-              Edit
+              {{ t('clients.detailView.actions.edit') }}
               <kbd
                 class="ml-1 hidden rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity group-hover:opacity-100 sm:inline"
               >
@@ -668,7 +673,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
                   d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                 />
               </svg>
-              Schedule
+              {{ t('clients.detailView.actions.schedule') }}
               <kbd
                 class="ml-1 hidden rounded bg-emerald-700 px-1.5 py-0.5 font-mono text-xs text-emerald-100 opacity-0 transition-opacity group-hover:opacity-100 sm:inline"
               >
@@ -692,7 +697,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
             ]"
           >
             <span class="flex items-center gap-1.5">
-              Overview
+              {{ t('clients.detailView.tabs.overview') }}
               <kbd
                 :class="[
                   'hidden font-mono text-xs sm:inline',
@@ -715,7 +720,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
             ]"
           >
             <span class="flex items-center gap-1.5">
-              History
+              {{ t('clients.detailView.tabs.history') }}
               <kbd
                 :class="[
                   'hidden font-mono text-xs sm:inline',
@@ -738,7 +743,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
             ]"
           >
             <span class="flex items-center gap-1.5">
-              Files
+              {{ t('clients.detailView.tabs.files') }}
               <kbd
                 :class="[
                   'hidden font-mono text-xs sm:inline',
@@ -758,24 +763,24 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
       <div class="rounded-lg border border-slate-200 bg-white p-6">
         <!-- Overview Tab -->
         <div v-if="activeTab === 'overview'">
-          <h2 class="mb-4 text-lg font-semibold text-slate-900">Client Information</h2>
+          <h2 class="mb-4 text-lg font-semibold text-slate-900">{{ t('clients.detailView.overview.title') }}</h2>
           <dl class="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-4">
             <div class="border-b border-slate-100 pb-4 sm:border-b-0 sm:pb-0">
-              <dt class="text-sm font-medium text-slate-500">Date of Birth</dt>
+              <dt class="text-sm font-medium text-slate-500">{{ t('clients.detailView.overview.dateOfBirth') }}</dt>
               <dd class="mt-1.5 text-base text-slate-900 sm:text-sm">
                 {{
                   client.date_of_birth
                     ? new Date(client.date_of_birth).toLocaleDateString()
-                    : 'Not provided'
+                    : t('clients.detailView.overview.notProvided')
                 }}
               </dd>
             </div>
             <div class="border-b border-slate-100 pb-4 sm:border-b-0 sm:pb-0">
-              <dt class="text-sm font-medium text-slate-500">Address</dt>
+              <dt class="text-sm font-medium text-slate-500">{{ t('clients.detailView.overview.address') }}</dt>
               <dd
                 class="mt-1.5 flex items-start gap-2 text-base text-slate-900 sm:text-sm"
               >
-                <span class="flex-1">{{ client.address || 'Not provided' }}</span>
+                <span class="flex-1">{{ client.address || t('clients.detailView.overview.notProvided') }}</span>
                 <DirectionsButton
                   v-if="client.address"
                   :address="client.address"
@@ -785,9 +790,9 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
               </dd>
             </div>
             <div class="border-b border-slate-100 pb-4 sm:border-b-0 sm:pb-0">
-              <dt class="text-sm font-medium text-slate-500">Emergency Contact</dt>
+              <dt class="text-sm font-medium text-slate-500">{{ t('clients.detailView.overview.emergencyContact') }}</dt>
               <dd class="mt-1.5 text-base text-slate-900 sm:text-sm">
-                {{ client.emergency_contact_name || 'Not provided' }}
+                {{ client.emergency_contact_name || t('clients.detailView.overview.notProvided') }}
                 <span
                   v-if="client.emergency_contact_phone"
                   class="block text-slate-600"
@@ -799,7 +804,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
           </dl>
 
           <div v-if="client.medical_history" class="mt-8 sm:mt-6">
-            <h3 class="mb-2 text-sm font-semibold text-slate-700">Medical History</h3>
+            <h3 class="mb-2 text-sm font-semibold text-slate-700">{{ t('clients.detailView.overview.medicalHistoryTitle') }}</h3>
             <div class="rounded-lg bg-slate-50 p-4">
               <p
                 class="text-base leading-relaxed whitespace-pre-wrap text-slate-900 sm:text-sm"
@@ -810,7 +815,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
           </div>
 
           <div v-if="client.notes" class="mt-8 sm:mt-6">
-            <h3 class="mb-2 text-sm font-semibold text-slate-700">Notes</h3>
+            <h3 class="mb-2 text-sm font-semibold text-slate-700">{{ t('clients.detailView.overview.notesTitle') }}</h3>
             <div class="rounded-lg bg-slate-50 p-4">
               <p
                 class="text-base leading-relaxed whitespace-pre-wrap text-slate-900 sm:text-sm"

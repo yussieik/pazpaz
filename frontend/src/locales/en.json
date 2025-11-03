@@ -455,6 +455,46 @@
           "placeholder": "Initial assessment, treatment goals, preferences..."
         }
       }
+    },
+    "detailView": {
+      "backToAppointment": "Back to Appointment",
+      "backToClients": "Back to Clients",
+      "backToCalendar": "Back to Calendar",
+      "appointmentBanner": {
+        "title": "Viewing from appointment",
+        "locationClinic": "Clinic",
+        "locationHome": "Home Visit",
+        "locationTelehealth": "Telehealth",
+        "backButtonMobile": "Back",
+        "backButtonDesktop": "Back to Appointment",
+        "dismissAriaLabel": "Dismiss banner"
+      },
+      "loadingMessage": "Loading client...",
+      "errorTitle": "Error loading client",
+      "emergencyContactHeader": "Emergency Contact",
+      "editButton": "Edit",
+      "scheduleButton": "Schedule",
+      "tabs": {
+        "overview": "Overview",
+        "history": "History",
+        "files": "Files"
+      },
+      "overview": {
+        "title": "Client Information",
+        "dateOfBirthLabel": "Date of Birth",
+        "addressLabel": "Address",
+        "emergencyContactLabel": "Emergency Contact",
+        "notProvided": "Not provided",
+        "medicalHistoryTitle": "Medical History",
+        "notesTitle": "Notes"
+      },
+      "history": {
+        "title": "Treatment History"
+      },
+      "toasts": {
+        "updateSuccess": "{firstName} {lastName} updated successfully",
+        "updateFailed": "Failed to update client. Please try again."
+      }
     }
   }
 }
