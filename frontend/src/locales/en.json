@@ -30,5 +30,69 @@
       "deleted": "Deleted successfully",
       "error": "An error occurred. Please try again."
     }
+  },
+  "auth": {
+    "login": {
+      "title": "Sign In",
+      "subtitle": "Practice Management for Therapists",
+      "emailLabel": "Email Address",
+      "emailPlaceholder": "{'you@example.com'}",
+      "emailDescription": "We'll send you a magic link to sign in",
+      "sendButton": "Send Magic Link",
+      "sendingButton": "Sending...",
+      "linkSentButton": "Link Sent!",
+      "sendNewLinkButton": "Send New Link",
+      "securityNote": "Secure passwordless authentication",
+      "sessionExpired": {
+        "title": "Session Expired",
+        "message": "Your session has expired due to inactivity. Please sign in again to continue."
+      },
+      "success": {
+        "title": "Check your email",
+        "messageSent": "We've sent a magic link to",
+        "messageChanged": "Email changed. We'll send a new link to",
+        "messageClick": "Click the link in the email to sign in.",
+        "linkExpiresLabel": "Link expires in:",
+        "editButton": "Edit",
+        "editAriaLabel": "Edit email address {email}",
+        "tips": {
+          "checkSpam": "Check your spam folder if you don't see it",
+          "linkOnce": "The link can only be used once"
+        },
+        "resend": {
+          "label": "Didn't receive it?",
+          "button": "Resend magic link",
+          "resending": "Resending...",
+          "cooldown": "Resend available in {seconds}s"
+        },
+        "help": {
+          "title": "Didn't receive the email?",
+          "checkSpam": "Check spam folder: Magic links sometimes end up in spam or junk folders",
+          "checkEmail": "Check email address: Make sure",
+          "checkEmailCorrect": "is correct",
+          "editLink": "(edit)",
+          "wait": "Wait a few minutes: Email delivery can take up to 5 minutes",
+          "provider": "Check email provider: Some email providers block automated emails. Try a different email address.",
+          "firewall": "Firewall/filters: Corporate email systems may block external emails",
+          "support": "Still having trouble? Contact",
+          "supportEmail": "{'support@pazpaz.com'}"
+        }
+      },
+      "errors": {
+        "invalidEmail": "Please enter a valid email address",
+        "invalidLink": "Invalid or expired magic link. Please request a new one.",
+        "rateLimitSeconds": "Too many requests. Please try again in {seconds} seconds.",
+        "generic": "An error occurred. Please try again."
+      },
+      "emailDetection": {
+        "welcomeBack": "Welcome back! The magic link should be in your inbox. Check spam if you don't see it."
+      },
+      "dev": {
+        "bannerTitle": "Development Mode",
+        "bannerMessage": "for magic link emails during testing",
+        "bannerMailHog": "MailHog",
+        "bannerDismiss": "Dismiss development mode banner"
+      }
+    }
   }
 }

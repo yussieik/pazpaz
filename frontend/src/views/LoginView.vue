@@ -4,9 +4,11 @@ import { useRoute } from 'vue-router'
 import apiClient from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { useCrossTabAuth } from '@/composables/useCrossTabAuth'
+import { useI18n } from '@/composables/useI18n'
 
 const route = useRoute()
 const toast = useToast()
+const { t } = useI18n()
 
 // Enable cross-tab communication
 // This will listen for AUTH_SUCCESS from other tabs and auto-close this login tab
@@ -80,9 +82,7 @@ function handleVisibilityChange() {
 
       // Only show if away for 10+ seconds
       if (timeAway > 10000) {
-        toast.showInfo(
-          "Welcome back! The magic link should be in your inbox. Check spam if you don't see it."
-        )
+        toast.showInfo(t('auth.login.emailDetection.welcomeBack'))
         hasShownReturnMessage.value = true
         console.debug(
           `[EmailDetection] User returned after ${Math.round(timeAway / 1000)}s`
@@ -112,7 +112,7 @@ onMounted(() => {
 
   // Check if there's an error from failed auth verification
   if (route.query.error === 'invalid_link') {
-    error.value = 'Invalid or expired magic link. Please request a new one.'
+    error.value = t('auth.login.errors.invalidLink')
   }
 
   // Set up visibility change listener for email arrival detection
@@ -137,7 +137,7 @@ onUnmounted(() => {
 async function requestMagicLink() {
   // Client-side validation
   if (!email.value || !email.value.includes('@')) {
-    error.value = 'Please enter a valid email address'
+    error.value = t('auth.login.errors.invalidEmail')
     emailInputHasError.value = true
     // Reset shake animation after it completes
     setTimeout(() => {
@@ -176,16 +176,16 @@ async function requestMagicLink() {
       const retryMatch = detail.match(/try again in (\d+) seconds/)
       const retryAfter = retryMatch && retryMatch[1] ? parseInt(retryMatch[1]) : 60
 
-      error.value = `Too many requests. Please try again in ${retryAfter} seconds.`
+      error.value = t('auth.login.errors.rateLimitSeconds', { seconds: retryAfter })
 
       // If we already sent a link, show success and cooldown
       if (success.value) {
         startResendCooldown(retryAfter)
       }
     } else if (axiosError.response?.status === 422) {
-      error.value = 'Please enter a valid email address'
+      error.value = t('auth.login.errors.invalidEmail')
     } else {
-      error.value = 'An error occurred. Please try again.'
+      error.value = t('auth.login.errors.generic')
     }
     console.error('Magic link request failed:', err)
   } finally {
@@ -316,7 +316,7 @@ function handleSubmit() {
       <!-- Logo/Branding -->
       <div class="mb-8 text-center">
         <h1 class="text-4xl font-bold text-emerald-600">PazPaz</h1>
-        <p class="mt-2 text-slate-600">Practice Management for Therapists</p>
+        <p class="mt-2 text-slate-600">{{ t('auth.login.subtitle') }}</p>
       </div>
 
       <!-- MailHog Development Mode Banner -->
@@ -341,18 +341,20 @@ function handleSubmit() {
                 />
               </svg>
               <div class="flex-1">
-                <h3 class="text-sm font-semibold text-amber-900">Development Mode</h3>
+                <h3 class="text-sm font-semibold text-amber-900">
+                  {{ t('auth.login.dev.bannerTitle') }}
+                </h3>
                 <p class="mt-1 text-xs text-amber-700">
-                  Check
+                  {{ t('common.actions.search') }}
                   <a
                     :href="mailhogUrl"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="rounded font-medium underline hover:no-underline focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 focus:outline-none"
                   >
-                    MailHog
+                    {{ t('auth.login.dev.bannerMailHog') }}
                   </a>
-                  for magic link emails during testing
+                  {{ t('auth.login.dev.bannerMessage') }}
                 </p>
               </div>
             </div>
@@ -360,7 +362,7 @@ function handleSubmit() {
               @click="dismissMailHogBanner"
               type="button"
               class="ml-3 flex-shrink-0 rounded-md p-1 text-amber-600 hover:bg-amber-100 focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 focus:outline-none"
-              aria-label="Dismiss development mode banner"
+              :aria-label="t('auth.login.dev.bannerDismiss')"
             >
               <svg
                 class="h-4 w-4"
@@ -381,7 +383,9 @@ function handleSubmit() {
 
       <!-- Login Card -->
       <div class="rounded-2xl bg-white p-8 shadow-xl">
-        <h2 class="mb-6 text-2xl font-semibold text-slate-900">Sign In</h2>
+        <h2 class="mb-6 text-2xl font-semibold text-slate-900">
+          {{ t('auth.login.title') }}
+        </h2>
 
         <!-- Session Expired Warning -->
         <div
@@ -402,10 +406,11 @@ function handleSubmit() {
               />
             </svg>
             <div class="flex-1">
-              <h3 class="font-semibold text-amber-900">Session Expired</h3>
+              <h3 class="font-semibold text-amber-900">
+                {{ t('auth.login.sessionExpired.title') }}
+              </h3>
               <p class="mt-1 text-sm text-amber-700">
-                Your session has expired due to inactivity. Please sign in again to
-                continue.
+                {{ t('auth.login.sessionExpired.message') }}
               </p>
             </div>
           </div>
@@ -438,31 +443,36 @@ function handleSubmit() {
             </div>
 
             <div class="flex-1">
-              <h3 class="font-semibold text-emerald-900">Check your email</h3>
+              <h3 class="font-semibold text-emerald-900">
+                {{ t('auth.login.success.title') }}
+              </h3>
               <p class="mt-1 text-sm text-emerald-700">
                 <template v-if="isEditing">
-                  Email changed. We'll send a new link to
+                  {{ t('auth.login.success.messageChanged') }}
                 </template>
-                <template v-else> We've sent a magic link to </template>
-                <strong>{{ email }}</strong
-                >. Click the link to sign in
+                <template v-else>
+                  {{ t('auth.login.success.messageSent') }}
+                </template>
+                <strong>{{ email }}</strong>
                 <button
                   @click="editEmail"
                   type="button"
                   class="ml-2 rounded text-xs font-medium text-emerald-600 underline hover:no-underline focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 focus:outline-none"
-                  :aria-label="`Edit email address ${email}`"
+                  :aria-label="t('auth.login.success.editAriaLabel', { email })"
                 >
-                  Edit
+                  {{ t('auth.login.success.editButton') }}
                 </button>
                 <template v-if="!isEditing">
-                  . Click the link in the email to sign in.
+                  . {{ t('auth.login.success.messageClick') }}
                 </template>
               </p>
 
               <!-- Countdown Timer -->
               <div class="mt-3 rounded-md bg-emerald-100 px-3 py-2">
                 <p class="text-xs text-emerald-800">
-                  <span class="font-medium">Link expires in:</span>
+                  <span class="font-medium">{{
+                    t('auth.login.success.linkExpiresLabel')
+                  }}</span>
                   <span
                     class="ml-2 font-mono text-sm font-bold tabular-nums"
                     :class="{ 'animate-pulse text-red-600': linkExpiresIn <= 60 }"
@@ -487,7 +497,7 @@ function handleSubmit() {
                       clip-rule="evenodd"
                     />
                   </svg>
-                  <span>Check your spam folder if you don't see it</span>
+                  <span>{{ t('auth.login.success.tips.checkSpam') }}</span>
                 </p>
                 <p class="flex items-start text-xs text-emerald-700">
                   <svg
@@ -502,24 +512,28 @@ function handleSubmit() {
                       clip-rule="evenodd"
                     />
                   </svg>
-                  <span>The link can only be used once</span>
+                  <span>{{ t('auth.login.success.tips.linkOnce') }}</span>
                 </p>
               </div>
 
               <!-- Resend Link -->
               <div class="mt-4 border-t border-emerald-200 pt-3">
                 <p class="text-xs text-emerald-800">
-                  Didn't receive it?
+                  {{ t('auth.login.success.resend.label') }}
                   <button
                     v-if="canResend"
                     @click="resendMagicLink"
                     class="rounded font-medium underline hover:no-underline focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none"
                     :disabled="isResending"
                   >
-                    {{ isResending ? 'Resending...' : 'Resend magic link' }}
+                    {{
+                      isResending
+                        ? t('auth.login.success.resend.resending')
+                        : t('auth.login.success.resend.button')
+                    }}
                   </button>
                   <span v-else class="text-emerald-600">
-                    Resend available in {{ resendCooldown }}s
+                    {{ t('auth.login.success.resend.cooldown', { seconds: resendCooldown }) }}
                   </span>
                 </p>
               </div>
@@ -533,7 +547,7 @@ function handleSubmit() {
                   :aria-expanded="showHelpAccordion"
                   aria-controls="help-content"
                 >
-                  <span>Didn't receive the email?</span>
+                  <span>{{ t('auth.login.success.help.title') }}</span>
                   <svg
                     class="h-4 w-4 transition-transform"
                     :class="{ 'rotate-180': showHelpAccordion }"
@@ -569,10 +583,7 @@ function handleSubmit() {
                           clip-rule="evenodd"
                         />
                       </svg>
-                      <span
-                        ><strong>Check spam folder:</strong> Magic links sometimes end
-                        up in spam or junk folders</span
-                      >
+                      <span>{{ t('auth.login.success.help.checkSpam') }}</span>
                     </div>
 
                     <div class="flex items-start text-xs text-emerald-700">
@@ -588,17 +599,18 @@ function handleSubmit() {
                           clip-rule="evenodd"
                         />
                       </svg>
-                      <span
-                        ><strong>Check email address:</strong> Make sure
-                        <strong>{{ email }}</strong> is correct
+                      <span>
+                        {{ t('auth.login.success.help.checkEmail') }}
+                        <strong>{{ email }}</strong>
+                        {{ t('auth.login.success.help.checkEmailCorrect') }}
                         <button
                           @click="editEmail"
                           type="button"
                           class="ml-1 rounded text-emerald-600 underline hover:no-underline focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                         >
-                          (edit)
-                        </button></span
-                      >
+                          {{ t('auth.login.success.help.editLink') }}
+                        </button>
+                      </span>
                     </div>
 
                     <div class="flex items-start text-xs text-emerald-700">
@@ -614,10 +626,7 @@ function handleSubmit() {
                           clip-rule="evenodd"
                         />
                       </svg>
-                      <span
-                        ><strong>Wait a few minutes:</strong> Email delivery can take up
-                        to 5 minutes</span
-                      >
+                      <span>{{ t('auth.login.success.help.wait') }}</span>
                     </div>
 
                     <div class="flex items-start text-xs text-emerald-700">
@@ -633,10 +642,7 @@ function handleSubmit() {
                           clip-rule="evenodd"
                         />
                       </svg>
-                      <span
-                        ><strong>Check email provider:</strong> Some email providers
-                        block automated emails. Try a different email address.</span
-                      >
+                      <span>{{ t('auth.login.success.help.provider') }}</span>
                     </div>
 
                     <div class="flex items-start text-xs text-emerald-700">
@@ -652,10 +658,7 @@ function handleSubmit() {
                           clip-rule="evenodd"
                         />
                       </svg>
-                      <span
-                        ><strong>Firewall/filters:</strong> Corporate email systems may
-                        block external emails</span
-                      >
+                      <span>{{ t('auth.login.success.help.firewall') }}</span>
                     </div>
 
                     <div
@@ -671,17 +674,18 @@ function handleSubmit() {
                           d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"
                         />
                         <path
-                          d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"
+                          d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 2 0 002-2V8.118z"
                         />
                       </svg>
-                      <span
-                        ><strong>Still having trouble?</strong> Contact
+                      <span>
+                        {{ t('auth.login.success.help.support') }}
                         <a
-                          href="mailto:support@pazpaz.com"
+                          :href="`mailto:${t('auth.login.success.help.supportEmail')}`"
                           class="rounded font-medium underline hover:no-underline focus:ring-1 focus:ring-emerald-500 focus:outline-none"
-                          >support@pazpaz.com</a
-                        ></span
-                      >
+                        >
+                          {{ t('auth.login.success.help.supportEmail') }}
+                        </a>
+                      </span>
                     </div>
                   </div>
                 </Transition>
@@ -716,7 +720,7 @@ function handleSubmit() {
         <form @submit.prevent="handleSubmit" class="space-y-6">
           <div>
             <label for="email" class="mb-2 block text-sm font-medium text-slate-700">
-              Email Address
+              {{ t('auth.login.emailLabel') }}
             </label>
             <input
               id="email"
@@ -737,12 +741,12 @@ function handleSubmit() {
                   ? 'animate-shake border-red-300'
                   : 'border-slate-300',
               ]"
-              placeholder="you@example.com"
+              :placeholder="t('auth.login.emailPlaceholder')"
               aria-required="true"
               aria-describedby="email-description"
             />
             <p id="email-description" class="mt-2 text-xs text-slate-500">
-              We'll send you a magic link to sign in
+              {{ t('auth.login.emailDescription') }}
             </p>
           </div>
 
@@ -779,11 +783,17 @@ function handleSubmit() {
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 ></path>
               </svg>
-              Sending...
+              {{ t('auth.login.sendingButton') }}
             </span>
-            <span v-else-if="success && isEditing"> Send New Link </span>
-            <span v-else-if="success"> Link Sent! </span>
-            <span v-else> Send Magic Link </span>
+            <span v-else-if="success && isEditing">
+              {{ t('auth.login.sendNewLinkButton') }}
+            </span>
+            <span v-else-if="success">
+              {{ t('auth.login.linkSentButton') }}
+            </span>
+            <span v-else>
+              {{ t('auth.login.sendButton') }}
+            </span>
           </button>
         </form>
       </div>
@@ -798,7 +808,7 @@ function handleSubmit() {
               clip-rule="evenodd"
             />
           </svg>
-          Secure passwordless authentication
+          {{ t('auth.login.securityNote') }}
         </p>
       </div>
     </div>
