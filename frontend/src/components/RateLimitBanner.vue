@@ -25,9 +25,9 @@
             />
           </svg>
           <div>
-            <p class="text-sm font-medium text-yellow-800">Rate limit active</p>
+            <p class="text-sm font-medium text-yellow-800">{{ t('common.rateLimit.title') }}</p>
             <p class="text-xs text-yellow-700">
-              You're sending requests too quickly. Please wait before trying again.
+              {{ t('common.rateLimit.description') }}
             </p>
           </div>
         </div>
@@ -45,7 +45,7 @@
             <span class="text-yellow-600">-</span>
             <span
               class="font-mono tabular-nums"
-              :aria-label="`${getRemainingSeconds(limit.endpoint)} seconds remaining`"
+              :aria-label="t('common.rateLimit.timeRemaining', { seconds: getRemainingSeconds(limit.endpoint) })"
             >
               {{ getRemainingSeconds(limit.endpoint) }}s
             </span>
@@ -59,6 +59,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRateLimitStore } from '@/stores/rateLimit'
+import { useI18n } from '@/composables/useI18n'
 
 /**
  * Rate Limit Banner Component
@@ -77,6 +78,7 @@ import { useRateLimitStore } from '@/stores/rateLimit'
 
 const rateLimitStore = useRateLimitStore()
 const remainingSeconds = ref<Map<string, number>>(new Map())
+const { t } = useI18n()
 
 let interval: ReturnType<typeof setInterval> | null = null
 

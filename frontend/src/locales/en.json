@@ -29,6 +29,11 @@
       "keyboardShortcutCalendar": "g c",
       "keyboardShortcutClients": "g l"
     },
+    "rateLimit": {
+      "title": "Rate limit active",
+      "description": "You're sending requests too quickly. Please wait before trying again.",
+      "timeRemaining": "{seconds} seconds remaining"
+    },
     "status": {
       "loading": "Loading...",
       "error": "Error",

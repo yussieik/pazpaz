@@ -29,6 +29,11 @@
       "keyboardShortcutCalendar": "g c",
       "keyboardShortcutClients": "g l"
     },
+    "rateLimit": {
+      "title": "הגבלת קצב פעילה",
+      "description": "אתה שולח בקשות מהר מדי. אנא המתן לפני שתנסה שוב.",
+      "timeRemaining": "{seconds} שניות נותרו"
+    },
     "status": {
       "loading": "טוען...",
       "error": "שגיאה",
