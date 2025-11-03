@@ -15,6 +15,7 @@
  */
 
 import { ref, computed, onMounted, watch } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
 import apiClient from '@/api/client'
 import type { SessionResponse } from '@/types/sessions'
@@ -28,6 +29,8 @@ import { truncate } from '@/utils/textFormatters'
 import { SESSION_DELETION_GRACE_PERIOD_DAYS } from '@/constants/sessions'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import IconClock from '@/components/icons/IconClock.vue'
+
+const { t } = useI18n()
 import IconDocument from '@/components/icons/IconDocument.vue'
 import type { AxiosError } from 'axios'
 
@@ -214,7 +217,7 @@ function formatDeletionTime(deletedAt: string): string {
       aria-controls="deleted-notes-content"
     >
       <div class="flex items-center gap-2">
-        <h3 class="text-lg font-semibold text-slate-900">Deleted Notes</h3>
+        <h3 class="text-lg font-semibold text-slate-900">{{ t('clients.detailView.history.deletedNotes') }}</h3>
         <span
           v-if="deletedNotesCount > 0"
           ref="badgeRef"

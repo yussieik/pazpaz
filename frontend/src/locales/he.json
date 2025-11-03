@@ -482,15 +482,22 @@
         "locationClinic": "מרפאה",
         "locationHome": "ביקור בית",
         "locationTelehealth": "טלה-רפואה",
+        "backButton": "חזור לפגישה",
+        "backButtonShort": "חזור",
         "backButtonMobile": "חזור",
         "backButtonDesktop": "חזור לפגישה",
         "dismissAriaLabel": "סגור הודעה"
       },
       "loadingMessage": "טוען מטופל...",
       "errorTitle": "שגיאה בטעינת מטופל",
+      "errorMessage": "שגיאה בטעינת מטופל",
       "emergencyContactHeader": "איש קשר לחירום",
       "editButton": "ערוך",
       "scheduleButton": "קבע פגישה",
+      "actions": {
+        "edit": "ערוך",
+        "schedule": "קבע פגישה"
+      },
       "tabs": {
         "overview": "סקירה",
         "history": "היסטוריה",
@@ -498,17 +505,25 @@
       },
       "overview": {
         "title": "מידע על המטופל",
+        "dateOfBirth": "תאריך לידה",
         "dateOfBirthLabel": "תאריך לידה",
+        "address": "כתובת",
         "addressLabel": "כתובת",
+        "emergencyContact": "איש קשר לחירום",
         "emergencyContactLabel": "איש קשר לחירום",
         "notProvided": "לא צוין",
         "medicalHistoryTitle": "היסטוריה רפואית",
         "notesTitle": "הערות"
       },
       "history": {
-        "title": "היסטוריית טיפולים"
+        "title": "היסטוריית טיפולים",
+        "recentSessions": "טיפולים אחרונים",
+        "deletedNotes": "הערות שנמחקו",
+        "statusDraft": "טיוטה",
+        "statusFinalized": "סופי"
       },
       "toasts": {
+        "clientUpdated": "{firstName} {lastName} עודכן בהצלחה",
         "updateSuccess": "{firstName} {lastName} עודכן בהצלחה",
         "updateFailed": "עדכון המטופל נכשל. אנא נסה שוב."
       }

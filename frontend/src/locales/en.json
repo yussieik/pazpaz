@@ -482,15 +482,22 @@
         "locationClinic": "Clinic",
         "locationHome": "Home Visit",
         "locationTelehealth": "Telehealth",
+        "backButton": "Back to Appointment",
+        "backButtonShort": "Back",
         "backButtonMobile": "Back",
         "backButtonDesktop": "Back to Appointment",
         "dismissAriaLabel": "Dismiss banner"
       },
       "loadingMessage": "Loading client...",
       "errorTitle": "Error loading client",
+      "errorMessage": "Error loading client",
       "emergencyContactHeader": "Emergency Contact",
       "editButton": "Edit",
       "scheduleButton": "Schedule",
+      "actions": {
+        "edit": "Edit",
+        "schedule": "Schedule"
+      },
       "tabs": {
         "overview": "Overview",
         "history": "History",
@@ -498,17 +505,25 @@
       },
       "overview": {
         "title": "Client Information",
+        "dateOfBirth": "Date of Birth",
         "dateOfBirthLabel": "Date of Birth",
+        "address": "Address",
         "addressLabel": "Address",
+        "emergencyContact": "Emergency Contact",
         "emergencyContactLabel": "Emergency Contact",
         "notProvided": "Not provided",
         "medicalHistoryTitle": "Medical History",
         "notesTitle": "Notes"
       },
       "history": {
-        "title": "Treatment History"
+        "title": "Treatment History",
+        "recentSessions": "Recent Sessions",
+        "deletedNotes": "Deleted Notes",
+        "statusDraft": "Draft",
+        "statusFinalized": "Finalized"
       },
       "toasts": {
+        "clientUpdated": "{firstName} {lastName} updated successfully",
         "updateSuccess": "{firstName} {lastName} updated successfully",
         "updateFailed": "Failed to update client. Please try again."
       }

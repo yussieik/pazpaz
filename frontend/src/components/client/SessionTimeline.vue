@@ -22,6 +22,7 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { format } from 'date-fns'
 import { useDebounceFn } from '@vueuse/core'
+import { useI18n } from '@/composables/useI18n'
 import apiClient from '@/api/client'
 import type { AxiosError } from 'axios'
 import type { SessionResponse } from '@/types/sessions'
@@ -33,6 +34,8 @@ import { smartTruncate } from '@/utils/textFormatters'
 import { getDurationMinutes } from '@/utils/calendar/dateFormatters'
 import type { AttachmentResponse } from '@/types/attachments'
 import { isImageType } from '@/types/attachments'
+
+const { t } = useI18n()
 
 interface Props {
   clientId: string
@@ -300,7 +303,7 @@ const yearGroups = computed((): YearGroup[] => {
         const recent = yearSessions.slice(0, 10)
         if (recent.length > 0) {
           monthGroups.push({
-            label: 'Recent Sessions',
+            label: t('clients.detailView.history.recentSessions'),
             monthKey: 'recent-sessions',
             count: recent.length,
             sessions: recent,
@@ -905,7 +908,7 @@ defineExpose({
                                 session.is_draft ? 'bg-amber-500' : 'bg-green-500'
                               "
                             ></span>
-                            {{ session.is_draft ? 'Draft' : 'Finalized' }}
+                            {{ session.is_draft ? t('clients.detailView.history.statusDraft') : t('clients.detailView.history.statusFinalized') }}
                           </span>
 
                           <!-- Date and Time -->
