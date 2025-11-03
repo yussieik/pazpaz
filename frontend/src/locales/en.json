@@ -599,6 +599,19 @@
       "errors": {
         "loadFailed": "Failed to load session"
       }
+    },
+    "previousPanel": {
+      "title": "Treatment Context",
+      "collapsedMessage": "Previous session hidden. Click to expand.",
+      "noSessionsTitle": "No Previous Sessions Yet",
+      "noFieldNotes": {
+        "subjective": "No subjective notes",
+        "objective": "No objective notes",
+        "assessment": "No assessment notes",
+        "plan": "No plan notes"
+      },
+      "copyTooltip": "Copy to clipboard",
+      "copiedTooltip": "Copied!"
     }
   }
 }

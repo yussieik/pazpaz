@@ -599,6 +599,19 @@
       "errors": {
         "loadFailed": "טעינת הטיפול נכשלה"
       }
+    },
+    "previousPanel": {
+      "title": "הקשר טיפולי",
+      "collapsedMessage": "טיפול קודם מוסתר. לחץ להרחבה.",
+      "noSessionsTitle": "אין טיפולים קודמים עדיין",
+      "noFieldNotes": {
+        "subjective": "אין הערות סובייקטיביות",
+        "objective": "אין הערות אובייקטיביות",
+        "assessment": "אין הערכה",
+        "plan": "אין תכנית"
+      },
+      "copyTooltip": "העתק ללוח",
+      "copiedTooltip": "הועתק!"
     }
   }
 }
