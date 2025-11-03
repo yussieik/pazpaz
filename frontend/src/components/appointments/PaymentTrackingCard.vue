@@ -82,7 +82,7 @@ const methodOptions = [
   { value: 'cash', label: 'Cash' },
   { value: 'card', label: 'Card' },
   { value: 'bank_transfer', label: 'Bank Transfer' },
-  { value: 'bit', label: 'Bit' },
+  { value: 'bit', label: 'Bit (ביט)' },
   { value: 'paybox', label: 'PayBox' },
   { value: 'other', label: 'Other' },
 ] as const
