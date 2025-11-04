@@ -19,7 +19,7 @@ import { useSwipe } from '@vueuse/core'
 import { useI18n } from '@/composables/useI18n'
 import SettingsSidebar from '@/components/settings/SettingsSidebar.vue'
 
-const { t } = useI18n()
+const { t, isRTL } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -50,15 +50,24 @@ useSwipe(mainContentRef, {
       return
     }
 
-    if (direction === 'left') {
-      // Swipe left → next tab
+    // In RTL mode, swipe directions are reversed
+    // Swipe left in RTL = previous tab (like reading right to left)
+    // Swipe right in RTL = next tab
+    const swipeLeft = direction === 'left'
+    const swipeRight = direction === 'right'
+
+    const shouldGoNext = isRTL.value ? swipeRight : swipeLeft
+    const shouldGoPrev = isRTL.value ? swipeLeft : swipeRight
+
+    if (shouldGoNext) {
+      // Navigate to next tab
       const nextIndex = currentTabIndex.value + 1
       const nextTab = settingsTabs[nextIndex]
       if (nextTab) {
         router.push(nextTab)
       }
-    } else if (direction === 'right') {
-      // Swipe right → previous tab
+    } else if (shouldGoPrev) {
+      // Navigate to previous tab
       const prevIndex = currentTabIndex.value - 1
       const prevTab = settingsTabs[prevIndex]
       if (prevTab) {
@@ -77,8 +86,8 @@ useSwipe(mainContentRef, {
     <!-- Content Area -->
     <div class="flex flex-1 flex-col overflow-hidden">
       <!-- Mobile Horizontal Tabs (visible on mobile only) -->
-      <nav class="border-b border-slate-200 bg-white px-4 lg:hidden">
-        <ul class="flex gap-2 overflow-x-auto">
+      <nav class="bg-white px-4 lg:hidden border-b border-slate-200">
+        <ul class="flex overflow-x-auto -mb-px">
           <li>
             <RouterLink
               to="/settings/notifications"
