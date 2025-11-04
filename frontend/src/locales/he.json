@@ -325,6 +325,7 @@
       "notesLabel": "הערות",
       "notesPlaceholder": "הערות אופציונליות לגבי פגישה זו",
       "autoSaveHint": "השינויים נשמרים אוטומטית",
+      "sessionNoteLabel": "רישום פגישה:",
       "sessionNoteFinalized": "מאושר",
       "sessionNoteDraft": "טיוטה",
       "continueEditing": "המשך עריכה ←",

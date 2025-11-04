@@ -412,6 +412,7 @@ onUnmounted(() => {
                   id="phone"
                   v-model="formData.phone"
                   type="tel"
+                  dir="ltr"
                   autocomplete="tel"
                   :placeholder="t('clients.formModal.fields.phone.placeholder')"
                   aria-required="false"
@@ -619,6 +620,7 @@ onUnmounted(() => {
                     id="emergency-contact-phone"
                     v-model="formData.emergency_contact_phone"
                     type="tel"
+                    dir="ltr"
                     :placeholder="t('clients.formModal.fields.emergencyContactPhone.placeholder')"
                     class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                   />

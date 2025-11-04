@@ -1259,7 +1259,7 @@ watch(
                       </svg>
                       <div class="flex-1">
                         <p class="text-sm font-medium text-slate-900">
-                          Session Note:
+                          {{ t('calendar.appointmentDetails.sessionNoteLabel') }}
                           {{
                             sessionStatus.isDraft
                               ? t('calendar.appointmentDetails.sessionNoteDraft')

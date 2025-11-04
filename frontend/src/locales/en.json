@@ -325,6 +325,7 @@
       "notesLabel": "Notes",
       "notesPlaceholder": "Optional notes about this appointment",
       "autoSaveHint": "Changes are saved automatically",
+      "sessionNoteLabel": "Session Note:",
       "sessionNoteFinalized": "Finalized",
       "sessionNoteDraft": "Draft",
       "continueEditing": "Continue Editing →",

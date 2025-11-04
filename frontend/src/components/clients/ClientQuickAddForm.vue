@@ -177,6 +177,7 @@ function handleKeydown(e: KeyboardEvent) {
           id="quick-add-phone"
           v-model="formData.phone"
           type="tel"
+          dir="ltr"
           :placeholder="t('clients.quickAddForm.phonePlaceholder')"
           autocomplete="tel"
           @keydown="handleKeydown"
