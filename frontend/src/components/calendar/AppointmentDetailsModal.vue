@@ -85,7 +85,7 @@ const selectedTabIndex = ref(0)
 // Swipeable tabs for mobile navigation (2 tabs: Appointment + Payment)
 // Note: Payment tab is only visible when payments are enabled, but we always
 // allow swiping between both tabs for simplicity
-const { swipeDirection, resetDirection } = useSwipeableTabs(
+const { resetDirection } = useSwipeableTabs(
   tabPanelsRef,
   selectedTabIndex,
   2, // Always 2 tabs (Appointment + Payment)
