@@ -1,18 +1,20 @@
 import { useSwipe } from '@vueuse/core'
 import { ref } from 'vue'
 import type { Ref } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 
 /**
  * useCalendarSwipe - Mobile touch gesture navigation for calendar
  *
  * Enables left/right swipe gestures to navigate between calendar periods.
- * - Swipe left → navigate to next period
- * - Swipe right → navigate to previous period
+ * - LTR: Swipe left → next period, Swipe right → previous period
+ * - RTL: Swipe left → previous period, Swipe right → next period
  *
  * Features:
  * - Minimum swipe distance threshold (50px) to prevent accidental navigation
  * - Only activates on mobile devices (touch-enabled)
  * - Respects reduced motion preferences
+ * - RTL-aware swipe direction handling
  * - Directional slide transitions that match swipe direction
  * - Clean composable pattern for easy integration
  *
@@ -25,6 +27,8 @@ export function useCalendarSwipe(
   onPrevious: () => void,
   onNext: () => void
 ) {
+  const { isRTL } = useI18n()
+
   // Track the last swipe direction for transition
   const swipeDirection = ref<'left' | 'right' | null>(null)
 
@@ -63,15 +67,23 @@ export function useCalendarSwipe(
 
       // Only handle horizontal swipes
       if (direction === 'left') {
-        // Swipe left → next period
         swipeDirection.value = 'left'
         isNavigating.value = true
-        onNext()
+        // In RTL, swipe left goes to previous; in LTR, swipe left goes to next
+        if (isRTL.value) {
+          onPrevious()
+        } else {
+          onNext()
+        }
       } else if (direction === 'right') {
-        // Swipe right → previous period
         swipeDirection.value = 'right'
         isNavigating.value = true
-        onPrevious()
+        // In RTL, swipe right goes to next; in LTR, swipe right goes to previous
+        if (isRTL.value) {
+          onNext()
+        } else {
+          onPrevious()
+        }
       }
     },
   })
