@@ -44,7 +44,20 @@ export const useAppointmentsStore = defineStore('appointments', () => {
    */
   const loadedRange = ref<{ startDate: Date; endDate: Date } | null>(null)
 
+  /**
+   * Cache of appointments by date range key
+   * Enables instant optimistic navigation with stale-while-revalidate pattern
+   */
+  const appointmentsCache = new Map<string, AppointmentListItem[]>()
+
   const hasAppointments = computed(() => appointments.value.length > 0)
+
+  /**
+   * Generate cache key from date range
+   */
+  function getCacheKey(startDate: Date, endDate: Date): string {
+    return `${startDate.toISOString()}_${endDate.toISOString()}`
+  }
 
   /**
    * Fetch appointments with optional date range filtering
@@ -80,6 +93,9 @@ export const useAppointmentsStore = defineStore('appointments', () => {
           startDate: new Date(startDate),
           endDate: new Date(endDate),
         }
+        // Update cache for this date range
+        const cacheKey = getCacheKey(new Date(startDate), new Date(endDate))
+        appointmentsCache.set(cacheKey, response.data.items)
       }
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'response' in err) {
@@ -317,6 +333,46 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     return appointments.value
   }
 
+  /**
+   * Optimistic navigation - Show cached data immediately, fetch fresh data in background
+   *
+   * Implements stale-while-revalidate pattern for instant navigation:
+   * 1. If we have cached data, show it immediately (even if stale)
+   * 2. Fetch fresh data in background
+   * 3. Silently update when fresh data arrives
+   *
+   * This makes calendar navigation feel instant on mobile swipes.
+   *
+   * @param visibleStart - Start of the visible date range
+   * @param visibleEnd - End of the visible date range
+   * @returns Immediately with cached data if available, otherwise waits for fetch
+   */
+  async function loadAppointmentsOptimistic(
+    visibleStart: Date,
+    visibleEnd: Date
+  ): Promise<void> {
+    const cacheKey = getCacheKey(visibleStart, visibleEnd)
+
+    // If we have cached data, show it immediately
+    if (appointmentsCache.has(cacheKey)) {
+      appointments.value = appointmentsCache.get(cacheKey)!
+      // Don't return yet - continue to fetch fresh data in background
+    }
+
+    // Fetch fresh data (without blocking if we showed cached data)
+    try {
+      await fetchAppointments(visibleStart.toISOString(), visibleEnd.toISOString())
+      // Fresh data automatically updates via fetchAppointments and cache
+    } catch (err) {
+      // Silent failure - keep showing cached data if available
+      console.error('Background fetch failed:', err)
+      // Only show error if we don't have cached data
+      if (!appointmentsCache.has(cacheKey)) {
+        throw err
+      }
+    }
+  }
+
   return {
     appointments,
     loading,
@@ -326,6 +382,7 @@ export const useAppointmentsStore = defineStore('appointments', () => {
     hasAppointments,
     fetchAppointments,
     ensureAppointmentsLoaded,
+    loadAppointmentsOptimistic,
     createAppointment,
     updateAppointment,
     updateAppointmentStatus,

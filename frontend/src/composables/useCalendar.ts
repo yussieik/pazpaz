@@ -71,10 +71,10 @@ export function useCalendar() {
    * - This function also resets it defensively as a safety measure
    *
    * PERFORMANCE OPTIMIZATION:
-   * Uses store's ensureAppointmentsLoaded() with actual visible range:
-   * - Fetches appointments for the exact range FullCalendar is displaying
-   * - Only fetches if the visible range is not fully covered by loaded data
-   * - Prevents unnecessary API calls when navigating within loaded range
+   * Uses store's loadAppointmentsOptimistic() for instant navigation:
+   * - Shows cached data immediately if available (stale-while-revalidate)
+   * - Fetches fresh data in background
+   * - Makes mobile swipe navigation feel instant
    */
   function handleDatesSet(dateInfo: { start: Date; end: Date }) {
     currentDateRange.value = {
@@ -91,7 +91,7 @@ export function useCalendar() {
       isViewChanging.value = false
     }
 
-    appointmentsStore.ensureAppointmentsLoaded(dateInfo.start, dateInfo.end)
+    appointmentsStore.loadAppointmentsOptimistic(dateInfo.start, dateInfo.end)
   }
 
   /**

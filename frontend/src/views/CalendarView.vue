@@ -1529,7 +1529,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       />
 
       <!-- Calendar Content Area (Fixed Height Container) -->
-      <div class="calendar-content-area">
+      <div class="calendar-content-area relative overflow-hidden">
         <!-- FullCalendar Component with Transition -->
         <div
           ref="calendarContainerRef"
@@ -1550,7 +1550,6 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 
           <Transition
             :name="transitionName"
-            mode="out-in"
             @after-enter="resetDirection"
             @after-leave="resetDirection"
           >
@@ -1708,13 +1707,41 @@ function handleGlobalKeydown(event: KeyboardEvent) {
    Calendar Swipe Transitions
    =========================== */
 
-/* Slide Left - Swipe left → Next period */
+/*
+ * Mobile-Native Slide Transitions
+ *
+ * Both entering and exiting calendars animate simultaneously for smooth,
+ * native-feeling transitions. Entering calendar slides in from the side
+ * while exiting calendar slides out partially (creating depth effect).
+ *
+ * Key Design Decisions:
+ * - Simultaneous animation (no mode="out-in") for smoother feel
+ * - Absolute positioning during transition to overlap calendars
+ * - Entering calendar on top (z-index: 1), exiting behind (z-index: 0)
+ * - Partial exit slide (-30% instead of -100%) creates depth
+ * - iOS spring curve: cubic-bezier(0.33, 1, 0.68, 1)
+ * - Fast duration: 140ms matches native calendar apps
+ */
+
+/* Slide Left - Swipe left → Next period (forward in time) */
 .calendar-slide-left-enter-active,
 .calendar-slide-left-leave-active {
   transition:
     transform 140ms cubic-bezier(0.33, 1, 0.68, 1),
     opacity 120ms ease-out;
   will-change: transform, opacity;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.calendar-slide-left-enter-active {
+  z-index: 1; /* Entering calendar on top */
+}
+
+.calendar-slide-left-leave-active {
+  z-index: 0; /* Exiting calendar behind */
 }
 
 .calendar-slide-left-enter-from {
@@ -1722,18 +1749,40 @@ function handleGlobalKeydown(event: KeyboardEvent) {
   opacity: 0;
 }
 
-.calendar-slide-left-leave-to {
-  transform: translateX(-100%); /* Exit to left */
-  opacity: 0.2; /* Faster fade for snappier feel */
+.calendar-slide-left-enter-to {
+  transform: translateX(0); /* Slide to center */
+  opacity: 1;
 }
 
-/* Slide Right - Swipe right → Previous period */
+.calendar-slide-left-leave-from {
+  transform: translateX(0); /* Start at center */
+  opacity: 1;
+}
+
+.calendar-slide-left-leave-to {
+  transform: translateX(-30%); /* Partial slide creates depth */
+  opacity: 0;
+}
+
+/* Slide Right - Swipe right → Previous period (backward in time) */
 .calendar-slide-right-enter-active,
 .calendar-slide-right-leave-active {
   transition:
     transform 140ms cubic-bezier(0.33, 1, 0.68, 1),
     opacity 120ms ease-out;
   will-change: transform, opacity;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.calendar-slide-right-enter-active {
+  z-index: 1; /* Entering calendar on top */
+}
+
+.calendar-slide-right-leave-active {
+  z-index: 0; /* Exiting calendar behind */
 }
 
 .calendar-slide-right-enter-from {
@@ -1741,9 +1790,19 @@ function handleGlobalKeydown(event: KeyboardEvent) {
   opacity: 0;
 }
 
+.calendar-slide-right-enter-to {
+  transform: translateX(0); /* Slide to center */
+  opacity: 1;
+}
+
+.calendar-slide-right-leave-from {
+  transform: translateX(0); /* Start at center */
+  opacity: 1;
+}
+
 .calendar-slide-right-leave-to {
-  transform: translateX(100%); /* Exit to right */
-  opacity: 0.2; /* Faster fade for snappier feel */
+  transform: translateX(30%); /* Partial slide creates depth */
+  opacity: 0;
 }
 
 /* Fallback fade for non-swipe navigation (toolbar clicks) */
