@@ -8,7 +8,7 @@ import { useI18n } from '@/composables/useI18n'
 import LogoutConfirmationModal from '@/components/auth/LogoutConfirmationModal.vue'
 
 const route = useRoute()
-const { t } = useI18n()
+const { t, isRTL } = useI18n()
 const mobileMenuOpen = ref(false)
 const showLogoutModal = ref(false)
 const { logout, isLoggingOut } = useAuth()
@@ -211,10 +211,13 @@ onUnmounted(() => {
       </Transition>
 
       <!-- Drawer with slide transition -->
-      <Transition name="drawer-slide">
+      <Transition :name="isRTL ? 'drawer-slide-rtl' : 'drawer-slide'">
         <div
           v-if="mobileMenuOpen"
-          class="fixed inset-y-0 right-0 z-50 w-64 bg-white shadow-xl"
+          :class="[
+            'fixed inset-y-0 z-50 w-64 bg-white shadow-xl',
+            isRTL ? 'left-0' : 'right-0',
+          ]"
         >
           <div class="flex h-full flex-col">
             <!-- Close button -->
@@ -332,7 +335,7 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-/* Drawer slide transition from right */
+/* Drawer slide transition from right (LTR) */
 .drawer-slide-enter-active,
 .drawer-slide-leave-active {
   transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -352,12 +355,34 @@ onUnmounted(() => {
   transform: translateX(0);
 }
 
+/* Drawer slide transition from left (RTL) */
+.drawer-slide-rtl-enter-active,
+.drawer-slide-rtl-leave-active {
+  transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* GPU acceleration for smoother transitions */
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.drawer-slide-rtl-enter-from,
+.drawer-slide-rtl-leave-to {
+  transform: translateX(-100%);
+}
+
+.drawer-slide-rtl-enter-to,
+.drawer-slide-rtl-leave-from {
+  transform: translateX(0);
+}
+
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .backdrop-fade-enter-active,
   .backdrop-fade-leave-active,
   .drawer-slide-enter-active,
-  .drawer-slide-leave-active {
+  .drawer-slide-leave-active,
+  .drawer-slide-rtl-enter-active,
+  .drawer-slide-rtl-leave-active {
     transition-duration: 1ms;
   }
 }
