@@ -139,7 +139,7 @@ onUnmounted(() => {
       <!-- Search input (full width on mobile, grows on desktop) -->
       <div class="relative flex-1">
         <div
-          class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
+          class="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3"
         >
           <svg
             class="h-5 w-5 text-slate-400"
@@ -167,7 +167,7 @@ onUnmounted(() => {
               : t('clients.view.searchPlaceholderDesktop')
           "
           :aria-label="shouldDeferKeyboard ? t('clients.view.searchAriaLabel') : undefined"
-          class="block w-full rounded-lg border border-slate-300 bg-white py-3 pr-3 pl-10 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+          class="block w-full rounded-lg border border-slate-300 bg-white py-3 pe-3 ps-10 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
         />
       </div>
 
