@@ -695,20 +695,10 @@ const calendarOptions = computed(() => ({
   },
 }))
 
-// Watch for view changes and update FullCalendar
-watch(currentView, (newView) => {
-  const calendarApi = calendarRef.value?.getApi()
-  if (calendarApi) {
-    calendarApi.changeView(newView)
-  }
-})
-
-// Watch for date changes and navigate FullCalendar
-watch(currentDate, (newDate) => {
-  const calendarApi = calendarRef.value?.getApi()
-  if (calendarApi) {
-    calendarApi.gotoDate(newDate)
-  }
+// Generate a key for FullCalendar to force re-mount on navigation
+// This ensures FullCalendar picks up the new initialDate and initialView
+const calendarKey = computed(() => {
+  return `${currentView.value}-${currentDate.value.getTime()}`
 })
 
 /**
@@ -1553,6 +1543,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 
           <FullCalendar
             ref="calendarRef"
+            :key="calendarKey"
             :options="calendarOptions"
           />
         </div>
