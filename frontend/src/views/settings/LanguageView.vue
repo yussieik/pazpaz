@@ -24,22 +24,8 @@ function handleLanguageChange(newLocale: 'en' | 'he') {
 
 <template>
   <div>
-    <!-- Header -->
-    <div class="mb-8">
-      <h1 class="text-2xl font-bold text-slate-900">
-        {{ t('settings.language.title') }}
-      </h1>
-      <p class="mt-2 text-sm text-slate-600">
-        {{ t('settings.language.description') }}
-      </p>
-    </div>
-
     <!-- Language Selection Card -->
     <div class="max-w-2xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 class="mb-4 text-base font-semibold text-slate-900">
-        {{ t('settings.language.currentLanguage') }}
-      </h2>
-
       <div class="space-y-3">
         <!-- English Option -->
         <label

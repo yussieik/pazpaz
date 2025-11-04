@@ -159,7 +159,6 @@ onUnmounted(() => {
         <input
           ref="searchInputRef"
           v-model="searchQuery"
-          v-rtl
           type="search"
           :placeholder="
             shouldDeferKeyboard
@@ -262,7 +261,7 @@ onUnmounted(() => {
         :data-client-id="client.id"
         @click="viewClient(client)"
         :class="[
-          'group block rounded-lg border bg-white p-4 text-left transition-all hover:shadow-md focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
+          'group block rounded-lg border bg-white p-4 text-start transition-all hover:shadow-md focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
           focusedIndex === index
             ? 'scale-[1.02] border-emerald-500 bg-emerald-50 shadow-md ring-2 ring-emerald-500/20'
             : 'border-slate-200',

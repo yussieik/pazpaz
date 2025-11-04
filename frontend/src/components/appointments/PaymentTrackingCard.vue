@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import type { PaymentStatus, PaymentMethod } from '@/types/calendar'
+import { useI18n } from '@/composables/useI18n'
 
 interface Props {
   paymentPrice?: number | null
@@ -29,6 +30,8 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emits>()
+
+const { t } = useI18n()
 
 // Local state for form fields
 const localPrice = ref<number | null>(props.paymentPrice)
@@ -66,30 +69,45 @@ watch(
 )
 
 // Payment status options with badges
-const statusOptions = [
-  { value: 'not_paid', label: 'Not Paid', badgeClass: 'bg-slate-100 text-slate-700' },
-  { value: 'paid', label: 'Paid', badgeClass: 'bg-emerald-100 text-emerald-700' },
+const statusOptions = computed(() => [
+  {
+    value: 'not_paid',
+    label: t('calendar.appointmentDetails.payment.statusNotPaid'),
+    badgeClass: 'bg-slate-100 text-slate-700',
+  },
+  {
+    value: 'paid',
+    label: t('calendar.appointmentDetails.payment.statusPaid'),
+    badgeClass: 'bg-emerald-100 text-emerald-700',
+  },
   {
     value: 'payment_sent',
-    label: 'Payment Sent',
+    label: t('calendar.appointmentDetails.payment.statusPaymentSent'),
     badgeClass: 'bg-blue-100 text-blue-700',
   },
-  { value: 'waived', label: 'Waived', badgeClass: 'bg-purple-100 text-purple-700' },
-] as const
+  {
+    value: 'waived',
+    label: t('calendar.appointmentDetails.payment.statusWaived'),
+    badgeClass: 'bg-purple-100 text-purple-700',
+  },
+])
 
 // Payment method options (Phase 1: Manual tracking methods)
-const methodOptions = [
-  { value: 'cash', label: 'Cash' },
-  { value: 'card', label: 'Card' },
-  { value: 'bank_transfer', label: 'Bank Transfer' },
-  { value: 'bit', label: 'Bit (ביט)' },
-  { value: 'paybox', label: 'PayBox' },
-  { value: 'other', label: 'Other' },
-] as const
+const methodOptions = computed(() => [
+  { value: 'cash', label: t('calendar.appointmentDetails.payment.methodCash') },
+  { value: 'card', label: t('calendar.appointmentDetails.payment.methodCard') },
+  {
+    value: 'bank_transfer',
+    label: t('calendar.appointmentDetails.payment.methodBankTransfer'),
+  },
+  { value: 'bit', label: t('calendar.appointmentDetails.payment.methodBit') },
+  { value: 'paybox', label: t('calendar.appointmentDetails.payment.methodPaybox') },
+  { value: 'other', label: t('calendar.appointmentDetails.payment.methodOther') },
+])
 
 // Get badge class for current status
 const currentStatusBadge = computed(() => {
-  return statusOptions.find((opt) => opt.value === localStatus.value)?.badgeClass || ''
+  return statusOptions.value.find((opt) => opt.value === localStatus.value)?.badgeClass || ''
 })
 
 // Handle field updates with auto-save on blur
@@ -117,7 +135,7 @@ function handleNotesBlur() {
 const formattedPaidAt = computed(() => {
   if (!props.paidAt) return null
   const date = new Date(props.paidAt)
-  return date.toLocaleString('en-US', {
+  const dateString = date.toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -125,12 +143,15 @@ const formattedPaidAt = computed(() => {
     minute: '2-digit',
     hour12: true,
   })
+  return t('calendar.appointmentDetails.payment.paidAtLabel', { date: dateString })
 })
 </script>
 
 <template>
   <div class="rounded-lg border border-slate-200 bg-white p-4">
-    <h3 class="mb-3 text-sm font-medium text-slate-900">Payment</h3>
+    <h3 class="mb-3 text-sm font-medium text-slate-900">
+      {{ t('calendar.appointmentDetails.payment.title') }}
+    </h3>
 
     <!-- Payment Status -->
     <div class="mb-4">
@@ -138,7 +159,7 @@ const formattedPaidAt = computed(() => {
         for="payment-status"
         class="mb-1.5 block text-xs font-medium text-slate-700"
       >
-        Status
+        {{ t('calendar.appointmentDetails.payment.statusLabel') }}
       </label>
       <select
         id="payment-status"
@@ -172,7 +193,7 @@ const formattedPaidAt = computed(() => {
         v-if="localStatus === 'paid' && formattedPaidAt"
         class="mt-2 text-xs text-slate-500"
       >
-        Paid on {{ formattedPaidAt }}
+        {{ formattedPaidAt }}
       </div>
     </div>
 
@@ -182,7 +203,7 @@ const formattedPaidAt = computed(() => {
         for="payment-price"
         class="mb-1.5 block text-xs font-medium text-slate-700"
       >
-        Price (ILS)
+        {{ t('calendar.appointmentDetails.payment.priceLabel') }}
       </label>
       <input
         id="payment-price"
@@ -190,13 +211,12 @@ const formattedPaidAt = computed(() => {
         type="number"
         step="0.01"
         min="0"
-        placeholder="Enter price"
+        :placeholder="t('calendar.appointmentDetails.payment.priceLabel')"
         @blur="handlePriceBlur"
         :disabled="readonly"
         class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
-        aria-label="Payment price in ILS"
+        :aria-label="t('calendar.appointmentDetails.payment.priceLabel')"
       />
-      <p class="mt-1 text-xs text-slate-400">Optional - specify appointment price</p>
     </div>
 
     <!-- Payment Method -->
@@ -205,7 +225,7 @@ const formattedPaidAt = computed(() => {
         for="payment-method"
         class="mb-1.5 block text-xs font-medium text-slate-700"
       >
-        Method
+        {{ t('calendar.appointmentDetails.payment.methodLabel') }}
       </label>
       <select
         id="payment-method"
@@ -213,9 +233,9 @@ const formattedPaidAt = computed(() => {
         @change="handleMethodChange"
         :disabled="readonly"
         class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
-        aria-label="Payment method"
+        :aria-label="t('calendar.appointmentDetails.payment.methodLabel')"
       >
-        <option :value="null">Select method (optional)</option>
+        <option :value="null">{{ t('calendar.appointmentDetails.payment.methodLabel') }}</option>
         <option
           v-for="option in methodOptions"
           :key="option.value"
@@ -232,19 +252,18 @@ const formattedPaidAt = computed(() => {
         for="payment-notes"
         class="mb-1.5 block text-xs font-medium text-slate-700"
       >
-        Notes
+        {{ t('calendar.appointmentDetails.payment.notesLabel') }}
       </label>
       <textarea
         id="payment-notes"
         v-model="localNotes"
         rows="3"
-        placeholder="Optional notes (e.g., invoice number, special terms)"
+        :placeholder="t('calendar.appointmentDetails.payment.notesPlaceholder')"
         @blur="handleNotesBlur"
         :disabled="readonly"
         class="mt-1 block min-h-[88px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
-        aria-label="Payment notes"
+        :aria-label="t('calendar.appointmentDetails.payment.notesLabel')"
       ></textarea>
-      <p class="mt-1 text-xs text-slate-400">Auto-saves on blur</p>
     </div>
   </div>
 </template>

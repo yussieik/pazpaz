@@ -427,10 +427,10 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
     <button
       @click="backDestination.action"
       data-focus-target="back-button"
-      class="group mb-4 -ml-2 inline-flex min-h-[44px] items-center gap-2 px-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 sm:ml-0 sm:min-h-0 sm:px-0"
+      class="group mb-4 -ms-2 inline-flex min-h-[44px] items-center gap-2 px-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 sm:ms-0 sm:min-h-0 sm:px-0"
     >
       <svg
-        class="h-5 w-5 flex-shrink-0 sm:h-4 sm:w-4"
+        class="h-5 w-5 flex-shrink-0 rtl:rotate-180 sm:h-4 sm:w-4"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -444,7 +444,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
       </svg>
       <span>{{ backDestination.label }}</span>
       <kbd
-        class="ml-2 hidden rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity group-hover:opacity-100 sm:inline"
+        class="ms-2 hidden rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 opacity-0 transition-opacity group-hover:opacity-100 sm:inline"
       >
         Esc
       </kbd>
@@ -500,7 +500,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
             class="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50 sm:flex-none"
           >
             <svg
-              class="h-4 w-4 flex-shrink-0"
+              class="h-4 w-4 flex-shrink-0 rtl:rotate-180"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -515,7 +515,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
             <span class="hidden sm:inline">{{ t('clients.detailView.appointmentBanner.backButton') }}</span>
             <span class="inline sm:hidden">{{ t('clients.detailView.appointmentBanner.backButtonShort') }}</span>
             <kbd
-              class="ml-1 hidden rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs text-blue-700 sm:inline"
+              class="ms-1 hidden rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs text-blue-700 sm:inline"
             >
               Esc
             </kbd>
@@ -763,7 +763,6 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
       <div class="rounded-lg border border-slate-200 bg-white p-6">
         <!-- Overview Tab -->
         <div v-if="activeTab === 'overview'">
-          <h2 class="mb-4 text-lg font-semibold text-slate-900">{{ t('clients.detailView.overview.title') }}</h2>
           <dl class="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-4">
             <div class="border-b border-slate-100 pb-4 sm:border-b-0 sm:pb-0">
               <dt class="text-sm font-medium text-slate-500">{{ t('clients.detailView.overview.dateOfBirth') }}</dt>
@@ -828,8 +827,6 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
 
         <!-- History Tab -->
         <div v-else-if="activeTab === 'history'" class="space-y-6">
-          <h2 class="mb-4 text-lg font-semibold text-slate-900">Treatment History</h2>
-
           <!-- Session Timeline -->
           <SessionTimeline
             v-if="client"

@@ -1,5 +1,6 @@
 {
   "common": {
+    "locale": "he-IL",
     "actions": {
       "save": "שמור",
       "cancel": "בטל",
@@ -179,6 +180,8 @@
       "nextPeriod": "תקופה הבאה",
       "inThisPeriod": "בתקופה זו",
       "viewSwitcher": "החלפת תצוגת יומן",
+      "appointmentCountSingular": "פגישה {count}",
+      "appointmentCountPlural": "{count} פגישות",
       "views": {
         "week": "שבוע",
         "weekShort": "ש",
@@ -273,6 +276,25 @@
       "tabsAriaLabel": "לשוניות מידע פגישה ותשלום",
       "appointmentTab": "פגישה",
       "paymentTab": "תשלום",
+      "payment": {
+        "title": "תשלום",
+        "statusLabel": "סטטוס",
+        "priceLabel": "מחיר",
+        "methodLabel": "אמצעי תשלום",
+        "notesLabel": "הערות",
+        "notesPlaceholder": "הוסף הערות תשלום...",
+        "statusNotPaid": "לא שולם",
+        "statusPaid": "שולם",
+        "statusPaymentSent": "תשלום נשלח",
+        "statusWaived": "בוטל",
+        "methodCash": "מזומן",
+        "methodCard": "כרטיס אשראי",
+        "methodBankTransfer": "העברה בנקאית",
+        "methodBit": "ביט",
+        "methodPaybox": "PayBox",
+        "methodOther": "אחר",
+        "paidAtLabel": "שולם ב-{date}"
+      },
       "timeCardTitle": "זמן",
       "dateLabel": "תאריך",
       "dateAriaLabel": "תאריך פגישה",
@@ -294,7 +316,7 @@
       "notesLabel": "הערות",
       "notesPlaceholder": "הערות אופציונליות לגבי פגישה זו",
       "autoSaveHint": "השינויים נשמרים אוטומטית",
-      "sessionNoteFinalized": "סופי",
+      "sessionNoteFinalized": "מאושר",
       "sessionNoteDraft": "טיוטה",
       "continueEditing": "המשך עריכה ←",
       "viewNote": "צפה בהערה ←",
@@ -386,7 +408,7 @@
       "errorTitle": "שגיאה בטעינת מטופלים",
       "emptyState": {
         "title": "אין מטופלים עדיין",
-        "description": "התחל על ידי הוספת המטופל הראשון שלך כדי להתחיל לנהל את מסע הטיפול שלו.",
+        "description": "התחל על ידי הוספת המטופל הראשון שלך כדי להתחיל לנהל את מסע הפגישה שלו.",
         "button": "הוסף מטופל ראשון"
       },
       "emptySearch": {
@@ -469,7 +491,7 @@
         },
         "intakeNotes": {
           "label": "הערות קבלה",
-          "placeholder": "הערכה ראשונית, מטרות טיפול, העדפות..."
+          "placeholder": "הערכה ראשונית, מטרות פגישה, העדפות..."
         }
       }
     },
@@ -516,11 +538,60 @@
         "notesTitle": "הערות"
       },
       "history": {
-        "title": "היסטוריית טיפולים",
-        "recentSessions": "טיפולים אחרונים",
+        "title": "היסטוריית פגישות",
+        "recentSessions": "פגישות אחרונות",
         "deletedNotes": "הערות שנמחקו",
         "statusDraft": "טיוטה",
-        "statusFinalized": "סופי"
+        "statusFinalized": "מאושר",
+        "minutes": "דקות",
+        "locationClinic": "מרפאה",
+        "locationHome": "ביקור בית",
+        "locationTelehealth": "טלה-רפואה",
+        "deletedNotesEmpty": "אין הערות שנמחקו",
+        "deletedNotesEmptyDescription": "הערות פגישה שנמחקו יופיעו כאן למשך {days} ימים",
+        "recoveryPeriodTitle": "תקופת שחזור של {days} ימים",
+        "recoveryPeriodDescription": "הערות פגישה שנמחקו נשמרות למשך {days} ימים לפני מחיקה קבועה. ניתן לשחזר אותן בכל עת במהלך תקופה זו."
+      },
+      "files": {
+        "searchPlaceholder": "חפש קבצים...",
+        "clearSearch": "נקה חיפוש",
+        "filterAll": "כל הקבצים",
+        "filterImages": "תמונות בלבד",
+        "filterPDFs": "קובצי PDF בלבד",
+        "selectFiles": "בחר קבצים",
+        "cancel": "בטל",
+        "uploadFiles": "העלה קבצים",
+        "uploading": "מעלה...",
+        "dropToUpload": "שחרר קבצים להעלאה",
+        "dropHint": "JPEG, PNG, WebP או PDF עד 10 MB לקובץ",
+        "emptyStateTitle": "אין קבצים עדיין",
+        "emptyStateDescription": "העלה מסמכי מטופל, תמונות וטפסי קבלה. קבצים ספציפיים לפגישה יופיעו כאן אוטומטית.",
+        "noResults": "לא נמצאו תוצאות עבור \"{query}\"",
+        "noImagesFound": "לא נמצאו תמונות",
+        "noPDFsFound": "לא נמצאו קובצי PDF",
+        "noFilesFound": "לא נמצאו קבצים",
+        "tryDifferentSearch": "נסה מילת חיפוש או מסנן אחר",
+        "clearFilters": "נקה מסננים",
+        "selectAll": "בחר הכל",
+        "deselectAll": "בטל בחירת הכל",
+        "filesSelected": "קובץ {count} נבחר | {count} קבצים נבחרו",
+        "downloadSelected": "הורד נבחרים",
+        "deleteSelected": "מחק נבחרים",
+        "preparingZIP": "מכין קובץ ZIP...",
+        "downloadFile": "הורד",
+        "deleteFile": "מחק",
+        "renameFile": "שנה שם {fileName}",
+        "saveRename": "שמור",
+        "cancelRename": "בטל",
+        "fromSession": "מתוך: פגישה ב-{date} ←",
+        "fromClientRecord": "מתוך: רשומת מטופל",
+        "deleteDialogTitle": "מחיקת קובץ מצורף",
+        "deleteDialogMessage": "האם אתה בטוח שברצונך למחוק את {fileName}? פעולה זו לא ניתנת לביטול.",
+        "deleteDialogConfirm": "מחק",
+        "deleteDialogCancel": "בטל",
+        "deleting": "מוחק...",
+        "bulkDeleteDialogTitle": "מחק קובץ {count} | מחק {count} קבצים",
+        "bulkDeleteDialogMessage": "האם אתה בטוח שברצונך למחוק {count} קבצים אלה? פעולה זו לא ניתנת לביטול."
       },
       "toasts": {
         "clientUpdated": "{firstName} {lastName} עודכן בהצלחה",
@@ -531,14 +602,16 @@
   },
   "sessions": {
     "view": {
-      "pageTitle": "תיעוד טיפול - {firstName} {lastName}",
-      "pageTitleDefault": "תיעוד טיפול",
+      "pageTitle": "תיעוד פגישה - {firstName} {lastName}",
+      "pageTitleDefault": "תיעוד פגישה",
       "statusDraft": "טיוטה",
       "statusFinalized": "מאושר",
+      "statusAmended": "תוקן",
+      "at": "בשעה",
       "backToClient": "חזור למטופל",
       "backToCalendar": "חזור ליומן",
       "errorTitle": "שגיאה בטעינת התיעוד",
-      "errorNotFound": "תיעוד הטיפול לא נמצא",
+      "errorNotFound": "תיעוד הפגישה לא נמצא",
       "errorPermission": "אין לך הרשאה לצפות בתיעוד זה",
       "errorGeneric": "טעינת התיעוד נכשלה",
       "goBackButton": "חזור"
@@ -563,7 +636,7 @@
         },
         "plan": {
           "title": "P - תכנית:",
-          "description": "תכנית הטיפול והשלבים הבאים",
+          "description": "תכנית הפגישה והשלבים הבאים",
           "example": "דוגמה: \"קרח 15 דקות 3 פעמים ביום, תרגילי טווח תנועה עדינים, מעקב בעוד שבוע...\""
         },
         "dismissAriaLabel": "סגור מדריך SOAP"
@@ -574,16 +647,16 @@
       "finalize": {
         "buttonFinalize": "אשר",
         "buttonRevert": "בטל אישור",
-        "buttonFinalizeSession": "אשר טיפול",
+        "buttonFinalizeSession": "אשר פגישה",
         "buttonRevertToDraft": "החזר לטיוטה",
         "buttonFinalizing": "מאשר...",
         "buttonReverting": "מבטל אישור...",
-        "errorEmpty": "לא ניתן לאשר טיפול ריק. הוסף תוכן לפחות לשדה אחד.",
-        "errorGeneric": "אישור הטיפול נכשל",
+        "errorEmpty": "לא ניתן לאשר פגישה ריק. הוסף תוכן לפחות לשדה אחד.",
+        "errorGeneric": "אישור הפגישה נכשל",
         "errorRevert": "ביטול האישור נכשל"
       },
       "metadata": {
-        "sessionDateLabel": "תאריך ושעת טיפול",
+        "sessionDateLabel": "תאריך ושעת פגישה",
         "durationLabel": "משך זמן (דקות)",
         "durationPlaceholder": "60"
       },
@@ -605,8 +678,8 @@
         },
         "plan": {
           "label": "תכנית",
-          "description": "תכנית הטיפול, שלבים הבאים ומעקב",
-          "placeholder": "מהי תכנית הטיפול להמשך?"
+          "description": "תכנית הפגישה, שלבים הבאים ומעקב",
+          "placeholder": "מהי תכנית הפגישה להמשך?"
         }
       },
       "attachments": {
@@ -619,8 +692,8 @@
         "restoreButton": "שחזר שינויים"
       },
       "bottomSheet": {
-        "title": "הקשר טיפולי",
-        "closeAriaLabel": "סגור הקשר טיפולי"
+        "title": "הקשר פגישהי",
+        "closeAriaLabel": "סגור הקשר פגישהי"
       },
       "autosave": {
         "offline": "לא מקוון - שומר מקומית",
@@ -629,13 +702,13 @@
         "retryButton": "נסה שוב עכשיו"
       },
       "errors": {
-        "loadFailed": "טעינת הטיפול נכשלה"
+        "loadFailed": "טעינת הפגישה נכשלה"
       }
     },
     "previousPanel": {
-      "title": "הקשר טיפולי",
-      "collapsedMessage": "טיפול קודם מוסתר. לחץ להרחבה.",
-      "noSessionsTitle": "אין טיפולים קודמים עדיין",
+      "title": "הקשר פגישה",
+      "collapsedMessage": "פגישה קודמת מוסתרת. לחץ להרחבה.",
+      "noSessionsTitle": "אין פגישות קודמות עדיין",
       "noFieldNotes": {
         "subjective": "אין הערות סובייקטיביות",
         "objective": "אין הערות אובייקטיביות",
@@ -681,9 +754,9 @@
         "deletingButton": "מוחק...",
         "deleteButton": "מחק",
         "deleteDialogTitle": "מחיקת קובץ מצורף",
-        "deleteDialogMessage": "האם אתה בטוח שברצונך למחוק את <strong>{fileName}</strong>? פעולה זו לא ניתנת לביטול.",
+        "deleteDialogMessage": "האם אתה בטוח שברצונך למחוק את {fileName}? פעולה זו לא ניתנת לביטול.",
         "emptyStateTitle": "אין קבצים מצורפים עדיין",
-        "emptyStateDescription": "העלה קבצים כדי לצרף אותם לטיפול זה"
+        "emptyStateDescription": "העלה קבצים כדי לצרף אותם לפגישה זה"
       },
       "wrapper": {
         "downloadError": "הורדת הקובץ נכשלה"
@@ -810,7 +883,7 @@
       },
       "todayDigest": {
         "title": "לוח הזמנים להיום",
-        "description": "קבל תקציר בוקר של הטיפולים להיום",
+        "description": "קבל תקציר בוקר של הפגישות להיום",
         "label": "הפעל תקציר לוח הזמנים להיום",
         "sendAtLabel": "שלח בשעה",
         "sendOnLabel": "שלח בימים",
@@ -821,7 +894,7 @@
       },
       "tomorrowDigest": {
         "title": "לוח הזמנים למחר",
-        "description": "קבל תצוגה מקדימה ערב של הטיפולים למחר",
+        "description": "קבל תצוגה מקדימה ערב של הפגישות למחר",
         "label": "הפעל תקציר לוח הזמנים למחר",
         "sendAtLabel": "שלח בשעה",
         "sendOnLabel": "שלח בימים",
@@ -830,15 +903,20 @@
         "warningNoDays": "בחר לפחות יום אחד כדי לקבל את התקציר של מחר"
       },
       "appointmentReminders": {
-        "title": "תזכורות לטיפולים",
-        "description": "קבל התראה לפני תחילת כל טיפול",
-        "label": "הפעל תזכורות לטיפולים",
-        "remindMeLabel": "הזכר לי"
+        "title": "תזכורות לפגישות",
+        "description": "קבל התראה לפני תחילת כל פגישה",
+        "label": "הפעל תזכורות לפגישות",
+        "remindMeLabel": "הזכר לי",
+        "minutes15": "15 דקות לפני",
+        "minutes30": "30 דקות לפני",
+        "minutes60": "שעה לפני",
+        "minutes120": "שעתיים לפני",
+        "minutes1440": "יום לפני"
       },
       "sessionNotesReminder": {
-        "title": "תזכורת לתיעוד טיפולים",
-        "description": "תזכורת יומית להשלמת תיעוד טיפולים שלא הושלם",
-        "label": "הפעל תזכורת לתיעוד טיפולים",
+        "title": "תזכורת לתיעוד פגישות",
+        "description": "תזכורת יומית להשלמת תיעוד פגישות שלא הושלם",
+        "label": "הפעל תזכורת לתיעוד פגישות",
         "sendAtLabel": "שלח בשעה"
       },
       "weekDays": {
@@ -866,14 +944,14 @@
     "googleCalendar": {
       "notConnected": {
         "title": "אינטגרציה ליומן Google",
-        "description": "סנכרן אוטומטית את הטיפולים שלך ליומן Google. לעולם לא תפספס פגישה.",
+        "description": "סנכרן אוטומטית את הפגישות שלך ליומן Google. לעולם לא תפספס פגישה.",
         "hipaaWarningTitle": "חשוב: תאימות HIPAA",
         "hipaaWarningIntro": "יומן Google אינו תואם HIPAA. על ידי הפעלת האינטגרציה הזו, אתה מבין כי:",
-        "hipaaPoint1": "זמני ומיקומי הטיפולים יסונכרנו ליומן Google שלך",
+        "hipaaPoint1": "זמני ומיקומי הפגישות יסונכרנו ליומן Google שלך",
         "hipaaPoint2": "שמות מטופלים ומידע רפואי מזהה אחר לא ייכללו כברירת מחדל",
         "hipaaPoint3": "נתוני יומן Google מאוחסנים בשרתי Google, ולא בתשתית התואמת HIPAA של PazPaz",
         "hipaaPoint4": "אתה אחראי להבטיח שהשימוש שלך עומד בדיני הפרטיות החלים",
-        "hipaaRecommendation": "אנו ממליצים להשתמש בתיוגים כלליים כמו \"טיפול\" במקום שמות מטופלים.",
+        "hipaaRecommendation": "אנו ממליצים להשתמש בתיוגים כלליים כמו \"פגישה\" במקום שמות מטופלים.",
         "connectButton": "התחבר ליומן Google",
         "connecting": "מתחבר..."
       },
@@ -882,22 +960,22 @@
         "lastSynced": "סונכרן לאחרונה: {time}",
         "settingsTitle": "הגדרות סנכרון",
         "autoSyncLabel": "סנכרון אוטומטי",
-        "autoSyncDescription": "שמור את יומן Google שלך מעודכן עם טיפולים חדשים ומעודכנים",
+        "autoSyncDescription": "שמור את יומן Google שלך מעודכן עם פגישות חדשים ומעודכנים",
         "autoSyncToggleLabel": "הפעל סנכרון אוטומטי",
         "baaCheckboxLabel": "אני מאשר שלחשבון Google Workspace שלי יש הסכם שותף עסקי (BAA) חתום",
         "baaCheckboxDescription": "נדרש לתאימות HIPAA בעת שליחת התראות למטופלים. {link}",
         "baaLinkText": "למידע נוסף על Google Workspace BAA",
         "clientNotificationsLabel": "שלח הזמנות לפגישות למטופלים",
-        "clientNotificationsDescription": "מטופלים יקבלו הזמנות במייל ותזכורות לוח שנה מ-Google (24 שעות ושעה לפני הטיפולים)",
+        "clientNotificationsDescription": "מטופלים יקבלו הזמנות במייל ותזכורות לוח שנה מ-Google (24 שעות ושעה לפני הפגישות)",
         "clientNotificationsBaaWarning": "הערה: יש לאשר Google Workspace BAA לפני הפעלת התראות למטופלים",
         "privacyNoticeTitle": "הודעת פרטיות",
-        "privacyNoticeDescription": "כתובות דוא\"ל של מטופלים ישותפו עם יומן Google. רק טיפולים עם כתובות דוא\"ל של מטופלים יישלחו.",
+        "privacyNoticeDescription": "כתובות דוא\"ל של מטופלים ישותפו עם יומן Google. רק פגישות עם כתובות דוא\"ל של מטופלים יישלחו.",
         "disconnectButton": "התנתק מיומן Google"
       },
       "disconnectModal": {
         "title": "להתנתק מיומן Google?",
-        "description": "פעולה זו תפסיק את סנכרון הטיפולים ליומן Google שלך.",
-        "existingEventsNote": "אירועים קיימים ביומן Google לא יימחקו, אך טיפולים חדשים לא יסונכרנו.",
+        "description": "פעולה זו תפסיק את סנכרון הפגישות ליומן Google שלך.",
+        "existingEventsNote": "אירועים קיימים ביומן Google לא יימחקו, אך פגישות חדשים לא יסונכרנו.",
         "cancelButton": "ביטול",
         "disconnectButton": "התנתק"
       },

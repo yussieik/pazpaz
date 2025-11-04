@@ -137,7 +137,7 @@ function handleEscape(e: KeyboardEvent) {
 
     <!-- Delete Button: Hidden on hover (desktop), always visible (mobile) -->
     <div
-      class="absolute top-3 right-3 opacity-0 transition-opacity group-hover:opacity-100 md:opacity-100"
+      class="absolute top-3 end-3 opacity-0 transition-opacity group-hover:opacity-100 md:opacity-100"
     >
       <button
         type="button"

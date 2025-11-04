@@ -299,11 +299,9 @@ function formatDeletionTime(deletedAt: string): string {
           class="rounded-lg border border-slate-200 bg-slate-50 p-8 text-center"
         >
           <IconDocument size="lg" class="mx-auto text-slate-400" />
-          <p class="mt-3 text-sm font-medium text-slate-900">No deleted notes</p>
+          <p class="mt-3 text-sm font-medium text-slate-900">{{ t('clients.detailView.history.deletedNotesEmpty') }}</p>
           <p class="mt-1 text-sm text-slate-600">
-            Deleted session notes will appear here for
-            {{ SESSION_DELETION_GRACE_PERIOD_DAYS }}
-            days
+            {{ t('clients.detailView.history.deletedNotesEmptyDescription', { days: SESSION_DELETION_GRACE_PERIOD_DAYS }) }}
           </p>
         </div>
 
@@ -453,12 +451,10 @@ function formatDeletionTime(deletedAt: string): string {
             </svg>
             <div class="text-sm text-blue-900">
               <p class="font-medium">
-                {{ SESSION_DELETION_GRACE_PERIOD_DAYS }}-day recovery period
+                {{ t('clients.detailView.history.recoveryPeriodTitle', { days: SESSION_DELETION_GRACE_PERIOD_DAYS }) }}
               </p>
               <p class="mt-1 text-blue-800">
-                Deleted session notes are kept for
-                {{ SESSION_DELETION_GRACE_PERIOD_DAYS }} days before permanent deletion.
-                You can restore them at any time during this period.
+                {{ t('clients.detailView.history.recoveryPeriodDescription', { days: SESSION_DELETION_GRACE_PERIOD_DAYS }) }}
               </p>
             </div>
           </div>

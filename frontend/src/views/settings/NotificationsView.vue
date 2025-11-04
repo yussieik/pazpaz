@@ -23,6 +23,17 @@ const { t } = useI18n()
 const { settings, isLoading, error, loadSettings } = useNotificationSettings()
 
 /**
+ * Reminder minute options (computed to support i18n)
+ */
+const reminderMinuteOptions = computed(() => [
+  { value: 15, label: t('settings.notifications.appointmentReminders.minutes15') },
+  { value: 30, label: t('settings.notifications.appointmentReminders.minutes30') },
+  { value: 60, label: t('settings.notifications.appointmentReminders.minutes60') },
+  { value: 120, label: t('settings.notifications.appointmentReminders.minutes120') },
+  { value: 1440, label: t('settings.notifications.appointmentReminders.minutes1440') },
+])
+
+/**
  * Load settings on mount
  */
 onMounted(async () => {
@@ -454,7 +465,7 @@ function selectTomorrowAllDays(): void {
                 class="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
               >
                 <option
-                  v-for="option in REMINDER_MINUTE_OPTIONS"
+                  v-for="option in reminderMinuteOptions"
                   :key="option.value"
                   :value="option.value"
                 >

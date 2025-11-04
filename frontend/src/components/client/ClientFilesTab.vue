@@ -885,11 +885,6 @@ function handleGlobalKeydown(event: KeyboardEvent) {
       </div>
     </Transition>
 
-    <!-- Header -->
-    <div class="mb-4">
-      <h2 class="text-lg font-semibold text-slate-900">Files & Documents</h2>
-    </div>
-
     <!-- Search and Filter Bar -->
     <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
       <!-- Search Input -->

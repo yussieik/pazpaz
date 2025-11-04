@@ -74,9 +74,25 @@ export const BUSINESS_HOURS_CONFIG = {
 /**
  * Get locale-specific calendar options
  * Configures locale, first day of week, and time format based on current language
+ * @param currentLocale - Current language locale ('en' or 'he')
+ * @param isMobile - Whether the device is mobile (for shorter day names)
  */
-export function getCalendarOptions(currentLocale: string) {
+export function getCalendarOptions(currentLocale: string, isMobile = false) {
   const timeFormatConfig = getTimeFormatConfig(currentLocale)
+
+  // Custom day header format function for Hebrew to show only day name without "יום"
+  // On mobile: show single letter (א, ב, ג, etc.)
+  // On desktop: show full name (ראשון, שני, שלישי, etc.)
+  const dayHeaderContent =
+    currentLocale === 'he'
+      ? (args: { date: Date }) => {
+          const dayNamesDesktop = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+          const dayNamesMobile = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳']
+          return isMobile
+            ? dayNamesMobile[args.date.getDay()]
+            : dayNamesDesktop[args.date.getDay()]
+        }
+      : undefined
 
   return {
     headerToolbar: false as false,
@@ -96,6 +112,7 @@ export function getCalendarOptions(currentLocale: string) {
     locale: currentLocale,
     locales: CALENDAR_LOCALES,
     firstDay: currentLocale === 'he' ? 0 : 1, // Sunday for Hebrew, Monday for English
+    ...(dayHeaderContent ? { dayHeaderContent } : {}), // Apply custom day names for Hebrew
     ...TIME_SLOT_CONFIG,
     ...timeFormatConfig,
     ...BUSINESS_HOURS_CONFIG,

@@ -334,7 +334,7 @@ onUnmounted(() => {
                   class="mb-1.5 block text-sm font-medium text-slate-900"
                 >
                   {{ t('clients.formModal.fields.firstName.label') }}
-                  <span class="ml-0.5 text-red-500" aria-label="required">*</span>
+                  <span class="ms-0.5 text-red-500" aria-label="required">*</span>
                 </label>
                 <input
                   id="first-name"
@@ -371,7 +371,7 @@ onUnmounted(() => {
                   class="mb-1.5 block text-sm font-medium text-slate-900"
                 >
                   {{ t('clients.formModal.fields.lastName.label') }}
-                  <span class="ml-0.5 text-red-500" aria-label="required">*</span>
+                  <span class="ms-0.5 text-red-500" aria-label="required">*</span>
                 </label>
                 <input
                   id="last-name"

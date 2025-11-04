@@ -144,7 +144,7 @@ defineExpose({
             @click="emit('update:view', 'timeGridWeek')"
             :class="[
               'min-h-[44px] min-w-[44px] px-3 py-2 text-sm font-medium transition-all duration-150 ease-in-out',
-              'border-y border-l first:rounded-l-md last:rounded-r-md',
+              'border-y border-s first:rounded-s-md last:rounded-e-md',
               'focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
               currentView === 'timeGridWeek'
                 ? 'z-10 border-2 border-slate-900 bg-white font-semibold text-slate-900 shadow-sm'
@@ -163,7 +163,7 @@ defineExpose({
             @click="emit('update:view', 'timeGridDay')"
             :class="[
               'min-h-[44px] min-w-[44px] px-3 py-2 text-sm font-medium transition-all duration-150 ease-in-out',
-              'border-y border-l',
+              'border-y border-s',
               'focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
               currentView === 'timeGridDay'
                 ? 'z-10 border-2 border-slate-900 bg-white font-semibold text-slate-900 shadow-sm'
@@ -182,7 +182,7 @@ defineExpose({
             @click="emit('update:view', 'dayGridMonth')"
             :class="[
               'min-h-[44px] min-w-[44px] px-3 py-2 text-sm font-medium transition-all duration-150 ease-in-out',
-              'rounded-r-md border',
+              'rounded-e-md border',
               'focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none',
               currentView === 'dayGridMonth'
                 ? 'z-10 border-2 border-slate-900 bg-white font-semibold text-slate-900 shadow-sm'

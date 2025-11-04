@@ -953,7 +953,13 @@ const appointmentSummary = computed(() => {
   }
 
   const parts = []
-  parts.push(`${appointmentCount} appointment${appointmentCount === 1 ? '' : 's'}`)
+
+  // Use locale-aware appointment count
+  const countKey =
+    appointmentCount === 1
+      ? 'calendar.toolbar.appointmentCountSingular'
+      : 'calendar.toolbar.appointmentCountPlural'
+  parts.push(t(countKey, { count: appointmentCount }))
 
   // TODO: Add conflict detection logic when implemented
   // const conflicts = detectConflicts(visibleAppointments)

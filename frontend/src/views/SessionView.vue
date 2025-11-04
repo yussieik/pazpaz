@@ -63,13 +63,15 @@ const pageTitle = computed(() => {
 const pageMetadata = computed(() => {
   if (session.value) {
     const date = new Date(session.value.session_date)
-    const formattedDate = date.toLocaleDateString('en-US', {
+    const locale = t('common.locale') // Get current locale (e.g., 'he' or 'en')
+
+    const formattedDate = date.toLocaleDateString(locale, {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     })
-    const formattedTime = date.toLocaleTimeString('en-US', {
+    const formattedTime = date.toLocaleTimeString(locale, {
       hour: 'numeric',
       minute: '2-digit',
     })
@@ -77,7 +79,7 @@ const pageMetadata = computed(() => {
     const status = session.value.is_draft
       ? t('sessions.view.statusDraft')
       : t('sessions.view.statusFinalized')
-    return `${formattedDate} at ${formattedTime} • ${status}`
+    return `${formattedDate} ${t('sessions.view.at')} ${formattedTime} • ${status}`
   }
   return ''
 })
@@ -225,7 +227,7 @@ onKeyStroke('Escape', (e) => {
           class="inline-flex items-center text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 focus:outline-none"
         >
           <svg
-            class="mr-2 h-5 w-5"
+            class="me-2 h-5 w-5 rtl:rotate-180"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

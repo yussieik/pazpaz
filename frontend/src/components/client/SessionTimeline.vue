@@ -888,8 +888,8 @@ defineExpose({
 
                     <!-- Content -->
                     <div class="min-w-0 flex-1">
-                      <div class="mb-1.5 flex items-center justify-between gap-2 pr-12">
-                        <!-- pr-12 reserves 48px for trash icon on right -->
+                      <div class="mb-1.5 flex items-center justify-between gap-2 pe-12">
+                        <!-- pe-12 reserves 48px for trash icon on end side -->
 
                         <!-- Left Side: Status and Date -->
                         <div class="flex min-w-0 flex-1 items-center gap-2">
@@ -937,15 +937,15 @@ defineExpose({
                             sessionAppointments.get(session.id)!.scheduled_end
                           )
                         }}
-                        minutes •
+                        {{ t('clients.detailView.history.minutes') }} •
                         {{
                           sessionAppointments.get(session.id)!.location_type ===
                           'clinic'
-                            ? 'Clinic'
+                            ? t('clients.detailView.history.locationClinic')
                             : sessionAppointments.get(session.id)!.location_type ===
                                 'home'
-                              ? 'Home Visit'
-                              : 'Telehealth'
+                              ? t('clients.detailView.history.locationHome')
+                              : t('clients.detailView.history.locationTelehealth')
                         }}
                       </p>
 

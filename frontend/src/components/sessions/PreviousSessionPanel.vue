@@ -264,12 +264,9 @@ watch(
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           />
         </svg>
-        <h4 class="mb-2 text-sm font-semibold text-gray-900">
+        <h4 class="text-sm font-semibold text-gray-900">
           {{ t('sessions.previousPanel.noSessionsTitle') }}
         </h4>
-        <p class="max-w-xs text-xs text-gray-600">
-          Previous SOAP notes will appear here to help with treatment continuity.
-        </p>
       </div>
 
       <!-- Collapsed State Message -->
@@ -567,10 +564,7 @@ watch(
           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
         />
       </svg>
-      <h4 class="mb-2 text-sm font-semibold text-gray-900">{{ t('sessions.previousPanel.noSessionsTitle') }}</h4>
-      <p class="max-w-xs text-xs text-gray-600">
-        Previous SOAP notes will appear here to help with treatment continuity.
-      </p>
+      <h4 class="text-sm font-semibold text-gray-900">{{ t('sessions.previousPanel.noSessionsTitle') }}</h4>
     </div>
 
     <!-- View Mode: Summary (default) -->

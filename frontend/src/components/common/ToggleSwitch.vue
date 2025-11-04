@@ -99,7 +99,7 @@ function handleKeydown(event: KeyboardEvent) {
       aria-hidden="true"
       class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
       :class="{
-        'translate-x-5': modelValue,
+        'translate-x-5 rtl:-translate-x-5': modelValue,
         'translate-x-0': !modelValue,
       }"
     />

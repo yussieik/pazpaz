@@ -82,6 +82,17 @@ export function getViteConfig(mode: string): UserConfig {
     },
     server: {
       port: 5173,
+      host: true, // Listen on all network interfaces
+      // Enable polling for Docker environments (especially macOS)
+      // This ensures file changes are detected inside containers
+      watch: {
+        usePolling: true,
+        interval: 300, // Check for changes every 300ms (faster detection)
+      },
+      hmr: {
+        // Enable HMR overlay on error
+        overlay: true,
+      },
       proxy: {
         '/api': {
           target: apiProxyTarget,

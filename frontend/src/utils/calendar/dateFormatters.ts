@@ -43,6 +43,16 @@ export function formatDateRange(
     // When switching views, currentDateRange updates before the view stabilizes,
     // but currentDate remains stable thanks to the isViewChanging flag
     const dateToFormat = currentDate || start
+
+    // Hebrew: "4 בנובמבר, 2025" (day + ב + month + year)
+    // English: "November 4, 2025" (month + day + year)
+    if (locale === 'he') {
+      const day = format(dateToFormat, 'd', { locale: localeObj })
+      const month = format(dateToFormat, 'MMMM', { locale: localeObj })
+      const year = format(dateToFormat, 'yyyy', { locale: localeObj })
+      return `${day} ב${month}, ${year}`
+    }
+
     return format(dateToFormat, 'MMMM d, yyyy', { locale: localeObj })
   } else if (view === 'timeGridWeek') {
     const startMonth = format(start, 'MMM', { locale: localeObj })
