@@ -337,9 +337,10 @@ export const useAppointmentsStore = defineStore('appointments', () => {
    * Optimistic navigation - Show cached data immediately, fetch fresh data in background
    *
    * Implements stale-while-revalidate pattern for instant navigation:
-   * 1. If we have cached data, show it immediately (even if stale)
-   * 2. Fetch fresh data in background
-   * 3. Silently update when fresh data arrives
+   * 1. Check if this exact range was just loaded (prevent duplicate fetches)
+   * 2. If we have cached data, show it immediately (even if stale)
+   * 3. Fetch fresh data in background (debounced to prevent spam)
+   * 4. Silently update when fresh data arrives
    *
    * This makes calendar navigation feel instant on mobile swipes.
    *
@@ -347,17 +348,33 @@ export const useAppointmentsStore = defineStore('appointments', () => {
    * @param visibleEnd - End of the visible date range
    * @returns Immediately with cached data if available, otherwise waits for fetch
    */
+
+  // Track last fetch to prevent duplicate requests
+  let lastFetchKey: string | null = null
+  let lastFetchTime = 0
+  const FETCH_DEBOUNCE_MS = 100 // Prevent multiple fetches within 100ms
+
   async function loadAppointmentsOptimistic(
     visibleStart: Date,
     visibleEnd: Date
   ): Promise<void> {
     const cacheKey = getCacheKey(visibleStart, visibleEnd)
+    const now = Date.now()
+
+    // Prevent duplicate fetches for the same range within debounce window
+    if (cacheKey === lastFetchKey && now - lastFetchTime < FETCH_DEBOUNCE_MS) {
+      return
+    }
 
     // If we have cached data, show it immediately
     if (appointmentsCache.has(cacheKey)) {
       appointments.value = appointmentsCache.get(cacheKey)!
       // Don't return yet - continue to fetch fresh data in background
     }
+
+    // Update last fetch tracking
+    lastFetchKey = cacheKey
+    lastFetchTime = now
 
     // Fetch fresh data (without blocking if we showed cached data)
     try {
