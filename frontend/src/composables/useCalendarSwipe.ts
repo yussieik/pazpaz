@@ -32,13 +32,24 @@ export function useCalendarSwipe(
   const isNavigating = ref(false)
 
   // Configure swipe behavior
-  const { direction } = useSwipe(target, {
+  const { direction, lengthX, lengthY } = useSwipe(target, {
     // Minimum distance threshold to trigger swipe (in pixels)
     // Prevents accidental navigation from small touch movements
     threshold: 50,
 
-    // Only capture horizontal swipes
-    passive: true,
+    // Use passive: false to allow preventDefault on horizontal swipes
+    passive: false,
+
+    // Detect horizontal swipes and prevent page scroll
+    onSwipe: (e: TouchEvent) => {
+      const absX = Math.abs(lengthX.value)
+      const absY = Math.abs(lengthY.value)
+
+      // If horizontal swipe is more dominant than vertical, prevent default scroll
+      if (absX > absY && absX > 10) {
+        e.preventDefault()
+      }
+    },
 
     // Handle swipe completion
     onSwipeEnd: (
