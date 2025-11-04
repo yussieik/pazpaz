@@ -6,8 +6,11 @@ import type { SessionNoteAction } from '@/types/sessions'
 import { formatDate } from '@/utils/calendar/dateFormatters'
 import { hasSubstantialContent } from '@/types/sessions'
 import { useSessionQuery } from '@/composables/useSessionQuery'
+import { useI18n } from '@/composables/useI18n'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
+
+const { t } = useI18n()
 
 interface Props {
   appointment: AppointmentListItem | null
@@ -44,18 +47,18 @@ const {
 } = useSessionQuery()
 const sessionNoteAction = ref<SessionNoteAction>('keep')
 
-// Quick-pick reason suggestions
-const reasonSuggestions = [
-  'Duplicate entry',
-  'Entered in error',
-  'Client cancelled before appointment',
-]
+// Quick-pick reason suggestions (computed to support i18n)
+const reasonSuggestions = computed(() => [
+  t('calendar.deleteAppointment.reasons.duplicate'),
+  t('calendar.deleteAppointment.reasons.error'),
+  t('calendar.deleteAppointment.reasons.clientCancelled'),
+])
 
-const sessionDeletionReasons = [
-  'Entered in error',
-  'Duplicate note',
-  'No clinical value',
-]
+const sessionDeletionReasons = computed(() => [
+  t('calendar.deleteAppointment.sessionReasons.error'),
+  t('calendar.deleteAppointment.sessionReasons.duplicate'),
+  t('calendar.deleteAppointment.sessionReasons.noClinicalValue'),
+])
 
 // Real session note metadata from API
 const sessionNoteWordCount = computed(() => {
@@ -240,7 +243,7 @@ function applySuggestion(suggestion: string) {
             id="delete-appointment-stage-1-title"
             class="text-lg font-semibold text-slate-900"
           >
-            Delete Appointment?
+            {{ t('calendar.deleteAppointment.title') }}
           </h3>
 
           <!-- Appointment Details -->
@@ -256,13 +259,13 @@ function applySuggestion(suggestion: string) {
           <!-- Loading state -->
           <div v-if="loadingSession" class="mt-4 py-4 text-center">
             <LoadingSpinner size="md" color="slate" />
-            <p class="mt-2 text-sm text-slate-600">Checking for session notes...</p>
+            <p class="mt-2 text-sm text-slate-600">{{ t('calendar.deleteAppointment.loadingSessionNote') }}</p>
           </div>
 
           <!-- Session Note Action Selection (if session exists) -->
           <div v-else-if="sessionNote" class="mt-4 space-y-3">
             <p class="text-sm font-medium text-slate-700">
-              This appointment has a session note. What would you like to do with it?
+              {{ t('calendar.deleteAppointment.sessionNoteQuestion') }}
             </p>
 
             <!-- Keep Option -->
@@ -282,16 +285,16 @@ function applySuggestion(suggestion: string) {
               />
               <div class="flex-1">
                 <div class="flex items-center gap-2">
-                  <span class="font-medium text-slate-900">Keep session note</span>
+                  <span class="font-medium text-slate-900">{{ t('calendar.deleteAppointment.keepSessionNote') }}</span>
                   <span
                     v-if="hasSubstantialContent(sessionNote)"
                     class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700"
                   >
-                    Recommended
+                    {{ t('calendar.deleteAppointment.recommended') }}
                   </span>
                 </div>
                 <p class="mt-1 text-sm text-slate-600">
-                  Preserve the clinical documentation ({{ sessionNoteWordCount }} words)
+                  {{ t('calendar.deleteAppointment.preserveClinical', { count: sessionNoteWordCount }) }}
                 </p>
               </div>
             </label>
@@ -313,10 +316,10 @@ function applySuggestion(suggestion: string) {
               />
               <div class="flex-1">
                 <div class="flex items-center gap-2">
-                  <span class="font-medium text-slate-900">Delete session note</span>
+                  <span class="font-medium text-slate-900">{{ t('calendar.deleteAppointment.deleteSessionNote') }}</span>
                 </div>
                 <p class="mt-1 text-sm text-slate-600">
-                  30-day recovery period before permanent deletion
+                  {{ t('calendar.deleteAppointment.recoveryPeriod') }}
                 </p>
               </div>
             </label>
@@ -324,7 +327,7 @@ function applySuggestion(suggestion: string) {
             <!-- Session Deletion Reason (if delete selected) -->
             <div v-if="sessionNoteAction === 'delete'" class="mt-2 ml-10 space-y-2">
               <label class="text-xs font-medium text-slate-700">
-                Reason for deleting note (optional)
+                {{ t('calendar.deleteAppointment.sessionDeletionReasonLabel') }}
               </label>
               <div class="flex flex-wrap gap-2">
                 <button
@@ -356,10 +359,10 @@ function applySuggestion(suggestion: string) {
             <IconWarning size="md" class="flex-shrink-0 text-amber-600" />
             <div>
               <p class="text-sm font-medium text-amber-800">
-                This appointment is marked as attended.
+                {{ t('calendar.deleteAppointment.attendedWarningTitle') }}
               </p>
               <p class="mt-1 text-sm text-amber-700">
-                This action is logged in your audit history for your protection.
+                {{ t('calendar.deleteAppointment.attendedWarningDesc') }}
               </p>
             </div>
           </div>
@@ -370,15 +373,14 @@ function applySuggestion(suggestion: string) {
               for="deletion-reason"
               class="mb-1.5 block text-sm font-medium text-slate-700"
             >
-              Why are you deleting this? (optional)
+              {{ t('calendar.deleteAppointment.deletionReasonLabel') }}
             </label>
             <textarea
               id="deletion-reason"
               v-model="reason"
-              v-rtl
               class="mt-2 min-h-[80px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               rows="3"
-              placeholder="e.g., Duplicate entry"
+              :placeholder="t('calendar.deleteAppointment.deletionReasonPlaceholder')"
             ></textarea>
 
             <!-- Quick-pick Suggestions -->
@@ -403,7 +405,7 @@ function applySuggestion(suggestion: string) {
               :disabled="isDeleting"
               class="order-2 inline-flex min-h-[44px] w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:order-1 sm:w-auto"
             >
-              Cancel
+              {{ t('calendar.deleteAppointment.cancelButton') }}
             </button>
             <button
               @click="handleDeleteClick"
@@ -414,10 +416,10 @@ function applySuggestion(suggestion: string) {
               <LoadingSpinner v-if="isDeleting" size="sm" color="blue" />
               <span>{{
                 isDeleting
-                  ? 'Deleting...'
+                  ? t('calendar.deleteAppointment.deletingButton')
                   : loadingSession
-                    ? 'Loading...'
-                    : 'Delete Appointment'
+                    ? t('calendar.deleteAppointment.loadingButton')
+                    : t('calendar.deleteAppointment.deleteButton')
               }}</span>
             </button>
           </div>
@@ -447,7 +449,7 @@ function applySuggestion(suggestion: string) {
             id="delete-appointment-stage-2-title"
             class="text-lg font-semibold text-slate-900"
           >
-            Final Confirmation
+            {{ t('calendar.deleteAppointment.finalConfirmationTitle') }}
           </h3>
 
           <!-- Warning: What will be deleted -->
@@ -457,7 +459,7 @@ function applySuggestion(suggestion: string) {
             <IconWarning size="md" class="flex-shrink-0 text-amber-600" />
             <div>
               <p class="text-sm font-medium text-amber-800">
-                This will permanently delete:
+                {{ t('calendar.deleteAppointment.willDeleteTitle') }}
               </p>
               <ul class="mt-2 space-y-1 text-sm text-amber-700">
                 <li>
@@ -499,8 +501,7 @@ function applySuggestion(suggestion: string) {
                 />
               </svg>
               <p class="text-sm text-blue-800">
-                This action is logged in your audit history, including who deleted it
-                and when. The audit log provides protection in case of disputes.
+                {{ t('calendar.deleteAppointment.auditLogInfo') }}
               </p>
             </div>
           </div>
@@ -513,7 +514,7 @@ function applySuggestion(suggestion: string) {
               :disabled="isDeleting"
               class="order-2 inline-flex min-h-[44px] w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:order-1 sm:w-auto"
             >
-              Go Back
+              {{ t('calendar.deleteAppointment.goBackButton') }}
             </button>
             <button
               @click="handleFinalConfirm"
@@ -522,7 +523,7 @@ function applySuggestion(suggestion: string) {
               class="order-1 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:order-2 sm:w-auto"
             >
               <LoadingSpinner v-if="isDeleting" size="sm" color="blue" />
-              <span>{{ isDeleting ? 'Deleting...' : 'Yes, Delete Everything' }}</span>
+              <span>{{ isDeleting ? t('calendar.deleteAppointment.deletingButton') : t('calendar.deleteAppointment.yesDeleteButton') }}</span>
             </button>
           </div>
         </div>

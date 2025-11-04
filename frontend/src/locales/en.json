@@ -365,6 +365,44 @@
         "undoCancelled": "Appointment cancellation undone",
         "restored": "Appointment restored"
       }
+    },
+    "deleteAppointment": {
+      "title": "Delete Appointment?",
+      "finalConfirmationTitle": "Final Confirmation",
+      "loadingSessionNote": "Checking for session notes...",
+      "sessionNoteQuestion": "This appointment has a session note. What would you like to do with it?",
+      "keepSessionNote": "Keep session note",
+      "deleteSessionNote": "Delete session note",
+      "recommended": "Recommended",
+      "preserveClinical": "Preserve the clinical documentation ({count} words)",
+      "recoveryPeriod": "30-day recovery period before permanent deletion",
+      "sessionDeletionReasonLabel": "Reason for deleting note (optional)",
+      "attendedWarningTitle": "This appointment is marked as attended.",
+      "attendedWarningDesc": "This action is logged in your audit history for your protection.",
+      "deletionReasonLabel": "Why are you deleting this? (optional)",
+      "deletionReasonPlaceholder": "e.g., Duplicate entry",
+      "cancelButton": "Cancel",
+      "deleteButton": "Delete Appointment",
+      "deletingButton": "Deleting...",
+      "loadingButton": "Loading...",
+      "goBackButton": "Go Back",
+      "yesDeleteButton": "Yes, Delete Everything",
+      "willDeleteTitle": "This will permanently delete:",
+      "appointmentItem": "The appointment ({date})",
+      "sessionNoteItem": "Session note ({count} words, 30-day recovery)",
+      "attachmentsItem": "{count} attached file(s)",
+      "sessionKeptItem": "✓ Session note will be kept ({count} words preserved)",
+      "auditLogInfo": "This action is logged in your audit history, including who deleted it and when. The audit log provides protection in case of disputes.",
+      "reasons": {
+        "duplicate": "Duplicate entry",
+        "error": "Entered in error",
+        "clientCancelled": "Client cancelled before appointment"
+      },
+      "sessionReasons": {
+        "error": "Entered in error",
+        "duplicate": "Duplicate note",
+        "noClinicalValue": "No clinical value"
+      }
     }
   },
   "clients": {

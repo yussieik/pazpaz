@@ -365,6 +365,44 @@
         "undoCancelled": "ביטול הפגישה בוטל",
         "restored": "הפגישה שוחזרה"
       }
+    },
+    "deleteAppointment": {
+      "title": "למחוק את הפגישה?",
+      "finalConfirmationTitle": "אישור סופי",
+      "loadingSessionNote": "בודק רישומי פגישה...",
+      "sessionNoteQuestion": "לפגישה זו יש רישום פגישה. מה תרצה לעשות איתו?",
+      "keepSessionNote": "שמור את רישום הפגישה",
+      "deleteSessionNote": "מחק את רישום הפגישה",
+      "recommended": "מומלץ",
+      "preserveClinical": "שמירת התיעוד הקליני ({count} מילים)",
+      "recoveryPeriod": "תקופת שחזור של 30 יום לפני מחיקה סופית",
+      "sessionDeletionReasonLabel": "סיבה למחיקת הרישום (אופציונלי)",
+      "attendedWarningTitle": "הפגישה מסומנת כהתקיימה.",
+      "attendedWarningDesc": "פעולה זו נרשמת בהיסטוריית הביקורת שלך להגנתך.",
+      "deletionReasonLabel": "למה אתה מוחק את הפגישה? (אופציונלי)",
+      "deletionReasonPlaceholder": "למשל, רישום כפול",
+      "cancelButton": "ביטול",
+      "deleteButton": "מחק פגישה",
+      "deletingButton": "מוחק...",
+      "loadingButton": "טוען...",
+      "goBackButton": "חזור",
+      "yesDeleteButton": "כן, מחק הכל",
+      "willDeleteTitle": "פעולה זו תמחק לצמיתות:",
+      "appointmentItem": "את הפגישה ({date})",
+      "sessionNoteItem": "רישום פגישה ({count} מילים, שחזור של 30 יום)",
+      "attachmentsItem": "{count} קובץ(ים) מצורף(ים)",
+      "sessionKeptItem": "✓ רישום הפגישה יישמר ({count} מילים נשמרות)",
+      "auditLogInfo": "פעולה זו נרשמת בהיסטוריית הביקורת שלך, כולל מי מחק אותה ומתי. יומן הביקורת מספק הגנה במקרה של מחלוקות.",
+      "reasons": {
+        "duplicate": "רישום כפול",
+        "error": "נרשם בטעות",
+        "clientCancelled": "הלקוח ביטל לפני הפגישה"
+      },
+      "sessionReasons": {
+        "error": "נרשם בטעות",
+        "duplicate": "רישום כפול",
+        "noClinicalValue": "אין ערך קליני"
+      }
     }
   },
   "clients": {
