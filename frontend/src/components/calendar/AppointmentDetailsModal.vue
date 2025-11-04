@@ -4,6 +4,7 @@ import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/vue'
 import { useFocusTrap } from '@vueuse/integrations/useFocusTrap'
 import { useScrollLock, onKeyStroke } from '@vueuse/core'
 import { useI18n } from '@/composables/useI18n'
+import { useSwipeableTabs } from '@/composables/useSwipeableTabs'
 import type {
   AppointmentListItem,
   SessionStatus,
@@ -76,6 +77,22 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const modalRef = ref<HTMLElement>()
+const tabPanelsRef = ref<HTMLElement | null>(null)
+
+// Tab state for swipe navigation
+const selectedTabIndex = ref(0)
+const totalTabs = computed(() => (paymentsEnabled.value ? 2 : 1))
+
+// Swipeable tabs for mobile navigation
+const { swipeDirection, resetDirection } = useSwipeableTabs(
+  tabPanelsRef,
+  selectedTabIndex,
+  totalTabs.value,
+  (newIndex) => {
+    selectedTabIndex.value = newIndex
+    resetDirection()
+  }
+)
 
 // H9: Focus trap for accessibility (WCAG 2.1 AA compliance)
 // Disable Escape key handling by focus trap - we'll handle it manually
@@ -942,7 +959,7 @@ watch(
           </div>
 
           <!-- Tab Navigation -->
-          <TabGroup>
+          <TabGroup v-model="selectedTabIndex">
             <TabList
               role="tablist"
               :aria-label="t('calendar.appointmentDetails.tabsAriaLabel')"
@@ -981,7 +998,7 @@ watch(
               </Tab>
             </TabList>
 
-            <TabPanels>
+            <TabPanels ref="tabPanelsRef">
               <!-- Tab Panel 1: Appointment Details -->
               <TabPanel class="space-y-4 px-5 py-6 sm:px-6 focus:outline-none">
                 <!-- Time Card (Editable) -->

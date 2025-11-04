@@ -7,15 +7,64 @@
  * - Main content area for active category
  * - Header with "Settings" title
  * - Mobile-responsive (sidebar → horizontal tabs)
+ * - Swipe navigation between tabs on mobile
  *
  * This layout is ONLY used for the settings page. When users navigate to /settings,
  * they see this settings-specific layout instead of the main app layout.
  */
 
+import { ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useSwipe } from '@vueuse/core'
 import { useI18n } from '@/composables/useI18n'
 import SettingsSidebar from '@/components/settings/SettingsSidebar.vue'
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
+
+// Settings tabs in order
+const settingsTabs = [
+  '/settings/notifications',
+  '/settings/integrations',
+  '/settings/payments',
+  '/settings/language',
+]
+
+// Get current tab index based on route
+const currentTabIndex = computed(() => {
+  const index = settingsTabs.indexOf(route.path)
+  return index >= 0 ? index : 0
+})
+
+// Main content ref for swipe detection
+const mainContentRef = ref<HTMLElement | null>(null)
+
+// Swipe navigation
+useSwipe(mainContentRef, {
+  threshold: 80,
+  passive: true,
+  onSwipeEnd: (_e: TouchEvent, direction: 'left' | 'right' | 'up' | 'down' | 'none') => {
+    // Respect reduced motion preference
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return
+    }
+
+    if (direction === 'left') {
+      // Swipe left → next tab
+      const nextIndex = currentTabIndex.value + 1
+      if (nextIndex < settingsTabs.length) {
+        router.push(settingsTabs[nextIndex])
+      }
+    } else if (direction === 'right') {
+      // Swipe right → previous tab
+      const prevIndex = currentTabIndex.value - 1
+      if (prevIndex >= 0) {
+        router.push(settingsTabs[prevIndex])
+      }
+    }
+  },
+})
 </script>
 
 <template>
@@ -148,7 +197,7 @@ const { t } = useI18n()
       </nav>
 
       <!-- Router View (category content) -->
-      <main class="flex-1 overflow-y-auto bg-slate-50">
+      <main ref="mainContentRef" class="flex-1 overflow-y-auto bg-slate-50">
         <div class="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8">
           <RouterView />
         </div>
