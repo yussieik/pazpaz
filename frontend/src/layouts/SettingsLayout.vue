@@ -13,7 +13,7 @@
  * they see this settings-specific layout instead of the main app layout.
  */
 
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSwipe } from '@vueuse/core'
 import { useI18n } from '@/composables/useI18n'
@@ -39,6 +39,24 @@ const currentTabIndex = computed(() => {
 
 // Main content ref for swipe detection
 const mainContentRef = ref<HTMLElement | null>(null)
+
+// Tabs container ref for scrolling active tab into view
+const tabsRef = ref<HTMLElement | null>(null)
+
+// Scroll active tab into view when route changes
+watch(currentTabIndex, async (newIndex) => {
+  await nextTick()
+  if (tabsRef.value) {
+    const activeTab = tabsRef.value.children[newIndex] as HTMLElement
+    if (activeTab) {
+      activeTab.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      })
+    }
+  }
+})
 
 // Swipe navigation
 useSwipe(mainContentRef, {
@@ -87,7 +105,7 @@ useSwipe(mainContentRef, {
     <div class="flex flex-1 flex-col overflow-hidden">
       <!-- Mobile Horizontal Tabs (visible on mobile only) -->
       <nav class="bg-white px-4 lg:hidden border-b border-slate-200">
-        <ul class="flex overflow-x-auto -mb-px">
+        <ul ref="tabsRef" class="flex overflow-x-auto -mb-px scrollbar-hide">
           <li>
             <RouterLink
               to="/settings/notifications"
@@ -216,3 +234,15 @@ useSwipe(mainContentRef, {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Hide scrollbar for mobile tabs */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+</style>
