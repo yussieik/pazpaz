@@ -100,6 +100,7 @@ const { t } = useI18n()
 
 const {
   currentView,
+  currentDate,
   currentDateRange,
   formattedDateRange,
   isToolbarNavigating,
@@ -693,6 +694,22 @@ const calendarOptions = computed(() => ({
     info.el.title = tooltipText
   },
 }))
+
+// Watch for view changes and update FullCalendar
+watch(currentView, (newView) => {
+  const calendarApi = calendarRef.value?.getApi()
+  if (calendarApi) {
+    calendarApi.changeView(newView)
+  }
+})
+
+// Watch for date changes and navigate FullCalendar
+watch(currentDate, (newDate) => {
+  const calendarApi = calendarRef.value?.getApi()
+  if (calendarApi) {
+    calendarApi.gotoDate(newDate)
+  }
+})
 
 /**
  * Handle appointment reschedule (from drag-and-drop or mobile modal)
