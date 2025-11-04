@@ -17,7 +17,6 @@ import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import SettingsCard from '@/components/settings/SettingsCard.vue'
 import { useNotificationSettings } from '@/composables/useNotificationSettings'
-import { REMINDER_MINUTE_OPTIONS } from '@/types/notification-settings'
 
 const { t } = useI18n()
 const { settings, isLoading, error, loadSettings } = useNotificationSettings()
