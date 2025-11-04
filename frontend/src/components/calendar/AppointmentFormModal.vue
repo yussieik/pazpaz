@@ -21,7 +21,7 @@ import {
 import { useClientsStore } from '@/stores/clients'
 import { useDeviceType } from '@/composables/useDeviceType'
 
-const { t, isRTL } = useI18n()
+const { t } = useI18n()
 
 interface Props {
   visible: boolean
