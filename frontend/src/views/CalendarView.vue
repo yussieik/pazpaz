@@ -100,7 +100,6 @@ const { t } = useI18n()
 
 const {
   currentView,
-  currentDate,
   currentDateRange,
   formattedDateRange,
   isToolbarNavigating,
