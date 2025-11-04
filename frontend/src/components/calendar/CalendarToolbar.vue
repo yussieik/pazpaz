@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import type { ViewType } from '@/types/calendar'
 
-const { t } = useI18n()
+const { t, isRTL } = useI18n()
 
 interface Props {
   currentView: ViewType
@@ -77,7 +77,7 @@ defineExpose({
             :aria-label="t('calendar.toolbar.previousPeriod')"
           >
             <svg
-              class="h-5 w-5 flex-shrink-0"
+              :class="['h-5 w-5 flex-shrink-0', { 'rotate-180': isRTL }]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -97,7 +97,7 @@ defineExpose({
             :aria-label="t('calendar.toolbar.nextPeriod')"
           >
             <svg
-              class="h-5 w-5 flex-shrink-0"
+              :class="['h-5 w-5 flex-shrink-0', { 'rotate-180': isRTL }]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
