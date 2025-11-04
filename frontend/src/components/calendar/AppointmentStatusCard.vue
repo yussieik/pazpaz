@@ -7,7 +7,10 @@ import type {
   SessionStatus,
 } from '@/types/calendar'
 import { formatDistanceToNow } from 'date-fns'
+import { useI18n } from '@/composables/useI18n'
 import IconClock from '@/components/icons/IconClock.vue'
+
+const { t } = useI18n()
 
 interface Props {
   appointment: AppointmentListItem | null
@@ -135,9 +138,11 @@ onKeyStroke(['Meta+Shift+n', 'Control+Shift+n'], (e) => {
           />
         </svg>
         <div class="flex-1">
-          <p class="text-sm font-medium text-slate-900">Session in progress</p>
+          <p class="text-sm font-medium text-slate-900">
+            {{ t('calendar.appointmentDetails.statusCard.sessionInProgress') }}
+          </p>
           <p class="mt-0.5 text-xs text-slate-600">
-            Document observations and findings in real-time
+            {{ t('calendar.appointmentDetails.statusCard.sessionInProgressHint') }}
           </p>
         </div>
       </div>
@@ -149,16 +154,20 @@ onKeyStroke(['Meta+Shift+n', 'Control+Shift+n'], (e) => {
         <IconClock size="md" class="shrink-0 text-blue-600" />
         <div class="flex-1">
           <p class="text-sm font-medium text-slate-900">
-            This appointment ended {{ timeSinceEnd }}.
+            {{ t('calendar.appointmentDetails.statusCard.appointmentEnded', { timeAgo: timeSinceEnd }) }}
           </p>
-          <p class="mt-0.5 text-xs text-slate-600">Ready to document?</p>
+          <p class="mt-0.5 text-xs text-slate-600">
+            {{ t('calendar.appointmentDetails.statusCard.readyToDocument') }}
+          </p>
         </div>
       </div>
     </div>
 
     <!-- FUTURE: Keep existing message -->
     <div v-else class="mb-4">
-      <p class="text-sm text-slate-600">Update appointment status when completed</p>
+      <p class="text-sm text-slate-600">
+        {{ t('calendar.appointmentDetails.statusCard.updateWhenCompleted') }}
+      </p>
     </div>
 
     <!-- Action Buttons -->
@@ -198,7 +207,9 @@ onKeyStroke(['Meta+Shift+n', 'Control+Shift+n'], (e) => {
       >
         <span>
           {{
-            isInProgressAppointment ? 'Document Session' : 'Complete & Add Session Note'
+            isInProgressAppointment
+              ? t('calendar.appointmentDetails.statusCard.documentSession')
+              : t('calendar.appointmentDetails.statusCard.completeAndAddNote')
           }}
         </span>
         <span
@@ -223,7 +234,7 @@ onKeyStroke(['Meta+Shift+n', 'Control+Shift+n'], (e) => {
             : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
         ]"
       >
-        <span>Mark as Attended</span>
+        <span>{{ t('calendar.appointmentDetails.statusCard.markAsAttended') }}</span>
         <span
           :class="[
             'ml-2 rounded px-2 py-0.5 text-xs font-medium',
@@ -242,7 +253,7 @@ onKeyStroke(['Meta+Shift+n', 'Control+Shift+n'], (e) => {
         @click="markAsNoShow"
         class="flex w-full items-center justify-between rounded-lg border border-amber-300 bg-white px-4 py-2.5 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
       >
-        <span>Mark as No-Show</span>
+        <span>{{ t('calendar.appointmentDetails.statusCard.markAsNoShow') }}</span>
         <span
           class="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
         >

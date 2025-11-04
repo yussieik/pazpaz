@@ -874,7 +874,7 @@ watch(
                   :class="getStatusBadgeClass(appointment.status)"
                   class="inline-flex"
                 >
-                  {{ appointment.status.replace('_', ' ') }}
+                  {{ t(`calendar.appointmentDetails.statuses.${appointment.status}`) }}
                 </span>
 
                 <!-- IN PROGRESS BADGE: For appointments currently happening -->
@@ -1349,7 +1349,7 @@ watch(
                       class="text-sm text-slate-500"
                     >
                       <p>
-                        {{ t('calendar.appointmentDetails.noSessionNoteFor', { status: appointment.status.replace('_', ' ') }) }}
+                        {{ t('calendar.appointmentDetails.noSessionNoteFor', { status: t(`calendar.appointmentDetails.statuses.${appointment.status}`) }) }}
                       </p>
                     </div>
                   </div>

@@ -276,6 +276,12 @@
       "tabsAriaLabel": "לשוניות מידע פגישה ותשלום",
       "appointmentTab": "פגישה",
       "paymentTab": "תשלום",
+      "statuses": {
+        "scheduled": "מתוכנן",
+        "attended": "נכח",
+        "cancelled": "בוטל",
+        "no_show": "לא התייצב"
+      },
       "payment": {
         "title": "תשלום",
         "statusLabel": "סטטוס",
@@ -332,6 +338,17 @@
       "markAttendedHint": "סמן אותה כ'נכח' כדי ליצור הערות פגישה",
       "noSessionNoteFor": "אין הערות פגישה עבור פגישות {status}",
       "restoreButton": "שחזר פגישה",
+      "statusCard": {
+        "sessionInProgress": "פגישה בתהליך",
+        "sessionInProgressHint": "תעד תצפיות וממצאים בזמן אמת",
+        "appointmentEnded": "פגישה זו הסתיימה {timeAgo}.",
+        "readyToDocument": "מוכן לתיעוד?",
+        "updateWhenCompleted": "עדכן סטטוס פגישה כשהפגישה הושלמה",
+        "documentSession": "תעד פגישה",
+        "completeAndAddNote": "השלם והוסף הערת פגישה",
+        "markAsAttended": "סמן כ'נכח'",
+        "markAsNoShow": "סמן כ'לא התייצב'"
+      },
       "continueEditingSession": "המשך עריכת פגישה",
       "viewSessionNote": "צפה בהערת פגישה",
       "startSessionNotes": "התחל הערות פגישה",
@@ -503,8 +520,8 @@
           "emailRequiredWarning": "נדרשת כתובת אימייל כדי לשלוח תזכורות ביומן"
         },
         "toggleDetails": {
-          "addMore": "הוסף עוד",
-          "hide": "הסתר",
+          "addMore": "הוסף עוד מידע",
+          "hide": "הסתר מידע",
           "optional": "(אופציונלי)"
         },
         "dateOfBirth": {

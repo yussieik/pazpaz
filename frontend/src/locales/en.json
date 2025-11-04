@@ -276,6 +276,12 @@
       "tabsAriaLabel": "Appointment and payment information tabs",
       "appointmentTab": "Appointment",
       "paymentTab": "Payment",
+      "statuses": {
+        "scheduled": "Scheduled",
+        "attended": "Attended",
+        "cancelled": "Cancelled",
+        "no_show": "No-Show"
+      },
       "payment": {
         "title": "Payment",
         "statusLabel": "Status",
@@ -332,6 +338,17 @@
       "markAttendedHint": "Mark it as attended to create session notes",
       "noSessionNoteFor": "No session notes for {status} appointments",
       "restoreButton": "Restore Appointment",
+      "statusCard": {
+        "sessionInProgress": "Session in progress",
+        "sessionInProgressHint": "Document observations and findings in real-time",
+        "appointmentEnded": "This appointment ended {timeAgo}.",
+        "readyToDocument": "Ready to document?",
+        "updateWhenCompleted": "Update appointment status when completed",
+        "documentSession": "Document Session",
+        "completeAndAddNote": "Complete & Add Session Note",
+        "markAsAttended": "Mark as Attended",
+        "markAsNoShow": "Mark as No-Show"
+      },
       "continueEditingSession": "Continue Editing Session",
       "viewSessionNote": "View Session Note",
       "startSessionNotes": "Start Session Notes",
@@ -503,8 +520,8 @@
           "emailRequiredWarning": "Email address required to send calendar reminders"
         },
         "toggleDetails": {
-          "addMore": "Add More",
-          "hide": "Hide",
+          "addMore": "Add More Details",
+          "hide": "Hide Details",
           "optional": "(optional)"
         },
         "dateOfBirth": {

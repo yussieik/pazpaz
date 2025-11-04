@@ -516,7 +516,7 @@ onUnmounted(() => {
               class="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             >
               <span>
-                {{ isAdditionalDetailsExpanded ? t('clients.formModal.fields.toggleDetails.hide') : t('clients.formModal.fields.toggleDetails.addMore') }} Details
+                {{ isAdditionalDetailsExpanded ? t('clients.formModal.fields.toggleDetails.hide') : t('clients.formModal.fields.toggleDetails.addMore') }}
                 <span class="text-slate-500">{{ t('clients.formModal.fields.toggleDetails.optional') }}</span>
               </span>
               <svg
