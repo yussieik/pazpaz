@@ -1530,7 +1530,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 
       <!-- Calendar Content Area (Fixed Height Container) -->
       <div class="calendar-content-area relative overflow-hidden">
-        <!-- FullCalendar Component with Transition -->
+        <!-- FullCalendar Component -->
         <div
           ref="calendarContainerRef"
           class="calendar-container relative p-4"
@@ -1548,17 +1548,10 @@ function handleGlobalKeydown(event: KeyboardEvent) {
             :style="hoverOverlayStyle"
           ></div>
 
-          <Transition
-            :name="transitionName"
-            @after-enter="resetDirection"
-            @after-leave="resetDirection"
-          >
-            <FullCalendar
-              ref="calendarRef"
-              :key="calendarKey"
-              :options="calendarOptions"
-            />
-          </Transition>
+          <FullCalendar
+            ref="calendarRef"
+            :options="calendarOptions"
+          />
         </div>
       </div>
     </div>
