@@ -10,7 +10,6 @@ import type {
 import { checkAppointmentConflicts } from '@/api/client'
 import ClientCombobox from '@/components/clients/ClientCombobox.vue'
 import TimePickerDropdown from '@/components/common/TimePickerDropdown.vue'
-import PaymentTrackingCard from '@/components/appointments/PaymentTrackingCard.vue'
 import IconClose from '@/components/icons/IconClose.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 import {
@@ -22,7 +21,7 @@ import {
 import { useClientsStore } from '@/stores/clients'
 import { useDeviceType } from '@/composables/useDeviceType'
 
-const { t } = useI18n()
+const { t, isRTL } = useI18n()
 
 interface Props {
   visible: boolean
@@ -854,7 +853,6 @@ watch(
               <input
                 id="location-details"
                 v-model="formData.location_details"
-                v-rtl
                 type="text"
                 :placeholder="t('calendar.appointmentForm.locationDetailsPlaceholder')"
                 class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
@@ -903,20 +901,11 @@ watch(
               <textarea
                 id="notes"
                 v-model="formData.notes"
-                v-rtl
                 rows="6"
                 :placeholder="t('calendar.appointmentForm.notesPlaceholder')"
                 class="sm:rows-3 mt-1 block min-h-[120px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               ></textarea>
             </div>
-
-            <!-- Payment Tracking -->
-            <PaymentTrackingCard
-              v-model:payment-price="formData.payment_price"
-              v-model:payment-status="formData.payment_status!"
-              v-model:payment-method="formData.payment_method"
-              v-model:payment-notes="formData.payment_notes"
-            />
           </form>
 
           <!-- Footer -->
