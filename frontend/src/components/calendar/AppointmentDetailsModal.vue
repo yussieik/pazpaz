@@ -960,7 +960,7 @@ watch(
           </div>
 
           <!-- Tab Navigation -->
-          <TabGroup v-model="selectedTabIndex">
+          <TabGroup v-model="selectedTabIndex" as="div">
             <TabList
               role="tablist"
               :aria-label="t('calendar.appointmentDetails.tabsAriaLabel')"
