@@ -136,7 +136,7 @@ function handleEventClick(clickInfo: EventClickArg) {
 const { showLoadingSpinner } = useCalendarLoading()
 
 // Mobile swipe navigation - hidden on desktop (≥640px)
-const { swipeDirection, isNavigating, resetDirection } = useCalendarSwipe(
+const { isNavigating } = useCalendarSwipe(
   calendarContainerRef,
   handlePrev,
   handleNext
@@ -145,19 +145,6 @@ const { swipeDirection, isNavigating, resetDirection } = useCalendarSwipe(
 // Mobile drag scroll isolation - locks body scroll during drag on mobile (<768px)
 const { activateScrollIsolation, deactivateScrollIsolation } =
   useCalendarDragScrollLock()
-
-// Compute transition name based on swipe direction
-const transitionName = computed(() => {
-  if (!swipeDirection.value) return 'calendar-fade' // Fallback for non-swipe navigation (toolbar clicks)
-  return `calendar-slide-${swipeDirection.value}`
-})
-
-// Generate unique calendar key to force transition on every navigation
-// Combines view and timestamp to ensure uniqueness even when returning to same date
-const calendarKey = computed(() => {
-  // Use timestamp to ensure key changes on every navigation, even when returning to today
-  return `${currentView.value}-${currentDate.value.getTime()}`
-})
 
 /**
  * Apply correct height to calendar event
