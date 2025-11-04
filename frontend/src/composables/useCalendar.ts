@@ -82,10 +82,9 @@ export function useCalendar() {
       end: dateInfo.end,
     }
 
-    if (!isViewChanging.value) {
-      const centerTime = (dateInfo.start.getTime() + dateInfo.end.getTime()) / 2
-      currentDate.value = new Date(centerTime)
-    }
+    // DO NOT update currentDate here when using key-based navigation
+    // The key approach means we control the date explicitly via initialDate
+    // Updating currentDate would change the key and cause a re-mount loop
 
     if (isViewChanging.value) {
       isViewChanging.value = false
