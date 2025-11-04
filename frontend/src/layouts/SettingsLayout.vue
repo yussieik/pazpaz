@@ -53,14 +53,16 @@ useSwipe(mainContentRef, {
     if (direction === 'left') {
       // Swipe left → next tab
       const nextIndex = currentTabIndex.value + 1
-      if (nextIndex < settingsTabs.length) {
-        router.push(settingsTabs[nextIndex])
+      const nextTab = settingsTabs[nextIndex]
+      if (nextTab) {
+        router.push(nextTab)
       }
     } else if (direction === 'right') {
       // Swipe right → previous tab
       const prevIndex = currentTabIndex.value - 1
-      if (prevIndex >= 0) {
-        router.push(settingsTabs[prevIndex])
+      const prevTab = settingsTabs[prevIndex]
+      if (prevTab) {
+        router.push(prevTab)
       }
     }
   },
