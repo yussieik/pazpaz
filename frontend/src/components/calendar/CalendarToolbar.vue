@@ -70,6 +70,7 @@ defineExpose({
 
         <!-- Navigation arrows - Hidden on mobile (≤640px), visible on desktop -->
         <div class="hidden items-center gap-0.5 sm:flex">
+          <!-- First button: always goes PREVIOUS (backward in time) -->
           <button
             ref="previousButtonRef"
             @click="emit('previous')"
@@ -90,6 +91,7 @@ defineExpose({
               />
             </svg>
           </button>
+          <!-- Second button: always goes NEXT (forward in time) -->
           <button
             ref="nextButtonRef"
             @click="emit('next')"
@@ -191,7 +193,9 @@ defineExpose({
             :aria-pressed="currentView === 'dayGridMonth'"
             :aria-label="t('calendar.toolbar.views.switchToMonth')"
           >
-            <span class="hidden sm:inline">{{ t('calendar.toolbar.views.month') }}</span>
+            <span class="hidden sm:inline">{{
+              t('calendar.toolbar.views.month')
+            }}</span>
             <span class="sm:hidden">{{ t('calendar.toolbar.views.monthShort') }}</span>
           </button>
         </div>

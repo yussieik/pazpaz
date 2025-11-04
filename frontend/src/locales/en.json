@@ -47,6 +47,9 @@
       "saved": "Saved successfully",
       "deleted": "Deleted successfully",
       "error": "An error occurred. Please try again."
+    },
+    "time": {
+      "minutesShort": "{count} min"
     }
   },
   "auth": {
@@ -605,7 +608,22 @@
         "deletedNotesEmpty": "No deleted notes",
         "deletedNotesEmptyDescription": "Deleted session notes will appear here for {days} days",
         "recoveryPeriodTitle": "{days}-day recovery period",
-        "recoveryPeriodDescription": "Deleted session notes are kept for {days} days before permanent deletion. You can restore them at any time during this period."
+        "recoveryPeriodDescription": "Deleted session notes are kept for {days} days before permanent deletion. You can restore them at any time during this period.",
+        "loadingDeletedNotes": "Loading deleted notes...",
+        "loadDeletedNotesFailed": "Failed to load deleted notes",
+        "tryAgain": "Try again",
+        "deletedTime": "Deleted {time}",
+        "daysLeft": "{days} days left",
+        "permanentlyDeleted": "Permanently deleted",
+        "noContent": "No content",
+        "deletionReason": "Reason:",
+        "restoring": "Restoring...",
+        "restore": "Restore",
+        "deleting": "Deleting...",
+        "deleteForever": "Delete Forever",
+        "today": "today",
+        "yesterday": "yesterday",
+        "daysAgo": "{days} days ago"
       },
       "files": {
         "searchPlaceholder": "Search files...",
@@ -670,6 +688,10 @@
       "errorPermission": "You do not have permission to view this session",
       "errorGeneric": "Failed to load session",
       "goBackButton": "Go Back"
+    },
+    "timeline": {
+      "emptyStateTitle": "No sessions yet",
+      "emptyStateDescription": "Schedule an appointment to start documenting treatment."
     },
     "editor": {
       "soapGuide": {

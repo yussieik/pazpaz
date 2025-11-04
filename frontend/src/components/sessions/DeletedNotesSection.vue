@@ -20,17 +20,13 @@ import { useToast } from '@/composables/useToast'
 import apiClient from '@/api/client'
 import type { SessionResponse } from '@/types/sessions'
 import { isGracePeriodExpired } from '@/types/sessions'
-import {
-  getDaysRemaining,
-  formatRelativeTime,
-  formatLongDate,
-} from '@/utils/calendar/dateFormatters'
+import { getDaysRemaining, formatLongDate } from '@/utils/calendar/dateFormatters'
 import { truncate } from '@/utils/textFormatters'
 import { SESSION_DELETION_GRACE_PERIOD_DAYS } from '@/constants/sessions'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import IconClock from '@/components/icons/IconClock.vue'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 import IconDocument from '@/components/icons/IconDocument.vue'
 import type { AxiosError } from 'axios'
 
@@ -200,9 +196,26 @@ async function permanentlyDeleteSession(session: SessionResponse) {
 
 /**
  * Format deletion time with "Deleted" prefix
+ * Returns translated string like "נמחק היום" (Hebrew) or "Deleted today" (English)
  */
 function formatDeletionTime(deletedAt: string): string {
-  return `Deleted ${formatRelativeTime(deletedAt).toLowerCase()}`
+  const past = new Date(deletedAt)
+  const now = new Date()
+  const diffMs = now.getTime() - past.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  let relativeTime: string
+  if (diffDays === 0) {
+    relativeTime = t('clients.detailView.history.today')
+  } else if (diffDays === 1) {
+    relativeTime = t('clients.detailView.history.yesterday')
+  } else {
+    relativeTime = t('clients.detailView.history.daysAgo', { days: diffDays })
+  }
+
+  return t('clients.detailView.history.deletedTime', {
+    time: relativeTime,
+  })
 }
 </script>
 
@@ -217,7 +230,9 @@ function formatDeletionTime(deletedAt: string): string {
       aria-controls="deleted-notes-content"
     >
       <div class="flex items-center gap-2">
-        <h3 class="text-lg font-semibold text-slate-900">{{ t('clients.detailView.history.deletedNotes') }}</h3>
+        <h3 class="text-lg font-semibold text-slate-900">
+          {{ t('clients.detailView.history.deletedNotes') }}
+        </h3>
         <span
           v-if="deletedNotesCount > 0"
           ref="badgeRef"
@@ -246,7 +261,7 @@ function formatDeletionTime(deletedAt: string): string {
     <div v-if="loading" class="mt-4">
       <div class="flex items-center gap-3 text-sm text-slate-600">
         <LoadingSpinner size="md" color="slate" />
-        <span>Loading deleted notes...</span>
+        <span>{{ t('clients.detailView.history.loadingDeletedNotes') }}</span>
       </div>
     </div>
 
@@ -267,13 +282,15 @@ function formatDeletionTime(deletedAt: string): string {
           />
         </svg>
         <div>
-          <p class="text-sm font-medium text-red-800">Failed to load deleted notes</p>
+          <p class="text-sm font-medium text-red-800">
+            {{ t('clients.detailView.history.loadDeletedNotesFailed') }}
+          </p>
           <p class="mt-1 text-sm text-red-700">{{ error }}</p>
           <button
             @click="fetchDeletedNotes"
             class="mt-2 text-sm font-medium text-red-800 underline hover:no-underline"
           >
-            Try again
+            {{ t('clients.detailView.history.tryAgain') }}
           </button>
         </div>
       </div>
@@ -299,9 +316,15 @@ function formatDeletionTime(deletedAt: string): string {
           class="rounded-lg border border-slate-200 bg-slate-50 p-8 text-center"
         >
           <IconDocument size="lg" class="mx-auto text-slate-400" />
-          <p class="mt-3 text-sm font-medium text-slate-900">{{ t('clients.detailView.history.deletedNotesEmpty') }}</p>
+          <p class="mt-3 text-sm font-medium text-slate-900">
+            {{ t('clients.detailView.history.deletedNotesEmpty') }}
+          </p>
           <p class="mt-1 text-sm text-slate-600">
-            {{ t('clients.detailView.history.deletedNotesEmptyDescription', { days: SESSION_DELETION_GRACE_PERIOD_DAYS }) }}
+            {{
+              t('clients.detailView.history.deletedNotesEmptyDescription', {
+                days: SESSION_DELETION_GRACE_PERIOD_DAYS,
+              })
+            }}
           </p>
         </div>
 
@@ -316,7 +339,7 @@ function formatDeletionTime(deletedAt: string): string {
             <div class="flex items-start justify-between">
               <div class="flex-1">
                 <p class="text-sm font-medium text-slate-900">
-                  {{ formatLongDate(session.session_date) }}
+                  {{ formatLongDate(session.session_date, locale) }}
                 </p>
                 <p class="mt-1 text-xs text-slate-600">
                   {{ session.deleted_at ? formatDeletionTime(session.deleted_at) : '' }}
@@ -332,10 +355,11 @@ function formatDeletionTime(deletedAt: string): string {
                 class="flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800"
               >
                 <IconClock size="sm" />
-                <span
-                  >{{ getDaysRemaining(session.permanent_delete_after) }} days
-                  left</span
-                >
+                <span>{{
+                  t('clients.detailView.history.daysLeft', {
+                    days: getDaysRemaining(session.permanent_delete_after),
+                  })
+                }}</span>
               </div>
 
               <!-- Expired badge -->
@@ -346,21 +370,26 @@ function formatDeletionTime(deletedAt: string): string {
                 "
                 class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"
               >
-                Permanently deleted
+                {{ t('clients.detailView.history.permanentlyDeleted') }}
               </div>
             </div>
 
             <!-- Preview -->
             <div class="mt-3">
               <p class="text-sm text-slate-600">
-                {{ getPreviewText(session) || 'No content' }}
+                {{
+                  getPreviewText(session) || t('clients.detailView.history.noContent')
+                }}
               </p>
             </div>
 
             <!-- Deletion reason (if provided) -->
             <div v-if="session.deleted_reason" class="mt-3 rounded-md bg-slate-50 p-2">
               <p class="text-xs text-slate-600">
-                <span class="font-medium">Reason:</span> {{ session.deleted_reason }}
+                <span class="font-medium">{{
+                  t('clients.detailView.history.deletionReason')
+                }}</span>
+                {{ session.deleted_reason }}
               </p>
             </div>
 
@@ -396,7 +425,9 @@ function formatDeletionTime(deletedAt: string): string {
                   />
                 </svg>
                 <span>{{
-                  restoringNoteId === session.id ? 'Restoring...' : 'Restore'
+                  restoringNoteId === session.id
+                    ? t('clients.detailView.history.restoring')
+                    : t('clients.detailView.history.restore')
                 }}</span>
               </button>
 
@@ -426,7 +457,9 @@ function formatDeletionTime(deletedAt: string): string {
                   />
                 </svg>
                 <span>{{
-                  deletingNoteId === session.id ? 'Deleting...' : 'Delete Forever'
+                  deletingNoteId === session.id
+                    ? t('clients.detailView.history.deleting')
+                    : t('clients.detailView.history.deleteForever')
                 }}</span>
               </button>
             </div>
@@ -451,10 +484,18 @@ function formatDeletionTime(deletedAt: string): string {
             </svg>
             <div class="text-sm text-blue-900">
               <p class="font-medium">
-                {{ t('clients.detailView.history.recoveryPeriodTitle', { days: SESSION_DELETION_GRACE_PERIOD_DAYS }) }}
+                {{
+                  t('clients.detailView.history.recoveryPeriodTitle', {
+                    days: SESSION_DELETION_GRACE_PERIOD_DAYS,
+                  })
+                }}
               </p>
               <p class="mt-1 text-blue-800">
-                {{ t('clients.detailView.history.recoveryPeriodDescription', { days: SESSION_DELETION_GRACE_PERIOD_DAYS }) }}
+                {{
+                  t('clients.detailView.history.recoveryPeriodDescription', {
+                    days: SESSION_DELETION_GRACE_PERIOD_DAYS,
+                  })
+                }}
               </p>
             </div>
           </div>

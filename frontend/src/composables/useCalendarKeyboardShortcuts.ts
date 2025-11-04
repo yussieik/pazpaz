@@ -1,5 +1,6 @@
 import { onMounted, onUnmounted, type Ref } from 'vue'
 import type { ViewType, AppointmentListItem } from '@/types/calendar'
+import { useI18n } from '@/composables/useI18n'
 
 export interface ToolbarButtonRefs {
   todayButton?: HTMLButtonElement
@@ -29,11 +30,13 @@ export interface KeyboardShortcutHandlers {
  * - d: Switch to day view
  * - m: Switch to month view
  * - ⌘N/Ctrl+N: Create new appointment
- * - Arrow Left: Previous period
- * - Arrow Right: Next period
+ * - Arrow Left: Previous period (LTR) / Next period (RTL)
+ * - Arrow Right: Next period (LTR) / Previous period (RTL)
  * - Escape: Close appointment details modal
  */
 export function useCalendarKeyboardShortcuts(handlers: KeyboardShortcutHandlers) {
+  const { isRTL } = useI18n()
+
   /**
    * Triggers visual feedback by briefly focusing the button
    */
@@ -101,14 +104,26 @@ export function useCalendarKeyboardShortcuts(handlers: KeyboardShortcutHandlers)
         break
       case 'ArrowLeft':
         if (!event.metaKey && !event.ctrlKey) {
-          handlers.onPrevious()
-          triggerButtonFeedback(buttonRefs?.previousButton)
+          // In RTL, left arrow should go forward (next)
+          if (isRTL.value) {
+            handlers.onNext()
+            triggerButtonFeedback(buttonRefs?.nextButton)
+          } else {
+            handlers.onPrevious()
+            triggerButtonFeedback(buttonRefs?.previousButton)
+          }
         }
         break
       case 'ArrowRight':
         if (!event.metaKey && !event.ctrlKey) {
-          handlers.onNext()
-          triggerButtonFeedback(buttonRefs?.nextButton)
+          // In RTL, right arrow should go backward (previous)
+          if (isRTL.value) {
+            handlers.onPrevious()
+            triggerButtonFeedback(buttonRefs?.previousButton)
+          } else {
+            handlers.onNext()
+            triggerButtonFeedback(buttonRefs?.nextButton)
+          }
         }
         break
       case 'Escape':

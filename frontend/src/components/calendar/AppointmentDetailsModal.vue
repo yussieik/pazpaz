@@ -162,7 +162,6 @@ const lastSavedText = computed(() => {
 // Using formatDateTimeForInput as formatDateTimeLocal for backward compatibility
 const formatDateTimeLocal = formatDateTimeForInput
 
-
 // Activate/deactivate focus trap and scroll lock based on visibility
 watch(
   () => props.visible,
@@ -921,7 +920,9 @@ watch(
                   <!-- Saving -->
                   <template v-if="isSaving">
                     <LoadingSpinner size="sm" color="slate" />
-                    <span class="text-slate-600">{{ t('calendar.appointmentDetails.saving') }}</span>
+                    <span class="text-slate-600">{{
+                      t('calendar.appointmentDetails.saving')
+                    }}</span>
                   </template>
 
                   <!-- Saved -->
@@ -939,7 +940,9 @@ watch(
                         d="M5 13l4 4L19 7"
                       />
                     </svg>
-                    <span class="text-slate-500">{{ t('calendar.appointmentDetails.savedAt', { time: lastSavedText }) }}</span>
+                    <span class="text-slate-500">{{
+                      t('calendar.appointmentDetails.savedAt', { time: lastSavedText })
+                    }}</span>
                   </template>
 
                   <!-- Error -->
@@ -964,18 +967,18 @@ watch(
             <TabList
               role="tablist"
               :aria-label="t('calendar.appointmentDetails.tabsAriaLabel')"
-              class="flex border-b border-slate-200 gap-1 px-5"
+              class="flex gap-1 border-b border-slate-200 px-5"
             >
               <!-- Appointment Tab -->
               <Tab as="template" v-slot="{ selected }">
                 <button
                   role="tab"
                   :class="[
-                    'px-4 py-3 text-sm font-medium transition-colors min-h-[44px]',
+                    'min-h-[44px] px-4 py-3 text-sm font-medium transition-colors',
                     'focus:outline-none',
                     selected
-                      ? 'border-b-2 border-emerald-600 text-emerald-700 font-semibold'
-                      : 'border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300',
+                      ? 'border-b-2 border-emerald-600 font-semibold text-emerald-700'
+                      : 'border-b-2 border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900',
                   ]"
                 >
                   {{ t('calendar.appointmentDetails.appointmentTab') }}
@@ -987,11 +990,11 @@ watch(
                 <button
                   role="tab"
                   :class="[
-                    'px-4 py-3 text-sm font-medium transition-colors min-h-[44px]',
+                    'min-h-[44px] px-4 py-3 text-sm font-medium transition-colors',
                     'focus:outline-none',
                     selected
-                      ? 'border-b-2 border-emerald-600 text-emerald-700 font-semibold'
-                      : 'border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300',
+                      ? 'border-b-2 border-emerald-600 font-semibold text-emerald-700'
+                      : 'border-b-2 border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900',
                   ]"
                 >
                   {{ t('calendar.appointmentDetails.paymentTab') }}
@@ -1002,276 +1005,188 @@ watch(
             <div ref="tabPanelsRef">
               <TabPanels>
                 <!-- Tab Panel 1: Appointment Details -->
-                <TabPanel class="space-y-4 px-5 py-6 sm:px-6 focus:outline-none">
-                <!-- Time Card (Editable) -->
-                <div class="rounded-lg border border-slate-200 bg-white p-4">
-                  <div class="mb-3 text-sm font-medium text-slate-500">{{ t('calendar.appointmentDetails.timeCardTitle') }}</div>
-
-                  <!-- Date -->
-                  <div class="mb-3">
-                    <label for="edit-date" class="block text-xs text-slate-500">
-                      {{ t('calendar.appointmentDetails.dateLabel') }}
-                    </label>
-                    <input
-                      id="edit-date"
-                      v-model="appointmentDate"
-                      type="date"
-                      :aria-label="t('calendar.appointmentDetails.dateAriaLabel')"
-                      class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
-                    />
-                  </div>
-
-                  <!-- Start Time -->
-                  <div class="mb-3">
-                    <TimePickerDropdown
-                      v-model="editableData.scheduled_start"
-                      :label="t('calendar.appointmentDetails.startLabel')"
-                      min-time="06:00"
-                      max-time="22:00"
-                      :interval="15"
-                      @update:model-value="handleDateTimeChange('scheduled_start')"
-                    />
-                  </div>
-
-                  <!-- End Time -->
-                  <div class="mb-3">
-                    <TimePickerDropdown
-                      v-model="editableData.scheduled_end"
-                      :label="t('calendar.appointmentDetails.endLabel')"
-                      min-time="06:00"
-                      max-time="22:00"
-                      :interval="15"
-                      @update:model-value="handleDateTimeChange('scheduled_end')"
-                    />
-                  </div>
-
-                  <!-- Duration Display & Quick Duration Pills -->
-                  <div class="mt-3 space-y-3">
-                    <!-- Duration Display -->
-                    <div class="text-sm text-slate-600">
-                      {{ t('calendar.appointmentDetails.durationLabel', { duration: calculatedDuration }) }}
+                <TabPanel class="space-y-4 px-5 py-6 focus:outline-none sm:px-6">
+                  <!-- Time Card (Editable) -->
+                  <div class="rounded-lg border border-slate-200 bg-white p-4">
+                    <div class="mb-3 text-sm font-medium text-slate-500">
+                      {{ t('calendar.appointmentDetails.timeCardTitle') }}
                     </div>
 
-                    <!-- Quick Duration Pills -->
-                    <div>
-                      <label class="mb-2 block text-xs text-slate-500">
-                        {{ t('calendar.appointmentDetails.quickDurationLabel') }}
+                    <!-- Date -->
+                    <div class="mb-3">
+                      <label for="edit-date" class="block text-xs text-slate-500">
+                        {{ t('calendar.appointmentDetails.dateLabel') }}
                       </label>
-                      <div class="flex flex-wrap gap-2">
-                        <button
-                          v-for="duration in [30, 45, 60, 90]"
-                          :key="duration"
-                          type="button"
-                          @click="setDuration(duration)"
-                          :aria-label="t('calendar.appointmentDetails.setDurationAriaLabel', { duration })"
-                          :aria-pressed="calculatedDuration === duration"
-                          :class="[
-                            'rounded-full px-3 py-1.5 text-sm transition-all',
-                            calculatedDuration === duration
-                              ? 'border border-emerald-600 bg-emerald-50 font-medium text-emerald-900'
-                              : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
-                          ]"
-                        >
-                          {{ duration }} min
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Location Card (Editable) -->
-                <div class="rounded-lg border border-slate-200 bg-white p-4">
-                  <div class="mb-2 text-sm font-medium text-slate-500">
-                    {{ t('calendar.appointmentDetails.locationCardTitle') }}
-                  </div>
-
-                  <!-- Location Type -->
-                  <div class="mb-3">
-                    <label for="edit-location-type" class="block text-xs text-slate-500">
-                      {{ t('calendar.appointmentDetails.locationTypeLabel') }}
-                    </label>
-                    <select
-                      id="edit-location-type"
-                      v-model="editableData.location_type"
-                      @change="handleLocationTypeChange"
-                      class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 capitalize focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
-                    >
-                      <option value="clinic">{{ t('calendar.appointmentDetails.locationClinic') }}</option>
-                      <option value="home">{{ t('calendar.appointmentDetails.locationHome') }}</option>
-                      <option value="online">{{ t('calendar.appointmentDetails.locationOnline') }}</option>
-                    </select>
-                  </div>
-
-                  <!-- Location Details -->
-                  <div>
-                    <label for="edit-location-details" class="block text-xs text-slate-500">
-                      {{ t('calendar.appointmentDetails.locationDetailsLabel') }}
-                    </label>
-                    <div class="mt-1 flex items-center gap-2">
                       <input
-                        id="edit-location-details"
-                        v-model="editableData.location_details"
-                        type="text"
-                        :placeholder="t('calendar.appointmentDetails.locationDetailsPlaceholder')"
-                        @blur="handleTextFieldBlur('location_details')"
-                        class="block min-h-[44px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
-                      />
-                      <!-- Directions Button - Only show for physical locations with address -->
-                      <DirectionsButton
-                        v-if="
-                          editableData.location_details &&
-                          editableData.location_type !== 'online'
-                        "
-                        :address="editableData.location_details"
-                        size="md"
-                        :show-label="false"
-                        class="min-h-[44px] min-w-[44px]"
+                        id="edit-date"
+                        v-model="appointmentDate"
+                        type="date"
+                        :aria-label="t('calendar.appointmentDetails.dateAriaLabel')"
+                        class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                       />
                     </div>
-                  </div>
-                </div>
 
-                <!-- P1-3: Client Information (Entire Card is Clickable) -->
-                <button
-                  @click="emit('viewClient', appointment.client_id)"
-                  class="group w-full rounded-lg border border-slate-200 bg-slate-50 p-4 text-left transition-all hover:border-slate-300 hover:bg-white hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-                >
-                  <div class="mb-2 text-sm font-medium text-slate-500">
-                    {{ t('calendar.appointmentDetails.clientCardTitle') }}
-                  </div>
-                  <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                      <div
-                        class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 font-medium text-emerald-700 transition-colors group-hover:bg-emerald-200"
-                      >
-                        {{ appointment.client?.first_name?.[0] || 'C'
-                        }}{{ appointment.client?.last_name?.[0] || '' }}
+                    <!-- Start Time -->
+                    <div class="mb-3">
+                      <TimePickerDropdown
+                        v-model="editableData.scheduled_start"
+                        :label="t('calendar.appointmentDetails.startLabel')"
+                        min-time="06:00"
+                        max-time="22:00"
+                        :interval="15"
+                        @update:model-value="handleDateTimeChange('scheduled_start')"
+                      />
+                    </div>
+
+                    <!-- End Time -->
+                    <div class="mb-3">
+                      <TimePickerDropdown
+                        v-model="editableData.scheduled_end"
+                        :label="t('calendar.appointmentDetails.endLabel')"
+                        min-time="06:00"
+                        max-time="22:00"
+                        :interval="15"
+                        @update:model-value="handleDateTimeChange('scheduled_end')"
+                      />
+                    </div>
+
+                    <!-- Duration Display & Quick Duration Pills -->
+                    <div class="mt-3 space-y-3">
+                      <!-- Duration Display -->
+                      <div class="text-sm text-slate-600">
+                        {{
+                          t('calendar.appointmentDetails.durationLabel', {
+                            duration: calculatedDuration,
+                          })
+                        }}
                       </div>
+
+                      <!-- Quick Duration Pills -->
                       <div>
-                        <div class="font-medium text-slate-900">
-                          {{ appointment.client?.full_name || t('calendar.appointmentDetails.unknownClient') }}
-                        </div>
-                        <div
-                          class="flex items-center gap-1.5 text-sm font-medium text-emerald-600 group-hover:text-emerald-700"
-                        >
-                          {{ t('calendar.appointmentDetails.viewFullProfile') }}
-                          <svg
-                            class="h-4 w-4 transition-transform group-hover:translate-x-0.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                        <label class="mb-2 block text-xs text-slate-500">
+                          {{ t('calendar.appointmentDetails.quickDurationLabel') }}
+                        </label>
+                        <div class="flex flex-wrap gap-2">
+                          <button
+                            v-for="duration in [30, 45, 60, 90]"
+                            :key="duration"
+                            type="button"
+                            @click="setDuration(duration)"
+                            :aria-label="
+                              t('calendar.appointmentDetails.setDurationAriaLabel', {
+                                duration,
+                              })
+                            "
+                            :aria-pressed="calculatedDuration === duration"
+                            :class="[
+                              'rounded-full px-3 py-1.5 text-sm transition-all',
+                              calculatedDuration === duration
+                                ? 'border border-emerald-600 bg-emerald-50 font-medium text-emerald-900'
+                                : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
+                            ]"
                           >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
+                            {{ t('common.time.minutesShort', { count: duration }) }}
+                          </button>
                         </div>
                       </div>
                     </div>
                   </div>
-                </button>
 
-                <!-- Notes (Editable) -->
-                <div class="rounded-lg border border-slate-200 bg-white p-4">
-                  <label
-                    for="edit-notes"
-                    class="mb-2 block text-sm font-medium text-slate-500"
-                  >
-                    {{ t('calendar.appointmentDetails.notesLabel') }}
-                  </label>
-                  <textarea
-                    id="edit-notes"
-                    v-model="editableData.notes"
-                    rows="6"
-                    :placeholder="t('calendar.appointmentDetails.notesPlaceholder')"
-                    @blur="handleTextFieldBlur('notes')"
-                    class="sm:rows-4 block min-h-[120px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-700 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
-                  ></textarea>
-                  <p class="mt-1 text-xs text-slate-400">
-                    {{ t('calendar.appointmentDetails.autoSaveHint') }}
-                  </p>
-                </div>
+                  <!-- Location Card (Editable) -->
+                  <div class="rounded-lg border border-slate-200 bg-white p-4">
+                    <div class="mb-2 text-sm font-medium text-slate-500">
+                      {{ t('calendar.appointmentDetails.locationCardTitle') }}
+                    </div>
 
-                <!-- Appointment Status Management Card -->
-                <!-- Hidden during in-progress appointments to avoid duplicate messaging -->
-                <AppointmentStatusCard
-                  v-if="appointment && !isInProgressAppointment"
-                  :appointment="appointment"
-                  :session-status="sessionStatus"
-                  :completion-disabled="completionDisabled"
-                  :completion-disabled-message="completionDisabledMessage"
-                  @update-status="handleStatusUpdate"
-                  @complete-and-document="handleCompleteAndDocument"
-                />
-
-                <!-- Session Status Section (P0 Feature) -->
-                <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <!-- Has Session Note -->
-                  <div v-if="sessionStatus?.hasSession" class="flex items-start gap-3">
-                    <svg
-                      class="h-5 w-5 shrink-0 text-emerald-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    <div class="flex-1">
-                      <p class="text-sm font-medium text-slate-900">
-                        Session Note:
-                        {{ sessionStatus.isDraft ? t('calendar.appointmentDetails.sessionNoteDraft') : t('calendar.appointmentDetails.sessionNoteFinalized') }}
-                      </p>
-                      <button
-                        @click="emit('viewSession', sessionStatus.sessionId!)"
-                        class="mt-1 text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-700 focus:underline focus:outline-none"
+                    <!-- Location Type -->
+                    <div class="mb-3">
+                      <label
+                        for="edit-location-type"
+                        class="block text-xs text-slate-500"
                       >
-                        {{ sessionStatus.isDraft ? t('calendar.appointmentDetails.continueEditing') : t('calendar.appointmentDetails.viewNote') }}
-                      </button>
+                        {{ t('calendar.appointmentDetails.locationTypeLabel') }}
+                      </label>
+                      <select
+                        id="edit-location-type"
+                        v-model="editableData.location_type"
+                        @change="handleLocationTypeChange"
+                        class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 capitalize focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
+                      >
+                        <option value="clinic">
+                          {{ t('calendar.appointmentDetails.locationClinic') }}
+                        </option>
+                        <option value="home">
+                          {{ t('calendar.appointmentDetails.locationHome') }}
+                        </option>
+                        <option value="online">
+                          {{ t('calendar.appointmentDetails.locationOnline') }}
+                        </option>
+                      </select>
+                    </div>
+
+                    <!-- Location Details -->
+                    <div>
+                      <label
+                        for="edit-location-details"
+                        class="block text-xs text-slate-500"
+                      >
+                        {{ t('calendar.appointmentDetails.locationDetailsLabel') }}
+                      </label>
+                      <div class="mt-1 flex items-center gap-2">
+                        <input
+                          id="edit-location-details"
+                          v-model="editableData.location_details"
+                          type="text"
+                          :placeholder="
+                            t('calendar.appointmentDetails.locationDetailsPlaceholder')
+                          "
+                          @blur="handleTextFieldBlur('location_details')"
+                          class="block min-h-[44px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
+                        />
+                        <!-- Directions Button - Only show for physical locations with address -->
+                        <DirectionsButton
+                          v-if="
+                            editableData.location_details &&
+                            editableData.location_type !== 'online'
+                          "
+                          :address="editableData.location_details"
+                          size="md"
+                          :show-label="false"
+                          class="min-h-[44px] min-w-[44px]"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <!-- No Session Note - Context-Aware Messaging -->
-                  <div v-else-if="!sessionStatus?.hasSession">
-                    <!-- In Progress: Allow session note creation -->
-                    <div v-if="isInProgressAppointment" class="space-y-3">
-                      <div class="flex items-start gap-3">
-                        <svg
-                          class="h-5 w-5 shrink-0 text-emerald-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
+                  <!-- P1-3: Client Information (Entire Card is Clickable) -->
+                  <button
+                    @click="emit('viewClient', appointment.client_id)"
+                    class="group w-full rounded-lg border border-slate-200 bg-slate-50 p-4 text-left transition-all hover:border-slate-300 hover:bg-white hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                  >
+                    <div class="mb-2 text-sm font-medium text-slate-500">
+                      {{ t('calendar.appointmentDetails.clientCardTitle') }}
+                    </div>
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-3">
+                        <div
+                          class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 font-medium text-emerald-700 transition-colors group-hover:bg-emerald-200"
                         >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        <div class="flex-1">
-                          <p class="text-sm font-medium text-slate-900">
-                            {{ t('calendar.appointmentDetails.sessionInProgress') }}
-                          </p>
-                          <p class="mt-1 text-xs text-slate-600">
-                            {{ t('calendar.appointmentDetails.sessionInProgressHint') }}
-                          </p>
-                          <button
-                            @click="emit('startSessionNotes', appointment)"
-                            class="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-                            :aria-label="t('calendar.appointmentDetails.documentSessionAriaLabel')"
+                          {{ appointment.client?.first_name?.[0] || 'C'
+                          }}{{ appointment.client?.last_name?.[0] || '' }}
+                        </div>
+                        <div>
+                          <div class="font-medium text-slate-900">
+                            {{
+                              appointment.client?.full_name ||
+                              t('calendar.appointmentDetails.unknownClient')
+                            }}
+                          </div>
+                          <div
+                            class="flex items-center gap-1.5 text-sm font-medium text-emerald-600 group-hover:text-emerald-700"
                           >
-                            {{ t('calendar.appointmentDetails.documentSession') }}
+                            {{ t('calendar.appointmentDetails.viewFullProfile') }}
                             <svg
-                              class="h-4 w-4"
+                              class="h-4 w-4 transition-transform group-hover:translate-x-0.5"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -1283,45 +1198,54 @@ watch(
                                 d="M9 5l7 7-7 7"
                               />
                             </svg>
-                          </button>
+                          </div>
                         </div>
                       </div>
                     </div>
+                  </button>
 
-                    <!-- Attended - Encourage documentation -->
-                    <div
-                      v-else-if="appointment.status === 'attended'"
-                      class="flex items-start gap-3"
+                  <!-- Notes (Editable) -->
+                  <div class="rounded-lg border border-slate-200 bg-white p-4">
+                    <label
+                      for="edit-notes"
+                      class="mb-2 block text-sm font-medium text-slate-500"
                     >
-                      <IconWarning size="md" class="shrink-0 text-amber-600" />
-                      <div>
-                        <p class="text-sm font-medium text-slate-900">
-                          {{ t('calendar.appointmentDetails.noSessionNoteYet') }}
-                        </p>
-                        <p class="mt-0.5 text-xs text-slate-600">
-                          {{ t('calendar.appointmentDetails.documentWithSoap') }}
-                        </p>
-                        <button
-                          @click="emit('startSessionNotes', appointment)"
-                          class="mt-2 text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-700 focus:underline focus:outline-none"
-                        >
-                          {{ t('calendar.appointmentDetails.startSessionNote') }}
-                        </button>
-                      </div>
-                    </div>
+                      {{ t('calendar.appointmentDetails.notesLabel') }}
+                    </label>
+                    <textarea
+                      id="edit-notes"
+                      v-model="editableData.notes"
+                      rows="6"
+                      :placeholder="t('calendar.appointmentDetails.notesPlaceholder')"
+                      @blur="handleTextFieldBlur('notes')"
+                      class="sm:rows-4 block min-h-[120px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-700 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
+                    ></textarea>
+                    <p class="mt-1 text-xs text-slate-400">
+                      {{ t('calendar.appointmentDetails.autoSaveHint') }}
+                    </p>
+                  </div>
 
-                    <!-- Scheduled - Future -->
-                    <div v-else-if="isFutureAppointment" class="text-sm text-slate-600">
-                      <p>{{ t('calendar.appointmentDetails.sessionNotesAvailable') }}</p>
-                    </div>
+                  <!-- Appointment Status Management Card -->
+                  <!-- Hidden during in-progress appointments to avoid duplicate messaging -->
+                  <AppointmentStatusCard
+                    v-if="appointment && !isInProgressAppointment"
+                    :appointment="appointment"
+                    :session-status="sessionStatus"
+                    :completion-disabled="completionDisabled"
+                    :completion-disabled-message="completionDisabledMessage"
+                    @update-status="handleStatusUpdate"
+                    @complete-and-document="handleCompleteAndDocument"
+                  />
 
-                    <!-- Scheduled - Past (prompt to complete) -->
+                  <!-- Session Status Section (P0 Feature) -->
+                  <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <!-- Has Session Note -->
                     <div
-                      v-else-if="isPastAppointment && appointment.status === 'scheduled'"
+                      v-if="sessionStatus?.hasSession"
                       class="flex items-start gap-3"
                     >
                       <svg
-                        class="h-5 w-5 shrink-0 text-blue-600"
+                        class="h-5 w-5 shrink-0 text-emerald-600"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -1330,61 +1254,199 @@ watch(
                           stroke-linecap="round"
                           stroke-linejoin="round"
                           stroke-width="2"
-                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                         />
                       </svg>
-                      <div>
+                      <div class="flex-1">
                         <p class="text-sm font-medium text-slate-900">
-                          {{ t('calendar.appointmentDetails.appointmentEnded') }}
+                          Session Note:
+                          {{
+                            sessionStatus.isDraft
+                              ? t('calendar.appointmentDetails.sessionNoteDraft')
+                              : t('calendar.appointmentDetails.sessionNoteFinalized')
+                          }}
                         </p>
-                        <p class="mt-0.5 text-xs text-slate-600">
-                          {{ t('calendar.appointmentDetails.markAttendedHint') }}
-                        </p>
+                        <button
+                          @click="emit('viewSession', sessionStatus.sessionId!)"
+                          class="mt-1 text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-700 focus:underline focus:outline-none"
+                        >
+                          {{
+                            sessionStatus.isDraft
+                              ? t('calendar.appointmentDetails.continueEditing')
+                              : t('calendar.appointmentDetails.viewNote')
+                          }}
+                        </button>
                       </div>
                     </div>
 
-                    <!-- No-Show / Cancelled -->
-                    <div
-                      v-else-if="['no_show', 'cancelled'].includes(appointment.status)"
-                      class="text-sm text-slate-500"
-                    >
-                      <p>
-                        {{ t('calendar.appointmentDetails.noSessionNoteFor', { status: t(`calendar.appointmentDetails.statuses.${appointment.status}`) }) }}
-                      </p>
+                    <!-- No Session Note - Context-Aware Messaging -->
+                    <div v-else-if="!sessionStatus?.hasSession">
+                      <!-- In Progress: Allow session note creation -->
+                      <div v-if="isInProgressAppointment" class="space-y-3">
+                        <div class="flex items-start gap-3">
+                          <svg
+                            class="h-5 w-5 shrink-0 text-emerald-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          <div class="flex-1">
+                            <p class="text-sm font-medium text-slate-900">
+                              {{ t('calendar.appointmentDetails.sessionInProgress') }}
+                            </p>
+                            <p class="mt-1 text-xs text-slate-600">
+                              {{
+                                t('calendar.appointmentDetails.sessionInProgressHint')
+                              }}
+                            </p>
+                            <button
+                              @click="emit('startSessionNotes', appointment)"
+                              class="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                              :aria-label="
+                                t(
+                                  'calendar.appointmentDetails.documentSessionAriaLabel'
+                                )
+                              "
+                            >
+                              {{ t('calendar.appointmentDetails.documentSession') }}
+                              <svg
+                                class="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M9 5l7 7-7 7"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Attended - Encourage documentation -->
+                      <div
+                        v-else-if="appointment.status === 'attended'"
+                        class="flex items-start gap-3"
+                      >
+                        <IconWarning size="md" class="shrink-0 text-amber-600" />
+                        <div>
+                          <p class="text-sm font-medium text-slate-900">
+                            {{ t('calendar.appointmentDetails.noSessionNoteYet') }}
+                          </p>
+                          <p class="mt-0.5 text-xs text-slate-600">
+                            {{ t('calendar.appointmentDetails.documentWithSoap') }}
+                          </p>
+                          <button
+                            @click="emit('startSessionNotes', appointment)"
+                            class="mt-2 text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-700 focus:underline focus:outline-none"
+                          >
+                            {{ t('calendar.appointmentDetails.startSessionNote') }}
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Scheduled - Future -->
+                      <div
+                        v-else-if="isFutureAppointment"
+                        class="text-sm text-slate-600"
+                      >
+                        <p>
+                          {{ t('calendar.appointmentDetails.sessionNotesAvailable') }}
+                        </p>
+                      </div>
+
+                      <!-- Scheduled - Past (prompt to complete) -->
+                      <div
+                        v-else-if="
+                          isPastAppointment && appointment.status === 'scheduled'
+                        "
+                        class="flex items-start gap-3"
+                      >
+                        <svg
+                          class="h-5 w-5 shrink-0 text-blue-600"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <div>
+                          <p class="text-sm font-medium text-slate-900">
+                            {{ t('calendar.appointmentDetails.appointmentEnded') }}
+                          </p>
+                          <p class="mt-0.5 text-xs text-slate-600">
+                            {{ t('calendar.appointmentDetails.markAttendedHint') }}
+                          </p>
+                        </div>
+                      </div>
+
+                      <!-- No-Show / Cancelled -->
+                      <div
+                        v-else-if="
+                          ['no_show', 'cancelled'].includes(appointment.status)
+                        "
+                        class="text-sm text-slate-500"
+                      >
+                        <p>
+                          {{
+                            t('calendar.appointmentDetails.noSessionNoteFor', {
+                              status: t(
+                                `calendar.appointmentDetails.statuses.${appointment.status}`
+                              ),
+                            })
+                          }}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </TabPanel>
+                </TabPanel>
 
-              <!-- Tab Panel 2: Payment (conditional) -->
-              <TabPanel
-                v-if="showPaymentSection"
-                class="space-y-4 px-5 py-6 sm:px-6 focus:outline-none"
-              >
-                <!-- Payment Tracking -->
-                <PaymentTrackingCard
-                  v-model:payment-price="editableData.payment_price"
-                  v-model:payment-status="editableData.payment_status"
-                  v-model:payment-method="editableData.payment_method"
-                  v-model:payment-notes="editableData.payment_notes"
-                  :paid-at="appointment.paid_at"
-                  :readonly="!paymentsEnabled"
-                  @blur="handlePaymentFieldBlur"
-                />
+                <!-- Tab Panel 2: Payment (conditional) -->
+                <TabPanel
+                  v-if="showPaymentSection"
+                  class="space-y-4 px-5 py-6 focus:outline-none sm:px-6"
+                >
+                  <!-- Payment Tracking -->
+                  <PaymentTrackingCard
+                    v-model:payment-price="editableData.payment_price"
+                    v-model:payment-status="editableData.payment_status"
+                    v-model:payment-method="editableData.payment_method"
+                    v-model:payment-notes="editableData.payment_notes"
+                    :paid-at="appointment.paid_at"
+                    :readonly="!paymentsEnabled"
+                    @blur="handlePaymentFieldBlur"
+                  />
 
-                <!-- Payment Actions -->
-                <PaymentActions
-                  :price="editableData.payment_price"
-                  :status="editableData.payment_status"
-                  :readonly="!paymentsEnabled"
-                  :sending="sendingPayment"
-                  :sent="paymentRequestSent"
-                  :copying="copyingLink"
-                  :copied="linkCopied"
-                  @send-payment-request="sendPaymentRequest"
-                  @copy-payment-link="copyPaymentLink"
-                />
-              </TabPanel>
+                  <!-- Payment Actions -->
+                  <PaymentActions
+                    :price="editableData.payment_price"
+                    :status="editableData.payment_status"
+                    :readonly="!paymentsEnabled"
+                    :sending="sendingPayment"
+                    :sent="paymentRequestSent"
+                    :copying="copyingLink"
+                    :copied="linkCopied"
+                    @send-payment-request="sendPaymentRequest"
+                    @copy-payment-link="copyPaymentLink"
+                  />
+                </TabPanel>
               </TabPanels>
             </div>
           </TabGroup>

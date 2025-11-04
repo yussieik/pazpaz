@@ -23,6 +23,7 @@ import { useRouter } from 'vue-router'
 import { format } from 'date-fns'
 import axios from 'axios'
 import apiClient from '@/api/client'
+import { useI18n } from '@/composables/useI18n'
 import { useFileUpload } from '@/composables/useFileUpload'
 import { useToast } from '@/composables/useToast'
 import { useAttachmentRename } from '@/composables/useAttachmentRename'
@@ -40,6 +41,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const { t } = useI18n()
 const router = useRouter()
 const { downloadAttachment, deleteAttachment } = useFileUpload()
 const { showSuccess, showError, showInfo } = useToast()
@@ -892,7 +894,7 @@ function handleGlobalKeydown(event: KeyboardEvent) {
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Search files..."
+          :placeholder="t('clients.detailView.files.searchPlaceholder')"
           class="w-full rounded-lg border border-slate-300 bg-white py-2 pr-10 pl-10 text-sm transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
         />
         <!-- Search Icon -->
@@ -932,9 +934,9 @@ function handleGlobalKeydown(event: KeyboardEvent) {
         v-model="filterType"
         class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
       >
-        <option value="all">All Files</option>
-        <option value="images">Images Only</option>
-        <option value="pdfs">PDFs Only</option>
+        <option value="all">{{ t('clients.detailView.files.filterAll') }}</option>
+        <option value="images">{{ t('clients.detailView.files.filterImages') }}</option>
+        <option value="pdfs">{{ t('clients.detailView.files.filterPDFs') }}</option>
       </select>
 
       <!-- Select Files Button (only show when files exist) -->
@@ -965,7 +967,11 @@ function handleGlobalKeydown(event: KeyboardEvent) {
             d="M6 18L18 6M6 6l12 12"
           />
         </svg>
-        {{ isBulkMode ? 'Cancel' : 'Select Files' }}
+        {{
+          isBulkMode
+            ? t('clients.detailView.files.cancel')
+            : t('clients.detailView.files.selectFiles')
+        }}
       </button>
 
       <!-- Upload Button -->
@@ -1004,7 +1010,11 @@ function handleGlobalKeydown(event: KeyboardEvent) {
             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
           />
         </svg>
-        {{ isUploading ? 'Uploading...' : 'Upload Files' }}
+        {{
+          isUploading
+            ? t('clients.detailView.files.uploading')
+            : t('clients.detailView.files.uploadFiles')
+        }}
       </button>
     </div>
 
@@ -1027,10 +1037,8 @@ function handleGlobalKeydown(event: KeyboardEvent) {
             <span class="text-sm font-medium text-slate-700">
               {{
                 allVisibleFilesSelected
-                  ? 'Deselect All'
-                  : selectedFilesCount > 0
-                    ? 'Select All'
-                    : 'Select All'
+                  ? t('clients.detailView.files.deselectAll')
+                  : t('clients.detailView.files.selectAll')
               }}
             </span>
           </label>
@@ -1145,8 +1153,8 @@ function handleGlobalKeydown(event: KeyboardEvent) {
     >
       <EmptyState
         icon="document"
-        title="No files yet"
-        description="Upload client documents, photos, and intake forms. Session-specific files will appear here automatically."
+        :title="t('clients.detailView.files.emptyStateTitle')"
+        :description="t('clients.detailView.files.emptyStateDescription')"
       >
         <template #action>
           <button
@@ -1183,7 +1191,11 @@ function handleGlobalKeydown(event: KeyboardEvent) {
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
-            {{ isUploading ? 'Uploading...' : 'Upload Files' }}
+            {{
+              isUploading
+                ? t('clients.detailView.files.uploading')
+                : t('clients.detailView.files.uploadFiles')
+            }}
           </button>
         </template>
       </EmptyState>

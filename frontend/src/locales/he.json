@@ -47,6 +47,9 @@
       "saved": "נשמר בהצלחה",
       "deleted": "נמחק בהצלחה",
       "error": "אירעה שגיאה. אנא נסה שוב."
+    },
+    "time": {
+      "minutesShort": "{count} דק'"
     }
   },
   "auth": {
@@ -605,14 +608,29 @@
         "deletedNotesEmpty": "אין הערות שנמחקו",
         "deletedNotesEmptyDescription": "הערות פגישה שנמחקו יופיעו כאן למשך {days} ימים",
         "recoveryPeriodTitle": "תקופת שחזור של {days} ימים",
-        "recoveryPeriodDescription": "הערות פגישה שנמחקו נשמרות למשך {days} ימים לפני מחיקה קבועה. ניתן לשחזר אותן בכל עת במהלך תקופה זו."
+        "recoveryPeriodDescription": "הערות פגישה שנמחקו נשמרות למשך {days} ימים לפני מחיקה קבועה. ניתן לשחזר אותן בכל עת במהלך תקופה זו.",
+        "loadingDeletedNotes": "טוען הערות שנמחקו...",
+        "loadDeletedNotesFailed": "טעינת הערות שנמחקו נכשלה",
+        "tryAgain": "נסה שוב",
+        "deletedTime": "נמחק {time}",
+        "daysLeft": "נותרו {days} ימים",
+        "permanentlyDeleted": "נמחק לצמיתות",
+        "noContent": "אין תוכן",
+        "deletionReason": "סיבה:",
+        "restoring": "משחזר...",
+        "restore": "שחזר",
+        "deleting": "מוחק...",
+        "deleteForever": "מחק לצמיתות",
+        "today": "היום",
+        "yesterday": "אתמול",
+        "daysAgo": "לפני {days} ימים"
       },
       "files": {
         "searchPlaceholder": "חפש קבצים...",
         "clearSearch": "נקה חיפוש",
         "filterAll": "כל הקבצים",
         "filterImages": "תמונות בלבד",
-        "filterPDFs": "קובצי PDF בלבד",
+        "filterPDFs": "קבצי PDF בלבד",
         "selectFiles": "בחר קבצים",
         "cancel": "בטל",
         "uploadFiles": "העלה קבצים",
@@ -623,7 +641,7 @@
         "emptyStateDescription": "העלה מסמכי מטופל, תמונות וטפסי קבלה. קבצים ספציפיים לפגישה יופיעו כאן אוטומטית.",
         "noResults": "לא נמצאו תוצאות עבור \"{query}\"",
         "noImagesFound": "לא נמצאו תמונות",
-        "noPDFsFound": "לא נמצאו קובצי PDF",
+        "noPDFsFound": "לא נמצאו קבצי PDF",
         "noFilesFound": "לא נמצאו קבצים",
         "tryDifferentSearch": "נסה מילת חיפוש או מסנן אחר",
         "clearFilters": "נקה מסננים",
@@ -670,6 +688,10 @@
       "errorPermission": "אין לך הרשאה לצפות בתיעוד זה",
       "errorGeneric": "טעינת התיעוד נכשלה",
       "goBackButton": "חזור"
+    },
+    "timeline": {
+      "emptyStateTitle": "אין פגישות מתועדות עדיין",
+      "emptyStateDescription": "קבע פגישה כדי להתחיל לתעד טיפול."
     },
     "editor": {
       "soapGuide": {

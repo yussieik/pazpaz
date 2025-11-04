@@ -452,11 +452,15 @@ const hasConflicts = computed(() => conflicts.value.length > 0)
 const firstConflict = computed(() => conflicts.value[0] || null)
 
 const modalTitle = computed(() =>
-  props.mode === 'create' ? t('calendar.appointmentForm.createTitle') : t('calendar.appointmentForm.editTitle')
+  props.mode === 'create'
+    ? t('calendar.appointmentForm.createTitle')
+    : t('calendar.appointmentForm.editTitle')
 )
 
 const submitButtonText = computed(() =>
-  props.mode === 'create' ? t('calendar.appointmentForm.createButton') : t('calendar.appointmentForm.updateButton')
+  props.mode === 'create'
+    ? t('calendar.appointmentForm.createButton')
+    : t('calendar.appointmentForm.updateButton')
 )
 
 const isPastAppointment = computed(() => {
@@ -657,7 +661,9 @@ watch(
                     {{
                       conflicts.length === 1
                         ? t('calendar.appointmentForm.conflictSingular')
-                        : t('calendar.appointmentForm.conflictPlural', { count: conflicts.length })
+                        : t('calendar.appointmentForm.conflictPlural', {
+                            count: conflicts.length,
+                          })
                     }}
                     {{ t('calendar.appointmentForm.conflictWith') }}
                   </p>
@@ -670,7 +676,10 @@ watch(
                       )
                     }}</span>
                     <span class="mx-1">&bull;</span>
-                    <span>{{ t('calendar.appointmentForm.conflictClient') }} {{ firstConflict.client_initials }}</span>
+                    <span
+                      >{{ t('calendar.appointmentForm.conflictClient') }}
+                      {{ firstConflict.client_initials }}</span
+                    >
                     <span class="mx-1">&bull;</span>
                     <span>{{ getLocationLabel(firstConflict.location_type) }}</span>
                   </div>
@@ -745,7 +754,11 @@ watch(
               v-model="formData.client_id"
               :disabled="isClientLocked"
               :error="errors.client_id"
-              :help-text="isClientLocked ? t('calendar.appointmentForm.clientPreSelected') : undefined"
+              :help-text="
+                isClientLocked
+                  ? t('calendar.appointmentForm.clientPreSelected')
+                  : undefined
+              "
             />
 
             <!-- Date -->
@@ -754,7 +767,8 @@ watch(
                 for="appointment-date"
                 class="mb-1.5 block text-sm font-medium text-slate-900"
               >
-                {{ t('calendar.appointmentForm.dateLabel') }} <span class="ml-0.5 text-red-500">*</span>
+                {{ t('calendar.appointmentForm.dateLabel') }}
+                <span class="ml-0.5 text-red-500">*</span>
               </label>
               <input
                 id="appointment-date"
@@ -793,7 +807,11 @@ watch(
             <div v-if="formData.scheduled_start" class="space-y-3">
               <!-- Duration Display -->
               <div class="text-sm text-slate-600">
-                {{ t('calendar.appointmentForm.durationLabel', { duration: calculatedDuration }) }}
+                {{
+                  t('calendar.appointmentForm.durationLabel', {
+                    duration: calculatedDuration,
+                  })
+                }}
               </div>
 
               <!-- Quick Duration Pills -->
@@ -807,7 +825,9 @@ watch(
                     :key="duration"
                     type="button"
                     @click="setDuration(duration)"
-                    :aria-label="t('calendar.appointmentForm.setDurationAriaLabel', { duration })"
+                    :aria-label="
+                      t('calendar.appointmentForm.setDurationAriaLabel', { duration })
+                    "
                     :aria-pressed="calculatedDuration === duration"
                     :class="[
                       'rounded-full px-3 py-1.5 text-sm transition-all',
@@ -816,7 +836,7 @@ watch(
                         : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
                     ]"
                   >
-                    {{ duration }} min
+                    {{ t('common.time.minutesShort', { count: duration }) }}
                   </button>
                 </div>
               </div>
@@ -828,7 +848,8 @@ watch(
                 for="location-type"
                 class="mb-1.5 block text-sm font-medium text-slate-900"
               >
-                {{ t('calendar.appointmentForm.locationTypeLabel') }} <span class="ml-0.5 text-red-500">*</span>
+                {{ t('calendar.appointmentForm.locationTypeLabel') }}
+                <span class="ml-0.5 text-red-500">*</span>
               </label>
               <select
                 id="location-type"
@@ -836,9 +857,15 @@ watch(
                 v-model="formData.location_type"
                 class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
               >
-                <option value="clinic">{{ t('calendar.appointmentForm.locationClinic') }}</option>
-                <option value="home">{{ t('calendar.appointmentForm.locationHome') }}</option>
-                <option value="online">{{ t('calendar.appointmentForm.locationOnline') }}</option>
+                <option value="clinic">
+                  {{ t('calendar.appointmentForm.locationClinic') }}
+                </option>
+                <option value="home">
+                  {{ t('calendar.appointmentForm.locationHome') }}
+                </option>
+                <option value="online">
+                  {{ t('calendar.appointmentForm.locationOnline') }}
+                </option>
               </select>
             </div>
 
@@ -930,7 +957,16 @@ watch(
                     : 'bg-emerald-600 hover:bg-emerald-700',
                 ]"
               >
-                <span v-if="hasConflicts">⚠️ {{ t(props.mode === 'create' ? 'calendar.appointmentForm.createAnywayButton' : 'calendar.appointmentForm.updateAnywayButton') }}</span>
+                <span v-if="hasConflicts"
+                  >⚠️
+                  {{
+                    t(
+                      props.mode === 'create'
+                        ? 'calendar.appointmentForm.createAnywayButton'
+                        : 'calendar.appointmentForm.updateAnywayButton'
+                    )
+                  }}</span
+                >
                 <span v-else>{{ submitButtonText }}</span>
               </button>
             </div>

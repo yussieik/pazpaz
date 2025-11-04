@@ -646,9 +646,11 @@ defineExpose({
     <!-- Empty State -->
     <div v-else-if="isEmpty" class="py-12 text-center">
       <IconDocument size="lg" class="mx-auto text-slate-400" />
-      <h3 class="mt-2 text-sm font-medium text-slate-900">No sessions yet</h3>
+      <h3 class="mt-2 text-sm font-medium text-slate-900">
+        {{ t('sessions.timeline.emptyStateTitle') }}
+      </h3>
       <p class="mt-1 text-sm text-slate-500">
-        Schedule an appointment to start documenting treatment.
+        {{ t('sessions.timeline.emptyStateDescription') }}
       </p>
     </div>
 
@@ -908,7 +910,11 @@ defineExpose({
                                 session.is_draft ? 'bg-amber-500' : 'bg-green-500'
                               "
                             ></span>
-                            {{ session.is_draft ? t('clients.detailView.history.statusDraft') : t('clients.detailView.history.statusFinalized') }}
+                            {{
+                              session.is_draft
+                                ? t('clients.detailView.history.statusDraft')
+                                : t('clients.detailView.history.statusFinalized')
+                            }}
                           </span>
 
                           <!-- Date and Time -->
