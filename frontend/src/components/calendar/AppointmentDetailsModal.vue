@@ -81,13 +81,14 @@ const tabPanelsRef = ref<HTMLElement | null>(null)
 
 // Tab state for swipe navigation
 const selectedTabIndex = ref(0)
-const totalTabs = computed(() => (paymentsEnabled.value ? 2 : 1))
 
-// Swipeable tabs for mobile navigation
+// Swipeable tabs for mobile navigation (2 tabs: Appointment + Payment)
+// Note: Payment tab is only visible when payments are enabled, but we always
+// allow swiping between both tabs for simplicity
 const { swipeDirection, resetDirection } = useSwipeableTabs(
   tabPanelsRef,
   selectedTabIndex,
-  totalTabs.value,
+  2, // Always 2 tabs (Appointment + Payment)
   (newIndex) => {
     selectedTabIndex.value = newIndex
     resetDirection()
@@ -998,9 +999,10 @@ watch(
               </Tab>
             </TabList>
 
-            <TabPanels ref="tabPanelsRef">
-              <!-- Tab Panel 1: Appointment Details -->
-              <TabPanel class="space-y-4 px-5 py-6 sm:px-6 focus:outline-none">
+            <div ref="tabPanelsRef">
+              <TabPanels>
+                <!-- Tab Panel 1: Appointment Details -->
+                <TabPanel class="space-y-4 px-5 py-6 sm:px-6 focus:outline-none">
                 <!-- Time Card (Editable) -->
                 <div class="rounded-lg border border-slate-200 bg-white p-4">
                   <div class="mb-3 text-sm font-medium text-slate-500">{{ t('calendar.appointmentDetails.timeCardTitle') }}</div>
@@ -1383,7 +1385,8 @@ watch(
                   @copy-payment-link="copyPaymentLink"
                 />
               </TabPanel>
-            </TabPanels>
+              </TabPanels>
+            </div>
           </TabGroup>
 
           <!-- Actions Footer -->
