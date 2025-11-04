@@ -103,8 +103,9 @@ export function getCalendarOptions(currentLocale: string, isMobile = false) {
     selectMirror: true,
     dayMaxEvents: true,
     weekends: true,
-    eventDurationEditable: false,
-    eventStartEditable: true,
+    eventDurationEditable: false, // Disable duration editing (no resizing)
+    eventStartEditable: true, // Allow dragging to change start time
+    eventResizableFromStart: false, // Prevent resizing from start
     snapDuration: '00:15:00',
     displayEventEnd: true,
     forceEventDuration: true,

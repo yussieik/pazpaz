@@ -489,6 +489,20 @@ const calendarOptions = computed(() => ({
   ...buildCalendarOptions(calendarEvents.value, handleEventClick, handleDateClick),
   eventDrop: handleEventDrop as (arg: EventDropArg) => void,
 
+  // Prevent accidental duration changes - revert any resize attempts
+  // This is a safeguard in case FullCalendar allows resize despite eventDurationEditable: false
+  // Should not normally trigger, but protects data integrity if it does
+  eventResize: (info: any) => {
+    console.warn('[Calendar] Event resize blocked - duration editing is disabled', {
+      eventId: info.event.id,
+      oldStart: info.oldEvent.start,
+      oldEnd: info.oldEvent.end,
+      newStart: info.event.start,
+      newEnd: info.event.end,
+    })
+    info.revert()
+  },
+
   // Mobile drag scroll isolation - activate/deactivate on drag start/stop
   eventDragStart: () => {
     const calendarContentArea = document.querySelector(
