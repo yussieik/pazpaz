@@ -1712,8 +1712,8 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 .calendar-slide-left-enter-active,
 .calendar-slide-left-leave-active {
   transition:
-    transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 150ms ease-out;
+    transform 140ms cubic-bezier(0.33, 1, 0.68, 1),
+    opacity 120ms ease-out;
   will-change: transform, opacity;
 }
 
@@ -1731,8 +1731,8 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 .calendar-slide-right-enter-active,
 .calendar-slide-right-leave-active {
   transition:
-    transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 150ms ease-out;
+    transform 140ms cubic-bezier(0.33, 1, 0.68, 1),
+    opacity 120ms ease-out;
   will-change: transform, opacity;
 }
 
