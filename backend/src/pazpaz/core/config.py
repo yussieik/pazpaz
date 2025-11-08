@@ -619,6 +619,61 @@ class Settings(BaseSettings):
         description="OAuth 2.0 redirect URI (must match Google Console configuration)",
     )
 
+    # AI Patient Agent (Cohere API)
+    cohere_api_key: str = Field(
+        default="",
+        description="Cohere API key for embeddings and chat (HIPAA BAA required for production)",
+    )
+    cohere_embed_model: str = Field(
+        default="embed-v4.0",
+        description="Cohere embedding model (embed-v4.0 is latest multilingual, 100+ languages)",
+    )
+    cohere_chat_model: str = Field(
+        default="command-r-plus",
+        description="Cohere chat model for LLM synthesis",
+    )
+
+    # AI Provider Selection (Phase 3.1)
+    ai_embedding_provider: str = Field(
+        default="cohere",
+        description="Embedding provider selection (cohere, openai, azure) - Phase 3.1",
+    )
+    ai_chat_provider: str = Field(
+        default="cohere",
+        description="Chat/LLM provider selection (cohere, openai, anthropic) - Phase 3.1",
+    )
+
+    ai_agent_enabled: bool = Field(
+        default=False,
+        description="Enable AI patient agent feature (embeddings + RAG chat)",
+    )
+    ai_agent_max_queries_per_hour: int = Field(
+        default=30,
+        description="Maximum AI agent queries per workspace per hour (rate limit)",
+    )
+    ai_agent_max_context_tokens: int = Field(
+        default=8000,
+        description="Maximum tokens for LLM context window (Cohere Command-R limit: 128k)",
+    )
+    ai_agent_max_output_tokens: int = Field(
+        default=4000,
+        description="Maximum tokens for LLM response output",
+    )
+
+    # AI Agent Timeout Configuration (Phase 2.2)
+    cohere_embed_timeout_seconds: int = Field(
+        default=30,
+        description="Timeout for Cohere embedding API calls in seconds (Phase 2.2)",
+    )
+    cohere_chat_timeout_seconds: int = Field(
+        default=120,
+        description="Timeout for Cohere chat/synthesis API calls in seconds (Phase 2.2)",
+    )
+    vector_search_timeout_seconds: int = Field(
+        default=10,
+        description="Timeout for vector similarity search operations in seconds (Phase 2.2)",
+    )
+
     def is_trusted_proxy(self, client_ip: str) -> bool:
         """
         Check if a client IP address is in the trusted proxy list.

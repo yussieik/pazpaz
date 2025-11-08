@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from pazpaz.api.ai_agent import router as ai_agent_router
 from pazpaz.api.appointments import router as appointments_router
 from pazpaz.api.audit import router as audit_router
 from pazpaz.api.auth import router as auth_router
@@ -40,3 +41,4 @@ api_router.include_router(notification_settings_router)
 api_router.include_router(google_calendar_integration_router)
 api_router.include_router(payments_router)
 api_router.include_router(audit_router)
+api_router.include_router(ai_agent_router)

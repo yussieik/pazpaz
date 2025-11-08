@@ -63,6 +63,10 @@ from pazpaz.services.reminder_tracking_service import (
     mark_reminder_sent,
     was_reminder_sent,
 )
+from pazpaz.workers.ai_tasks import (
+    generate_client_embeddings,
+    generate_session_embeddings,
+)
 from pazpaz.workers.google_calendar_tasks import sync_appointment_to_google_calendar
 from pazpaz.workers.settings import (
     HEALTH_CHECK_INTERVAL,
@@ -785,7 +789,11 @@ class WorkerSettings:
 
     # Ad-hoc Task Functions
     # These functions can be enqueued on-demand (not on a schedule)
-    functions = [sync_appointment_to_google_calendar]
+    functions = [
+        sync_appointment_to_google_calendar,
+        generate_session_embeddings,
+        generate_client_embeddings,
+    ]
 
     # Scheduled Tasks (Cron Jobs)
     # Phase 3 implementation - scheduled notification tasks

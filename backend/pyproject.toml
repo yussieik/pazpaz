@@ -38,6 +38,11 @@ dependencies = [
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.2",
     "certifi>=2025.8.3",
+    "cohere>=5.20.0",
+    "langchain>=1.0.3",
+    "langchain-cohere>=0.5.0",
+    "pgvector>=0.4.1",
+    "tenacity>=9.1.2",
 ]
 
 [tool.hatch.build.targets.wheel]
