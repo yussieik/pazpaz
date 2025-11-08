@@ -42,17 +42,13 @@ async def cleanup_test_data(db: AsyncSession, workspace_id: uuid.UUID):
         await db.delete(session)
 
     # Delete clients
-    result = await db.execute(
-        select(Client).where(Client.workspace_id == workspace_id)
-    )
+    result = await db.execute(select(Client).where(Client.workspace_id == workspace_id))
     clients = result.scalars().all()
     for client in clients:
         await db.delete(client)
 
     # Delete workspace
-    result = await db.execute(
-        select(Workspace).where(Workspace.id == workspace_id)
-    )
+    result = await db.execute(select(Workspace).where(Workspace.id == workspace_id))
     workspace = result.scalar_one_or_none()
     if workspace:
         await db.delete(workspace)
@@ -309,6 +305,7 @@ async def main():
         except Exception as e:
             print(f"\n❌ ERROR: {e}")
             import traceback
+
             traceback.print_exc()
             return 1
 

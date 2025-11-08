@@ -71,6 +71,7 @@ def test_embedding_dimensions():
     except Exception as e:
         print(f"✗ Failed to generate embedding: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -109,6 +110,7 @@ def test_embedding_dimensions():
     except Exception as e:
         print(f"✗ Failed to generate batch embeddings: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -154,6 +156,7 @@ def test_embedding_dimensions():
     except Exception as e:
         print(f"✗ Failed to generate SOAP embeddings: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

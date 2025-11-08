@@ -51,9 +51,7 @@ class TestAIAgentEndToEnd:
             # Mock embed endpoint
             async def mock_embed(texts, model, input_type, embedding_types):
                 return MagicMock(
-                    embeddings=MagicMock(
-                        float_=[generate_embedding(t) for t in texts]
-                    )
+                    embeddings=MagicMock(float_=[generate_embedding(t) for t in texts])
                 )
 
             mock_client.embed = AsyncMock(side_effect=mock_embed)
@@ -80,9 +78,7 @@ class TestAIAgentEndToEnd:
                 else:
                     answer = "Based on the available session notes, I found relevant information about the patient's condition and treatment."
 
-                return MagicMock(
-                    message=MagicMock(content=[MagicMock(text=answer)])
-                )
+                return MagicMock(message=MagicMock(content=[MagicMock(text=answer)]))
 
             mock_client.chat = AsyncMock(side_effect=mock_chat)
 
@@ -205,10 +201,19 @@ class TestAIAgentEndToEnd:
 
             # Verify citation structure
             for citation in response.citations:
-                assert citation.session_id == sessions[0].id, "Citation should reference our session"
-                assert citation.client_name == client.full_name, "Should have client name"
+                assert citation.session_id == sessions[0].id, (
+                    "Citation should reference our session"
+                )
+                assert citation.client_name == client.full_name, (
+                    "Should have client name"
+                )
                 assert 0.0 <= citation.similarity <= 1.0, "Similarity should be 0-1"
-                assert citation.field_name in ["subjective", "objective", "assessment", "plan"]
+                assert citation.field_name in [
+                    "subjective",
+                    "objective",
+                    "assessment",
+                    "plan",
+                ]
 
         # Verify answer content (should mention back pain or treatment)
         answer_lower = response.answer.lower()
