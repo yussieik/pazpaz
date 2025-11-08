@@ -19,7 +19,6 @@ import { ref, computed, nextTick, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useAIAgent } from '@/composables/useAIAgent'
 import AgentMessageBubble from './AgentMessageBubble.vue'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 interface Props {
   clientId?: string

@@ -32,7 +32,7 @@ md.renderer.rules.strong_open = (tokens, idx) => {
 
 // Customize heading rendering for clinical context
 md.renderer.rules.heading_open = (tokens, idx) => {
-  const level = tokens[idx].tag
+  const level = tokens[idx]?.tag || 'p'
   const classes: Record<string, string> = {
     h1: 'text-lg font-bold text-slate-900 mt-4 mb-2 first:mt-0',
     h2: 'text-base font-semibold text-slate-800 mt-3 mb-1.5 first:mt-0',
@@ -63,7 +63,7 @@ md.renderer.rules.paragraph_open = () => {
 
 // Customize link rendering (add security attributes)
 md.renderer.rules.link_open = (tokens, idx) => {
-  const href = tokens[idx].attrGet('href') || ''
+  const href = tokens[idx]?.attrGet('href') || ''
   return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="text-emerald-600 hover:text-emerald-700 underline">`
 }
 
