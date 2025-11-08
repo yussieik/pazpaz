@@ -72,32 +72,34 @@ const renderedContent = computed(() => {
 // Container width classes
 const containerWidthClasses = computed(() => {
   if (props.message.role === 'user') {
-    return 'max-w-[85%] sm:max-w-[75%] lg:max-w-[65%]'
+    return 'max-w-[90%] sm:max-w-[85%] md:max-w-[75%] lg:max-w-[65%]'
   }
   // Assistant messages can be wider for detailed clinical info
   return 'max-w-full'
 })
 
-// Bubble padding classes
+// Bubble padding classes - responsive for mobile
 const bubblePaddingClasses = computed(() => {
   if (props.message.role === 'user') {
-    return 'px-4 py-3'
+    return 'px-3 sm:px-4 py-2.5 sm:py-3'
   }
   // More padding for assistant messages with formatted content
-  return 'px-5 py-4'
+  return 'px-4 sm:px-5 py-3 sm:py-4'
 })
 </script>
 
 <template>
   <div :class="['flex w-full', alignmentClasses]">
-    <div :class="['space-y-3', containerWidthClasses]">
+    <div :class="['space-y-2 sm:space-y-3', containerWidthClasses]">
       <!-- Message bubble -->
       <div
         :class="[
-          'rounded-2xl shadow-sm transition-all duration-200 border',
+          'rounded-2xl border shadow-sm transition-all duration-200',
           bubbleClasses,
           bubblePaddingClasses,
-          message.role === 'user' ? 'rounded-br-sm border-transparent' : 'rounded-bl-sm border-slate-200',
+          message.role === 'user'
+            ? 'rounded-br-sm border-transparent'
+            : 'rounded-bl-sm border-slate-200',
         ]"
       >
         <!-- User messages: simple text -->
@@ -111,7 +113,7 @@ const bubblePaddingClasses = computed(() => {
         <!-- Assistant messages: rendered markdown with clinical styling -->
         <div
           v-else-if="!isError"
-          class="prose prose-clinical prose-sm max-w-none"
+          class="prose prose-clinical prose-sm max-w-none text-sm sm:text-base"
           v-html="renderedContent"
         />
 
@@ -124,7 +126,7 @@ const bubblePaddingClasses = computed(() => {
       <!-- Timestamp and metadata -->
       <div
         :class="[
-          'flex items-center gap-2 px-2 text-xs text-slate-500',
+          'flex items-center gap-1.5 px-1 text-xs text-slate-500 sm:gap-2 sm:px-2',
           message.role === 'user' ? 'justify-end' : 'justify-start',
         ]"
       >
@@ -173,13 +175,12 @@ const bubblePaddingClasses = computed(() => {
         </button>
 
         <!-- Citation cards grid (2 columns on larger screens) - collapsible -->
-        <div
-          v-show="citationsExpanded"
-          class="grid gap-2 sm:grid-cols-2"
-        >
+        <div v-show="citationsExpanded" class="grid gap-2 sm:grid-cols-2">
           <AgentCitationCard
             v-for="citation in message.citations"
-            :key="citation.type === 'session' ? citation.session_id : citation.client_id"
+            :key="
+              citation.type === 'session' ? citation.session_id : citation.client_id
+            "
             :citation="citation"
           />
         </div>

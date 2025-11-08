@@ -43,17 +43,28 @@ md.renderer.rules.heading_open = (tokens, idx) => {
 }
 
 // Customize list rendering with enhanced spacing and visual rhythm
+// Use custom marker styling to control bullet color independently
 md.renderer.rules.bullet_list_open = () => {
-  return '<ul class="list-disc pl-5 space-y-2 my-3">'
+  return '<ul class="space-y-2 my-3 pl-5 list-none">'
 }
 
 md.renderer.rules.ordered_list_open = () => {
-  return '<ol class="list-decimal pl-5 space-y-2 my-3">'
+  return '<ol class="space-y-2 my-3 pl-5 list-none">'
 }
 
-// Enhanced list item rendering with better spacing
-md.renderer.rules.list_item_open = () => {
-  return '<li class="leading-relaxed">'
+// Enhanced list item rendering with custom colored markers
+// Bullet: emerald dot, Number: emerald text
+md.renderer.rules.list_item_open = (tokens, idx) => {
+  // Check if this is part of an ordered or unordered list
+  const isOrdered = tokens[idx - 1]?.type === 'ordered_list_open'
+
+  if (isOrdered) {
+    // For ordered lists, use counter with emerald number
+    return '<li class="leading-relaxed relative pl-6 before:content-[counter(list-item)_\'.\'] before:absolute before:left-0 before:text-emerald-600 before:font-medium" style="counter-increment: list-item">'
+  } else {
+    // For unordered lists, use emerald bullet
+    return '<li class="leading-relaxed relative pl-6 before:content-[\'•\'] before:absolute before:left-2 before:text-emerald-600">'
+  }
 }
 
 // Customize paragraph rendering with bidirectional support

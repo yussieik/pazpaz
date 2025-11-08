@@ -156,7 +156,10 @@ function navigateToCitation() {
           </span>
 
           <!-- Relevance indicator -->
-          <span class="text-xs text-slate-500" :title="`${similarityPercent}% relevant`">
+          <span
+            class="text-xs text-slate-500"
+            :title="`${similarityPercent}% relevant`"
+          >
             {{ relevanceLabel }}
           </span>
         </div>

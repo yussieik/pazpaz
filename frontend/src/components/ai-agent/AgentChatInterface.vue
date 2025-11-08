@@ -94,7 +94,9 @@ function handleClearHistory() {
         class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
         @click="handleClearHistory"
       >
-        <span class="text-xs text-slate-400">{{ Math.floor(messages.length / 2) }}</span>
+        <span class="text-xs text-slate-400">{{
+          Math.floor(messages.length / 2)
+        }}</span>
         <span class="font-medium">{{ $t('aiAgent.clearHistory') }}</span>
       </button>
     </div>
@@ -102,7 +104,7 @@ function handleClearHistory() {
     <!-- Messages container with subtle background pattern -->
     <div
       ref="messagesContainer"
-      class="flex-1 space-y-6 overflow-y-auto px-4 py-6"
+      class="flex-1 space-y-4 overflow-y-auto px-3 py-4 sm:space-y-6 sm:px-4 sm:py-6"
       style="
         background-image: radial-gradient(
           circle at 1px 1px,
@@ -113,8 +115,11 @@ function handleClearHistory() {
       "
     >
       <!-- Empty state (enhanced) -->
-      <div v-if="messages.length === 0" class="flex h-full items-center justify-center">
-        <div class="max-w-lg rounded-2xl bg-white p-8 shadow-sm">
+      <div
+        v-if="messages.length === 0"
+        class="flex h-full items-center justify-center px-2"
+      >
+        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-sm sm:p-8">
           <!-- Animated icon -->
           <div class="mb-6 flex justify-center">
             <div
@@ -204,15 +209,15 @@ function handleClearHistory() {
       </div>
     </div>
 
-    <!-- Input form (enhanced with better visual separation) -->
-    <div class="border-t border-slate-200 bg-white p-4 shadow-lg">
+    <!-- Input form (enhanced with better visual separation and mobile optimization) -->
+    <div class="border-t border-slate-200 bg-white p-3 shadow-lg sm:p-4">
       <!-- Error message -->
       <div
         v-if="error"
-        class="mb-3 flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-800"
+        class="mb-2 flex items-start gap-2 rounded-lg bg-red-50 p-2.5 text-xs text-red-800 sm:mb-3 sm:p-3 sm:text-sm"
       >
         <svg
-          class="mt-0.5 h-4 w-4 flex-shrink-0"
+          class="mt-0.5 h-3.5 w-3.5 flex-shrink-0 sm:h-4 sm:w-4"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -227,7 +232,7 @@ function handleClearHistory() {
         <span>{{ error }}</span>
       </div>
 
-      <form class="flex gap-3" @submit.prevent="handleSubmit">
+      <form class="flex gap-2 sm:gap-3" @submit.prevent="handleSubmit">
         <div class="flex-1">
           <div class="relative">
             <textarea
@@ -236,14 +241,16 @@ function handleClearHistory() {
               :disabled="isLoading"
               rows="2"
               maxlength="500"
-              class="w-full resize-none rounded-xl border-2 border-slate-200 px-4 py-3 text-sm transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+              class="w-full resize-none rounded-xl border-2 border-slate-200 px-3 py-2.5 text-sm transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:px-4 sm:py-3"
               @keydown.enter.exact.prevent="handleSubmit"
             />
             <!-- Character count -->
             <div
-              class="absolute bottom-2 right-3 text-xs"
+              class="absolute right-2 bottom-1.5 text-xs sm:right-3 sm:bottom-2"
               :class="
-                queryInput.length > 450 ? 'text-amber-600 font-medium' : 'text-slate-400'
+                queryInput.length > 450
+                  ? 'font-medium text-amber-600'
+                  : 'text-slate-400'
               "
             >
               {{ queryInput.length }}/500
@@ -251,13 +258,18 @@ function handleClearHistory() {
           </div>
         </div>
 
-        <!-- Send button with icon -->
+        <!-- Send button with icon - optimized for mobile -->
         <button
           type="submit"
           :disabled="!canSubmit"
-          class="flex h-auto items-center gap-2 self-start rounded-xl bg-emerald-500 px-5 py-3 font-medium text-white shadow-sm transition-all hover:bg-emerald-600 hover:shadow-md focus:ring-4 focus:ring-emerald-200 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+          class="flex h-auto items-center justify-center gap-1.5 self-start rounded-xl bg-emerald-500 px-3 py-2.5 font-medium text-white shadow-sm transition-all hover:bg-emerald-600 hover:shadow-md focus:ring-4 focus:ring-emerald-200 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none sm:gap-2 sm:px-5 sm:py-3"
         >
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg
+            class="h-4 w-4 sm:h-4 sm:w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -265,12 +277,12 @@ function handleClearHistory() {
               d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
             />
           </svg>
-          <span>{{ $t('aiAgent.send') }}</span>
+          <span class="text-sm sm:text-base">{{ $t('aiAgent.send') }}</span>
         </button>
       </form>
 
-      <!-- Keyboard shortcut hint -->
-      <p class="mt-2 text-center text-xs text-slate-500">
+      <!-- Keyboard shortcut hint - hidden on small mobile -->
+      <p class="mt-2 hidden text-center text-xs text-slate-500 sm:block">
         Press Enter to send · Shift+Enter for new line
       </p>
     </div>
