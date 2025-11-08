@@ -45,6 +45,7 @@ class ResourceType(str, enum.Enum):
     SERVICE = "Service"
     LOCATION = "Location"
     WORKSPACE = "Workspace"
+    AI_AGENT = "AIAgent"  # AI agent queries (PHI access for RAG)
 
 
 class AuditEvent(Base):

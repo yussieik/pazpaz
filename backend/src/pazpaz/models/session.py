@@ -174,6 +174,11 @@ class Session(Base):
         cascade="all, delete-orphan",
         # order_by handled in query when needed
     )
+    vectors: Mapped[list["SessionVector"]] = relationship(
+        "SessionVector",
+        back_populates="session",
+        cascade="all, delete-orphan",
+    )
 
     # Indexes for performance (must match migration exactly)
     __table_args__ = (

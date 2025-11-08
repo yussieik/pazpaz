@@ -5,11 +5,12 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
+from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pazpaz.api.deps import get_current_user, get_db, get_or_404
+from pazpaz.api.deps import get_arq_pool, get_current_user, get_db, get_or_404
 from pazpaz.core.logging import get_logger
 from pazpaz.models.appointment import Appointment, AppointmentStatus
 from pazpaz.models.client import Client
@@ -103,6 +104,7 @@ async def create_client(
     client_data: ClientCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    arq_pool: ArqRedis = Depends(get_arq_pool),
 ) -> Client:
     """
     Create a new client.
@@ -155,6 +157,14 @@ async def create_client(
 
     logger.info(
         "client_created",
+        client_id=str(client.id),
+        workspace_id=str(workspace_id),
+    )
+
+    # Enqueue background job to generate embeddings
+    # This runs asynchronously and does not block the HTTP response
+    await arq_pool.enqueue_job(
+        "generate_client_embeddings",
         client_id=str(client.id),
         workspace_id=str(workspace_id),
     )
@@ -319,6 +329,7 @@ async def update_client(
     client_data: ClientUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    arq_pool: ArqRedis = Depends(get_arq_pool),
 ) -> ClientResponse:
     """
     Update an existing client.
@@ -366,6 +377,15 @@ async def update_client(
         workspace_id=str(workspace_id),
         updated_fields=list(update_data.keys()),
     )
+
+    # Enqueue background job to regenerate embeddings if relevant fields changed
+    # Only enqueue if medical_history or notes were updated
+    if "medical_history" in update_data or "notes" in update_data:
+        await arq_pool.enqueue_job(
+            "generate_client_embeddings",
+            client_id=str(client_id),
+            workspace_id=str(workspace_id),
+        )
 
     # Enrich with computed fields before returning
     return await enrich_client_response(db, client)

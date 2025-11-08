@@ -5,11 +5,13 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
+from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pazpaz.api.deps import (
+    get_arq_pool,
     get_current_user,
     get_db,
     get_or_404,
@@ -34,6 +36,7 @@ from pazpaz.schemas.session import (
     SessionVersionResponse,
 )
 from pazpaz.services.audit_service import create_audit_event
+from pazpaz.services.cache_service import AICacheService
 from pazpaz.utils.pagination import (
     calculate_pagination_offset,
     calculate_total_pages,
@@ -55,6 +58,8 @@ async def create_session(
     request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    arq_pool: ArqRedis = Depends(get_arq_pool),
+    redis_client=Depends(get_redis),
 ) -> SessionResponse:
     """
     Create a new SOAP session note.
@@ -156,6 +161,44 @@ async def create_session(
         client_id=str(session_data.client_id),
         is_draft=session.is_draft,
     )
+
+    # Enqueue background job to generate embeddings
+    # This runs asynchronously and does not block the HTTP response
+    await arq_pool.enqueue_job(
+        "generate_session_embeddings",
+        session_id=str(session.id),
+        workspace_id=str(workspace_id),
+    )
+
+    logger.info(
+        "session_embedding_job_enqueued",
+        session_id=str(session.id),
+        workspace_id=str(workspace_id),
+    )
+
+    # Invalidate AI query cache for this client
+    if redis_client:
+        try:
+            cache_service = AICacheService(redis_client)
+            deleted = await cache_service.invalidate_client_queries(
+                workspace_id=workspace_id,
+                client_id=session_data.client_id,
+            )
+
+            logger.debug(
+                "ai_cache_invalidated_after_session_create",
+                session_id=str(session.id),
+                client_id=str(session_data.client_id),
+                workspace_id=str(workspace_id),
+                keys_deleted=deleted,
+            )
+        except Exception as e:
+            # Don't fail session creation if cache invalidation fails
+            logger.warning(
+                "ai_cache_invalidation_failed",
+                session_id=str(session.id),
+                error=str(e),
+            )
 
     # Return response (PHI automatically decrypted by ORM)
     return SessionResponse.model_validate(session)
@@ -573,6 +616,8 @@ async def update_session(
     request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    arq_pool: ArqRedis = Depends(get_arq_pool),
+    redis_client=Depends(get_redis),
 ) -> SessionResponse:
     """
     Update an existing session with partial updates.
@@ -707,6 +752,47 @@ async def update_session(
         was_amendment=session.finalized_at is not None,
     )
 
+    # If SOAP fields were updated, regenerate embeddings
+    if sections_changed:
+        await arq_pool.enqueue_job(
+            "generate_session_embeddings",
+            session_id=str(session.id),
+            workspace_id=str(workspace_id),
+        )
+
+        logger.info(
+            "session_embedding_job_enqueued",
+            session_id=str(session.id),
+            workspace_id=str(workspace_id),
+            reason="soap_fields_updated",
+            updated_fields=sections_changed,
+        )
+
+        # Invalidate AI query cache when SOAP fields change
+        if redis_client:
+            try:
+                cache_service = AICacheService(redis_client)
+                deleted = await cache_service.invalidate_client_queries(
+                    workspace_id=workspace_id,
+                    client_id=session.client_id,
+                )
+
+                logger.debug(
+                    "ai_cache_invalidated_after_session_update",
+                    session_id=str(session.id),
+                    client_id=str(session.client_id),
+                    workspace_id=str(workspace_id),
+                    keys_deleted=deleted,
+                    updated_fields=sections_changed,
+                )
+            except Exception as e:
+                # Don't fail session update if cache invalidation fails
+                logger.warning(
+                    "ai_cache_invalidation_failed",
+                    session_id=str(session.id),
+                    error=str(e),
+                )
+
     # Return response (PHI automatically decrypted)
     return SessionResponse.model_validate(session)
 
@@ -834,6 +920,7 @@ async def finalize_session(
     request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    arq_pool: ArqRedis = Depends(get_arq_pool),
 ) -> SessionResponse:
     """
     Finalize session and mark as complete.
@@ -939,6 +1026,20 @@ async def finalize_session(
         workspace_id=str(workspace_id),
         finalized_at=session.finalized_at.isoformat(),
         version_created=1,
+    )
+
+    # Enqueue background job to generate embeddings
+    # This runs asynchronously and does not block the HTTP response
+    await arq_pool.enqueue_job(
+        "generate_session_embeddings",
+        session_id=str(session.id),
+        workspace_id=str(workspace_id),
+    )
+
+    logger.info(
+        "session_embedding_job_enqueued",
+        session_id=str(session.id),
+        workspace_id=str(workspace_id),
     )
 
     # Return response (PHI automatically decrypted)
@@ -1145,6 +1246,7 @@ async def delete_session(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     deletion_request: SessionDeleteRequest | None = None,
+    redis_client=Depends(get_redis),
 ) -> None:
     """
     Soft delete a session with optional deletion reason.
@@ -1231,6 +1333,30 @@ async def delete_session(
         permanent_delete_after=session.permanent_delete_after.isoformat(),
         deleted_reason=deletion_reason,
     )
+
+    # Invalidate AI query cache for this client
+    if redis_client:
+        try:
+            cache_service = AICacheService(redis_client)
+            deleted_keys = await cache_service.invalidate_client_queries(
+                workspace_id=workspace_id,
+                client_id=session.client_id,
+            )
+
+            logger.debug(
+                "ai_cache_invalidated_after_session_delete",
+                session_id=str(session.id),
+                client_id=str(session.client_id),
+                workspace_id=str(workspace_id),
+                keys_deleted=deleted_keys,
+            )
+        except Exception as e:
+            # Don't fail session deletion if cache invalidation fails
+            logger.warning(
+                "ai_cache_invalidation_failed",
+                session_id=str(session.id),
+                error=str(e),
+            )
 
 
 @router.post("/{session_id}/restore", response_model=SessionResponse)

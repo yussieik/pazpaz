@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: pazpaz-db
     user: root  # Needed to chown files in entrypoint, postgres user set by entrypoint
     environment:
@@ -211,6 +211,11 @@ services:
       - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
       - GOOGLE_OAUTH_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET}
       - GOOGLE_OAUTH_REDIRECT_URI=${GOOGLE_OAUTH_REDIRECT_URI:-http://localhost:8000/api/v1/integrations/google-calendar/callback}
+
+      # AI Agent Configuration (Cohere)
+      - COHERE_API_KEY=${COHERE_API_KEY}
+      - COHERE_EMBED_MODEL=${COHERE_EMBED_MODEL:-embed-v4.0}
+      - COHERE_CHAT_MODEL=${COHERE_CHAT_MODEL:-command-a-03-2025}
     depends_on:
       db:
         condition: service_healthy
@@ -247,7 +252,7 @@ services:
   arq-worker:
     build: ./backend
     container_name: pazpaz-arq-worker
-    command: sh -c "sleep 10 && uv run --no-sync python -m arq pazpaz.workers.scheduler.WorkerSettings"
+    command: sh -c "sleep 15 && uv run --no-sync python -m arq pazpaz.workers.scheduler.WorkerSettings"
     environment:
       # Database connection (must match API service for workspace scoping)
       - DATABASE_URL=postgresql+asyncpg://pazpaz:${POSTGRES_PASSWORD}@db:5432/pazpaz
@@ -274,11 +279,18 @@ services:
 
       # Encryption key (needed for PHI decryption when building email content)
       - ENCRYPTION_MASTER_KEY=${ENCRYPTION_MASTER_KEY:-CHANGE_ME_GENERATE_BASE64_32_BYTES}
+
+      # AI Agent Configuration (Cohere)
+      - COHERE_API_KEY=${COHERE_API_KEY}
+      - COHERE_EMBED_MODEL=${COHERE_EMBED_MODEL:-embed-v4.0}
+      - COHERE_CHAT_MODEL=${COHERE_CHAT_MODEL:-command-a-03-2025}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      api:
+        condition: service_started
       mailhog:
         condition: service_started
     volumes:
