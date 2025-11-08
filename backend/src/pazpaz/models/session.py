@@ -174,7 +174,7 @@ class Session(Base):
         cascade="all, delete-orphan",
         # order_by handled in query when needed
     )
-    vectors: Mapped[list["SessionVector"]] = relationship(
+    vectors: Mapped[list[SessionVector]] = relationship(
         "SessionVector",
         back_populates="session",
         cascade="all, delete-orphan",

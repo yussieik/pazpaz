@@ -1,0 +1,61 @@
+#!/usr/bin/expect -f
+#
+# Fix deployment - investigate and resolve git/migration issues
+#
+
+set timeout 300
+set password "Cluster1!"
+
+spawn ssh pazpaz@5.161.241.81
+
+expect "password:"
+send "$password\r"
+
+expect "$ "
+send "cd /opt/pazpaz\r"
+
+expect "$ "
+send "echo '🔍 Investigating deployment directory...'\r"
+
+expect "$ "
+send "ls -la\r"
+
+expect "$ "
+send "echo ''\r"
+
+expect "$ "
+send "echo '🔍 Checking for .git directory...'\r"
+
+expect "$ "
+send "ls -la .git 2>&1 || echo 'No .git found'\r"
+
+expect "$ "
+send "echo ''\r"
+
+expect "$ "
+send "echo '🔍 Checking current directory structure...'\r"
+
+expect "$ "
+send "pwd\r"
+
+expect "$ "
+send "echo ''\r"
+
+expect "$ "
+send "echo '🔍 Looking for pazpaz git repository...'\r"
+
+expect "$ "
+send "find /opt -name '.git' -type d 2>/dev/null | head -5\r"
+
+expect "$ "
+send "echo ''\r"
+
+expect "$ "
+send "echo 'Please investigate the directory structure manually.'\r"
+
+expect "$ "
+send "echo 'Type \"exit\" when done to disconnect.'\r"
+
+interact
+
+expect eof

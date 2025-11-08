@@ -16,6 +16,7 @@ import sys
 import uuid
 from datetime import UTC, datetime
 
+from pazpaz.db.session import get_async_session_maker
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +24,6 @@ from pazpaz.ai.agent import ClinicalAgent, get_clinical_agent
 from pazpaz.ai.embeddings import get_embedding_service
 from pazpaz.ai.vector_store import get_vector_store
 from pazpaz.core.config import settings
-from pazpaz.db.session import get_async_session_maker
 from pazpaz.models.client import Client
 from pazpaz.models.session import Session
 from pazpaz.models.workspace import Workspace
@@ -64,10 +64,10 @@ async def main():
     print("=" * 80)
 
     # Check configuration
-    print(f"\n📋 Configuration:")
+    print("\n📋 Configuration:")
     print(f"  - Cohere API Key: {'✓ Set' if settings.cohere_api_key else '✗ Missing'}")
     print(f"  - Embedding Model: {settings.cohere_embed_model}")
-    print(f"  - Expected Dimensions: 1536")
+    print("  - Expected Dimensions: 1536")
 
     if not settings.cohere_api_key:
         print("\n❌ ERROR: COHERE_API_KEY not set")
@@ -178,7 +178,7 @@ async def main():
                     if len(embedding) == 1536:
                         print(" ✓")
                     else:
-                        print(f" ✗ (expected 1536)")
+                        print(" ✗ (expected 1536)")
                         return 1
 
                 # Store embeddings
@@ -258,7 +258,7 @@ async def main():
                 print(f"\n  Answer: {response.answer[:300]}...")
 
                 if response.citations:
-                    print(f"\n  Citations:")
+                    print("\n  Citations:")
                     for citation in response.citations[:3]:
                         print(f"    • Session {citation.session_id}")
                         print(f"      Field: {citation.field_name}")
@@ -293,11 +293,11 @@ async def main():
             print("✅ ALL TESTS PASSED!")
             print("=" * 80)
             print("\nSummary:")
-            print(f"  ✓ Cohere embed-v4.0 generates 1536-dimensional embeddings")
-            print(f"  ✓ Embeddings stored successfully in pgvector")
-            print(f"  ✓ Similarity search retrieves relevant sessions")
-            print(f"  ✓ AI agent queries work with embedded data")
-            print(f"  ✓ Workspace isolation is enforced")
+            print("  ✓ Cohere embed-v4.0 generates 1536-dimensional embeddings")
+            print("  ✓ Embeddings stored successfully in pgvector")
+            print("  ✓ Similarity search retrieves relevant sessions")
+            print("  ✓ AI agent queries work with embedded data")
+            print("  ✓ Workspace isolation is enforced")
             print(f"  ✓ Created {len(sessions)} sessions with {our_count} embeddings")
 
             return 0

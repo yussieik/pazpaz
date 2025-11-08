@@ -1,7 +1,7 @@
 """Unit tests for L2 embedding cache in EmbeddingService."""
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from redis.asyncio import Redis

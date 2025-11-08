@@ -255,12 +255,12 @@ class Workspace(Base):
         back_populates="workspace",
         cascade="all, delete-orphan",
     )
-    session_vectors: Mapped[list["SessionVector"]] = relationship(
+    session_vectors: Mapped[list[SessionVector]] = relationship(
         "SessionVector",
         back_populates="workspace",
         cascade="all, delete-orphan",
     )
-    client_vectors: Mapped[list["ClientVector"]] = relationship(
+    client_vectors: Mapped[list[ClientVector]] = relationship(
         "ClientVector",
         back_populates="workspace",
         cascade="all, delete-orphan",

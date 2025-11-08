@@ -10,7 +10,6 @@ This script proves that:
 Run: PYTHONPATH=src uv run python tests/manual/test_embeddings_simple.py
 """
 
-import asyncio
 import sys
 
 from pazpaz.ai.embeddings import get_embedding_service
@@ -24,10 +23,10 @@ def test_embedding_dimensions():
     print("=" * 80)
 
     # Check configuration
-    print(f"\n📋 Configuration:")
+    print("\n📋 Configuration:")
     print(f"  - Cohere API Key: {'✓ Set' if settings.cohere_api_key else '✗ Missing'}")
     print(f"  - Embedding Model: {settings.cohere_embed_model}")
-    print(f"  - Expected Dimensions: 1536")
+    print("  - Expected Dimensions: 1536")
 
     if not settings.cohere_api_key:
         print("\n❌ ERROR: COHERE_API_KEY not set")
@@ -41,7 +40,7 @@ def test_embedding_dimensions():
 
     try:
         service = get_embedding_service()
-        print(f"✓ Created EmbeddingService")
+        print("✓ Created EmbeddingService")
         print(f"  - Model: {service.model}")
         print(f"  - Input type: {service.input_type}")
     except Exception as e:
@@ -58,7 +57,7 @@ def test_embedding_dimensions():
 
     try:
         embedding = service.embed_text(test_text)
-        print(f"✓ Generated embedding")
+        print("✓ Generated embedding")
         print(f"  - Dimensions: {len(embedding)}")
         print(f"  - First 5 values: {embedding[:5]}")
         print(f"  - Last 5 values: {embedding[-5:]}")
@@ -67,7 +66,7 @@ def test_embedding_dimensions():
             print(f"✗ FAILED: Expected 1536 dimensions, got {len(embedding)}")
             return False
 
-        print(f"  ✓ Correct dimensions (1536)")
+        print("  ✓ Correct dimensions (1536)")
     except Exception as e:
         print(f"✗ Failed to generate embedding: {e}")
         import traceback
@@ -103,10 +102,10 @@ def test_embedding_dimensions():
                 all_correct = False
 
         if not all_correct:
-            print(f"\n✗ FAILED: Some embeddings have incorrect dimensions")
+            print("\n✗ FAILED: Some embeddings have incorrect dimensions")
             return False
 
-        print(f"\n  ✓ All embeddings have correct dimensions (1536)")
+        print("\n  ✓ All embeddings have correct dimensions (1536)")
     except Exception as e:
         print(f"✗ Failed to generate batch embeddings: {e}")
         import traceback
@@ -149,10 +148,10 @@ def test_embedding_dimensions():
                 all_correct = False
 
         if not all_correct:
-            print(f"\n✗ FAILED: Some SOAP embeddings have incorrect dimensions")
+            print("\n✗ FAILED: Some SOAP embeddings have incorrect dimensions")
             return False
 
-        print(f"\n  ✓ All SOAP embeddings have correct dimensions (1536)")
+        print("\n  ✓ All SOAP embeddings have correct dimensions (1536)")
     except Exception as e:
         print(f"✗ Failed to generate SOAP embeddings: {e}")
         import traceback
@@ -167,19 +166,19 @@ def test_embedding_dimensions():
 
     try:
         empty_embedding = service.embed_text("")
-        print(f"✓ Empty text handled correctly")
+        print("✓ Empty text handled correctly")
         print(f"  - Dimensions: {len(empty_embedding)}")
         print(f"  - Is zero vector: {all(v == 0.0 for v in empty_embedding)}")
 
         if len(empty_embedding) != 1536:
-            print(f"✗ FAILED: Empty text should return 1536-dim zero vector")
+            print("✗ FAILED: Empty text should return 1536-dim zero vector")
             return False
 
         if not all(v == 0.0 for v in empty_embedding):
-            print(f"✗ FAILED: Empty text should return zero vector")
+            print("✗ FAILED: Empty text should return zero vector")
             return False
 
-        print(f"  ✓ Correct behavior for empty text")
+        print("  ✓ Correct behavior for empty text")
     except Exception as e:
         print(f"✗ Failed empty text test: {e}")
         return False
@@ -189,12 +188,12 @@ def test_embedding_dimensions():
     print("✅ ALL TESTS PASSED!")
     print("=" * 80)
     print("\nSummary:")
-    print(f"  ✓ Cohere embed-v4.0 is properly configured")
-    print(f"  ✓ Single text embedding generates 1536 dimensions")
-    print(f"  ✓ Batch embeddings generate 1536 dimensions")
-    print(f"  ✓ SOAP field embeddings generate 1536 dimensions")
-    print(f"  ✓ Empty text handling works correctly")
-    print(f"\n🎉 Cohere embed-v4.0 upgrade is working perfectly!")
+    print("  ✓ Cohere embed-v4.0 is properly configured")
+    print("  ✓ Single text embedding generates 1536 dimensions")
+    print("  ✓ Batch embeddings generate 1536 dimensions")
+    print("  ✓ SOAP field embeddings generate 1536 dimensions")
+    print("  ✓ Empty text handling works correctly")
+    print("\n🎉 Cohere embed-v4.0 upgrade is working perfectly!")
 
     return True
 

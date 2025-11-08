@@ -163,7 +163,7 @@ class Client(Base):
         back_populates="client",
         cascade="all, delete-orphan",
     )
-    vectors: Mapped[list["ClientVector"]] = relationship(
+    vectors: Mapped[list[ClientVector]] = relationship(
         "ClientVector",
         back_populates="client",
         cascade="all, delete-orphan",
