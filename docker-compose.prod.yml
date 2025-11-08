@@ -284,7 +284,7 @@ services:
   # Primary data store with SSL enabled and proper backup configuration
   # ISOLATED in database network - NOT exposed to host
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: pazpaz-db
     networks:
       - database  # Internal database network only
