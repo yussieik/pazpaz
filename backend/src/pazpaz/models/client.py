@@ -16,6 +16,7 @@ from pazpaz.db.types import EncryptedString
 
 if TYPE_CHECKING:
     from pazpaz.models.appointment import Appointment
+    from pazpaz.models.client_vector import ClientVector
     from pazpaz.models.session import Session
     from pazpaz.models.workspace import Workspace
 

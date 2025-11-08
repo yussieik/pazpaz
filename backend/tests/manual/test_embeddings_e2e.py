@@ -74,8 +74,8 @@ async def main():
         return 1
 
     # Create database session
-    SessionMaker = get_async_session_maker()
-    async with SessionMaker() as db:
+    session_maker = get_async_session_maker()
+    async with session_maker() as db:
         workspace_id = uuid.uuid4()
         client_id = uuid.uuid4()
 

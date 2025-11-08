@@ -303,7 +303,7 @@ class TestClinicalAgentL1Cache:
         query = "What is the patient's back pain history?"
 
         # Query for client 1
-        response1 = await agent_with_cache.query(
+        _response1 = await agent_with_cache.query(
             workspace_id=workspace_id,
             query=query,
             client_id=client_id_1,
@@ -311,7 +311,7 @@ class TestClinicalAgentL1Cache:
         )
 
         # Query for client 2 (same query, different client)
-        response2 = await agent_with_cache.query(
+        _response2 = await agent_with_cache.query(
             workspace_id=workspace_id,
             query=query,
             client_id=client_id_2,

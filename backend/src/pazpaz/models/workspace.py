@@ -28,9 +28,11 @@ if TYPE_CHECKING:
     from pazpaz.models.appointment import Appointment
     from pazpaz.models.audit_event import AuditEvent
     from pazpaz.models.client import Client
+    from pazpaz.models.client_vector import ClientVector
     from pazpaz.models.location import Location
     from pazpaz.models.service import Service
     from pazpaz.models.session import Session
+    from pazpaz.models.session_vector import SessionVector
     from pazpaz.models.user import User
     from pazpaz.models.user_notification_settings import UserNotificationSettings
 

@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from pazpaz.models.appointment import Appointment
     from pazpaz.models.client import Client
     from pazpaz.models.session_attachment import SessionAttachment
+    from pazpaz.models.session_vector import SessionVector
     from pazpaz.models.session_version import SessionVersion
     from pazpaz.models.user import User
     from pazpaz.models.workspace import Workspace
