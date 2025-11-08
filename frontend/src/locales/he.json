@@ -582,7 +582,8 @@
       "tabs": {
         "overview": "סקירה",
         "history": "היסטוריה",
-        "files": "קבצים"
+        "files": "קבצים",
+        "aiAssistant": "שאל AI"
       },
       "overview": {
         "title": "מידע על המטופל",
@@ -1081,6 +1082,35 @@
         "clientInvitationsBaaRequired": "יש לאשר Google Workspace BAA לפני הפעלת התראות למטופלים.",
         "clientInvitationsUpdateError": "עדכון ההגדרות נכשל. אנא נסה שוב."
       }
+    }
+  },
+  "aiAgent": {
+    "title": "עוזר AI",
+    "subtitle": "שאל שאלות על היסטוריית המטופל",
+    "clearHistory": "נקה",
+    "confirmClearHistory": "האם אתה בטוח שברצונך לנקות את היסטוריית השיחה?",
+    "thinking": "חושב...",
+    "send": "שלח",
+    "inputPlaceholder": "שאל על היסטוריית המטופל...",
+    "emptyState": {
+      "title": "שאל אותי כל דבר",
+      "description": "אני יכול לעזור לך למצוא מידע מתיעוד הפגישות של המטופלים באמצעות שאילתות בשפה טבעית בעברית או באנגלית.",
+      "examplesTitle": "דוגמאות לשאלות:",
+      "example1": "מה היה היסטוריית כאבי הגב של המטופל?",
+      "example2": "מתי עבדנו לאחרונה על ניידות הכתף?",
+      "example3": "אילו טיפולים ניסינו לכאבי ברך?"
+    },
+    "citations": {
+      "title": "מקורות",
+      "highRelevance": "רלוונטי מאוד",
+      "mediumRelevance": "רלוונטי",
+      "lowRelevance": "אולי רלוונטי"
+    },
+    "soap": {
+      "subjective": "סובייקטיבי",
+      "objective": "אובייקטיבי",
+      "assessment": "הערכה",
+      "plan": "תוכנית"
     }
   }
 }

@@ -7,6 +7,76 @@ export default {
   // Keep minimal config for backward compatibility
   theme: {
     extend: {
+      // Custom typography for clinical documentation
+      typography: ({ theme }) => ({
+        clinical: {
+          css: {
+            '--tw-prose-body': theme('colors.slate[700]'),
+            '--tw-prose-headings': theme('colors.slate[900]'),
+            '--tw-prose-bold': theme('colors.slate[900]'),
+            '--tw-prose-bullets': theme('colors.emerald[500]'),
+            '--tw-prose-quotes': theme('colors.slate[500]'),
+            '--tw-prose-links': theme('colors.emerald[600]'),
+            '--tw-prose-code': theme('colors.slate[900]'),
+            '--tw-prose-code-bg': theme('colors.slate[100]'),
+
+            // Tighter spacing for clinical context
+            maxWidth: 'none',
+            fontSize: '0.875rem',
+            lineHeight: '1.6',
+
+            h1: {
+              fontSize: '1.125rem',
+              fontWeight: '700',
+              marginTop: '1em',
+              marginBottom: '0.5em',
+            },
+            h2: {
+              fontSize: '1rem',
+              fontWeight: '600',
+              marginTop: '0.75em',
+              marginBottom: '0.375em',
+            },
+            h3: {
+              fontSize: '0.925rem',
+              fontWeight: '600',
+              marginTop: '0.5em',
+              marginBottom: '0.25em',
+            },
+            p: {
+              marginTop: '0.5em',
+              marginBottom: '0.5em',
+            },
+            'ul, ol': {
+              marginTop: '0.5em',
+              marginBottom: '0.5em',
+              paddingLeft: '1.25rem',
+            },
+            li: {
+              marginTop: '0.25em',
+              marginBottom: '0.25em',
+            },
+            strong: {
+              color: theme('colors.slate[900]'),
+              fontWeight: '600',
+            },
+            code: {
+              color: theme('colors.slate[900]'),
+              backgroundColor: theme('colors.slate[100]'),
+              padding: '0.125rem 0.25rem',
+              borderRadius: '0.25rem',
+              fontSize: '0.875em',
+              fontWeight: '500',
+            },
+            'code::before': {
+              content: '""',
+            },
+            'code::after': {
+              content: '""',
+            },
+          },
+        },
+      }),
       // Custom scales for micro-interactions
       scale: {
         98: '0.98',
@@ -84,5 +154,5 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [require('@tailwindcss/typography')],
 }

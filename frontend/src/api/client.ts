@@ -30,7 +30,7 @@ const apiClient: AxiosInstance = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true, // Include cookies for session-based auth
-  timeout: 10000, // 10 second timeout
+  timeout: 60000, // 60 second timeout (increased for AI agent queries)
 })
 
 /**

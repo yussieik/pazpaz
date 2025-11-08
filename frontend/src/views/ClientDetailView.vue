@@ -16,6 +16,7 @@ import SessionTimeline from '@/components/client/SessionTimeline.vue'
 import DeletedNotesSection from '@/components/sessions/DeletedNotesSection.vue'
 import DirectionsButton from '@/components/common/DirectionsButton.vue'
 import ClientFilesTab from '@/components/client/ClientFilesTab.vue'
+import AgentChatInterface from '@/components/ai-agent/AgentChatInterface.vue'
 import type { ClientCreate } from '@/types/client'
 
 const { t } = useI18n()
@@ -31,7 +32,7 @@ const { announcement, announce } = useScreenReader()
 const { showAppointmentSuccess, showSuccess, showError } = useToast()
 
 // Local state
-const activeTab = ref<'overview' | 'history' | 'files'>('overview')
+const activeTab = ref<'overview' | 'history' | 'files' | 'ai-assistant'>('overview')
 const showEditModal = ref(false)
 
 // Button refs for keyboard feedback
@@ -135,8 +136,8 @@ onMounted(() => {
 
   // Handle tab query parameter (e.g., from SessionView back navigation)
   const tabParam = route.query.tab as string | undefined
-  if (tabParam && ['overview', 'history', 'files'].includes(tabParam)) {
-    activeTab.value = tabParam as 'overview' | 'history' | 'files'
+  if (tabParam && ['overview', 'history', 'files', 'ai-assistant'].includes(tabParam)) {
+    activeTab.value = tabParam as 'overview' | 'history' | 'files' | 'ai-assistant'
   }
 
   // Fetch client data
@@ -256,17 +257,19 @@ function handleKeydown(e: KeyboardEvent) {
   if (!client.value) return
 
   // Tab switching (1-3)
-  if (['1', '2', '3'].includes(e.key)) {
+  if (['1', '2', '3', '4'].includes(e.key)) {
     e.preventDefault()
-    const tabMap: Record<string, 'overview' | 'history' | 'files'> = {
+    const tabMap: Record<string, 'overview' | 'history' | 'files' | 'ai-assistant'> = {
       '1': 'overview',
       '2': 'history',
       '3': 'files',
+      '4': 'ai-assistant',
     }
     const tabLabels: Record<string, string> = {
       '1': 'Overview',
       '2': 'History',
       '3': 'Files',
+      '4': 'AI Assistant',
     }
     const newTab = tabMap[e.key]
     if (newTab) {
@@ -332,10 +335,12 @@ async function handleEditClient(data: ClientCreate) {
     showEditModal.value = false
 
     // Show success toast
-    showSuccess(t('clients.detailView.toasts.clientUpdated', {
-      firstName: data.first_name,
-      lastName: data.last_name
-    }))
+    showSuccess(
+      t('clients.detailView.toasts.clientUpdated', {
+        firstName: data.first_name,
+        lastName: data.last_name,
+      })
+    )
     announce('Client information updated')
 
     // Background API call
@@ -427,10 +432,10 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
     <button
       @click="backDestination.action"
       data-focus-target="back-button"
-      class="group mb-4 -ms-2 inline-flex min-h-[44px] items-center gap-2 px-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 sm:ms-0 sm:min-h-0 sm:px-0"
+      class="group -ms-2 mb-4 inline-flex min-h-[44px] items-center gap-2 px-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 sm:ms-0 sm:min-h-0 sm:px-0"
     >
       <svg
-        class="h-5 w-5 flex-shrink-0 rtl:rotate-180 sm:h-4 sm:w-4"
+        class="h-5 w-5 flex-shrink-0 sm:h-4 sm:w-4 rtl:rotate-180"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -478,7 +483,9 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
 
           <!-- Content -->
           <div class="min-w-0 flex-1">
-            <p class="text-sm font-semibold text-blue-900">{{ t('clients.detailView.appointmentBanner.title') }}</p>
+            <p class="text-sm font-semibold text-blue-900">
+              {{ t('clients.detailView.appointmentBanner.title') }}
+            </p>
             <p class="truncate text-xs text-blue-700 sm:text-sm">
               {{ formatDate(sourceAppointment.scheduled_start, "MMM d 'at' h:mm a") }}
               •
@@ -512,8 +519,12 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
                 d="M10 19l-7-7m0 0l7-7m-7 7h18"
               />
             </svg>
-            <span class="hidden sm:inline">{{ t('clients.detailView.appointmentBanner.backButton') }}</span>
-            <span class="inline sm:hidden">{{ t('clients.detailView.appointmentBanner.backButtonShort') }}</span>
+            <span class="hidden sm:inline">{{
+              t('clients.detailView.appointmentBanner.backButton')
+            }}</span>
+            <span class="inline sm:hidden">{{
+              t('clients.detailView.appointmentBanner.backButtonShort')
+            }}</span>
             <kbd
               class="ms-1 hidden rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs text-blue-700 sm:inline"
             >
@@ -544,7 +555,9 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
         <div
           class="inline-block h-10 w-10 animate-spin rounded-full border-4 border-solid border-emerald-600 border-r-transparent sm:h-8 sm:w-8"
         ></div>
-        <p class="mt-4 text-sm text-slate-600">{{ t('clients.detailView.loadingMessage') }}</p>
+        <p class="mt-4 text-sm text-slate-600">
+          {{ t('clients.detailView.loadingMessage') }}
+        </p>
       </div>
     </div>
 
@@ -560,25 +573,20 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
     <!-- Client Profile -->
     <div v-else-if="client">
       <!-- P0-3: Emergency Contact Card (Safety Critical) -->
-      <div
+      <aside
         v-if="
           client && (client.emergency_contact_name || client.emergency_contact_phone)
         "
-        class="mb-4 rounded-lg border-2 border-red-300 bg-red-50 p-4"
-        role="region"
-        aria-label="Emergency contact information"
-        id="emergency-contact-card"
+        class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3"
+        role="complementary"
+        aria-labelledby="emergency-contact-heading"
       >
         <div class="flex items-start gap-3">
           <div
-            class="flex h-10 w-10 items-center justify-center rounded-full bg-red-600"
+            class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700"
+            aria-hidden="true"
           >
-            <svg
-              class="h-6 w-6 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -588,37 +596,28 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
             </svg>
           </div>
           <div class="flex-1">
-            <p class="text-sm font-semibold tracking-wide text-red-800 uppercase">
+            <h2
+              id="emergency-contact-heading"
+              class="text-xs font-medium uppercase tracking-wider text-amber-700"
+            >
               {{ t('clients.detailView.emergencyContactHeader') }}
-            </p>
-            <p class="mt-1 text-lg font-semibold text-red-900">
+            </h2>
+            <p class="mt-0.5 text-base font-semibold text-slate-900">
               {{ client.emergency_contact_name }}
             </p>
             <a
               v-if="client.emergency_contact_phone"
               :href="`tel:${client.emergency_contact_phone}`"
-              class="mt-1 inline-flex min-h-[44px] items-center gap-2 text-base font-bold text-red-700 hover:text-red-800 focus:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:text-lg"
+              class="mt-1 inline-flex min-h-[44px] items-center text-base font-medium text-amber-900 hover:text-amber-950 focus:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+              :aria-label="`Call emergency contact: ${client.emergency_contact_phone}`"
             >
-              <svg
-                class="h-5 w-5 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                />
-              </svg>
               <span class="break-all sm:break-normal">{{
                 client.emergency_contact_phone
               }}</span>
             </a>
           </div>
         </div>
-      </div>
+      </aside>
 
       <!-- Hero Header -->
       <header class="mb-6 rounded-lg border border-slate-200 bg-white p-6">
@@ -756,6 +755,29 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
               </kbd>
             </span>
           </button>
+          <button
+            @click="activeTab = 'ai-assistant'"
+            :class="[
+              'border-b-2 px-3 py-4 text-sm font-medium transition-colors sm:px-1',
+              activeTab === 'ai-assistant'
+                ? 'border-emerald-600 text-emerald-600'
+                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700',
+            ]"
+          >
+            <span class="flex items-center gap-1.5">
+              {{ t('clients.detailView.tabs.aiAssistant') }}
+              <kbd
+                :class="[
+                  'hidden font-mono text-xs sm:inline',
+                  activeTab === 'ai-assistant'
+                    ? 'rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-700'
+                    : 'rounded bg-slate-100 px-1.5 py-0.5 text-slate-500',
+                ]"
+              >
+                4
+              </kbd>
+            </span>
+          </button>
         </nav>
       </div>
 
@@ -765,7 +787,9 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
         <div v-if="activeTab === 'overview'">
           <dl class="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-4">
             <div class="border-b border-slate-100 pb-4 sm:border-b-0 sm:pb-0">
-              <dt class="text-sm font-medium text-slate-500">{{ t('clients.detailView.overview.dateOfBirth') }}</dt>
+              <dt class="text-sm font-medium text-slate-500">
+                {{ t('clients.detailView.overview.dateOfBirth') }}
+              </dt>
               <dd class="mt-1.5 text-base text-slate-900 sm:text-sm">
                 {{
                   client.date_of_birth
@@ -775,11 +799,15 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
               </dd>
             </div>
             <div class="border-b border-slate-100 pb-4 sm:border-b-0 sm:pb-0">
-              <dt class="text-sm font-medium text-slate-500">{{ t('clients.detailView.overview.address') }}</dt>
+              <dt class="text-sm font-medium text-slate-500">
+                {{ t('clients.detailView.overview.address') }}
+              </dt>
               <dd
                 class="mt-1.5 flex items-start gap-2 text-base text-slate-900 sm:text-sm"
               >
-                <span class="flex-1">{{ client.address || t('clients.detailView.overview.notProvided') }}</span>
+                <span class="flex-1">{{
+                  client.address || t('clients.detailView.overview.notProvided')
+                }}</span>
                 <DirectionsButton
                   v-if="client.address"
                   :address="client.address"
@@ -789,9 +817,14 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
               </dd>
             </div>
             <div class="border-b border-slate-100 pb-4 sm:border-b-0 sm:pb-0">
-              <dt class="text-sm font-medium text-slate-500">{{ t('clients.detailView.overview.emergencyContact') }}</dt>
+              <dt class="text-sm font-medium text-slate-500">
+                {{ t('clients.detailView.overview.emergencyContact') }}
+              </dt>
               <dd class="mt-1.5 text-base text-slate-900 sm:text-sm">
-                {{ client.emergency_contact_name || t('clients.detailView.overview.notProvided') }}
+                {{
+                  client.emergency_contact_name ||
+                  t('clients.detailView.overview.notProvided')
+                }}
                 <span
                   v-if="client.emergency_contact_phone"
                   class="block text-slate-600"
@@ -803,7 +836,9 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
           </dl>
 
           <div v-if="client.medical_history" class="mt-8 sm:mt-6">
-            <h3 class="mb-2 text-sm font-semibold text-slate-700">{{ t('clients.detailView.overview.medicalHistoryTitle') }}</h3>
+            <h3 class="mb-2 text-sm font-semibold text-slate-700">
+              {{ t('clients.detailView.overview.medicalHistoryTitle') }}
+            </h3>
             <div class="rounded-lg bg-slate-50 p-4">
               <p
                 class="text-base leading-relaxed whitespace-pre-wrap text-slate-900 sm:text-sm"
@@ -814,7 +849,9 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
           </div>
 
           <div v-if="client.notes" class="mt-8 sm:mt-6">
-            <h3 class="mb-2 text-sm font-semibold text-slate-700">{{ t('clients.detailView.overview.notesTitle') }}</h3>
+            <h3 class="mb-2 text-sm font-semibold text-slate-700">
+              {{ t('clients.detailView.overview.notesTitle') }}
+            </h3>
             <div class="rounded-lg bg-slate-50 p-4">
               <p
                 class="text-base leading-relaxed whitespace-pre-wrap text-slate-900 sm:text-sm"
@@ -849,6 +886,11 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
         <!-- Files Tab -->
         <div v-else-if="activeTab === 'files'">
           <ClientFilesTab v-if="client" :client-id="client.id" />
+        </div>
+
+        <!-- AI Assistant Tab -->
+        <div v-else-if="activeTab === 'ai-assistant'" class="h-[calc(100vh-20rem)]">
+          <AgentChatInterface v-if="client" :client-id="client.id" class="h-full w-full" />
         </div>
       </div>
     </div>

@@ -125,3 +125,37 @@
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
+
+/**
+ * Clinical AI Response Styling
+ * Enhanced markdown formatting for medical/clinical content
+ */
+
+/* Visual hierarchy for section headers with left accent bar */
+.prose-clinical strong[class*="border-l-3"] {
+  border-left-width: 3px;
+}
+
+/* Emerald bullet markers for clinical lists */
+.prose-clinical ul > li::marker {
+  color: #10b981; /* emerald-500 */
+  font-size: 0.875em;
+}
+
+/* Enhanced readability for numbered lists */
+.prose-clinical ol > li::marker {
+  color: #64748b; /* slate-500 */
+  font-weight: 600;
+}
+
+/* Mobile optimization - reduce font sizes on small screens */
+@media (max-width: 640px) {
+  .prose-clinical {
+    font-size: 0.8125rem; /* Slightly smaller on mobile */
+  }
+
+  .prose-clinical ul,
+  .prose-clinical ol {
+    padding-left: 1rem; /* Reduce indentation on mobile */
+  }
+}

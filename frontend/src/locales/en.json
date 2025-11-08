@@ -582,7 +582,8 @@
       "tabs": {
         "overview": "Overview",
         "history": "History",
-        "files": "Files"
+        "files": "Files",
+        "aiAssistant": "Ask AI"
       },
       "overview": {
         "title": "Client Information",
@@ -1081,6 +1082,35 @@
         "clientInvitationsBaaRequired": "You must confirm Google Workspace BAA before enabling client notifications.",
         "clientInvitationsUpdateError": "Failed to update settings. Please try again."
       }
+    }
+  },
+  "aiAgent": {
+    "title": "AI Assistant",
+    "subtitle": "Ask questions about patient history",
+    "clearHistory": "Clear",
+    "confirmClearHistory": "Are you sure you want to clear the chat history?",
+    "thinking": "Thinking...",
+    "send": "Send",
+    "inputPlaceholder": "Ask about patient history...",
+    "emptyState": {
+      "title": "Ask me anything",
+      "description": "I can help you find information from patient session notes using natural language queries in Hebrew or English.",
+      "examplesTitle": "Example questions:",
+      "example1": "What was the patient's back pain history?",
+      "example2": "When did we last work on shoulder mobility?",
+      "example3": "What treatments have we tried for knee pain?"
+    },
+    "citations": {
+      "title": "Sources",
+      "highRelevance": "Highly relevant",
+      "mediumRelevance": "Relevant",
+      "lowRelevance": "Possibly relevant"
+    },
+    "soap": {
+      "subjective": "Subjective",
+      "objective": "Objective",
+      "assessment": "Assessment",
+      "plan": "Plan"
     }
   }
 }
