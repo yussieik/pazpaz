@@ -216,6 +216,9 @@ services:
       - COHERE_API_KEY=${COHERE_API_KEY}
       - COHERE_EMBED_MODEL=${COHERE_EMBED_MODEL:-embed-v4.0}
       - COHERE_CHAT_MODEL=${COHERE_CHAT_MODEL:-command-a-03-2025}
+
+      # OpenAI API (Voice Transcription - Whisper)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
       db:
         condition: service_healthy
@@ -284,6 +287,9 @@ services:
       - COHERE_API_KEY=${COHERE_API_KEY}
       - COHERE_EMBED_MODEL=${COHERE_EMBED_MODEL:-embed-v4.0}
       - COHERE_CHAT_MODEL=${COHERE_CHAT_MODEL:-command-a-03-2025}
+
+      # OpenAI API (Voice Transcription - Whisper)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
       db:
         condition: service_healthy

@@ -16,6 +16,7 @@ Security principles:
 Supported file types (HIPAA-compliant clinical documentation):
 - Images: JPEG, PNG, WebP (for wound photos, treatment documentation)
 - Documents: PDF (for lab reports, referrals, consent forms)
+- Audio: MP3, M4A, WAV, OGG, FLAC, WebM (for voice transcription of SOAP notes)
 """
 
 from __future__ import annotations
@@ -35,12 +36,23 @@ logger = get_logger(__name__)
 
 
 class FileType(str, Enum):
-    """Allowed file types for session attachments."""
+    """Allowed file types for session attachments and voice transcription."""
 
+    # Images (session attachments)
     JPEG = "image/jpeg"
     PNG = "image/png"
     WEBP = "image/webp"
+
+    # Documents (session attachments)
     PDF = "application/pdf"
+
+    # Audio (voice transcription)
+    MP3 = "audio/mpeg"
+    M4A = "audio/mp4"
+    WAV = "audio/wav"
+    OGG = "audio/ogg"
+    FLAC = "audio/flac"
+    WEBM = "audio/webm"
 
 
 class FileValidationError(Exception):
@@ -79,10 +91,19 @@ MAX_TOTAL_ATTACHMENTS_BYTES = 50 * 1024 * 1024  # 50 MB per session
 
 # MIME type to extension mapping (whitelist)
 ALLOWED_MIME_TYPES = {
+    # Images
     FileType.JPEG: {".jpg", ".jpeg"},
     FileType.PNG: {".png"},
     FileType.WEBP: {".webp"},
+    # Documents
     FileType.PDF: {".pdf"},
+    # Audio
+    FileType.MP3: {".mp3"},
+    FileType.M4A: {".m4a"},
+    FileType.WAV: {".wav"},
+    FileType.OGG: {".ogg", ".oga"},
+    FileType.FLAC: {".flac"},
+    FileType.WEBM: {".webm"},
 }
 
 # Extension to MIME type mapping (reverse lookup)
@@ -93,10 +114,19 @@ for mime_type, extensions in ALLOWED_MIME_TYPES.items():
 
 # FileType to file extension mapping (for S3 keys, sanitization)
 FILE_TYPE_TO_EXTENSION = {
+    # Images
     FileType.JPEG: "jpg",
     FileType.PNG: "png",
     FileType.WEBP: "webp",
+    # Documents
     FileType.PDF: "pdf",
+    # Audio
+    FileType.MP3: "mp3",
+    FileType.M4A: "m4a",
+    FileType.WAV: "wav",
+    FileType.OGG: "ogg",
+    FileType.FLAC: "flac",
+    FileType.WEBM: "webm",
 }
 
 # FileType to PIL format name mapping (for image processing)
@@ -533,6 +563,106 @@ def validate_pdf_content(file_content: bytes) -> None:
         raise FileContentError(f"Invalid or corrupted PDF file: {e}") from e
 
 
+def validate_audio_content(file_content: bytes, mime_type: FileType) -> None:
+    """
+    Validate audio file metadata and duration.
+
+    Ensures audio file is valid and meets duration requirements for
+    voice transcription (max 5 minutes to prevent abuse).
+
+    Security considerations:
+    - No malware scanning on audio content (ClamAV handles this)
+    - Duration validation prevents resource exhaustion attacks
+    - Metadata validation ensures file is parseable
+
+    Args:
+        file_content: Raw file bytes
+        mime_type: Detected MIME type
+
+    Raises:
+        FileContentError: If audio cannot be parsed, is corrupted, or exceeds duration limit
+    """
+    try:
+        import mutagen
+
+        # Parse audio file with mutagen
+        audio_file = mutagen.File(io.BytesIO(file_content))
+
+        if audio_file is None:
+            logger.warning(
+                "audio_validation_no_metadata",
+                mime_type=mime_type.value,
+            )
+            raise FileContentError(
+                "Audio file has no readable metadata. File may be corrupted."
+            )
+
+        # Get audio duration (in seconds)
+        duration = getattr(audio_file.info, "length", None)
+
+        if duration is None:
+            logger.warning(
+                "audio_validation_no_duration",
+                mime_type=mime_type.value,
+            )
+            # Duration not available - allow file but log warning
+            # Some valid audio files may not have duration in metadata
+            logger.debug(
+                "audio_duration_unavailable",
+                mime_type=mime_type.value,
+                message="Duration not in metadata, skipping duration check",
+            )
+            return
+
+        # Check maximum duration (5 minutes = 300 seconds)
+        max_duration_seconds = 300
+        if duration > max_duration_seconds:
+            logger.warning(
+                "audio_duration_exceeded",
+                duration=duration,
+                max_duration=max_duration_seconds,
+                mime_type=mime_type.value,
+            )
+            raise FileContentError(
+                f"Audio duration {duration:.1f} seconds exceeds maximum of "
+                f"{max_duration_seconds} seconds (5 minutes)"
+            )
+
+        # Check minimum duration (2 seconds - reject accidental clicks)
+        min_duration_seconds = 2
+        if duration < min_duration_seconds:
+            logger.warning(
+                "audio_duration_too_short",
+                duration=duration,
+                min_duration=min_duration_seconds,
+                mime_type=mime_type.value,
+            )
+            raise FileContentError(
+                f"Audio duration {duration:.1f} seconds is too short. "
+                f"Minimum {min_duration_seconds} seconds required."
+            )
+
+        logger.debug(
+            "audio_content_validated",
+            mime_type=mime_type.value,
+            duration=duration,
+            bitrate=getattr(audio_file.info, "bitrate", None),
+            sample_rate=getattr(audio_file.info, "sample_rate", None),
+        )
+
+    except FileContentError:
+        # Re-raise our own exceptions
+        raise
+    except Exception as e:
+        logger.warning(
+            "audio_validation_failed",
+            error=str(e),
+            error_type=type(e).__name__,
+            mime_type=mime_type.value,
+        )
+        raise FileContentError(f"Invalid or corrupted audio file: {e}") from e
+
+
 def validate_file(filename: str, file_content: bytes) -> FileType:
     """
     Comprehensive file validation with quadruple-validation approach.
@@ -588,6 +718,15 @@ def validate_file(filename: str, file_content: bytes) -> FileType:
         validate_image_content(file_content, detected_mime)
     elif detected_mime == FileType.PDF:
         validate_pdf_content(file_content)
+    elif detected_mime in (
+        FileType.MP3,
+        FileType.M4A,
+        FileType.WAV,
+        FileType.OGG,
+        FileType.FLAC,
+        FileType.WEBM,
+    ):
+        validate_audio_content(file_content, detected_mime)
 
     # 6. Scan for malware (NEW: ClamAV integration)
     scan_file_for_malware(file_content, filename)

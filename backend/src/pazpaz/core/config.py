@@ -633,6 +633,12 @@ class Settings(BaseSettings):
         description="Cohere chat model for LLM synthesis",
     )
 
+    # OpenAI API (Voice Transcription - Whisper API)
+    openai_api_key: str = Field(
+        default="",
+        description="OpenAI API key for Whisper voice transcription (HIPAA BAA required for production)",
+    )
+
     # AI Provider Selection (Phase 3.1)
     ai_embedding_provider: str = Field(
         default="cohere",

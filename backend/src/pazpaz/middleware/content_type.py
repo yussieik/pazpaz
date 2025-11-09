@@ -58,6 +58,7 @@ class ContentTypeValidationMiddleware(BaseHTTPMiddleware):
     FILE_UPLOAD_PATTERNS = [
         "/attachments",  # Session attachment uploads
         "/upload",  # Generic upload endpoints
+        "/transcribe",  # Voice transcription audio uploads
     ]
 
     # Endpoints excluded from validation
@@ -122,6 +123,7 @@ class ContentTypeValidationMiddleware(BaseHTTPMiddleware):
         Only POST requests to /attachments endpoints require multipart.
         PATCH/PUT to /attachments are JSON operations (like rename).
         POST to /download-multiple is JSON (not file upload).
+        POST to /transcribe/cleanup is JSON (not file upload).
         """
         # Only POST requests to attachment endpoints require multipart
         if method != "POST":
@@ -129,6 +131,10 @@ class ContentTypeValidationMiddleware(BaseHTTPMiddleware):
 
         # POST to download-multiple is JSON, not multipart
         if "/download-multiple" in path:
+            return False
+
+        # POST to /transcribe/cleanup is JSON, not multipart
+        if "/transcribe/cleanup" in path:
             return False
 
         return any(pattern in path for pattern in self.FILE_UPLOAD_PATTERNS)

@@ -39,6 +39,7 @@ import PreviousSessionPanel from './PreviousSessionPanel.vue'
 import PreviousSessionSummaryStrip from './PreviousSessionSummaryStrip.vue'
 import SessionAttachments from './SessionAttachments.vue'
 import TreatmentRecommendations from './TreatmentRecommendations.vue'
+import VoiceRecorder from './VoiceRecorder.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 import AutosaveBanner from '@/components/common/AutosaveBanner.vue'
 import { useTreatmentRecommendations } from '@/composables/useTreatmentRecommendations'
@@ -299,6 +300,23 @@ const bannerActions = computed(() => {
   }
   return []
 })
+
+// Voice transcription handlers
+function handleSubjectiveTranscribed(text: string) {
+  formData.value.subjective = text
+}
+
+function handleObjectiveTranscribed(text: string) {
+  formData.value.objective = text
+}
+
+function handleAssessmentTranscribed(text: string) {
+  formData.value.assessment = text
+}
+
+function handlePlanTranscribed(text: string) {
+  formData.value.plan = text
+}
 
 // Load session data
 async function loadSession(silent = false) {
@@ -920,9 +938,15 @@ onBeforeUnmount(() => {
                 {{ subjectiveCount }} / {{ CHAR_LIMIT }}
               </span>
             </div>
-            <p class="mb-2 text-xs text-slate-600">
-              {{ t('sessions.editor.fields.subjective.description') }}
-            </p>
+            <div class="mb-2 flex items-center justify-between">
+              <p class="text-xs text-slate-600">
+                {{ t('sessions.editor.fields.subjective.description') }}
+              </p>
+              <VoiceRecorder
+                field-name="subjective"
+                @transcribed="handleSubjectiveTranscribed"
+              />
+            </div>
             <textarea
               id="subjective"
               v-model="formData.subjective"
@@ -944,9 +968,15 @@ onBeforeUnmount(() => {
                 {{ objectiveCount }} / {{ CHAR_LIMIT }}
               </span>
             </div>
-            <p class="mb-2 text-xs text-slate-600">
-              {{ t('sessions.editor.fields.objective.description') }}
-            </p>
+            <div class="mb-2 flex items-center justify-between">
+              <p class="text-xs text-slate-600">
+                {{ t('sessions.editor.fields.objective.description') }}
+              </p>
+              <VoiceRecorder
+                field-name="objective"
+                @transcribed="handleObjectiveTranscribed"
+              />
+            </div>
             <textarea
               id="objective"
               v-model="formData.objective"
@@ -971,9 +1001,15 @@ onBeforeUnmount(() => {
                 {{ assessmentCount }} / {{ CHAR_LIMIT }}
               </span>
             </div>
-            <p class="mb-2 text-xs text-slate-600">
-              {{ t('sessions.editor.fields.assessment.description') }}
-            </p>
+            <div class="mb-2 flex items-center justify-between">
+              <p class="text-xs text-slate-600">
+                {{ t('sessions.editor.fields.assessment.description') }}
+              </p>
+              <VoiceRecorder
+                field-name="assessment"
+                @transcribed="handleAssessmentTranscribed"
+              />
+            </div>
             <textarea
               id="assessment"
               v-model="formData.assessment"
@@ -995,9 +1031,12 @@ onBeforeUnmount(() => {
                 {{ planCount }} / {{ CHAR_LIMIT }}
               </span>
             </div>
-            <p class="mb-2 text-xs text-slate-600">
-              {{ t('sessions.editor.fields.plan.description') }}
-            </p>
+            <div class="mb-2 flex items-center justify-between">
+              <p class="text-xs text-slate-600">
+                {{ t('sessions.editor.fields.plan.description') }}
+              </p>
+              <VoiceRecorder field-name="plan" @transcribed="handlePlanTranscribed" />
+            </div>
             <textarea
               id="plan"
               v-model="formData.plan"
