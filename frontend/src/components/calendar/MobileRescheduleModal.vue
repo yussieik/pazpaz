@@ -167,10 +167,14 @@ function getTodayDate(): string {
           <!-- Client info -->
           <div class="mb-4 rounded-lg bg-blue-50 p-4">
             <p class="text-sm font-medium text-blue-900">
-              {{ appointment.client?.full_name || t('calendar.mobileRescheduleModal.clientFallback') }}
+              {{
+                appointment.client?.full_name ||
+                t('calendar.mobileRescheduleModal.clientFallback')
+              }}
             </p>
             <p class="mt-1 text-sm text-blue-700">
-              {{ t('calendar.mobileRescheduleModal.currentTimeLabel') }} <span class="font-semibold">{{ currentTimeDisplay }}</span>
+              {{ t('calendar.mobileRescheduleModal.currentTimeLabel') }}
+              <span class="font-semibold">{{ currentTimeDisplay }}</span>
             </p>
           </div>
 
@@ -217,7 +221,9 @@ function getTodayDate(): string {
 
             <!-- Preview -->
             <div v-if="newTimePreview" class="rounded-lg bg-emerald-50 p-4">
-              <p class="text-sm font-medium text-emerald-900">{{ t('calendar.mobileRescheduleModal.previewLabel') }}</p>
+              <p class="text-sm font-medium text-emerald-900">
+                {{ t('calendar.mobileRescheduleModal.previewLabel') }}
+              </p>
               <p class="mt-1 text-base font-semibold text-emerald-700">
                 {{ newTimePreview }}
               </p>

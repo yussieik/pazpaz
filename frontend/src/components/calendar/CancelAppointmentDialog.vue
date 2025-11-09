@@ -114,7 +114,8 @@ function handleKeydown(e: KeyboardEvent) {
                   />
                 </svg>
                 <span class="font-medium text-slate-900">{{
-                  appointment.client?.full_name || t('calendar.cancelDialog.unknownClient')
+                  appointment.client?.full_name ||
+                  t('calendar.cancelDialog.unknownClient')
                 }}</span>
               </div>
 

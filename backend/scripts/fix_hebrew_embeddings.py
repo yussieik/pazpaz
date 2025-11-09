@@ -10,11 +10,12 @@ This script:
 import asyncio
 import uuid
 
+from sqlalchemy import select
+
 from pazpaz.ai.embeddings import get_embedding_service
 from pazpaz.ai.vector_store import get_vector_store
 from pazpaz.db.base import AsyncSessionLocal
 from pazpaz.models.session import Session
-from sqlalchemy import select
 
 
 async def fix_hebrew_embeddings():

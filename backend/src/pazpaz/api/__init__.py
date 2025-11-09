@@ -18,6 +18,9 @@ from pazpaz.api.platform_admin import router as platform_admin_router
 from pazpaz.api.services import router as services_router
 from pazpaz.api.session_attachments import router as session_attachments_router
 from pazpaz.api.sessions import router as sessions_router
+from pazpaz.api.treatment_recommendations import (
+    router as treatment_recommendations_router,
+)
 from pazpaz.api.workspaces import router as workspaces_router
 
 api_router = APIRouter()
@@ -42,3 +45,4 @@ api_router.include_router(google_calendar_integration_router)
 api_router.include_router(payments_router)
 api_router.include_router(audit_router)
 api_router.include_router(ai_agent_router)
+api_router.include_router(treatment_recommendations_router)

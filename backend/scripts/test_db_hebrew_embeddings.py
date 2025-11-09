@@ -58,7 +58,9 @@ async def test_db_hebrew_embeddings():
             if results:
                 print(f"✅ Found {len(results)} results:")
                 for i, (vector, similarity) in enumerate(results[:5], 1):
-                    print(f"   {i}. {vector.field_name:12} | similarity: {similarity:.4f}")
+                    print(
+                        f"   {i}. {vector.field_name:12} | similarity: {similarity:.4f}"
+                    )
             else:
                 print(f"❌ No results found (all similarities < {threshold})")
 
@@ -77,11 +79,15 @@ async def test_db_hebrew_embeddings():
             print(f"✅ Found {len(all_results)} total embeddings")
             print("\nTop 10 matches:")
             for i, (vector, similarity) in enumerate(all_results[:10], 1):
-                print(f"   {i:2}. {vector.field_name:12} | similarity: {similarity:.4f} | session: {str(vector.session_id)[:8]}...")
+                print(
+                    f"   {i:2}. {vector.field_name:12} | similarity: {similarity:.4f} | session: {str(vector.session_id)[:8]}..."
+                )
 
             # Check if any are above 0.3
             above_threshold = [s for _, s in all_results if s >= 0.3]
-            print(f"\n📈 Embeddings above 0.3 threshold: {len(above_threshold)}/{len(all_results)}")
+            print(
+                f"\n📈 Embeddings above 0.3 threshold: {len(above_threshold)}/{len(all_results)}"
+            )
 
             if not above_threshold:
                 print("\n🔴 PROBLEM IDENTIFIED: No embeddings have similarity >= 0.3")

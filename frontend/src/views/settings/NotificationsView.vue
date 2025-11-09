@@ -48,13 +48,41 @@ const showSettingsContainer = computed(() => settings.value?.email_enabled ?? fa
  * Day of week configuration (computed to support i18n)
  */
 const weekDays = computed(() => [
-  { value: 0, label: t('settings.notifications.weekDays.sunday'), shortLabel: t('settings.notifications.weekDays.sundayShort') },
-  { value: 1, label: t('settings.notifications.weekDays.monday'), shortLabel: t('settings.notifications.weekDays.mondayShort') },
-  { value: 2, label: t('settings.notifications.weekDays.tuesday'), shortLabel: t('settings.notifications.weekDays.tuesdayShort') },
-  { value: 3, label: t('settings.notifications.weekDays.wednesday'), shortLabel: t('settings.notifications.weekDays.wednesdayShort') },
-  { value: 4, label: t('settings.notifications.weekDays.thursday'), shortLabel: t('settings.notifications.weekDays.thursdayShort') },
-  { value: 5, label: t('settings.notifications.weekDays.friday'), shortLabel: t('settings.notifications.weekDays.fridayShort') },
-  { value: 6, label: t('settings.notifications.weekDays.saturday'), shortLabel: t('settings.notifications.weekDays.saturdayShort') },
+  {
+    value: 0,
+    label: t('settings.notifications.weekDays.sunday'),
+    shortLabel: t('settings.notifications.weekDays.sundayShort'),
+  },
+  {
+    value: 1,
+    label: t('settings.notifications.weekDays.monday'),
+    shortLabel: t('settings.notifications.weekDays.mondayShort'),
+  },
+  {
+    value: 2,
+    label: t('settings.notifications.weekDays.tuesday'),
+    shortLabel: t('settings.notifications.weekDays.tuesdayShort'),
+  },
+  {
+    value: 3,
+    label: t('settings.notifications.weekDays.wednesday'),
+    shortLabel: t('settings.notifications.weekDays.wednesdayShort'),
+  },
+  {
+    value: 4,
+    label: t('settings.notifications.weekDays.thursday'),
+    shortLabel: t('settings.notifications.weekDays.thursdayShort'),
+  },
+  {
+    value: 5,
+    label: t('settings.notifications.weekDays.friday'),
+    shortLabel: t('settings.notifications.weekDays.fridayShort'),
+  },
+  {
+    value: 6,
+    label: t('settings.notifications.weekDays.saturday'),
+    shortLabel: t('settings.notifications.weekDays.saturdayShort'),
+  },
 ])
 
 /**
@@ -220,7 +248,9 @@ function selectTomorrowAllDays(): void {
                   clip-rule="evenodd"
                 />
               </svg>
-              <span>{{ t('settings.notifications.masterToggle.warningDisabled') }}</span>
+              <span>{{
+                t('settings.notifications.masterToggle.warningDisabled')
+              }}</span>
             </div>
           </div>
         </template>
@@ -329,7 +359,9 @@ function selectTomorrowAllDays(): void {
                       clip-rule="evenodd"
                     />
                   </svg>
-                  <span>{{ t('settings.notifications.todayDigest.warningNoDays') }}</span>
+                  <span>{{
+                    t('settings.notifications.todayDigest.warningNoDays')
+                  }}</span>
                 </div>
               </div>
             </div>
@@ -434,7 +466,9 @@ function selectTomorrowAllDays(): void {
                       clip-rule="evenodd"
                     />
                   </svg>
-                  <span>{{ t('settings.notifications.tomorrowDigest.warningNoDays') }}</span>
+                  <span>{{
+                    t('settings.notifications.tomorrowDigest.warningNoDays')
+                  }}</span>
                 </div>
               </div>
             </div>

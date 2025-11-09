@@ -76,7 +76,9 @@
                 v-if="hasUnsavedChanges"
                 class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
               >
-                <strong>{{ t('auth.sessionExpiration.modal.unsavedWarningLabel') }}</strong>
+                <strong>{{
+                  t('auth.sessionExpiration.modal.unsavedWarningLabel')
+                }}</strong>
                 {{ t('auth.sessionExpiration.modal.unsavedWarning') }}
               </p>
             </div>
@@ -100,7 +102,9 @@
                 <span v-if="!isExtending">{{
                   t('auth.sessionExpiration.modal.extendButton')
                 }}</span>
-                <span v-else>{{ t('auth.sessionExpiration.modal.extendingButton') }}</span>
+                <span v-else>{{
+                  t('auth.sessionExpiration.modal.extendingButton')
+                }}</span>
               </button>
               <button
                 @click="handleLogout"

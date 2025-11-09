@@ -1112,5 +1112,38 @@
       "assessment": "הערכה",
       "plan": "תוכנית"
     }
+  },
+  "treatmentRecommendations": {
+    "title": "המלצות טיפול",
+    "getRecommendationsButton": "קבל המלצות",
+    "gettingRecommendations": "מקבל המלצות...",
+    "closeButton": "סגור",
+    "useThisButton": "השתמש בזה",
+    "usingButton": "משתמש...",
+    "therapyTypes": {
+      "massage": "עיסוי",
+      "physiotherapy": "פיזיותרפיה",
+      "psychotherapy": "פסיכותרפיה",
+      "generic": "כללי"
+    },
+    "evidence": {
+      "workspacePatterns": "מבוסס על מקרה דומה אחד | מבוסס על {count} מקרים דומים",
+      "clinicalGuidelines": "הנחיות קליניות",
+      "hybrid": "היברידי (מקרה אחד + הנחיות) | היברידי ({count} מקרים + הנחיות)"
+    },
+    "emptyState": {
+      "title": "מוכן להמלצות?",
+      "description": "מלא את השדות סובייקטיבי, אובייקטיבי והערכה, ולאחר מכן לחץ על \"קבל המלצות\" כדי לקבל הצעות טיפול מבוססות AI."
+    },
+    "errors": {
+      "missingFields": "אנא מלא קודם את השדות סובייקטיבי, אובייקטיבי והערכה",
+      "rateLimitExceeded": "עברת את מגבלת הבקשות. מקסימום 60 בקשות המלצות לשעה.",
+      "authenticationRequired": "יש להתחבר כדי להשתמש בהמלצות טיפול",
+      "invalidInput": "קלט לא תקין. אנא בדוק את שדות תיעוד ה-SOAP שלך.",
+      "serverError": "יצירת ההמלצות נכשלה. אנא נסה שוב מאוחר יותר.",
+      "genericError": "קבלת ההמלצות נכשלה. אנא נסה שוב."
+    },
+    "processingTime": "נוצר ב-{time}ms",
+    "recommendationCount": "המלצה אחת | {count} המלצות"
   }
 }

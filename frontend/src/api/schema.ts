@@ -4,9617 +4,9638 @@
  */
 
 export interface paths {
-    "/api/v1/auth/magic-link": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Request magic link
-         * @description Request a magic link to be sent to the provided email address.
-         *
-         *         Security features:
-         *         - Rate limited to 3 requests per hour per IP address
-         *         - Rate limited to 5 requests per hour per email address (prevents email bombing)
-         *         - Returns generic success message to prevent email enumeration
-         *         - Tokens are 256-bit entropy with 10-minute expiry
-         *         - Single-use tokens (deleted after verification)
-         *
-         *         If an active user exists with the email, they will receive a login link.
-         *         Otherwise, no email is sent but the same success message is returned.
-         */
-        post: operations["request_magic_link_endpoint_api_v1_auth_magic_link_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/verify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Verify magic link token
-         * @description Verify a magic link token and receive a JWT access token.
-         *
-         *         Security features:
-         *         - Token MUST be sent in POST body, not URL query parameter (CWE-598)
-         *         - Rate limited to 10 verification attempts per 5 min per IP (brute force)
-         *         - Single-use tokens (deleted after successful verification)
-         *         - User existence revalidated in database
-         *         - JWT contains user_id and workspace_id for authorization
-         *         - JWT stored in HttpOnly cookie for XSS protection
-         *         - 7-day JWT expiry
-         *         - Uses POST method to prevent CSRF attacks (state-changing operation)
-         *         - Audit logging for all verification attempts
-         *         - Referrer-Policy prevents token leakage via referrer headers
-         *
-         *         Frontend MUST remove token from URL immediately after reading:
-         *         window.history.replaceState({}, document.title, '/auth/verify')
-         *
-         *         The token parameter is received from the email link and sent in request body.
-         *         On success, a JWT is set as an HttpOnly cookie and returned in response.
-         */
-        post: operations["verify_magic_link_endpoint_api_v1_auth_verify_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/verify-2fa": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Complete authentication with 2FA after magic link
-         * @description Complete authentication after magic link when 2FA is enabled.
-         *
-         *         Security features:
-         *         - Temporary token expires in 5 minutes
-         *         - Validates TOTP code or backup code
-         *         - Single-use backup codes
-         *         - Audit logging for 2FA verification
-         *         - Issues JWT on successful verification
-         *
-         *         Flow:
-         *         1. User clicks magic link
-         *         2. /verify returns requires_2fa=True with temp_token
-         *         3. User enters TOTP code from authenticator
-         *         4. /verify-2fa validates code and issues JWT
-         *
-         *         Args:
-         *             temp_token: Temporary token from /verify response
-         *             totp_code: 6-digit TOTP code or 8-character backup code
-         */
-        post: operations["verify_magic_link_2fa_endpoint_api_v1_auth_verify_2fa_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/accept-invite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Accept therapist invitation
-         * @description Accept therapist invitation and activate account via magic link.
-         *
-         *         Security features:
-         *         - Single-use invitation tokens (7-day expiration)
-         *         - Token verification uses timing-safe comparison (SHA256)
-         *         - Activates user account and creates session
-         *         - HttpOnly cookies for XSS protection
-         *         - Audit logging for invitation acceptance
-         *         - Generic error messages (no token leakage)
-         *
-         *         Flow:
-         *         1. Therapist clicks invitation link in email
-         *         2. Token verified and user activated
-         *         3. JWT session created and cookies set
-         *         4. Returns success JSON with user info
-         *
-         *         Error handling:
-         *         - Invalid/expired tokens return 404/410 with error details
-         *         - Already accepted returns 410
-         *         - All errors are logged server-side for security monitoring
-         */
-        get: operations["accept_invitation_api_v1_auth_accept_invite_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get current user
-         * @description Get information about the currently authenticated user.
-         *
-         *         Security features:
-         *         - Requires valid JWT authentication (HttpOnly cookie)
-         *         - Returns user information from validated session
-         *         - Used by frontend to check authentication status
-         *
-         *         This endpoint is typically called:
-         *         - On app startup to restore authentication state
-         *         - After login to verify successful authentication
-         *         - To check if session is still valid
-         *
-         *         Returns 401 Unauthorized if not authenticated or session expired.
-         */
-        get: operations["get_current_user_endpoint_api_v1_auth_me_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Logout
-         * @description Logout by clearing the JWT cookie and blacklisting the token.
-         *
-         *         Security features:
-         *         - Clears HttpOnly authentication cookie
-         *         - Blacklists JWT token in Redis (prevents reuse)
-         *         - Clears CSRF token cookie
-         *         - Requires CSRF token for protection against logout CSRF attacks
-         *         - Audit logging for logout events
-         *
-         *         The blacklisted token cannot be used even if stolen, providing
-         *         enhanced security compared to client-side-only logout.
-         */
-        post: operations["logout_endpoint_api_v1_auth_logout_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/totp/enroll": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Enroll in 2FA/TOTP
-         * @description Enroll current authenticated user in 2FA/TOTP.
-         *
-         *         Security features:
-         *         - TOTP secret generated with 160 bits entropy
-         *         - Secret stored encrypted with AES-256-GCM
-         *         - QR code generated for easy authenticator app setup
-         *         - 8 backup codes generated and hashed with Argon2id
-         *         - Not enabled until user verifies with /totp/verify
-         *         - Requires existing authentication (JWT)
-         *
-         *         Returns:
-         *         - TOTP secret (base32-encoded, for manual entry)
-         *         - QR code (data URI, for scanning)
-         *         - 8 backup codes (shown ONLY ONCE, save offline)
-         *
-         *         User must verify TOTP code with /totp/verify before 2FA is enabled.
-         */
-        post: operations["enroll_user_totp_api_v1_auth_totp_enroll_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/totp/verify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Verify TOTP code and enable 2FA
-         * @description Verify TOTP code and enable 2FA for current user.
-         *
-         *         Security features:
-         *         - Must be called after /totp/enroll
-         *         - Validates 6-digit TOTP code from authenticator app
-         *         - Window of ±30 seconds for clock skew tolerance
-         *         - Sets enrollment timestamp
-         *         - Audit logging for successful enrollment
-         *         - Requires existing authentication (JWT)
-         *
-         *         After successful verification, 2FA is enabled and will be required
-         *         on all future magic link authentications.
-         */
-        post: operations["verify_user_totp_api_v1_auth_totp_verify_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/session/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Refresh user session
-         * @description Refresh user session to extend JWT expiry.
-         *
-         *         Security features:
-         *         - HIPAA compliance for session timeout warnings (§164.312(a)(2)(iii))
-         *         - Extends JWT expiry by resetting activity timestamp
-         *         - Prevents data loss from silent session expiration
-         *         - Used by frontend session timeout warning modal
-         *
-         *         This endpoint:
-         *         - Validates current JWT authentication
-         *         - Updates session activity timestamp
-         *         - Returns success response (JWT automatically refreshed via dependency)
-         *         - Frontend should call this when user clicks "Stay logged in" button
-         *
-         *         Returns 401 Unauthorized if session already expired.
-         */
-        post: operations["refresh_session_endpoint_api_v1_auth_session_refresh_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/totp": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Disable 2FA
-         * @description Disable 2FA for current authenticated user.
-         *
-         *         SECURITY: Requires TOTP verification before disabling.
-         *         This prevents attackers with stolen sessions from disabling 2FA.
-         *
-         *         Security considerations:
-         *         - Removes all TOTP data (secret, backup codes, timestamp)
-         *         - Requires valid TOTP code verification before disabling
-         *         - Audit logging for 2FA disable (both success and failure)
-         *         - Requires existing authentication (JWT)
-         *
-         *         WARNING: After disabling, user will only have magic link authentication.
-         */
-        delete: operations["disable_user_totp_api_v1_auth_totp_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/platform-admin/invite-therapist": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Invite a new therapist
-         * @description Create a new workspace and invite a therapist to join the platform.
-         *
-         *         Security:
-         *         - Requires platform admin authentication
-         *         - Email uniqueness enforced (400 if duplicate)
-         *         - Invitation token SHA256 hashed in database
-         *         - Token expires in 7 days
-         *         - Audit logging for all invitations
-         *
-         *         Flow:
-         *         1. Platform admin provides workspace name, therapist email, and full name
-         *         2. System creates workspace and inactive user account
-         *         3. System generates invitation token (256-bit entropy)
-         *         4. Platform admin receives invitation URL to send via email
-         *         5. Therapist clicks link and accepts invitation to activate account
-         *
-         *         Error Responses:
-         *         - 400: Email already exists (duplicate)
-         *         - 401: Not authenticated
-         *         - 403: Not platform admin
-         *         - 422: Validation error (invalid email, empty fields)
-         */
-        post: operations["invite_therapist_api_v1_platform_admin_invite_therapist_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/platform-admin/resend-invitation/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Resend invitation to pending user
-         * @description Generate a new invitation token for a user who has not yet accepted
-         *         their invitation.
-         *
-         *         Security:
-         *         - Requires platform admin authentication
-         *         - Only works for inactive users (is_active=False)
-         *         - Old token is invalidated (replaced with new one)
-         *         - New 7-day expiration window
-         *         - Audit logging for resends
-         *
-         *         Use Cases:
-         *         - Original invitation expired (>7 days)
-         *         - Therapist lost invitation email
-         *         - Invitation token compromised
-         *
-         *         Error Responses:
-         *         - 400: User is already active (invitation already accepted)
-         *         - 401: Not authenticated
-         *         - 403: Not platform admin
-         *         - 404: User not found
-         *         - 422: Invalid UUID format
-         */
-        post: operations["resend_invitation_api_v1_platform_admin_resend_invitation__user_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/platform-admin/pending-invitations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List all pending invitations
-         * @description Get a list of all users who have been invited but have not yet accepted
-         *         their invitation.
-         *
-         *         Security:
-         *         - Requires platform admin authentication
-         *         - Returns only inactive users (is_active=False)
-         *         - Includes expiration status (calculated from invited_at + 7 days)
-         *         - Sorted by invited_at (newest first)
-         *
-         *         Response includes:
-         *         - user_id: UUID of the user
-         *         - email: Email address
-         *         - full_name: Full name
-         *         - workspace_name: Name of workspace user will join
-         *         - invited_at: When invitation was sent (UTC)
-         *         - expires_at: When invitation expires (UTC)
-         *
-         *         Use Cases:
-         *         - Monitor pending onboarding
-         *         - Identify expired invitations for cleanup
-         *         - Follow up with therapists who haven't accepted
-         *
-         *         Error Responses:
-         *         - 401: Not authenticated
-         *         - 403: Not platform admin
-         */
-        get: operations["get_pending_invitations_api_v1_platform_admin_pending_invitations_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/platform-admin/metrics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get platform metrics
-         * @description Get platform-wide metrics for dashboard.
-         *
-         *         Returns:
-         *         - total_workspaces: Count of all workspaces (excluding deleted)
-         *         - active_users: Count of active users across all workspaces
-         *         - pending_invitations: Count of users with pending invitations
-         *         - blacklisted_users: Count of blacklisted email addresses
-         *
-         *         Security:
-         *         - Requires platform admin authentication
-         *         - Cross-workspace access allowed for metrics
-         *
-         *         Error Responses:
-         *         - 401: Not authenticated
-         *         - 403: Not platform admin
-         */
-        get: operations["get_metrics_api_v1_platform_admin_metrics_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/platform-admin/activity": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get recent platform activity
-         * @description Get recent platform activity from audit events (last 90 days).
-         *
-         *         Query Parameters:
-         *         - limit: Number of activities to return per page (default 20, min 1, max 100)
-         *         - offset: Number of activities to skip for pagination (default 0, min 0)
-         *
-         *         Returns recent audit events related to:
-         *         - Workspace creation/suspension/deletion
-         *         - User invitations accepted
-         *         - Blacklist changes
-         *
-         *         Response includes:
-         *         - activities: List of activity events
-         *         - total_count: Total number of events in last 90 days
-         *         - has_more: Whether more events exist beyond current page
-         *         - displayed_count: Number of events in current response
-         *
-         *         Data Retention:
-         *         - Only shows events from last 90 days
-         *         - Events are ordered by timestamp (newest first)
-         *
-         *         Security:
-         *         - Requires platform admin authentication
-         *         - Cross-workspace access allowed for activity feed
-         *
-         *         Error Responses:
-         *         - 401: Not authenticated
-         *         - 403: Not platform admin
-         *         - 422: Invalid limit or offset parameter
-         */
-        get: operations["get_activity_api_v1_platform_admin_activity_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/platform-admin/workspaces": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List all workspaces
-         * @description List all workspaces with stats.
-         *
-         *         Query Parameters:
-         *         - search: Optional search query (filters by workspace name or owner email)
-         *
-         *         Returns workspace information including:
-         *         - Workspace details (id, name, status)
-         *         - Owner email
-         *         - User count
-         *         - Session count
-         *         - Created date
-         *
-         *         Security:
-         *         - Requires platform admin authentication
-         *         - Cross-workspace access allowed
-         *
-         *         Error Responses:
-         *         - 401: Not authenticated
-         *         - 403: Not platform admin
-         */
-        get: operations["list_workspaces_api_v1_platform_admin_workspaces_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/platform-admin/workspaces/{workspace_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get workspace details
-         * @description Get detailed information about a specific workspace.
-         *
-         *         Returns workspace information including:
-         *         - Workspace details (id, name, status)
-         *         - Owner email
-         *         - User count
-         *         - Session count
-         *         - Created date
-         *
-         *         Security:
-         *         - Requires platform admin authentication
-         *         - Cross-workspace access allowed
-         *
-         *         Error Responses:
-         *         - 401: Not authenticated
-         *         - 403: Not platform admin
-         *         - 404: Workspace not found
-         */
-        get: operations["get_workspace_details_api_v1_platform_admin_workspaces__workspace_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete workspace (soft delete)
-         * @description Soft delete a workspace.
-         *
-         *         Actions performed:
-         *         - Set workspace status to 'deleted'
-         *         - Set deleted_at timestamp
-         *         - Set all users to inactive
-         *         - Create audit event with reason
-         *
-         *         Note: This is a SOFT DELETE. Data is preserved for audit trail.
-         *         Hard deletion (if needed) must be done manually in database.
-         *
-         *         Security:
-         *         - Requires platform admin authentication
-         *         - Creates audit trail
-         *         - Preserves data for compliance
-         *
-         *         Error Responses:
-         *         - 400: Workspace already deleted
-         *         - 401: Not authenticated
-         *         - 403: Not platform admin
-         *         - 404: Workspace not found
-         */
-        delete: operations["delete_workspace_api_v1_platform_admin_workspaces__workspace_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/platform-admin/workspaces/{workspace_id}/suspend": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Suspend workspace
-         * @description Suspend a workspace.
-         *
-         *         Actions performed:
-         *         - Set workspace status to 'suspended'
-         *         - Create audit event with reason
-         *         - Log suspension
-         *
-         *         Note: This does NOT invalidate user sessions. Users will be blocked
-         *         on next request when workspace status is checked.
-         *
-         *         Security:
-         *         - Requires platform admin authentication
-         *         - Creates audit trail
-         *
-         *         Error Responses:
-         *         - 400: Workspace already suspended or deleted
-         *         - 401: Not authenticated
-         *         - 403: Not platform admin
-         *         - 404: Workspace not found
-         */
-        post: operations["suspend_workspace_api_v1_platform_admin_workspaces__workspace_id__suspend_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/platform-admin/workspaces/{workspace_id}/reactivate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Reactivate suspended workspace
-         * @description Reactivate a suspended workspace.
-         *
-         *         Actions performed:
-         *         - Set workspace status to 'active'
-         *         - Create audit event
-         *         - Log reactivation
-         *
-         *         Security:
-         *         - Requires platform admin authentication
-         *         - Creates audit trail
-         *
-         *         Error Responses:
-         *         - 400: Workspace not suspended (already active or deleted)
-         *         - 401: Not authenticated
-         *         - 403: Not platform admin
-         *         - 404: Workspace not found
-         */
-        post: operations["reactivate_workspace_api_v1_platform_admin_workspaces__workspace_id__reactivate_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/platform-admin/blacklist": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List blacklisted emails
-         * @description Get list of all blacklisted email addresses.
-         *
-         *         Returns:
-         *         - email: Blacklisted email address
-         *         - reason: Why it was blacklisted
-         *         - added_at: When it was blacklisted
-         *         - added_by: Admin who added it
-         *
-         *         Security:
-         *         - Requires platform admin authentication
-         *
-         *         Error Responses:
-         *         - 401: Not authenticated
-         *         - 403: Not platform admin
-         */
-        get: operations["get_blacklist_api_v1_platform_admin_blacklist_get"];
-        put?: never;
-        /**
-         * Add email to blacklist
-         * @description Add an email address to the blacklist.
-         *
-         *         Actions performed:
-         *         - Add email to blacklist table
-         *         - Create audit event
-         *         - Revoke any pending invitations for this email
-         *
-         *         Security:
-         *         - Requires platform admin authentication
-         *         - Email is normalized to lowercase
-         *         - Duplicate check performed
-         *
-         *         Error Responses:
-         *         - 400: Email already blacklisted
-         *         - 401: Not authenticated
-         *         - 403: Not platform admin
-         *         - 422: Invalid email format
-         */
-        post: operations["add_to_blacklist_api_v1_platform_admin_blacklist_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/platform-admin/blacklist/{email}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Remove email from blacklist
-         * @description Remove an email address from the blacklist.
-         *
-         *         Actions performed:
-         *         - Remove email from blacklist table
-         *         - Create audit event
-         *
-         *         Security:
-         *         - Requires platform admin authentication
-         *
-         *         Error Responses:
-         *         - 401: Not authenticated
-         *         - 403: Not platform admin
-         *         - 404: Email not found in blacklist
-         */
-        delete: operations["remove_from_blacklist_api_v1_platform_admin_blacklist__email__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/clients": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Clients
-         * @description List all clients in the workspace.
-         *
-         *     Returns a paginated list of clients, ordered by last name, first name.
-         *     All results are scoped to the authenticated workspace.
-         *
-         *     By default, only active clients are returned. Use include_inactive=true
-         *     to see archived clients as well.
-         *
-         *     SECURITY: Only returns clients belonging to the authenticated user's
-         *     workspace (from JWT).
-         *
-         *     Args:
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *         page: Page number (1-indexed)
-         *         page_size: Number of items per page (max 100)
-         *         include_inactive: If True, include archived/inactive clients
-         *         include_appointments: If True, include appointment stats
-         *             (adds 3 queries per client)
-         *
-         *     Returns:
-         *         Paginated list of clients with total count
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated
-         */
-        get: operations["list_clients_api_v1_clients_get"];
-        put?: never;
-        /**
-         * Create Client
-         * @description Create a new client.
-         *
-         *     Creates a new client record in the authenticated workspace.
-         *     All client data is scoped to the workspace.
-         *
-         *     SECURITY: workspace_id is derived from authenticated user's JWT token (server-side).
-         *
-         *     Args:
-         *         client_data: Client creation data (without workspace_id)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Created client with all fields
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 422 if validation fails
-         */
-        post: operations["create_client_api_v1_clients_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/clients/{client_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Client
-         * @description Get a single client by ID with computed appointment fields.
-         *
-         *     Retrieves a client by ID, ensuring it belongs to the authenticated workspace.
-         *     Includes computed fields: next_appointment, last_appointment, appointment_count.
-         *
-         *     SECURITY: Returns 404 for both non-existent clients and clients in other
-         *     workspaces to prevent information leakage. workspace_id is derived from
-         *     JWT token (server-side).
-         *
-         *     PHI ACCESS: This endpoint accesses Protected Health Information (PHI).
-         *     All access is automatically logged by AuditMiddleware for HIPAA compliance.
-         *
-         *     Args:
-         *         client_id: UUID of the client
-         *         request: FastAPI request object
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Client details with computed appointment fields
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
-         */
-        get: operations["get_client_api_v1_clients__client_id__get"];
-        /**
-         * Update Client
-         * @description Update an existing client.
-         *
-         *     Updates client fields. Only provided fields are updated.
-         *     Client must belong to the authenticated workspace.
-         *
-         *     SECURITY: Verifies workspace ownership before allowing updates.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     Args:
-         *         client_id: UUID of the client to update
-         *         client_data: Fields to update
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Updated client with computed appointment fields
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
-         *             422 if validation fails
-         */
-        put: operations["update_client_api_v1_clients__client_id__put"];
-        post?: never;
-        /**
-         * Delete Client
-         * @description Soft delete a client by marking as inactive.
-         *
-         *     CHANGED: This now performs a soft delete (is_active = false) instead of
-         *     hard delete to preserve audit trail and appointment history.
-         *
-         *     Client must belong to the authenticated workspace. The client will no longer
-         *     appear in default list views but can be retrieved with include_inactive=true.
-         *
-         *     SECURITY: Verifies workspace ownership before allowing deletion.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     Args:
-         *         client_id: UUID of the client to delete
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         No content (204) on success
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
-         */
-        delete: operations["delete_client_api_v1_clients__client_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/appointments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Appointments
-         * @description List appointments in the workspace with optional filters.
-         *
-         *     Returns a paginated list of appointments, ordered by scheduled_start descending.
-         *     All results are scoped to the authenticated workspace.
-         *
-         *     SECURITY: Only returns appointments belonging to the authenticated user's
-         *     workspace (from JWT).
-         *
-         *     Args:
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *         page: Page number (1-indexed)
-         *         page_size: Number of items per page (max 100)
-         *         start_date: Filter appointments starting on or after this date
-         *         end_date: Filter appointments starting on or before this date
-         *         client_id: Filter by specific client
-         *         status: Filter by appointment status
-         *
-         *     Returns:
-         *         Paginated list of appointments with client information
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated
-         */
-        get: operations["list_appointments_api_v1_appointments_get"];
-        put?: never;
-        /**
-         * Create Appointment
-         * @description Create a new appointment with conflict detection.
-         *
-         *     Creates a new appointment after verifying:
-         *     1. Client belongs to the workspace
-         *     2. No conflicting appointments exist in the time slot
-         *
-         *     SECURITY: workspace_id is derived from authenticated user's JWT token (server-side).
-         *
-         *     Args:
-         *         appointment_data: Appointment creation data (without workspace_id)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Created appointment with client information
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if client not found,
-         *             409 if conflict exists, 422 if validation fails
-         */
-        post: operations["create_appointment_api_v1_appointments_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/appointments/conflicts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Check Appointment Conflicts
-         * @description Check for appointment conflicts in a time range.
-         *
-         *     Used by frontend to validate appointment times before submission.
-         *
-         *     SECURITY: Only checks conflicts within the authenticated user's workspace
-         *     (from JWT).
-         *
-         *     Args:
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *         scheduled_start: Start time to check
-         *         scheduled_end: End time to check
-         *         exclude_appointment_id: Appointment to exclude (when updating)
-         *
-         *     Returns:
-         *         Conflict check result with list of conflicting appointments
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated,
-         *             422 if scheduled_end is not after scheduled_start
-         */
-        get: operations["check_appointment_conflicts_api_v1_appointments_conflicts_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/appointments/{appointment_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Appointment
-         * @description Get a single appointment by ID.
-         *
-         *     Retrieves an appointment by ID, ensuring it belongs to the authenticated workspace.
-         *
-         *     SECURITY: Returns 404 for both non-existent appointments and appointments
-         *     in other workspaces to prevent information leakage. workspace_id is derived
-         *     from JWT token.
-         *
-         *     Args:
-         *         appointment_id: UUID of the appointment
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Appointment details with client information
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated,
-         *             404 if not found or wrong workspace
-         */
-        get: operations["get_appointment_api_v1_appointments__appointment_id__get"];
-        /**
-         * Update Appointment
-         * @description Update an existing appointment with conflict detection.
-         *
-         *     Updates appointment fields. Only provided fields are updated.
-         *     If time is changed, conflict detection is performed unless allow_conflict=True.
-         *     Appointment must belong to the authenticated workspace.
-         *
-         *     SECURITY: Verifies workspace ownership before allowing updates.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     Args:
-         *         appointment_id: UUID of the appointment to update
-         *         appointment_data: Fields to update
-         *         allow_conflict: Allow update even if conflicts exist (default: False)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Updated appointment with client information
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
-         *             409 if conflict (and allow_conflict=False), 422 if validation fails
-         */
-        put: operations["update_appointment_api_v1_appointments__appointment_id__put"];
-        post?: never;
-        /**
-         * Delete Appointment
-         * @description Delete an appointment with optional session note handling.
-         *
-         *     Permanently deletes an appointment. If appointment has attached session notes,
-         *     you can choose to:
-         *     - soft delete them (30-day grace period for restoration)
-         *     - keep them unchanged (default)
-         *
-         *     SOFT DELETE: Session notes are soft-deleted with 30-day grace period.
-         *     After 30 days, they will be permanently purged by a background job.
-         *
-         *     VALIDATION: Cannot delete session notes that have been amended (amendment_count > 0)
-         *     due to medical-legal significance.
-         *
-         *     SECURITY: Verifies workspace ownership before allowing deletion.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     AUDIT: Comprehensive audit logging includes:
-         *     - Appointment status at deletion
-         *     - Whether session note existed and action taken
-         *     - Optional deletion reasons (appointment and session)
-         *     - Client/service context for forensic review
-         *
-         *     Args:
-         *         appointment_id: UUID of the appointment to delete
-         *         deletion_request: Optional deletion reason and session note action
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         No content (204) on success
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated,
-         *             404 if not found or wrong workspace,
-         *             422 if trying to delete amended session notes
-         *
-         *     Example:
-         *         DELETE /api/v1/appointments/{uuid}
-         *         {
-         *           "reason": "Duplicate entry - scheduled twice by mistake",
-         *           "session_note_action": "delete",
-         *           "deletion_reason": "Incorrect session data, will recreate"
-         *         }
-         */
-        delete: operations["delete_appointment_api_v1_appointments__appointment_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/appointments/{appointment_id}/payment": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Update Appointment Payment
-         * @description Update payment status for an appointment (Phase 1: Manual payment tracking).
-         *
-         *     This endpoint allows therapists to manually mark appointments as paid/unpaid
-         *     and update payment details (method, price, notes).
-         *
-         *     **Phase 1 Behavior:**
-         *     - Manual payment tracking only (no automated payment processing)
-         *     - Therapist manually marks appointments as paid/unpaid
-         *     - Auto-sets paid_at timestamp when marking as paid
-         *     - Uses simplified PaymentService methods
-         *
-         *     **Workspace Scoping:**
-         *     - Automatically scoped to authenticated user's workspace
-         *     - workspace_id derived from JWT token (server-side, trusted)
-         *
-         *     **Audit Logging:**
-         *     - Payment status changes are logged to audit trail
-         *     - Includes old and new payment status for reconciliation
-         *
-         *     Args:
-         *         appointment_id: UUID of the appointment to update
-         *         payment_update: Payment status update data
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         AppointmentResponse with updated payment details
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if appointment not found
-         *
-         *     Example Request:
-         *         ```json
-         *         {
-         *             "payment_status": "paid",
-         *             "payment_method": "bit",
-         *             "payment_price": 150.00,
-         *             "payment_notes": "Paid via Bit app"
-         *         }
-         *         ```
-         *
-         *     Example Response:
-         *         ```json
-         *         {
-         *             "id": "550e8400-e29b-41d4-a716-446655440000",
-         *             "payment_status": "paid",
-         *             "payment_method": "bit",
-         *             "payment_price": 150.00,
-         *             "payment_notes": "Paid via Bit app",
-         *             "paid_at": "2025-11-02T10:00:00Z",
-         *             ...
-         *         }
-         *         ```
-         */
-        patch: operations["update_appointment_payment_api_v1_appointments__appointment_id__payment_patch"];
-        trace?: never;
-    };
-    "/api/v1/appointments/{appointment_id}/payment-link": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Payment Link
-         * @description Preview or regenerate payment link without sending email.
-         *
-         *     Generates a payment link for the appointment based on workspace configuration.
-         *     This endpoint does NOT send an email or change appointment status.
-         *
-         *     **Use Cases:**
-         *     - Preview payment link before sending
-         *     - Regenerate payment link for manual sharing
-         *     - Test payment link generation
-         *
-         *     **Validation:**
-         *     - Appointment must belong to authenticated user's workspace
-         *     - Appointment must have a price set
-         *     - Workspace must have payment links configured
-         *
-         *     **Workspace Scoping:**
-         *     - Automatically scoped to authenticated user's workspace
-         *     - workspace_id derived from JWT token (server-side, trusted)
-         *
-         *     Args:
-         *         appointment_id: UUID of the appointment
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         PaymentLinkResponse with payment link details
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated,
-         *             404 if appointment not found or wrong workspace,
-         *             400 if no price set or payment links not configured
-         */
-        get: operations["get_payment_link_api_v1_appointments__appointment_id__payment_link_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/appointments/{appointment_id}/send-payment-request": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Send Payment Request
-         * @description Send payment request to client via email.
-         *
-         *     Generates a payment link and sends it to the client via email.
-         *     Updates appointment payment_status from 'not_paid' to 'payment_sent'.
-         *
-         *     **Workflow:**
-         *     1. Validate appointment and workspace configuration
-         *     2. Generate payment link
-         *     3. Send email to client with payment link (Step 7 will implement email service)
-         *     4. Update payment_status to 'payment_sent' if currently 'not_paid'
-         *     5. Create audit log entry
-         *
-         *     **Validation:**
-         *     - Appointment must belong to authenticated user's workspace
-         *     - Appointment must have a price set
-         *     - Workspace must have payment links configured
-         *     - Client must have an email address
-         *
-         *     **Workspace Scoping:**
-         *     - Automatically scoped to authenticated user's workspace
-         *     - workspace_id derived from JWT token (server-side, trusted)
-         *
-         *     **Audit Logging:**
-         *     - Logs payment request sent event with amount, client_id, payment_type
-         *
-         *     Args:
-         *         appointment_id: UUID of the appointment
-         *         request_body: Optional custom message to include in email
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         SendPaymentRequestResponse with success status and payment link
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated,
-         *             404 if appointment not found or wrong workspace,
-         *             400 if no price, no email, or payment links not configured
-         */
-        post: operations["send_payment_request_api_v1_appointments__appointment_id__send_payment_request_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Sessions
-         * @description List sessions for a client or appointment with optional full-text search.
-         *
-         *     Returns a paginated list of sessions, ordered by session_date descending.
-         *     All results are scoped to the authenticated workspace.
-         *
-         *     Query Parameters:
-         *         client_id: Filter sessions by client ID (optional if appointment_id
-         *             provided)
-         *         appointment_id: Filter sessions by appointment ID (optional if
-         *             client_id provided)
-         *         page: Page number (default: 1)
-         *         page_size: Items per page (default: 50, max: 100)
-         *         is_draft: Filter by draft status (optional)
-         *         include_deleted: Include soft-deleted sessions (default: false)
-         *         search: Full-text search across SOAP fields (case-insensitive,
-         *             partial matching)
-         *
-         *     Note: At least one of client_id or appointment_id must be provided.
-         *
-         *     SECURITY: Only returns sessions belonging to the authenticated user's
-         *     workspace (from JWT). Requires either client_id or appointment_id filter
-         *     to prevent accidental exposure of all sessions.
-         *
-         *     SEARCH: When search parameter is provided, decrypts SOAP fields and
-         *     performs in-memory filtering. Limited to 1000 sessions for safety.
-         *     Search queries are automatically logged to audit trail for compliance.
-         *
-         *     PERFORMANCE: Uses ix_sessions_workspace_client_date or
-         *     ix_sessions_workspace_appointment indexes for optimal query performance.
-         *     Search performance: <150ms for 100 sessions, <500ms for 500 sessions.
-         *
-         *     Args:
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *         page: Page number (1-indexed)
-         *         page_size: Number of items per page (max 100)
-         *         client_id: Filter by specific client (optional)
-         *         appointment_id: Filter by specific appointment (optional)
-         *         is_draft: Filter by draft status (optional)
-         *         include_deleted: Include soft-deleted sessions (default: false)
-         *         search: Search query string (optional)
-         *
-         *     Returns:
-         *         Paginated list of sessions with decrypted PHI fields
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated,
-         *             400 if neither client_id nor appointment_id provided,
-         *             404 if client/appointment not found in workspace,
-         *             422 if search query validation fails
-         *
-         *     Example:
-         *         GET /api/v1/sessions?client_id={uuid}&page=1&page_size=50&is_draft=true
-         *         GET /api/v1/sessions?appointment_id={uuid}
-         *         GET /api/v1/sessions?client_id={uuid}&search=shoulder%20pain
-         */
-        get: operations["list_sessions_api_v1_sessions_get"];
-        put?: never;
-        /**
-         * Create Session
-         * @description Create a new SOAP session note.
-         *
-         *     Creates a new session after verifying:
-         *     1. Client belongs to the workspace
-         *     2. Session date is not in the future (validated by Pydantic)
-         *
-         *     SECURITY: workspace_id is derived from authenticated user's JWT token (server-side).
-         *     All PHI fields (subjective, objective, assessment, plan) are automatically encrypted
-         *     at rest using AES-256-GCM via the EncryptedString type.
-         *
-         *     AUDIT: Creation is automatically logged by AuditMiddleware.
-         *
-         *     Args:
-         *         session_data: Session creation data (without workspace_id)
-         *         request: FastAPI request object (for audit logging)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Created session with encrypted PHI fields
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if client not found,
-         *             422 if validation fails
-         *
-         *     Example:
-         *         POST /api/v1/sessions
-         *         {
-         *             "client_id": "uuid",
-         *             "session_date": "2025-10-08T14:30:00Z",
-         *             "subjective": "Patient reports...",
-         *             "objective": "Observations...",
-         *             "assessment": "Clinical assessment...",
-         *             "plan": "Treatment plan..."
-         *         }
-         */
-        post: operations["create_session_api_v1_sessions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Session
-         * @description Get a single session by ID with decrypted SOAP fields.
-         *
-         *     Retrieves a session by ID, ensuring it belongs to the authenticated workspace.
-         *     PHI fields are automatically decrypted from database storage.
-         *
-         *     SECURITY: Returns 404 for both non-existent sessions and sessions in other
-         *     workspaces to prevent information leakage. workspace_id is derived from JWT token.
-         *
-         *     AUDIT: PHI access is manually logged via create_audit_event.
-         *
-         *     Args:
-         *         session_id: UUID of the session
-         *         request: FastAPI request object (for audit logging)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Session details with decrypted PHI fields and attachment count
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated,
-         *             404 if not found or wrong workspace
-         *
-         *     Example:
-         *         GET /api/v1/sessions/{uuid}
-         */
-        get: operations["get_session_api_v1_sessions__session_id__get"];
-        /**
-         * Update Session
-         * @description Update an existing session with partial updates.
-         *
-         *     Updates session fields. Only provided fields are updated (partial updates).
-         *     Session must belong to the authenticated workspace.
-         *
-         *     SECURITY: Verifies workspace ownership before allowing updates.
-         *     workspace_id is derived from JWT token (server-side).
-         *     Updated PHI fields are automatically encrypted at rest.
-         *
-         *     OPTIMISTIC LOCKING: Uses version field to prevent concurrent update conflicts.
-         *     Version is automatically incremented on successful update.
-         *
-         *     AUDIT: Update is automatically logged by AuditMiddleware.
-         *
-         *     Args:
-         *         session_id: UUID of the session to update
-         *         session_data: Fields to update (all optional)
-         *         request: FastAPI request object (for audit logging)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Updated session with decrypted PHI fields
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
-         *             409 if version conflict (concurrent update), 422 if validation fails
-         *
-         *     Example:
-         *         PUT /api/v1/sessions/{uuid}
-         *         {
-         *             "subjective": "Updated patient report...",
-         *             "plan": "Updated treatment plan..."
-         *         }
-         */
-        put: operations["update_session_api_v1_sessions__session_id__put"];
-        post?: never;
-        /**
-         * Delete Session
-         * @description Soft delete a session with optional deletion reason.
-         *
-         *     SOFT DELETE ONLY: Sets deleted_at timestamp without removing data.
-         *     This preserves audit trail and allows recovery if needed.
-         *
-         *     SECURITY: Verifies workspace ownership before allowing deletion.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     PROTECTION: Finalized sessions cannot be deleted (immutable records).
-         *
-         *     AUDIT: Deletion is automatically logged by AuditMiddleware.
-         *
-         *     Args:
-         *         session_id: UUID of the session to delete
-         *         request: FastAPI request object (for audit logging)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *         deletion_request: Optional request body with deletion reason
-         *
-         *     Body Parameters:
-         *         reason: Optional reason for deletion (max 500 chars, logged in audit trail)
-         *
-         *     Returns:
-         *         No content (204) on success
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated,
-         *             404 if not found, already deleted, or wrong workspace,
-         *             422 if session is finalized (cannot delete finalized sessions)
-         *
-         *     Example:
-         *         DELETE /api/v1/sessions/{uuid}
-         *         {
-         *             "reason": "Duplicate entry, will recreate"
-         *         }
-         */
-        delete: operations["delete_session_api_v1_sessions__session_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/draft": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Save Draft
-         * @description Save session draft (autosave endpoint).
-         *
-         *     This endpoint is designed for frontend autosave functionality called
-         *     every ~5 seconds.
-         *
-         *     Features:
-         *     - Relaxed validation (partial/empty fields allowed - drafts don't
-         *       need to be complete)
-         *     - Rate limited to 60 requests/minute per user per session
-         *       (allows autosave every ~1 second)
-         *     - Updates only provided fields (partial update)
-         *     - Auto-increments version for optimistic locking
-         *     - Updates draft_last_saved_at timestamp
-         *     - Preserves finalized status (amendments) or keeps is_draft = True
-         *
-         *     SECURITY: Verifies workspace ownership before allowing updates.
-         *     workspace_id is derived from JWT token (server-side).
-         *     Rate limiting uses Redis-backed distributed sliding window algorithm.
-         *
-         *     AUDIT: Update is automatically logged by AuditMiddleware.
-         *
-         *     Args:
-         *         session_id: UUID of the session to update
-         *         draft_update: Fields to update (all optional)
-         *         request: FastAPI request object (for audit logging)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *         redis_client: Redis client for distributed rate limiting
-         *
-         *     Returns:
-         *         Updated session with decrypted PHI fields
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
-         *             429 if rate limit exceeded, 422 if validation fails
-         *
-         *     Example:
-         *         PATCH /api/v1/sessions/{uuid}/draft
-         *         {
-         *             "subjective": "Patient reports... (partial update)"
-         *         }
-         */
-        patch: operations["save_draft_api_v1_sessions__session_id__draft_patch"];
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/finalize": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Finalize Session
-         * @description Finalize session and mark as complete.
-         *
-         *     Marks a session as finalized, making it immutable and preventing deletion.
-         *     At least one SOAP field must have content before finalizing.
-         *
-         *     Validation:
-         *     - At least one SOAP field (subjective, objective, assessment, plan)
-         *       must have content
-         *     - Session must exist and belong to the authenticated workspace
-         *
-         *     Effect:
-         *     - Sets finalized_at timestamp to current time
-         *     - Sets is_draft to False
-         *     - Increments version
-         *     - Prevents deletion (enforced in DELETE endpoint)
-         *
-         *     SECURITY: Verifies workspace ownership before allowing finalization.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     AUDIT: Update is automatically logged by AuditMiddleware with "finalized" action.
-         *
-         *     Args:
-         *         session_id: UUID of the session to finalize
-         *         request: FastAPI request object (for audit logging)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Finalized session with finalized_at timestamp set
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
-         *             422 if validation fails (no SOAP content)
-         *
-         *     Example:
-         *         POST /api/v1/sessions/{uuid}/finalize
-         *         (no request body needed)
-         */
-        post: operations["finalize_session_api_v1_sessions__session_id__finalize_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/unfinalize": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Unfinalize Session
-         * @description Unfinalize session and revert to draft status.
-         *
-         *     Reverts a finalized session back to draft status, allowing further editing.
-         *     This endpoint is the inverse of POST /sessions/{session_id}/finalize.
-         *
-         *     Effect:
-         *     - Sets is_draft to True
-         *     - Clears finalized_at timestamp (sets to NULL)
-         *     - Increments version
-         *     - Session becomes editable again
-         *
-         *     SECURITY: Verifies workspace ownership before allowing unfinalizing.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     AUDIT: Update is automatically logged by AuditMiddleware with "unfinalized" action.
-         *
-         *     Args:
-         *         session_id: UUID of the session to unfinalize
-         *         request: FastAPI request object (for audit logging)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Unfinalied session with is_draft=True and finalized_at cleared
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
-         *             400 if session is already a draft
-         *
-         *     Example:
-         *         POST /api/v1/sessions/{uuid}/unfinalize
-         *         (no request body needed)
-         */
-        post: operations["unfinalize_session_api_v1_sessions__session_id__unfinalize_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Session Versions
-         * @description Get version history for a session note.
-         *
-         *     Returns all versions of a session note in reverse chronological order
-         *     (most recent first). Only finalized sessions have versions.
-         *
-         *     SECURITY: Verifies workspace ownership before allowing access.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     AUDIT: PHI access is automatically logged by AuditMiddleware.
-         *
-         *     Args:
-         *         session_id: UUID of the session
-         *         request: FastAPI request object (for audit logging)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         List of session versions with decrypted PHI fields
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated,
-         *             404 if not found or wrong workspace
-         *
-         *     Example:
-         *         GET /api/v1/sessions/{uuid}/versions
-         *         Response: [
-         *           {
-         *             "id": "version-uuid-2",
-         *             "session_id": "session-uuid",
-         *             "version_number": 2,
-         *             "subjective": "Amended note...",
-         *             "created_at": "2025-01-16T09:15:00Z"
-         *           },
-         *           {
-         *             "id": "version-uuid-1",
-         *             "session_id": "session-uuid",
-         *             "version_number": 1,
-         *             "subjective": "Original note...",
-         *             "created_at": "2025-01-15T15:05:00Z"
-         *           }
-         *         ]
-         */
-        get: operations["get_session_versions_api_v1_sessions__session_id__versions_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Restore Session
-         * @description Restore a soft-deleted session within 30-day grace period.
-         *
-         *     Restores a soft-deleted session by clearing the deletion metadata.
-         *     Can only restore sessions that haven't exceeded the 30-day grace period.
-         *
-         *     SECURITY: Verifies workspace ownership before allowing restoration.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     AUDIT: Restoration is logged in audit trail.
-         *
-         *     Args:
-         *         session_id: UUID of the session to restore
-         *         request: FastAPI request object (for audit logging)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Restored session with cleared deletion metadata
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated,
-         *             404 if not found or not deleted or wrong workspace,
-         *             410 if 30-day grace period has expired
-         *
-         *     Example:
-         *         POST /api/v1/sessions/{uuid}/restore
-         *         (no request body needed)
-         */
-        post: operations["restore_session_api_v1_sessions__session_id__restore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/permanent": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Permanently Delete Session
-         * @description Permanently delete a soft-deleted session (HARD DELETE).
-         *
-         *     This endpoint performs a true database deletion, permanently removing the
-         *     session record and all associated data. This action is irreversible.
-         *
-         *     SECURITY: Verifies workspace ownership before allowing deletion.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     RESTRICTIONS:
-         *     - Can only permanently delete sessions that are already soft-deleted
-         *     - Cannot delete active (non-deleted) sessions - use DELETE /sessions/{id} first
-         *
-         *     AUDIT: Permanent deletion is logged in audit trail before record removal.
-         *
-         *     Args:
-         *         session_id: UUID of the session to permanently delete
-         *         request: FastAPI request object (for audit logging)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         No content (204) on success
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated,
-         *             404 if not found or wrong workspace,
-         *             422 if session is not soft-deleted (must soft-delete first)
-         *
-         *     Example:
-         *         DELETE /api/v1/sessions/{uuid}/permanent
-         */
-        delete: operations["permanently_delete_session_api_v1_sessions__session_id__permanent_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/clients/{client_id}/latest-finalized": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Latest Finalized Session
-         * @description Get the most recent finalized session for a client.
-         *
-         *     Returns the latest finalized (non-draft) session note for the specified client,
-         *     ordered by session_date descending. Used by the Previous Session Context Panel
-         *     to provide treatment continuity when creating new session notes.
-         *
-         *     SECURITY: Verifies client belongs to authenticated workspace before returning data.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     PERFORMANCE: Uses ix_sessions_workspace_client_date index for optimal performance.
-         *     Query should execute in <50ms p95.
-         *
-         *     PHI ACCESS: This endpoint returns decrypted SOAP fields (PHI).
-         *     All access is automatically logged by AuditMiddleware for HIPAA compliance.
-         *
-         *     Args:
-         *         client_id: UUID of the client
-         *         request: FastAPI request object (for audit logging)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Most recent finalized session with decrypted SOAP fields
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated,
-         *             403 if client not in workspace,
-         *             404 if client has no finalized sessions
-         *
-         *     Example:
-         *         GET /api/v1/sessions/clients/{client_id}/latest-finalized
-         *         Response: {
-         *             "id": "uuid",
-         *             "session_date": "2025-10-06T14:00:00Z",
-         *             "duration_minutes": 60,
-         *             "is_draft": false,
-         *             "finalized_at": "2025-10-06T15:05:00Z",
-         *             "subjective": "Patient reports neck pain...",
-         *             "objective": "ROM 90° shoulder abduction...",
-         *             "assessment": "Muscle tension pattern...",
-         *             "plan": "Continue trapezius protocol...",
-         *             ...
-         *         }
-         */
-        get: operations["get_latest_finalized_session_api_v1_sessions_clients__client_id__latest_finalized_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/attachments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Session Attachments
-         * @description List all attachments for a session.
-         *
-         *     Returns metadata for all attachments (filenames, sizes, types, session date).
-         *     Does not include file content (use GET /attachments/{id}/download for content).
-         *
-         *     Args:
-         *         session_id: UUID of the session
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         List of attachment metadata with session context
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 401 if not authenticated
-         *             - 404 if session not found or wrong workspace
-         *
-         *     Example:
-         *         GET /api/v1/sessions/{uuid}/attachments
-         */
-        get: operations["list_session_attachments_api_v1_sessions__session_id__attachments_get"];
-        put?: never;
-        /**
-         * Upload Session Attachment
-         * @description Upload file attachment for a session note.
-         *
-         *     Security features:
-         *     - Triple validation (MIME type, extension, content)
-         *     - EXIF metadata stripping (GPS, camera info)
-         *     - File size limits (10 MB per file, 50 MB total per session)
-         *     - Secure S3 key generation (UUID-based, no user-controlled names)
-         *     - Workspace isolation (verified before upload)
-         *     - Rate limiting (10 uploads per minute per user)
-         *     - Audit logging (automatic via middleware)
-         *
-         *     Supported file types:
-         *     - Images: JPEG, PNG, WebP (for wound photos, treatment documentation)
-         *     - Documents: PDF (for lab reports, referrals, consent forms)
-         *
-         *     Args:
-         *         session_id: UUID of the session
-         *         file: Uploaded file (multipart/form-data)
-         *         request: FastAPI request object (for audit logging)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *         redis_client: Redis client (for rate limiting)
-         *
-         *     Returns:
-         *         Created attachment metadata (id, filename, size, content_type, created_at)
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 401 if not authenticated
-         *             - 404 if session not found or wrong workspace
-         *             - 413 if file too large or total attachments exceed limit
-         *             - 415 if unsupported file type or validation fails
-         *             - 422 if validation error (MIME mismatch, corrupted file)
-         *             - 429 if rate limit exceeded (10 uploads/minute)
-         *
-         *     Example:
-         *         POST /api/v1/sessions/{uuid}/attachments
-         *         Content-Type: multipart/form-data
-         *
-         *         file: (binary data)
-         */
-        post: operations["upload_session_attachment_api_v1_sessions__session_id__attachments_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/attachments/{attachment_id}/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Attachment Download Url
-         * @description Generate pre-signed download URL for attachment.
-         *
-         *     Returns a temporary pre-signed URL that allows downloading the file from S3.
-         *     URL expires after specified time (default: 15 minutes, max: 60 minutes).
-         *
-         *     Security:
-         *     - URLs expire after 15 minutes by default (configurable, max 60 minutes)
-         *     - Short expiration reduces risk of URL sharing or interception
-         *     - Each download requires re-authentication and workspace verification
-         *
-         *     Args:
-         *         session_id: UUID of the session
-         *         attachment_id: UUID of the attachment
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *         expires_in_minutes: URL expiration time in minutes (default: 15, max: 60)
-         *
-         *     Returns:
-         *         Dict with download_url and expires_at timestamp
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 401 if not authenticated
-         *             - 404 if session/attachment not found or wrong workspace
-         *             - 400 if expires_in_minutes exceeds maximum (60)
-         *
-         *     Example:
-         *         GET /api/v1/sessions/{uuid}/attachments/{uuid}/download?expires_in_minutes=30
-         *         Response: {
-         *             "download_url": "https://s3.../file?X-Amz-...",
-         *             "expires_in_seconds": 1800
-         *         }
-         */
-        get: operations["get_attachment_download_url_api_v1_sessions__session_id__attachments__attachment_id__download_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/attachments/{attachment_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete Session Attachment
-         * @description Soft delete a session attachment.
-         *
-         *     Marks attachment as deleted (soft delete) without removing from S3.
-         *     S3 cleanup happens via background job for deleted attachments.
-         *
-         *     Args:
-         *         session_id: UUID of the session
-         *         attachment_id: UUID of the attachment
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         No content (204) on success
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 401 if not authenticated
-         *             - 404 if session/attachment not found or wrong workspace
-         *
-         *     Example:
-         *         DELETE /api/v1/sessions/{uuid}/attachments/{uuid}
-         */
-        delete: operations["delete_session_attachment_api_v1_sessions__session_id__attachments__attachment_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Rename Session Attachment
-         * @description Rename a session-level attachment file.
-         *
-         *     The file extension is automatically preserved. Invalid characters
-         *     (/ \ : * ? " < > |) are rejected. Duplicate filenames return 409 Conflict.
-         *
-         *     Validation:
-         *     - Filename length: 1-255 characters (after trimming whitespace)
-         *     - Prohibited characters: / \ : * ? " < > |
-         *     - Extension preservation: Original extension automatically appended
-         *     - Duplicate detection: Returns 409 if filename exists for same client
-         *     - Whitespace trimming: Leading/trailing spaces removed
-         *
-         *     Security:
-         *     - Requires workspace access to the session's client
-         *     - Validates attachment belongs to specified session
-         *     - Audit logs all rename operations
-         *
-         *     Args:
-         *         session_id: UUID of the session
-         *         attachment_id: UUID of the attachment to rename
-         *         rename_data: New filename (extension will be preserved)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Updated attachment metadata with new filename and updated timestamp
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 400 if filename is invalid (empty, too long, invalid chars)
-         *             - 403 if workspace access denied
-         *             - 404 if session or attachment not found
-         *             - 409 if duplicate filename exists
-         *
-         *     Example:
-         *         PATCH /api/v1/sessions/{uuid}/attachments/{uuid}
-         *         {
-         *             "file_name": "Left shoulder pain - Oct 2025"
-         *         }
-         */
-        patch: operations["rename_session_attachment_api_v1_sessions__session_id__attachments__attachment_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/clients/{client_id}/attachments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Client Attachments
-         * @description List all attachments for a client across all sessions.
-         *
-         *     Returns metadata for all attachments (filenames, sizes, types, session dates).
-         *     Includes both session-level and client-level attachments.
-         *     Does not include file content (use GET /attachments/{id}/download for content).
-         *
-         *     Args:
-         *         client_id: UUID of the client
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         List of attachment metadata with session context where applicable
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 401 if not authenticated
-         *             - 404 if client not found or wrong workspace
-         *
-         *     Example:
-         *         GET /api/v1/clients/{uuid}/attachments
-         *         Response: {
-         *             "items": [
-         *                 {
-         *                     "id": "uuid",
-         *                     "session_id": "uuid",
-         *                     "client_id": "uuid",
-         *                     "file_name": "wound_photo.jpg",
-         *                     "file_type": "image/jpeg",
-         *                     "file_size_bytes": 123456,
-         *                     "created_at": "2025-10-15T14:30:00Z",
-         *                     "session_date": "2025-10-15T13:00:00Z",
-         *                     "is_session_file": true
-         *                 },
-         *                 {
-         *                     "id": "uuid",
-         *                     "session_id": null,
-         *                     "client_id": "uuid",
-         *                     "file_name": "intake_form.pdf",
-         *                     "file_type": "application/pdf",
-         *                     "file_size_bytes": 234567,
-         *                     "created_at": "2025-10-01T10:00:00Z",
-         *                     "session_date": null,
-         *                     "is_session_file": false
-         *                 }
-         *             ],
-         *             "total": 2
-         *         }
-         */
-        get: operations["list_client_attachments_api_v1_clients__client_id__attachments_get"];
-        put?: never;
-        /**
-         * Upload Client Attachment
-         * @description Upload file attachment for a client (not tied to specific session).
-         *
-         *     This endpoint is for client-level documents like intake forms, consent documents,
-         *     insurance cards, or baseline assessments that aren't specific to a session.
-         *
-         *     Security features:
-         *     - Triple validation (MIME type, extension, content)
-         *     - EXIF metadata stripping (GPS, camera info)
-         *     - File size limits (10 MB per file, 100 MB total per client)
-         *     - Secure S3 key generation (UUID-based, no user-controlled names)
-         *     - Workspace isolation (verified before upload)
-         *     - Rate limiting (10 uploads per minute per user)
-         *     - Audit logging (automatic via middleware)
-         *
-         *     Supported file types:
-         *     - Images: JPEG, PNG, WebP (for baseline photos, insurance cards)
-         *     - Documents: PDF (for intake forms, consent documents, referrals)
-         *
-         *     Args:
-         *         client_id: UUID of the client
-         *         file: Uploaded file (multipart/form-data)
-         *         request: FastAPI request object (for audit logging)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *         redis_client: Redis client (for rate limiting)
-         *
-         *     Returns:
-         *         Created attachment metadata (id, filename, size, content_type, created_at)
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 401 if not authenticated
-         *             - 404 if client not found or wrong workspace
-         *             - 413 if file too large or total attachments exceed limit
-         *             - 415 if unsupported file type or validation fails
-         *             - 422 if validation error (MIME mismatch, corrupted file)
-         *             - 429 if rate limit exceeded (10 uploads/minute)
-         *
-         *     Example:
-         *         POST /api/v1/clients/{uuid}/attachments
-         *         Content-Type: multipart/form-data
-         *
-         *         file: (binary data)
-         */
-        post: operations["upload_client_attachment_api_v1_clients__client_id__attachments_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/clients/{client_id}/attachments/{attachment_id}/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Client Attachment Download Url
-         * @description Generate pre-signed download URL for client-level attachment.
-         *
-         *     Returns a temporary pre-signed URL that allows downloading the file from S3.
-         *     URL expires after specified time (default: 15 minutes, max: 60 minutes).
-         *
-         *     Security:
-         *     - URLs expire after 15 minutes by default (configurable, max 60 minutes)
-         *     - Short expiration reduces risk of URL sharing or interception
-         *     - Each download requires re-authentication and workspace verification
-         *     - Workspace isolation enforced
-         *
-         *     Args:
-         *         client_id: UUID of the client
-         *         attachment_id: UUID of the attachment
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *         expires_in_minutes: URL expiration time in minutes (default: 15, max: 60)
-         *
-         *     Returns:
-         *         Dict with download_url and expires_in_seconds
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 401 if not authenticated
-         *             - 404 if client/attachment not found or wrong workspace
-         *             - 400 if expires_in_minutes exceeds maximum (60)
-         *
-         *     Example:
-         *         GET /api/v1/clients/{uuid}/attachments/{uuid}/download?expires_in_minutes=30
-         *         Response: {
-         *             "download_url": "https://s3.../file?X-Amz-...",
-         *             "expires_in_seconds": 1800
-         *         }
-         */
-        get: operations["get_client_attachment_download_url_api_v1_clients__client_id__attachments__attachment_id__download_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/clients/{client_id}/attachments/{attachment_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete Client Attachment
-         * @description Soft delete a client-level attachment.
-         *
-         *     Marks attachment as deleted (soft delete) without removing from S3.
-         *     S3 cleanup happens via background job for deleted attachments.
-         *
-         *     Args:
-         *         client_id: UUID of the client
-         *         attachment_id: UUID of the attachment
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         No content (204) on success
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 401 if not authenticated
-         *             - 404 if client/attachment not found or wrong workspace
-         *
-         *     Example:
-         *         DELETE /api/v1/clients/{uuid}/attachments/{uuid}
-         */
-        delete: operations["delete_client_attachment_api_v1_clients__client_id__attachments__attachment_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Rename Client Attachment
-         * @description Rename a client-level attachment file.
-         *
-         *     The file extension is automatically preserved. Invalid characters
-         *     (/ \ : * ? " < > |) are rejected. Duplicate filenames return 409 Conflict.
-         *
-         *     Validation:
-         *     - Filename length: 1-255 characters (after trimming whitespace)
-         *     - Prohibited characters: / \ : * ? " < > |
-         *     - Extension preservation: Original extension automatically appended
-         *     - Duplicate detection: Returns 409 if filename exists for same client
-         *     - Whitespace trimming: Leading/trailing spaces removed
-         *
-         *     Security:
-         *     - Requires workspace access to the client
-         *     - Validates attachment belongs to specified client
-         *     - Validates attachment is client-level (session_id is NULL)
-         *     - Audit logs all rename operations
-         *
-         *     Args:
-         *         client_id: UUID of the client
-         *         attachment_id: UUID of the attachment to rename
-         *         rename_data: New filename (extension will be preserved)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Updated attachment metadata with new filename
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 400 if filename is invalid (empty, too long, invalid chars)
-         *             - 403 if workspace access denied
-         *             - 404 if client or attachment not found
-         *             - 409 if duplicate filename exists
-         *
-         *     Example:
-         *         PATCH /api/v1/clients/{uuid}/attachments/{uuid}
-         *         {
-         *             "file_name": "Intake form - signed"
-         *         }
-         */
-        patch: operations["rename_client_attachment_api_v1_clients__client_id__attachments__attachment_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/clients/{client_id}/attachments/download-multiple": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Download Multiple Attachments
-         * @description Download multiple attachments as a ZIP file.
-         *
-         *     Creates a ZIP archive containing all requested attachments and returns it
-         *     to the client. All attachments must belong to the specified client and
-         *     the user's workspace.
-         *
-         *     Security:
-         *     - Workspace isolation enforced (all attachments must belong to user's workspace)
-         *     - Client ownership verified (all attachments must belong to specified client)
-         *     - Soft-deleted attachments excluded
-         *     - File size limit: 100 MB total
-         *     - File count limit: 50 files maximum (enforced by schema)
-         *
-         *     Performance:
-         *     - In-memory ZIP creation (suitable for 100 MB limit)
-         *     - Single S3 request per file (no batching needed at this scale)
-         *     - Content-Length header for proper download progress
-         *
-         *     Args:
-         *         client_id: UUID of the client
-         *         request_body: List of attachment IDs to download
-         *         current_user: Authenticated user
-         *         db: Database session
-         *
-         *     Returns:
-         *         Response with ZIP file content
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 400 if invalid request (empty list handled by schema)
-         *             - 403 if workspace access denied
-         *             - 404 if client or any attachment not found
-         *             - 413 if total file size exceeds 100 MB
-         *             - 500 if ZIP creation or S3 download fails
-         *
-         *     Example:
-         *         POST /api/v1/clients/{uuid}/attachments/download-multiple
-         *         {
-         *             "attachment_ids": ["uuid1", "uuid2", "uuid3"]
-         *         }
-         *
-         *         Response:
-         *         Content-Type: application/zip
-         *         Content-Disposition: attachment; filename="client-files-20251019_143022.zip"
-         *         (binary ZIP data)
-         */
-        post: operations["download_multiple_attachments_api_v1_clients__client_id__attachments_download_multiple_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/services": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Services
-         * @description List all services in the workspace.
-         *
-         *     Returns a paginated list of services, ordered by name.
-         *     All results are scoped to the authenticated workspace.
-         *
-         *     SECURITY: Only returns services belonging to the authenticated user's
-         *     workspace (from JWT).
-         *
-         *     Args:
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *         page: Page number (1-indexed)
-         *         page_size: Number of items per page (max 100)
-         *         is_active: Filter by active status (default: true, None = all)
-         *
-         *     Returns:
-         *         Paginated list of services with total count
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated
-         */
-        get: operations["list_services_api_v1_services_get"];
-        put?: never;
-        /**
-         * Create Service
-         * @description Create a new service.
-         *
-         *     Creates a new service record in the authenticated workspace.
-         *     All service data is scoped to the workspace.
-         *
-         *     SECURITY: workspace_id is derived from authenticated user's JWT token (server-side).
-         *
-         *     Args:
-         *         service_data: Service creation data (without workspace_id)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Created service with all fields
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 422 if validation fails,
-         *             409 if service name already exists in workspace
-         */
-        post: operations["create_service_api_v1_services_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/services/{service_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Service
-         * @description Get a single service by ID.
-         *
-         *     Retrieves a service by ID, ensuring it belongs to the authenticated workspace.
-         *
-         *     SECURITY: Returns 404 for non-existent services and services in
-         *     other workspaces to prevent information leakage. workspace_id is derived
-         *     from JWT token.
-         *
-         *     Args:
-         *         service_id: UUID of the service
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Service details
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
-         */
-        get: operations["get_service_api_v1_services__service_id__get"];
-        /**
-         * Update Service
-         * @description Update an existing service.
-         *
-         *     Updates service fields. Only provided fields are updated.
-         *     Service must belong to the authenticated workspace.
-         *
-         *     SECURITY: Verifies workspace ownership before allowing updates.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     Args:
-         *         service_id: UUID of the service to update
-         *         service_data: Fields to update
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Updated service
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
-         *             409 if name conflicts with existing service, 422 if validation fails
-         */
-        put: operations["update_service_api_v1_services__service_id__put"];
-        post?: never;
-        /**
-         * Delete Service
-         * @description Delete a service.
-         *
-         *     Soft deletes a service by setting is_active=False if referenced by
-         *     appointments.
-         *     Hard deletes if no appointments reference it.
-         *     Service must belong to the authenticated workspace.
-         *
-         *     SECURITY: Verifies workspace ownership before allowing deletion.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     Args:
-         *         service_id: UUID of the service to delete
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         No content (204) on success
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
-         */
-        delete: operations["delete_service_api_v1_services__service_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/locations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Locations
-         * @description List all locations in the workspace.
-         *
-         *     Returns a paginated list of locations, ordered by name.
-         *     All results are scoped to the authenticated workspace.
-         *
-         *     SECURITY: Only returns locations belonging to the authenticated user's
-         *     workspace (from JWT).
-         *
-         *     Args:
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *         page: Page number (1-indexed)
-         *         page_size: Number of items per page (max 100)
-         *         is_active: Filter by active status (default: true, None = all)
-         *         location_type: Filter by location type (clinic, home, online)
-         *
-         *     Returns:
-         *         Paginated list of locations with total count
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated
-         */
-        get: operations["list_locations_api_v1_locations_get"];
-        put?: never;
-        /**
-         * Create Location
-         * @description Create a new location.
-         *
-         *     Creates a new location record in the authenticated workspace.
-         *     All location data is scoped to the workspace.
-         *
-         *     SECURITY: workspace_id is derived from authenticated user's JWT token (server-side).
-         *
-         *     Args:
-         *         location_data: Location creation data (without workspace_id)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Created location with all fields
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 422 if validation fails,
-         *             409 if location name already exists in workspace
-         */
-        post: operations["create_location_api_v1_locations_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/locations/{location_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Location
-         * @description Get a single location by ID.
-         *
-         *     Retrieves a location by ID, ensuring it belongs to the authenticated workspace.
-         *
-         *     SECURITY: Returns 404 for non-existent locations and locations in
-         *     other workspaces to prevent information leakage. workspace_id is derived
-         *     from JWT token.
-         *
-         *     Args:
-         *         location_id: UUID of the location
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Location details
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
-         */
-        get: operations["get_location_api_v1_locations__location_id__get"];
-        /**
-         * Update Location
-         * @description Update an existing location.
-         *
-         *     Updates location fields. Only provided fields are updated.
-         *     Location must belong to the authenticated workspace.
-         *
-         *     SECURITY: Verifies workspace ownership before allowing updates.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     Args:
-         *         location_id: UUID of the location to update
-         *         location_data: Fields to update
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Updated location
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
-         *             409 if name conflicts with existing location, 422 if validation fails
-         */
-        put: operations["update_location_api_v1_locations__location_id__put"];
-        post?: never;
-        /**
-         * Delete Location
-         * @description Delete a location.
-         *
-         *     Soft deletes a location by setting is_active=False if referenced by
-         *     appointments.
-         *     Hard deletes if no appointments reference it.
-         *     Location must belong to the authenticated workspace.
-         *
-         *     SECURITY: Verifies workspace ownership before allowing deletion.
-         *     workspace_id is derived from JWT token (server-side).
-         *
-         *     Args:
-         *         location_id: UUID of the location to delete
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         No content (204) on success
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
-         */
-        delete: operations["delete_location_api_v1_locations__location_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspace_id}/storage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Workspace Storage Usage
-         * @description Get current workspace storage usage statistics.
-         *
-         *     Returns detailed storage usage information including:
-         *     - Total bytes used by all files
-         *     - Storage quota (maximum allowed)
-         *     - Remaining storage (can be negative if over quota)
-         *     - Usage percentage
-         *     - Quota exceeded flag
-         *
-         *     Args:
-         *         workspace_id: Workspace UUID
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Storage usage statistics
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 401 if not authenticated
-         *             - 403 if workspace_id doesn't match user's workspace
-         *             - 404 if workspace not found
-         *
-         *     Example:
-         *         GET /api/v1/workspaces/{uuid}/storage
-         *         Response: {
-         *             "used_bytes": 5368709120,
-         *             "quota_bytes": 10737418240,
-         *             "remaining_bytes": 5368709120,
-         *             "usage_percentage": 50.0,
-         *             "is_quota_exceeded": false,
-         *             "used_mb": 5120.0,
-         *             "quota_mb": 10240.0,
-         *             "remaining_mb": 5120.0
-         *         }
-         */
-        get: operations["get_workspace_storage_usage_api_v1_workspaces__workspace_id__storage_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspace_id}/storage/quota": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Update Workspace Storage Quota
-         * @description Update workspace storage quota (admin only).
-         *
-         *     This endpoint allows administrators to increase or decrease the storage quota
-         *     for a workspace. Useful for:
-         *     - Upgrading workspace to higher tier
-         *     - Temporarily increasing quota for busy practices
-         *     - Reducing quota for inactive workspaces
-         *
-         *     IMPORTANT: This does NOT delete files if new quota is lower than current usage.
-         *     Workspace will be over quota until files are deleted.
-         *
-         *     Args:
-         *         workspace_id: Workspace UUID
-         *         quota_update: New quota in bytes
-         *         current_user: Authenticated user (must be admin)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Updated storage usage statistics
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 401 if not authenticated
-         *             - 403 if not admin or wrong workspace
-         *             - 404 if workspace not found
-         *             - 400 if quota_bytes is invalid (zero or negative)
-         *
-         *     Example:
-         *         PATCH /api/v1/workspaces/{uuid}/storage/quota
-         *         {
-         *             "quota_bytes": 21474836480
-         *         }
-         *         Response: (same as GET /storage)
-         */
-        patch: operations["update_workspace_storage_quota_api_v1_workspaces__workspace_id__storage_quota_patch"];
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspace_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Update Workspace
-         * @description Update workspace configuration (payment settings, business details, VAT).
-         *
-         *     This endpoint allows authenticated users to update workspace configuration
-         *     including payment provider settings, business details for receipts, and
-         *     VAT registration status.
-         *
-         *     **Workspace Scoping:**
-         *     Users can only update their own workspace (workspace_id must match
-         *     current_user.workspace_id).
-         *
-         *     **Payment Provider Encryption:**
-         *     Payment provider configuration (API keys, secrets) is encrypted using
-         *     versioned AES-256-GCM encryption before storing in the database.
-         *
-         *     **Partial Updates:**
-         *     Only fields provided in the request body are updated. Omitted fields
-         *     remain unchanged.
-         *
-         *     Args:
-         *         workspace_id: UUID of workspace to update
-         *         update_data: Fields to update (only provided fields are changed)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Updated workspace configuration (without decrypted credentials)
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 401 if not authenticated
-         *             - 403 if workspace_id doesn't match user's workspace
-         *             - 404 if workspace not found
-         *
-         *     Security Notes:
-         *         - Payment credentials are encrypted before storage
-         *         - Decrypted credentials are NEVER returned in response
-         *         - Only payment_provider field is returned (not the config)
-         *
-         *     Example Request:
-         *         ```json
-         *         PATCH /api/v1/workspaces/{uuid}
-         *         {
-         *             "payment_provider": "manual",
-         *             "payment_provider_config": null,
-         *             "business_name": "Example Therapy Clinic",
-         *             "vat_registered": true,
-         *             "vat_rate": 17.00,
-         *             "payment_auto_send": false,
-         *             "payment_send_timing": "manual"
-         *         }
-         *         ```
-         *
-         *     Example Response:
-         *         ```json
-         *         {
-         *             "id": "550e8400-e29b-41d4-a716-446655440000",
-         *             "name": "Example Clinic",
-         *             "is_active": true,
-         *             "business_name": "Example Therapy Clinic",
-         *             "business_name_hebrew": null,
-         *             "tax_id": null,
-         *             "business_license_number": null,
-         *             "business_address": null,
-         *             "vat_registered": true,
-         *             "vat_rate": 17.00,
-         *             "payment_provider": "manual",
-         *             "payment_auto_send": false,
-         *             "payment_send_timing": "manual",
-         *             "storage_used_bytes": 0,
-         *             "storage_quota_bytes": 10737418240,
-         *             "timezone": "UTC"
-         *         }
-         *         ```
-         */
-        patch: operations["update_workspace_api_v1_workspaces__workspace_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/users/me/notification-settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Notification Settings
-         * @description Get notification settings for the authenticated user.
-         *
-         *     Returns the user's current notification preferences including email toggles,
-         *     digest settings, and reminder configurations. If settings don't exist yet,
-         *     returns defaults.
-         *
-         *     Args:
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         NotificationSettingsResponse with current settings
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 401 if not authenticated
-         *             - 500 if database error occurs
-         *
-         *     Example:
-         *         ```
-         *         GET /api/v1/users/me/notification-settings
-         *         Authorization: Bearer <jwt_token>
-         *
-         *         Response 200 OK:
-         *         {
-         *             "id": "uuid",
-         *             "user_id": "uuid",
-         *             "workspace_id": "uuid",
-         *             "email_enabled": true,
-         *             "notify_appointment_booked": true,
-         *             "digest_enabled": false,
-         *             "digest_time": "08:00",
-         *             ...
-         *         }
-         *         ```
-         */
-        get: operations["get_notification_settings_api_v1_users_me_notification_settings_get"];
-        /**
-         * Update Notification Settings
-         * @description Update notification settings for the authenticated user.
-         *
-         *     Performs a partial update - only provided fields are modified.
-         *     If settings don't exist, creates them with defaults and applies updates.
-         *
-         *     Validates:
-         *     - Time format (HH:MM in 24-hour format, e.g., "08:00", "18:30")
-         *     - Reminder minutes (must be one of: 15, 30, 60, 120, 1440)
-         *
-         *     Args:
-         *         updates: NotificationSettingsUpdate with fields to modify
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         NotificationSettingsResponse with updated settings
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 401 if not authenticated
-         *             - 400 if validation fails (invalid time format or reminder minutes)
-         *             - 500 if database error occurs
-         *
-         *     Example:
-         *         ```
-         *         PUT /api/v1/users/me/notification-settings
-         *         Authorization: Bearer <jwt_token>
-         *         Content-Type: application/json
-         *
-         *         {
-         *             "email_enabled": true,
-         *             "digest_enabled": true,
-         *             "digest_time": "08:00"
-         *         }
-         *
-         *         Response 200 OK:
-         *         {
-         *             "id": "uuid",
-         *             "user_id": "uuid",
-         *             "workspace_id": "uuid",
-         *             "email_enabled": true,
-         *             "digest_enabled": true,
-         *             "digest_time": "08:00",
-         *             ...
-         *         }
-         *         ```
-         *
-         *         Validation Error Example:
-         *         ```
-         *         PUT /api/v1/users/me/notification-settings
-         *         {
-         *             "digest_time": "25:00"  # Invalid time
-         *         }
-         *
-         *         Response 400 Bad Request:
-         *         {
-         *             "detail": "Time must be in HH:MM format (00:00 to 23:59), got: 25:00"
-         *         }
-         *         ```
-         */
-        put: operations["update_notification_settings_api_v1_users_me_notification_settings_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/google-calendar/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Integration Status
-         * @description Get Google Calendar integration status for the current user.
-         *
-         *     Returns whether the user has connected their Google Calendar account,
-         *     when the last sync occurred, and whether sync is currently enabled.
-         *
-         *     SECURITY: Only returns status for the authenticated user's workspace
-         *     (from JWT token). Workspace scoping prevents cross-workspace data access.
-         *
-         *     Args:
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Integration status with connection state and sync information
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated
-         *
-         *     Example Response:
-         *         {
-         *             "connected": true,
-         *             "last_sync_at": "2025-10-28T14:30:00Z",
-         *             "enabled": true
-         *         }
-         */
-        get: operations["get_integration_status_api_v1_integrations_google_calendar_status_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/google-calendar/authorize": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Authorize Google Calendar
-         * @description Generate Google Calendar OAuth authorization URL.
-         *
-         *     Creates a cryptographically secure state token for CSRF protection,
-         *     stores it in Redis with short expiration, and generates the OAuth URL
-         *     that the frontend should redirect the user to for authorization.
-         *
-         *     SECURITY:
-         *     - State token: 32 bytes of cryptographically secure random data
-         *     - Redis storage: 10-minute expiration prevents replay attacks
-         *     - Workspace scoping: State maps to workspace_id to prevent token stealing
-         *
-         *     Flow:
-         *     1. Generate CSRF state token (secrets.token_urlsafe)
-         *     2. Store state → workspace_id mapping in Redis (10min TTL)
-         *     3. Generate OAuth URL with state parameter
-         *     4. Return URL to frontend
-         *     5. Frontend redirects user to URL
-         *     6. Google redirects back to callback with state + code
-         *     7. Callback validates state and exchanges code for tokens
-         *
-         *     Args:
-         *         current_user: Authenticated user (from JWT token)
-         *         redis_client: Redis client for state storage
-         *
-         *     Returns:
-         *         Authorization URL for user to visit
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 500 if Redis fails
-         *
-         *     Example Response:
-         *         {
-         *             "authorization_url": "https://accounts.google.com/o/oauth2/auth?..."
-         *         }
-         */
-        post: operations["authorize_google_calendar_api_v1_integrations_google_calendar_authorize_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/google-calendar/callback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Oauth Callback
-         * @description Handle OAuth callback from Google.
-         *
-         *     After user authorizes access on Google's consent screen, Google redirects
-         *     back to this endpoint with an authorization code and the state token.
-         *     This endpoint validates the state (CSRF protection), exchanges the code
-         *     for tokens, and redirects the user back to the frontend.
-         *
-         *     SECURITY:
-         *     - State validation: Prevents CSRF attacks on OAuth flow
-         *     - Workspace scoping: State maps to workspace_id for proper scoping
-         *     - NO authentication required: This is the OAuth callback URL
-         *     - Redirect validation: Only redirects to configured frontend URL
-         *
-         *     Flow:
-         *     1. Validate state token exists in Redis
-         *     2. Retrieve workspace_id from state
-         *     3. Exchange authorization code for access/refresh tokens
-         *     4. Store tokens in database (encrypted)
-         *     5. Delete state from Redis (one-time use)
-         *     6. Redirect to frontend settings page with success/error flag
-         *
-         *     Args:
-         *         code: OAuth authorization code from Google
-         *         state: CSRF state token (must match stored value)
-         *         db: Database session for token storage
-         *         redis_client: Redis client for state validation
-         *
-         *     Returns:
-         *         RedirectResponse to frontend settings page
-         *
-         *     Redirects:
-         *         - Success: {FRONTEND_URL}/settings?gcal=success
-         *         - Error: {FRONTEND_URL}/settings?gcal=error
-         *
-         *     Note:
-         *         This endpoint does NOT require authentication because it's the OAuth
-         *         callback URL. Authentication is implicitly validated via the state token
-         *         which maps to a workspace_id from an authenticated session.
-         */
-        get: operations["oauth_callback_api_v1_integrations_google_calendar_callback_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/google-calendar": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Disconnect Google Calendar
-         * @description Disconnect Google Calendar integration.
-         *
-         *     Permanently deletes the OAuth tokens for the current user, effectively
-         *     disconnecting their Google Calendar account from PazPaz. This action
-         *     cannot be undone - user must re-authorize to reconnect.
-         *
-         *     SECURITY:
-         *     - Workspace scoping: Only deletes tokens for authenticated user's workspace
-         *     - Idempotent: Returns 204 even if no integration exists (prevents info leakage)
-         *
-         *     Token Revocation:
-         *     - Deletes tokens from PazPaz database
-         *     - Does NOT revoke tokens with Google (user can do this in Google Account)
-         *     - Deleted tokens are encrypted at rest, so secure even if backups exist
-         *
-         *     Args:
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         No content (204) on success
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated
-         *
-         *     Example:
-         *         DELETE /api/v1/integrations/google-calendar
-         *         Response: 204 No Content
-         */
-        delete: operations["disconnect_google_calendar_api_v1_integrations_google_calendar_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/google-calendar/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Update Settings
-         * @description Update Google Calendar sync settings.
-         *
-         *     Allows users to enable/disable sync and control whether client names
-         *     are included in calendar event titles.
-         *
-         *     SECURITY:
-         *     - Workspace scoping: Only updates settings for authenticated user's workspace
-         *     - Partial updates: Only provided fields are updated (PATCH semantics)
-         *
-         *     Args:
-         *         settings: Settings to update (partial updates supported)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Updated settings with sync status
-         *
-         *     Raises:
-         *         HTTPException: 404 if Google Calendar not connected
-         *
-         *     Example Request:
-         *         PATCH /api/v1/integrations/google-calendar/settings
-         *         {
-         *             "sync_client_names": true
-         *         }
-         *
-         *     Example Response:
-         *         {
-         *             "enabled": true,
-         *             "sync_client_names": true,
-         *             "last_sync_at": "2025-10-28T14:30:00Z",
-         *             "last_sync_status": "success",
-         *             "last_sync_error": null
-         *         }
-         */
-        patch: operations["update_settings_api_v1_integrations_google_calendar_settings_patch"];
-        trace?: never;
-    };
-    "/api/v1/payments/config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Payment Config
-         * @description Get payment configuration for authenticated user's workspace.
-         *
-         *     **Phase 1 Behavior:**
-         *     - Returns bank account details for manual payment tracking
-         *
-         *     **Phase 1.5 Behavior:**
-         *     - Returns payment_mode (manual, smart_link, automated, or null)
-         *     - Returns payment_link_type and payment_link_template for smart links
-         *
-         *     **Phase 2+ Behavior:**
-         *     - payment_provider field for future automated integrations
-         *
-         *     **Workspace Scoping:**
-         *     - Automatically scoped to authenticated user's workspace
-         *     - workspace_id derived from JWT token (server-side, trusted)
-         *
-         *     Args:
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         PaymentConfigResponse with payment configuration
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated
-         *
-         *     Example Response (Phase 1.5 - Smart Links):
-         *         ```json
-         *         {
-         *             "payment_mode": "smart_link",
-         *             "bank_account_details": null,
-         *             "payment_link_type": "bit",
-         *             "payment_link_template": "050-1234567",
-         *             "payment_provider": null
-         *         }
-         *         ```
-         *
-         *     Example Response (Phase 1 - Manual):
-         *         ```json
-         *         {
-         *             "payment_mode": "manual",
-         *             "bank_account_details": "Bank Leumi, Account: 12345, Branch: 678",
-         *             "payment_link_type": null,
-         *             "payment_link_template": null,
-         *             "payment_provider": null
-         *         }
-         *         ```
-         */
-        get: operations["get_payment_config_api_v1_payments_config_get"];
-        /**
-         * Update Payment Config
-         * @description Update payment configuration for authenticated user's workspace.
-         *
-         *     **Phase 1 Behavior:**
-         *     - Updates bank account details for manual payment tracking
-         *
-         *     **Phase 1.5 Behavior:**
-         *     - Updates payment_link_type and payment_link_template for smart links
-         *     - Validates phone format for Bit links
-         *     - Validates URL format for PayBox/custom links
-         *
-         *     **Phase 2+ Behavior:**
-         *     - payment_provider field not updatable via this endpoint (reserved for future)
-         *
-         *     **Workspace Scoping:**
-         *     - Automatically scoped to authenticated user's workspace
-         *     - workspace_id derived from JWT token (server-side, trusted)
-         *
-         *     **Validation:**
-         *     - Bit: Israeli mobile phone format (05X-XXXXXXX or 05XXXXXXXX)
-         *     - PayBox/Custom: Valid URL starting with http:// or https://
-         *
-         *     Args:
-         *         request_data: Payment configuration updates
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         PaymentConfigResponse with updated payment configuration
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated
-         *         HTTPException: 400 if validation fails
-         *
-         *     Example Request (Phase 1 - Manual):
-         *         ```json
-         *         {
-         *             "bank_account_details": "Bank Leumi, Account: 12345, Branch: 678"
-         *         }
-         *         ```
-         *
-         *     Example Request (Phase 1.5 - Bit):
-         *         ```json
-         *         {
-         *             "payment_link_type": "bit",
-         *             "payment_link_template": "050-1234567"
-         *         }
-         *         ```
-         *
-         *     Example Request (Phase 1.5 - PayBox):
-         *         ```json
-         *         {
-         *             "payment_link_type": "paybox",
-         *             "payment_link_template": "https://paybox.co.il/p/username"
-         *         }
-         *         ```
-         *
-         *     Example Response:
-         *         ```json
-         *         {
-         *             "payment_mode": "smart_link",
-         *             "bank_account_details": null,
-         *             "payment_link_type": "bit",
-         *             "payment_link_template": "050-1234567",
-         *             "payment_provider": null
-         *         }
-         *         ```
-         */
-        put: operations["update_payment_config_api_v1_payments_config_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/audit-events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Audit Events
-         * @description List audit events for the workspace with optional filters.
-         *
-         *     Returns a paginated list of audit events, ordered by created_at descending.
-         *     All results are scoped to the authenticated workspace.
-         *
-         *     SECURITY:
-         *     - Requires JWT authentication
-         *     - Only workspace OWNER can access audit logs (HIPAA compliance requirement)
-         *     - Returns audit events belonging only to authenticated workspace
-         *
-         *     HIPAA Compliance:
-         *     - Audit events are immutable (enforced by database triggers)
-         *     - All PHI access is logged (Client, Session, PlanOfCare reads)
-         *     - Metadata is sanitized to prevent PII/PHI leakage
-         *     - Access to audit logs is restricted to workspace owners
-         *
-         *     Args:
-         *         page: Page number (1-indexed)
-         *         page_size: Number of items per page (max 100)
-         *         user_id: Filter by user who performed action
-         *         resource_type: Filter by resource type (Client, Session, etc.)
-         *         resource_id: Filter by specific resource ID
-         *         action: Filter by action type (CREATE, READ, UPDATE, DELETE)
-         *         start_date: Filter events on or after this date
-         *         end_date: Filter events on or before this date
-         *         phi_only: If True, only show PHI access events (Client/Session/PlanOfCare reads)
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Paginated list of audit events with total count
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 403 if not owner
-         *
-         *     Examples:
-         *         - GET /api/v1/audit-events?page=1&page_size=50
-         *         - GET /api/v1/audit-events?user_id={uuid}&action=READ
-         *         - GET /api/v1/audit-events?resource_type=Client&phi_only=true
-         *         - GET /api/v1/audit-events?start_date=2025-01-01T00:00:00Z
-         *           &end_date=2025-12-31T23:59:59Z
-         */
-        get: operations["list_audit_events_api_v1_audit_events_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/audit-events/{audit_event_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Audit Event
-         * @description Get a single audit event by ID.
-         *
-         *     Retrieves an audit event by ID, ensuring it belongs to the authenticated workspace.
-         *
-         *     SECURITY:
-         *     - Requires JWT authentication
-         *     - Only workspace OWNER can access audit logs (HIPAA compliance requirement)
-         *     - Returns 404 for both non-existent events and events in other workspaces
-         *       to prevent information leakage
-         *
-         *     Args:
-         *         audit_event_id: UUID of the audit event
-         *         current_user: Authenticated user (from JWT token)
-         *         db: Database session
-         *
-         *     Returns:
-         *         Audit event details
-         *
-         *     Raises:
-         *         HTTPException: 401 if not authenticated, 403 if not owner,
-         *                       404 if not found or wrong workspace
-         */
-        get: operations["get_audit_event_api_v1_audit_events__audit_event_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/metrics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Metrics
-         * @description Prometheus metrics endpoint.
-         *
-         *     Exposes application metrics in Prometheus format for scraping.
-         *
-         *     Metrics include:
-         *     - audit_events_total: Audit events by resource type, action, workspace
-         *     - audit_failures_total: Audit failures by resource type, action, error
-         *     - audit_latency_seconds: Audit event write latency histogram by action
-         *
-         *     Returns:
-         *         Prometheus-formatted metrics text
-         *
-         *     Example:
-         *         # HELP audit_events_total Total audit events created
-         *         # TYPE audit_events_total counter
-         *         audit_events_total{resource_type="Client",action="CREATE"} 42.0
-         */
-        get: operations["metrics_metrics_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Health Check
-         * @description Health check endpoint.
-         */
-        get: operations["health_check_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Api Health Check
-         * @description API v1 health check endpoint.
-         */
-        get: operations["api_health_check_api_v1_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
+  '/api/v1/auth/magic-link': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Request magic link
+     * @description Request a magic link to be sent to the provided email address.
+     *
+     *         Security features:
+     *         - Rate limited to 3 requests per hour per IP address
+     *         - Rate limited to 5 requests per hour per email address (prevents email bombing)
+     *         - Returns generic success message to prevent email enumeration
+     *         - Tokens are 256-bit entropy with 10-minute expiry
+     *         - Single-use tokens (deleted after verification)
+     *
+     *         If an active user exists with the email, they will receive a login link.
+     *         Otherwise, no email is sent but the same success message is returned.
+     */
+    post: operations['request_magic_link_endpoint_api_v1_auth_magic_link_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/auth/verify': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Verify magic link token
+     * @description Verify a magic link token and receive a JWT access token.
+     *
+     *         Security features:
+     *         - Token MUST be sent in POST body, not URL query parameter (CWE-598)
+     *         - Rate limited to 10 verification attempts per 5 min per IP (brute force)
+     *         - Single-use tokens (deleted after successful verification)
+     *         - User existence revalidated in database
+     *         - JWT contains user_id and workspace_id for authorization
+     *         - JWT stored in HttpOnly cookie for XSS protection
+     *         - 7-day JWT expiry
+     *         - Uses POST method to prevent CSRF attacks (state-changing operation)
+     *         - Audit logging for all verification attempts
+     *         - Referrer-Policy prevents token leakage via referrer headers
+     *
+     *         Frontend MUST remove token from URL immediately after reading:
+     *         window.history.replaceState({}, document.title, '/auth/verify')
+     *
+     *         The token parameter is received from the email link and sent in request body.
+     *         On success, a JWT is set as an HttpOnly cookie and returned in response.
+     */
+    post: operations['verify_magic_link_endpoint_api_v1_auth_verify_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/auth/verify-2fa': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Complete authentication with 2FA after magic link
+     * @description Complete authentication after magic link when 2FA is enabled.
+     *
+     *         Security features:
+     *         - Temporary token expires in 5 minutes
+     *         - Validates TOTP code or backup code
+     *         - Single-use backup codes
+     *         - Audit logging for 2FA verification
+     *         - Issues JWT on successful verification
+     *
+     *         Flow:
+     *         1. User clicks magic link
+     *         2. /verify returns requires_2fa=True with temp_token
+     *         3. User enters TOTP code from authenticator
+     *         4. /verify-2fa validates code and issues JWT
+     *
+     *         Args:
+     *             temp_token: Temporary token from /verify response
+     *             totp_code: 6-digit TOTP code or 8-character backup code
+     */
+    post: operations['verify_magic_link_2fa_endpoint_api_v1_auth_verify_2fa_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/auth/accept-invite': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Accept therapist invitation
+     * @description Accept therapist invitation and activate account via magic link.
+     *
+     *         Security features:
+     *         - Single-use invitation tokens (7-day expiration)
+     *         - Token verification uses timing-safe comparison (SHA256)
+     *         - Activates user account and creates session
+     *         - HttpOnly cookies for XSS protection
+     *         - Audit logging for invitation acceptance
+     *         - Generic error messages (no token leakage)
+     *
+     *         Flow:
+     *         1. Therapist clicks invitation link in email
+     *         2. Token verified and user activated
+     *         3. JWT session created and cookies set
+     *         4. Returns success JSON with user info
+     *
+     *         Error handling:
+     *         - Invalid/expired tokens return 404/410 with error details
+     *         - Already accepted returns 410
+     *         - All errors are logged server-side for security monitoring
+     */
+    get: operations['accept_invitation_api_v1_auth_accept_invite_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/auth/me': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get current user
+     * @description Get information about the currently authenticated user.
+     *
+     *         Security features:
+     *         - Requires valid JWT authentication (HttpOnly cookie)
+     *         - Returns user information from validated session
+     *         - Used by frontend to check authentication status
+     *
+     *         This endpoint is typically called:
+     *         - On app startup to restore authentication state
+     *         - After login to verify successful authentication
+     *         - To check if session is still valid
+     *
+     *         Returns 401 Unauthorized if not authenticated or session expired.
+     */
+    get: operations['get_current_user_endpoint_api_v1_auth_me_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/auth/logout': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Logout
+     * @description Logout by clearing the JWT cookie and blacklisting the token.
+     *
+     *         Security features:
+     *         - Clears HttpOnly authentication cookie
+     *         - Blacklists JWT token in Redis (prevents reuse)
+     *         - Clears CSRF token cookie
+     *         - Requires CSRF token for protection against logout CSRF attacks
+     *         - Audit logging for logout events
+     *
+     *         The blacklisted token cannot be used even if stolen, providing
+     *         enhanced security compared to client-side-only logout.
+     */
+    post: operations['logout_endpoint_api_v1_auth_logout_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/auth/totp/enroll': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Enroll in 2FA/TOTP
+     * @description Enroll current authenticated user in 2FA/TOTP.
+     *
+     *         Security features:
+     *         - TOTP secret generated with 160 bits entropy
+     *         - Secret stored encrypted with AES-256-GCM
+     *         - QR code generated for easy authenticator app setup
+     *         - 8 backup codes generated and hashed with Argon2id
+     *         - Not enabled until user verifies with /totp/verify
+     *         - Requires existing authentication (JWT)
+     *
+     *         Returns:
+     *         - TOTP secret (base32-encoded, for manual entry)
+     *         - QR code (data URI, for scanning)
+     *         - 8 backup codes (shown ONLY ONCE, save offline)
+     *
+     *         User must verify TOTP code with /totp/verify before 2FA is enabled.
+     */
+    post: operations['enroll_user_totp_api_v1_auth_totp_enroll_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/auth/totp/verify': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Verify TOTP code and enable 2FA
+     * @description Verify TOTP code and enable 2FA for current user.
+     *
+     *         Security features:
+     *         - Must be called after /totp/enroll
+     *         - Validates 6-digit TOTP code from authenticator app
+     *         - Window of ±30 seconds for clock skew tolerance
+     *         - Sets enrollment timestamp
+     *         - Audit logging for successful enrollment
+     *         - Requires existing authentication (JWT)
+     *
+     *         After successful verification, 2FA is enabled and will be required
+     *         on all future magic link authentications.
+     */
+    post: operations['verify_user_totp_api_v1_auth_totp_verify_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/auth/session/refresh': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Refresh user session
+     * @description Refresh user session to extend JWT expiry.
+     *
+     *         Security features:
+     *         - HIPAA compliance for session timeout warnings (§164.312(a)(2)(iii))
+     *         - Extends JWT expiry by resetting activity timestamp
+     *         - Prevents data loss from silent session expiration
+     *         - Used by frontend session timeout warning modal
+     *
+     *         This endpoint:
+     *         - Validates current JWT authentication
+     *         - Updates session activity timestamp
+     *         - Returns success response (JWT automatically refreshed via dependency)
+     *         - Frontend should call this when user clicks "Stay logged in" button
+     *
+     *         Returns 401 Unauthorized if session already expired.
+     */
+    post: operations['refresh_session_endpoint_api_v1_auth_session_refresh_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/auth/totp': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Disable 2FA
+     * @description Disable 2FA for current authenticated user.
+     *
+     *         SECURITY: Requires TOTP verification before disabling.
+     *         This prevents attackers with stolen sessions from disabling 2FA.
+     *
+     *         Security considerations:
+     *         - Removes all TOTP data (secret, backup codes, timestamp)
+     *         - Requires valid TOTP code verification before disabling
+     *         - Audit logging for 2FA disable (both success and failure)
+     *         - Requires existing authentication (JWT)
+     *
+     *         WARNING: After disabling, user will only have magic link authentication.
+     */
+    delete: operations['disable_user_totp_api_v1_auth_totp_delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/platform-admin/invite-therapist': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Invite a new therapist
+     * @description Create a new workspace and invite a therapist to join the platform.
+     *
+     *         Security:
+     *         - Requires platform admin authentication
+     *         - Email uniqueness enforced (400 if duplicate)
+     *         - Invitation token SHA256 hashed in database
+     *         - Token expires in 7 days
+     *         - Audit logging for all invitations
+     *
+     *         Flow:
+     *         1. Platform admin provides workspace name, therapist email, and full name
+     *         2. System creates workspace and inactive user account
+     *         3. System generates invitation token (256-bit entropy)
+     *         4. Platform admin receives invitation URL to send via email
+     *         5. Therapist clicks link and accepts invitation to activate account
+     *
+     *         Error Responses:
+     *         - 400: Email already exists (duplicate)
+     *         - 401: Not authenticated
+     *         - 403: Not platform admin
+     *         - 422: Validation error (invalid email, empty fields)
+     */
+    post: operations['invite_therapist_api_v1_platform_admin_invite_therapist_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/platform-admin/resend-invitation/{user_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Resend invitation to pending user
+     * @description Generate a new invitation token for a user who has not yet accepted
+     *         their invitation.
+     *
+     *         Security:
+     *         - Requires platform admin authentication
+     *         - Only works for inactive users (is_active=False)
+     *         - Old token is invalidated (replaced with new one)
+     *         - New 7-day expiration window
+     *         - Audit logging for resends
+     *
+     *         Use Cases:
+     *         - Original invitation expired (>7 days)
+     *         - Therapist lost invitation email
+     *         - Invitation token compromised
+     *
+     *         Error Responses:
+     *         - 400: User is already active (invitation already accepted)
+     *         - 401: Not authenticated
+     *         - 403: Not platform admin
+     *         - 404: User not found
+     *         - 422: Invalid UUID format
+     */
+    post: operations['resend_invitation_api_v1_platform_admin_resend_invitation__user_id__post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/platform-admin/pending-invitations': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List all pending invitations
+     * @description Get a list of all users who have been invited but have not yet accepted
+     *         their invitation.
+     *
+     *         Security:
+     *         - Requires platform admin authentication
+     *         - Returns only inactive users (is_active=False)
+     *         - Includes expiration status (calculated from invited_at + 7 days)
+     *         - Sorted by invited_at (newest first)
+     *
+     *         Response includes:
+     *         - user_id: UUID of the user
+     *         - email: Email address
+     *         - full_name: Full name
+     *         - workspace_name: Name of workspace user will join
+     *         - invited_at: When invitation was sent (UTC)
+     *         - expires_at: When invitation expires (UTC)
+     *
+     *         Use Cases:
+     *         - Monitor pending onboarding
+     *         - Identify expired invitations for cleanup
+     *         - Follow up with therapists who haven't accepted
+     *
+     *         Error Responses:
+     *         - 401: Not authenticated
+     *         - 403: Not platform admin
+     */
+    get: operations['get_pending_invitations_api_v1_platform_admin_pending_invitations_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/platform-admin/metrics': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get platform metrics
+     * @description Get platform-wide metrics for dashboard.
+     *
+     *         Returns:
+     *         - total_workspaces: Count of all workspaces (excluding deleted)
+     *         - active_users: Count of active users across all workspaces
+     *         - pending_invitations: Count of users with pending invitations
+     *         - blacklisted_users: Count of blacklisted email addresses
+     *
+     *         Security:
+     *         - Requires platform admin authentication
+     *         - Cross-workspace access allowed for metrics
+     *
+     *         Error Responses:
+     *         - 401: Not authenticated
+     *         - 403: Not platform admin
+     */
+    get: operations['get_metrics_api_v1_platform_admin_metrics_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/platform-admin/activity': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get recent platform activity
+     * @description Get recent platform activity from audit events (last 90 days).
+     *
+     *         Query Parameters:
+     *         - limit: Number of activities to return per page (default 20, min 1, max 100)
+     *         - offset: Number of activities to skip for pagination (default 0, min 0)
+     *
+     *         Returns recent audit events related to:
+     *         - Workspace creation/suspension/deletion
+     *         - User invitations accepted
+     *         - Blacklist changes
+     *
+     *         Response includes:
+     *         - activities: List of activity events
+     *         - total_count: Total number of events in last 90 days
+     *         - has_more: Whether more events exist beyond current page
+     *         - displayed_count: Number of events in current response
+     *
+     *         Data Retention:
+     *         - Only shows events from last 90 days
+     *         - Events are ordered by timestamp (newest first)
+     *
+     *         Security:
+     *         - Requires platform admin authentication
+     *         - Cross-workspace access allowed for activity feed
+     *
+     *         Error Responses:
+     *         - 401: Not authenticated
+     *         - 403: Not platform admin
+     *         - 422: Invalid limit or offset parameter
+     */
+    get: operations['get_activity_api_v1_platform_admin_activity_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/platform-admin/workspaces': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List all workspaces
+     * @description List all workspaces with stats.
+     *
+     *         Query Parameters:
+     *         - search: Optional search query (filters by workspace name or owner email)
+     *
+     *         Returns workspace information including:
+     *         - Workspace details (id, name, status)
+     *         - Owner email
+     *         - User count
+     *         - Session count
+     *         - Created date
+     *
+     *         Security:
+     *         - Requires platform admin authentication
+     *         - Cross-workspace access allowed
+     *
+     *         Error Responses:
+     *         - 401: Not authenticated
+     *         - 403: Not platform admin
+     */
+    get: operations['list_workspaces_api_v1_platform_admin_workspaces_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/platform-admin/workspaces/{workspace_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get workspace details
+     * @description Get detailed information about a specific workspace.
+     *
+     *         Returns workspace information including:
+     *         - Workspace details (id, name, status)
+     *         - Owner email
+     *         - User count
+     *         - Session count
+     *         - Created date
+     *
+     *         Security:
+     *         - Requires platform admin authentication
+     *         - Cross-workspace access allowed
+     *
+     *         Error Responses:
+     *         - 401: Not authenticated
+     *         - 403: Not platform admin
+     *         - 404: Workspace not found
+     */
+    get: operations['get_workspace_details_api_v1_platform_admin_workspaces__workspace_id__get']
+    put?: never
+    post?: never
+    /**
+     * Delete workspace (soft delete)
+     * @description Soft delete a workspace.
+     *
+     *         Actions performed:
+     *         - Set workspace status to 'deleted'
+     *         - Set deleted_at timestamp
+     *         - Set all users to inactive
+     *         - Create audit event with reason
+     *
+     *         Note: This is a SOFT DELETE. Data is preserved for audit trail.
+     *         Hard deletion (if needed) must be done manually in database.
+     *
+     *         Security:
+     *         - Requires platform admin authentication
+     *         - Creates audit trail
+     *         - Preserves data for compliance
+     *
+     *         Error Responses:
+     *         - 400: Workspace already deleted
+     *         - 401: Not authenticated
+     *         - 403: Not platform admin
+     *         - 404: Workspace not found
+     */
+    delete: operations['delete_workspace_api_v1_platform_admin_workspaces__workspace_id__delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/platform-admin/workspaces/{workspace_id}/suspend': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Suspend workspace
+     * @description Suspend a workspace.
+     *
+     *         Actions performed:
+     *         - Set workspace status to 'suspended'
+     *         - Create audit event with reason
+     *         - Log suspension
+     *
+     *         Note: This does NOT invalidate user sessions. Users will be blocked
+     *         on next request when workspace status is checked.
+     *
+     *         Security:
+     *         - Requires platform admin authentication
+     *         - Creates audit trail
+     *
+     *         Error Responses:
+     *         - 400: Workspace already suspended or deleted
+     *         - 401: Not authenticated
+     *         - 403: Not platform admin
+     *         - 404: Workspace not found
+     */
+    post: operations['suspend_workspace_api_v1_platform_admin_workspaces__workspace_id__suspend_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/platform-admin/workspaces/{workspace_id}/reactivate': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Reactivate suspended workspace
+     * @description Reactivate a suspended workspace.
+     *
+     *         Actions performed:
+     *         - Set workspace status to 'active'
+     *         - Create audit event
+     *         - Log reactivation
+     *
+     *         Security:
+     *         - Requires platform admin authentication
+     *         - Creates audit trail
+     *
+     *         Error Responses:
+     *         - 400: Workspace not suspended (already active or deleted)
+     *         - 401: Not authenticated
+     *         - 403: Not platform admin
+     *         - 404: Workspace not found
+     */
+    post: operations['reactivate_workspace_api_v1_platform_admin_workspaces__workspace_id__reactivate_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/platform-admin/blacklist': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List blacklisted emails
+     * @description Get list of all blacklisted email addresses.
+     *
+     *         Returns:
+     *         - email: Blacklisted email address
+     *         - reason: Why it was blacklisted
+     *         - added_at: When it was blacklisted
+     *         - added_by: Admin who added it
+     *
+     *         Security:
+     *         - Requires platform admin authentication
+     *
+     *         Error Responses:
+     *         - 401: Not authenticated
+     *         - 403: Not platform admin
+     */
+    get: operations['get_blacklist_api_v1_platform_admin_blacklist_get']
+    put?: never
+    /**
+     * Add email to blacklist
+     * @description Add an email address to the blacklist.
+     *
+     *         Actions performed:
+     *         - Add email to blacklist table
+     *         - Create audit event
+     *         - Revoke any pending invitations for this email
+     *
+     *         Security:
+     *         - Requires platform admin authentication
+     *         - Email is normalized to lowercase
+     *         - Duplicate check performed
+     *
+     *         Error Responses:
+     *         - 400: Email already blacklisted
+     *         - 401: Not authenticated
+     *         - 403: Not platform admin
+     *         - 422: Invalid email format
+     */
+    post: operations['add_to_blacklist_api_v1_platform_admin_blacklist_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/platform-admin/blacklist/{email}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Remove email from blacklist
+     * @description Remove an email address from the blacklist.
+     *
+     *         Actions performed:
+     *         - Remove email from blacklist table
+     *         - Create audit event
+     *
+     *         Security:
+     *         - Requires platform admin authentication
+     *
+     *         Error Responses:
+     *         - 401: Not authenticated
+     *         - 403: Not platform admin
+     *         - 404: Email not found in blacklist
+     */
+    delete: operations['remove_from_blacklist_api_v1_platform_admin_blacklist__email__delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/clients': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Clients
+     * @description List all clients in the workspace.
+     *
+     *     Returns a paginated list of clients, ordered by last name, first name.
+     *     All results are scoped to the authenticated workspace.
+     *
+     *     By default, only active clients are returned. Use include_inactive=true
+     *     to see archived clients as well.
+     *
+     *     SECURITY: Only returns clients belonging to the authenticated user's
+     *     workspace (from JWT).
+     *
+     *     Args:
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *         page: Page number (1-indexed)
+     *         page_size: Number of items per page (max 100)
+     *         include_inactive: If True, include archived/inactive clients
+     *         include_appointments: If True, include appointment stats
+     *             (adds 3 queries per client)
+     *
+     *     Returns:
+     *         Paginated list of clients with total count
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated
+     */
+    get: operations['list_clients_api_v1_clients_get']
+    put?: never
+    /**
+     * Create Client
+     * @description Create a new client.
+     *
+     *     Creates a new client record in the authenticated workspace.
+     *     All client data is scoped to the workspace.
+     *
+     *     SECURITY: workspace_id is derived from authenticated user's JWT token (server-side).
+     *
+     *     Args:
+     *         client_data: Client creation data (without workspace_id)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Created client with all fields
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 422 if validation fails
+     */
+    post: operations['create_client_api_v1_clients_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/clients/{client_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Client
+     * @description Get a single client by ID with computed appointment fields.
+     *
+     *     Retrieves a client by ID, ensuring it belongs to the authenticated workspace.
+     *     Includes computed fields: next_appointment, last_appointment, appointment_count.
+     *
+     *     SECURITY: Returns 404 for both non-existent clients and clients in other
+     *     workspaces to prevent information leakage. workspace_id is derived from
+     *     JWT token (server-side).
+     *
+     *     PHI ACCESS: This endpoint accesses Protected Health Information (PHI).
+     *     All access is automatically logged by AuditMiddleware for HIPAA compliance.
+     *
+     *     Args:
+     *         client_id: UUID of the client
+     *         request: FastAPI request object
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Client details with computed appointment fields
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
+     */
+    get: operations['get_client_api_v1_clients__client_id__get']
+    /**
+     * Update Client
+     * @description Update an existing client.
+     *
+     *     Updates client fields. Only provided fields are updated.
+     *     Client must belong to the authenticated workspace.
+     *
+     *     SECURITY: Verifies workspace ownership before allowing updates.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     Args:
+     *         client_id: UUID of the client to update
+     *         client_data: Fields to update
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Updated client with computed appointment fields
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
+     *             422 if validation fails
+     */
+    put: operations['update_client_api_v1_clients__client_id__put']
+    post?: never
+    /**
+     * Delete Client
+     * @description Soft delete a client by marking as inactive.
+     *
+     *     CHANGED: This now performs a soft delete (is_active = false) instead of
+     *     hard delete to preserve audit trail and appointment history.
+     *
+     *     Client must belong to the authenticated workspace. The client will no longer
+     *     appear in default list views but can be retrieved with include_inactive=true.
+     *
+     *     SECURITY: Verifies workspace ownership before allowing deletion.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     Args:
+     *         client_id: UUID of the client to delete
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         No content (204) on success
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
+     */
+    delete: operations['delete_client_api_v1_clients__client_id__delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/appointments': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Appointments
+     * @description List appointments in the workspace with optional filters.
+     *
+     *     Returns a paginated list of appointments, ordered by scheduled_start descending.
+     *     All results are scoped to the authenticated workspace.
+     *
+     *     SECURITY: Only returns appointments belonging to the authenticated user's
+     *     workspace (from JWT).
+     *
+     *     Args:
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *         page: Page number (1-indexed)
+     *         page_size: Number of items per page (max 100)
+     *         start_date: Filter appointments starting on or after this date
+     *         end_date: Filter appointments starting on or before this date
+     *         client_id: Filter by specific client
+     *         status: Filter by appointment status
+     *
+     *     Returns:
+     *         Paginated list of appointments with client information
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated
+     */
+    get: operations['list_appointments_api_v1_appointments_get']
+    put?: never
+    /**
+     * Create Appointment
+     * @description Create a new appointment with conflict detection.
+     *
+     *     Creates a new appointment after verifying:
+     *     1. Client belongs to the workspace
+     *     2. No conflicting appointments exist in the time slot
+     *
+     *     SECURITY: workspace_id is derived from authenticated user's JWT token (server-side).
+     *
+     *     Args:
+     *         appointment_data: Appointment creation data (without workspace_id)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Created appointment with client information
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if client not found,
+     *             409 if conflict exists, 422 if validation fails
+     */
+    post: operations['create_appointment_api_v1_appointments_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/appointments/conflicts': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Check Appointment Conflicts
+     * @description Check for appointment conflicts in a time range.
+     *
+     *     Used by frontend to validate appointment times before submission.
+     *
+     *     SECURITY: Only checks conflicts within the authenticated user's workspace
+     *     (from JWT).
+     *
+     *     Args:
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *         scheduled_start: Start time to check
+     *         scheduled_end: End time to check
+     *         exclude_appointment_id: Appointment to exclude (when updating)
+     *
+     *     Returns:
+     *         Conflict check result with list of conflicting appointments
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated,
+     *             422 if scheduled_end is not after scheduled_start
+     */
+    get: operations['check_appointment_conflicts_api_v1_appointments_conflicts_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/appointments/{appointment_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Appointment
+     * @description Get a single appointment by ID.
+     *
+     *     Retrieves an appointment by ID, ensuring it belongs to the authenticated workspace.
+     *
+     *     SECURITY: Returns 404 for both non-existent appointments and appointments
+     *     in other workspaces to prevent information leakage. workspace_id is derived
+     *     from JWT token.
+     *
+     *     Args:
+     *         appointment_id: UUID of the appointment
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Appointment details with client information
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated,
+     *             404 if not found or wrong workspace
+     */
+    get: operations['get_appointment_api_v1_appointments__appointment_id__get']
+    /**
+     * Update Appointment
+     * @description Update an existing appointment with conflict detection.
+     *
+     *     Updates appointment fields. Only provided fields are updated.
+     *     If time is changed, conflict detection is performed unless allow_conflict=True.
+     *     Appointment must belong to the authenticated workspace.
+     *
+     *     SECURITY: Verifies workspace ownership before allowing updates.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     Args:
+     *         appointment_id: UUID of the appointment to update
+     *         appointment_data: Fields to update
+     *         allow_conflict: Allow update even if conflicts exist (default: False)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Updated appointment with client information
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
+     *             409 if conflict (and allow_conflict=False), 422 if validation fails
+     */
+    put: operations['update_appointment_api_v1_appointments__appointment_id__put']
+    post?: never
+    /**
+     * Delete Appointment
+     * @description Delete an appointment with optional session note handling.
+     *
+     *     Permanently deletes an appointment. If appointment has attached session notes,
+     *     you can choose to:
+     *     - soft delete them (30-day grace period for restoration)
+     *     - keep them unchanged (default)
+     *
+     *     SOFT DELETE: Session notes are soft-deleted with 30-day grace period.
+     *     After 30 days, they will be permanently purged by a background job.
+     *
+     *     VALIDATION: Cannot delete session notes that have been amended (amendment_count > 0)
+     *     due to medical-legal significance.
+     *
+     *     SECURITY: Verifies workspace ownership before allowing deletion.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     AUDIT: Comprehensive audit logging includes:
+     *     - Appointment status at deletion
+     *     - Whether session note existed and action taken
+     *     - Optional deletion reasons (appointment and session)
+     *     - Client/service context for forensic review
+     *
+     *     Args:
+     *         appointment_id: UUID of the appointment to delete
+     *         deletion_request: Optional deletion reason and session note action
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         No content (204) on success
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated,
+     *             404 if not found or wrong workspace,
+     *             422 if trying to delete amended session notes
+     *
+     *     Example:
+     *         DELETE /api/v1/appointments/{uuid}
+     *         {
+     *           "reason": "Duplicate entry - scheduled twice by mistake",
+     *           "session_note_action": "delete",
+     *           "deletion_reason": "Incorrect session data, will recreate"
+     *         }
+     */
+    delete: operations['delete_appointment_api_v1_appointments__appointment_id__delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/appointments/{appointment_id}/payment': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * Update Appointment Payment
+     * @description Update payment status for an appointment (Phase 1: Manual payment tracking).
+     *
+     *     This endpoint allows therapists to manually mark appointments as paid/unpaid
+     *     and update payment details (method, price, notes).
+     *
+     *     **Phase 1 Behavior:**
+     *     - Manual payment tracking only (no automated payment processing)
+     *     - Therapist manually marks appointments as paid/unpaid
+     *     - Auto-sets paid_at timestamp when marking as paid
+     *     - Uses simplified PaymentService methods
+     *
+     *     **Workspace Scoping:**
+     *     - Automatically scoped to authenticated user's workspace
+     *     - workspace_id derived from JWT token (server-side, trusted)
+     *
+     *     **Audit Logging:**
+     *     - Payment status changes are logged to audit trail
+     *     - Includes old and new payment status for reconciliation
+     *
+     *     Args:
+     *         appointment_id: UUID of the appointment to update
+     *         payment_update: Payment status update data
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         AppointmentResponse with updated payment details
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if appointment not found
+     *
+     *     Example Request:
+     *         ```json
+     *         {
+     *             "payment_status": "paid",
+     *             "payment_method": "bit",
+     *             "payment_price": 150.00,
+     *             "payment_notes": "Paid via Bit app"
+     *         }
+     *         ```
+     *
+     *     Example Response:
+     *         ```json
+     *         {
+     *             "id": "550e8400-e29b-41d4-a716-446655440000",
+     *             "payment_status": "paid",
+     *             "payment_method": "bit",
+     *             "payment_price": 150.00,
+     *             "payment_notes": "Paid via Bit app",
+     *             "paid_at": "2025-11-02T10:00:00Z",
+     *             ...
+     *         }
+     *         ```
+     */
+    patch: operations['update_appointment_payment_api_v1_appointments__appointment_id__payment_patch']
+    trace?: never
+  }
+  '/api/v1/appointments/{appointment_id}/payment-link': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Payment Link
+     * @description Preview or regenerate payment link without sending email.
+     *
+     *     Generates a payment link for the appointment based on workspace configuration.
+     *     This endpoint does NOT send an email or change appointment status.
+     *
+     *     **Use Cases:**
+     *     - Preview payment link before sending
+     *     - Regenerate payment link for manual sharing
+     *     - Test payment link generation
+     *
+     *     **Validation:**
+     *     - Appointment must belong to authenticated user's workspace
+     *     - Appointment must have a price set
+     *     - Workspace must have payment links configured
+     *
+     *     **Workspace Scoping:**
+     *     - Automatically scoped to authenticated user's workspace
+     *     - workspace_id derived from JWT token (server-side, trusted)
+     *
+     *     Args:
+     *         appointment_id: UUID of the appointment
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         PaymentLinkResponse with payment link details
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated,
+     *             404 if appointment not found or wrong workspace,
+     *             400 if no price set or payment links not configured
+     */
+    get: operations['get_payment_link_api_v1_appointments__appointment_id__payment_link_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/appointments/{appointment_id}/send-payment-request': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Send Payment Request
+     * @description Send payment request to client via email.
+     *
+     *     Generates a payment link and sends it to the client via email.
+     *     Updates appointment payment_status from 'not_paid' to 'payment_sent'.
+     *
+     *     **Workflow:**
+     *     1. Validate appointment and workspace configuration
+     *     2. Generate payment link
+     *     3. Send email to client with payment link (Step 7 will implement email service)
+     *     4. Update payment_status to 'payment_sent' if currently 'not_paid'
+     *     5. Create audit log entry
+     *
+     *     **Validation:**
+     *     - Appointment must belong to authenticated user's workspace
+     *     - Appointment must have a price set
+     *     - Workspace must have payment links configured
+     *     - Client must have an email address
+     *
+     *     **Workspace Scoping:**
+     *     - Automatically scoped to authenticated user's workspace
+     *     - workspace_id derived from JWT token (server-side, trusted)
+     *
+     *     **Audit Logging:**
+     *     - Logs payment request sent event with amount, client_id, payment_type
+     *
+     *     Args:
+     *         appointment_id: UUID of the appointment
+     *         request_body: Optional custom message to include in email
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         SendPaymentRequestResponse with success status and payment link
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated,
+     *             404 if appointment not found or wrong workspace,
+     *             400 if no price, no email, or payment links not configured
+     */
+    post: operations['send_payment_request_api_v1_appointments__appointment_id__send_payment_request_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/sessions': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Sessions
+     * @description List sessions for a client or appointment with optional full-text search.
+     *
+     *     Returns a paginated list of sessions, ordered by session_date descending.
+     *     All results are scoped to the authenticated workspace.
+     *
+     *     Query Parameters:
+     *         client_id: Filter sessions by client ID (optional if appointment_id
+     *             provided)
+     *         appointment_id: Filter sessions by appointment ID (optional if
+     *             client_id provided)
+     *         page: Page number (default: 1)
+     *         page_size: Items per page (default: 50, max: 100)
+     *         is_draft: Filter by draft status (optional)
+     *         include_deleted: Include soft-deleted sessions (default: false)
+     *         search: Full-text search across SOAP fields (case-insensitive,
+     *             partial matching)
+     *
+     *     Note: At least one of client_id or appointment_id must be provided.
+     *
+     *     SECURITY: Only returns sessions belonging to the authenticated user's
+     *     workspace (from JWT). Requires either client_id or appointment_id filter
+     *     to prevent accidental exposure of all sessions.
+     *
+     *     SEARCH: When search parameter is provided, decrypts SOAP fields and
+     *     performs in-memory filtering. Limited to 1000 sessions for safety.
+     *     Search queries are automatically logged to audit trail for compliance.
+     *
+     *     PERFORMANCE: Uses ix_sessions_workspace_client_date or
+     *     ix_sessions_workspace_appointment indexes for optimal query performance.
+     *     Search performance: <150ms for 100 sessions, <500ms for 500 sessions.
+     *
+     *     Args:
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *         page: Page number (1-indexed)
+     *         page_size: Number of items per page (max 100)
+     *         client_id: Filter by specific client (optional)
+     *         appointment_id: Filter by specific appointment (optional)
+     *         is_draft: Filter by draft status (optional)
+     *         include_deleted: Include soft-deleted sessions (default: false)
+     *         search: Search query string (optional)
+     *
+     *     Returns:
+     *         Paginated list of sessions with decrypted PHI fields
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated,
+     *             400 if neither client_id nor appointment_id provided,
+     *             404 if client/appointment not found in workspace,
+     *             422 if search query validation fails
+     *
+     *     Example:
+     *         GET /api/v1/sessions?client_id={uuid}&page=1&page_size=50&is_draft=true
+     *         GET /api/v1/sessions?appointment_id={uuid}
+     *         GET /api/v1/sessions?client_id={uuid}&search=shoulder%20pain
+     */
+    get: operations['list_sessions_api_v1_sessions_get']
+    put?: never
+    /**
+     * Create Session
+     * @description Create a new SOAP session note.
+     *
+     *     Creates a new session after verifying:
+     *     1. Client belongs to the workspace
+     *     2. Session date is not in the future (validated by Pydantic)
+     *
+     *     SECURITY: workspace_id is derived from authenticated user's JWT token (server-side).
+     *     All PHI fields (subjective, objective, assessment, plan) are automatically encrypted
+     *     at rest using AES-256-GCM via the EncryptedString type.
+     *
+     *     AUDIT: Creation is automatically logged by AuditMiddleware.
+     *
+     *     Args:
+     *         session_data: Session creation data (without workspace_id)
+     *         request: FastAPI request object (for audit logging)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Created session with encrypted PHI fields
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if client not found,
+     *             422 if validation fails
+     *
+     *     Example:
+     *         POST /api/v1/sessions
+     *         {
+     *             "client_id": "uuid",
+     *             "session_date": "2025-10-08T14:30:00Z",
+     *             "subjective": "Patient reports...",
+     *             "objective": "Observations...",
+     *             "assessment": "Clinical assessment...",
+     *             "plan": "Treatment plan..."
+     *         }
+     */
+    post: operations['create_session_api_v1_sessions_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/sessions/{session_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Session
+     * @description Get a single session by ID with decrypted SOAP fields.
+     *
+     *     Retrieves a session by ID, ensuring it belongs to the authenticated workspace.
+     *     PHI fields are automatically decrypted from database storage.
+     *
+     *     SECURITY: Returns 404 for both non-existent sessions and sessions in other
+     *     workspaces to prevent information leakage. workspace_id is derived from JWT token.
+     *
+     *     AUDIT: PHI access is manually logged via create_audit_event.
+     *
+     *     Args:
+     *         session_id: UUID of the session
+     *         request: FastAPI request object (for audit logging)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Session details with decrypted PHI fields and attachment count
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated,
+     *             404 if not found or wrong workspace
+     *
+     *     Example:
+     *         GET /api/v1/sessions/{uuid}
+     */
+    get: operations['get_session_api_v1_sessions__session_id__get']
+    /**
+     * Update Session
+     * @description Update an existing session with partial updates.
+     *
+     *     Updates session fields. Only provided fields are updated (partial updates).
+     *     Session must belong to the authenticated workspace.
+     *
+     *     SECURITY: Verifies workspace ownership before allowing updates.
+     *     workspace_id is derived from JWT token (server-side).
+     *     Updated PHI fields are automatically encrypted at rest.
+     *
+     *     OPTIMISTIC LOCKING: Uses version field to prevent concurrent update conflicts.
+     *     Version is automatically incremented on successful update.
+     *
+     *     AUDIT: Update is automatically logged by AuditMiddleware.
+     *
+     *     Args:
+     *         session_id: UUID of the session to update
+     *         session_data: Fields to update (all optional)
+     *         request: FastAPI request object (for audit logging)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Updated session with decrypted PHI fields
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
+     *             409 if version conflict (concurrent update), 422 if validation fails
+     *
+     *     Example:
+     *         PUT /api/v1/sessions/{uuid}
+     *         {
+     *             "subjective": "Updated patient report...",
+     *             "plan": "Updated treatment plan..."
+     *         }
+     */
+    put: operations['update_session_api_v1_sessions__session_id__put']
+    post?: never
+    /**
+     * Delete Session
+     * @description Soft delete a session with optional deletion reason.
+     *
+     *     SOFT DELETE ONLY: Sets deleted_at timestamp without removing data.
+     *     This preserves audit trail and allows recovery if needed.
+     *
+     *     SECURITY: Verifies workspace ownership before allowing deletion.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     PROTECTION: Finalized sessions cannot be deleted (immutable records).
+     *
+     *     AUDIT: Deletion is automatically logged by AuditMiddleware.
+     *
+     *     Args:
+     *         session_id: UUID of the session to delete
+     *         request: FastAPI request object (for audit logging)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *         deletion_request: Optional request body with deletion reason
+     *
+     *     Body Parameters:
+     *         reason: Optional reason for deletion (max 500 chars, logged in audit trail)
+     *
+     *     Returns:
+     *         No content (204) on success
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated,
+     *             404 if not found, already deleted, or wrong workspace,
+     *             422 if session is finalized (cannot delete finalized sessions)
+     *
+     *     Example:
+     *         DELETE /api/v1/sessions/{uuid}
+     *         {
+     *             "reason": "Duplicate entry, will recreate"
+     *         }
+     */
+    delete: operations['delete_session_api_v1_sessions__session_id__delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/sessions/{session_id}/draft': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * Save Draft
+     * @description Save session draft (autosave endpoint).
+     *
+     *     This endpoint is designed for frontend autosave functionality called
+     *     every ~5 seconds.
+     *
+     *     Features:
+     *     - Relaxed validation (partial/empty fields allowed - drafts don't
+     *       need to be complete)
+     *     - Rate limited to 60 requests/minute per user per session
+     *       (allows autosave every ~1 second)
+     *     - Updates only provided fields (partial update)
+     *     - Auto-increments version for optimistic locking
+     *     - Updates draft_last_saved_at timestamp
+     *     - Preserves finalized status (amendments) or keeps is_draft = True
+     *
+     *     SECURITY: Verifies workspace ownership before allowing updates.
+     *     workspace_id is derived from JWT token (server-side).
+     *     Rate limiting uses Redis-backed distributed sliding window algorithm.
+     *
+     *     AUDIT: Update is automatically logged by AuditMiddleware.
+     *
+     *     Args:
+     *         session_id: UUID of the session to update
+     *         draft_update: Fields to update (all optional)
+     *         request: FastAPI request object (for audit logging)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *         redis_client: Redis client for distributed rate limiting
+     *
+     *     Returns:
+     *         Updated session with decrypted PHI fields
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
+     *             429 if rate limit exceeded, 422 if validation fails
+     *
+     *     Example:
+     *         PATCH /api/v1/sessions/{uuid}/draft
+     *         {
+     *             "subjective": "Patient reports... (partial update)"
+     *         }
+     */
+    patch: operations['save_draft_api_v1_sessions__session_id__draft_patch']
+    trace?: never
+  }
+  '/api/v1/sessions/{session_id}/finalize': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Finalize Session
+     * @description Finalize session and mark as complete.
+     *
+     *     Marks a session as finalized, making it immutable and preventing deletion.
+     *     At least one SOAP field must have content before finalizing.
+     *
+     *     Validation:
+     *     - At least one SOAP field (subjective, objective, assessment, plan)
+     *       must have content
+     *     - Session must exist and belong to the authenticated workspace
+     *
+     *     Effect:
+     *     - Sets finalized_at timestamp to current time
+     *     - Sets is_draft to False
+     *     - Increments version
+     *     - Prevents deletion (enforced in DELETE endpoint)
+     *
+     *     SECURITY: Verifies workspace ownership before allowing finalization.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     AUDIT: Update is automatically logged by AuditMiddleware with "finalized" action.
+     *
+     *     Args:
+     *         session_id: UUID of the session to finalize
+     *         request: FastAPI request object (for audit logging)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Finalized session with finalized_at timestamp set
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
+     *             422 if validation fails (no SOAP content)
+     *
+     *     Example:
+     *         POST /api/v1/sessions/{uuid}/finalize
+     *         (no request body needed)
+     */
+    post: operations['finalize_session_api_v1_sessions__session_id__finalize_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/sessions/{session_id}/unfinalize': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Unfinalize Session
+     * @description Unfinalize session and revert to draft status.
+     *
+     *     Reverts a finalized session back to draft status, allowing further editing.
+     *     This endpoint is the inverse of POST /sessions/{session_id}/finalize.
+     *
+     *     Effect:
+     *     - Sets is_draft to True
+     *     - Clears finalized_at timestamp (sets to NULL)
+     *     - Increments version
+     *     - Session becomes editable again
+     *
+     *     SECURITY: Verifies workspace ownership before allowing unfinalizing.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     AUDIT: Update is automatically logged by AuditMiddleware with "unfinalized" action.
+     *
+     *     Args:
+     *         session_id: UUID of the session to unfinalize
+     *         request: FastAPI request object (for audit logging)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Unfinalied session with is_draft=True and finalized_at cleared
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
+     *             400 if session is already a draft
+     *
+     *     Example:
+     *         POST /api/v1/sessions/{uuid}/unfinalize
+     *         (no request body needed)
+     */
+    post: operations['unfinalize_session_api_v1_sessions__session_id__unfinalize_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/sessions/{session_id}/versions': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Session Versions
+     * @description Get version history for a session note.
+     *
+     *     Returns all versions of a session note in reverse chronological order
+     *     (most recent first). Only finalized sessions have versions.
+     *
+     *     SECURITY: Verifies workspace ownership before allowing access.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     AUDIT: PHI access is automatically logged by AuditMiddleware.
+     *
+     *     Args:
+     *         session_id: UUID of the session
+     *         request: FastAPI request object (for audit logging)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         List of session versions with decrypted PHI fields
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated,
+     *             404 if not found or wrong workspace
+     *
+     *     Example:
+     *         GET /api/v1/sessions/{uuid}/versions
+     *         Response: [
+     *           {
+     *             "id": "version-uuid-2",
+     *             "session_id": "session-uuid",
+     *             "version_number": 2,
+     *             "subjective": "Amended note...",
+     *             "created_at": "2025-01-16T09:15:00Z"
+     *           },
+     *           {
+     *             "id": "version-uuid-1",
+     *             "session_id": "session-uuid",
+     *             "version_number": 1,
+     *             "subjective": "Original note...",
+     *             "created_at": "2025-01-15T15:05:00Z"
+     *           }
+     *         ]
+     */
+    get: operations['get_session_versions_api_v1_sessions__session_id__versions_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/sessions/{session_id}/restore': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Restore Session
+     * @description Restore a soft-deleted session within 30-day grace period.
+     *
+     *     Restores a soft-deleted session by clearing the deletion metadata.
+     *     Can only restore sessions that haven't exceeded the 30-day grace period.
+     *
+     *     SECURITY: Verifies workspace ownership before allowing restoration.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     AUDIT: Restoration is logged in audit trail.
+     *
+     *     Args:
+     *         session_id: UUID of the session to restore
+     *         request: FastAPI request object (for audit logging)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Restored session with cleared deletion metadata
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated,
+     *             404 if not found or not deleted or wrong workspace,
+     *             410 if 30-day grace period has expired
+     *
+     *     Example:
+     *         POST /api/v1/sessions/{uuid}/restore
+     *         (no request body needed)
+     */
+    post: operations['restore_session_api_v1_sessions__session_id__restore_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/sessions/{session_id}/permanent': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Permanently Delete Session
+     * @description Permanently delete a soft-deleted session (HARD DELETE).
+     *
+     *     This endpoint performs a true database deletion, permanently removing the
+     *     session record and all associated data. This action is irreversible.
+     *
+     *     SECURITY: Verifies workspace ownership before allowing deletion.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     RESTRICTIONS:
+     *     - Can only permanently delete sessions that are already soft-deleted
+     *     - Cannot delete active (non-deleted) sessions - use DELETE /sessions/{id} first
+     *
+     *     AUDIT: Permanent deletion is logged in audit trail before record removal.
+     *
+     *     Args:
+     *         session_id: UUID of the session to permanently delete
+     *         request: FastAPI request object (for audit logging)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         No content (204) on success
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated,
+     *             404 if not found or wrong workspace,
+     *             422 if session is not soft-deleted (must soft-delete first)
+     *
+     *     Example:
+     *         DELETE /api/v1/sessions/{uuid}/permanent
+     */
+    delete: operations['permanently_delete_session_api_v1_sessions__session_id__permanent_delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/sessions/clients/{client_id}/latest-finalized': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Latest Finalized Session
+     * @description Get the most recent finalized session for a client.
+     *
+     *     Returns the latest finalized (non-draft) session note for the specified client,
+     *     ordered by session_date descending. Used by the Previous Session Context Panel
+     *     to provide treatment continuity when creating new session notes.
+     *
+     *     SECURITY: Verifies client belongs to authenticated workspace before returning data.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     PERFORMANCE: Uses ix_sessions_workspace_client_date index for optimal performance.
+     *     Query should execute in <50ms p95.
+     *
+     *     PHI ACCESS: This endpoint returns decrypted SOAP fields (PHI).
+     *     All access is automatically logged by AuditMiddleware for HIPAA compliance.
+     *
+     *     Args:
+     *         client_id: UUID of the client
+     *         request: FastAPI request object (for audit logging)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Most recent finalized session with decrypted SOAP fields
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated,
+     *             403 if client not in workspace,
+     *             404 if client has no finalized sessions
+     *
+     *     Example:
+     *         GET /api/v1/sessions/clients/{client_id}/latest-finalized
+     *         Response: {
+     *             "id": "uuid",
+     *             "session_date": "2025-10-06T14:00:00Z",
+     *             "duration_minutes": 60,
+     *             "is_draft": false,
+     *             "finalized_at": "2025-10-06T15:05:00Z",
+     *             "subjective": "Patient reports neck pain...",
+     *             "objective": "ROM 90° shoulder abduction...",
+     *             "assessment": "Muscle tension pattern...",
+     *             "plan": "Continue trapezius protocol...",
+     *             ...
+     *         }
+     */
+    get: operations['get_latest_finalized_session_api_v1_sessions_clients__client_id__latest_finalized_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/sessions/{session_id}/attachments': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Session Attachments
+     * @description List all attachments for a session.
+     *
+     *     Returns metadata for all attachments (filenames, sizes, types, session date).
+     *     Does not include file content (use GET /attachments/{id}/download for content).
+     *
+     *     Args:
+     *         session_id: UUID of the session
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         List of attachment metadata with session context
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 401 if not authenticated
+     *             - 404 if session not found or wrong workspace
+     *
+     *     Example:
+     *         GET /api/v1/sessions/{uuid}/attachments
+     */
+    get: operations['list_session_attachments_api_v1_sessions__session_id__attachments_get']
+    put?: never
+    /**
+     * Upload Session Attachment
+     * @description Upload file attachment for a session note.
+     *
+     *     Security features:
+     *     - Triple validation (MIME type, extension, content)
+     *     - EXIF metadata stripping (GPS, camera info)
+     *     - File size limits (10 MB per file, 50 MB total per session)
+     *     - Secure S3 key generation (UUID-based, no user-controlled names)
+     *     - Workspace isolation (verified before upload)
+     *     - Rate limiting (10 uploads per minute per user)
+     *     - Audit logging (automatic via middleware)
+     *
+     *     Supported file types:
+     *     - Images: JPEG, PNG, WebP (for wound photos, treatment documentation)
+     *     - Documents: PDF (for lab reports, referrals, consent forms)
+     *
+     *     Args:
+     *         session_id: UUID of the session
+     *         file: Uploaded file (multipart/form-data)
+     *         request: FastAPI request object (for audit logging)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *         redis_client: Redis client (for rate limiting)
+     *
+     *     Returns:
+     *         Created attachment metadata (id, filename, size, content_type, created_at)
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 401 if not authenticated
+     *             - 404 if session not found or wrong workspace
+     *             - 413 if file too large or total attachments exceed limit
+     *             - 415 if unsupported file type or validation fails
+     *             - 422 if validation error (MIME mismatch, corrupted file)
+     *             - 429 if rate limit exceeded (10 uploads/minute)
+     *
+     *     Example:
+     *         POST /api/v1/sessions/{uuid}/attachments
+     *         Content-Type: multipart/form-data
+     *
+     *         file: (binary data)
+     */
+    post: operations['upload_session_attachment_api_v1_sessions__session_id__attachments_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/sessions/{session_id}/attachments/{attachment_id}/download': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Attachment Download Url
+     * @description Generate pre-signed download URL for attachment.
+     *
+     *     Returns a temporary pre-signed URL that allows downloading the file from S3.
+     *     URL expires after specified time (default: 15 minutes, max: 60 minutes).
+     *
+     *     Security:
+     *     - URLs expire after 15 minutes by default (configurable, max 60 minutes)
+     *     - Short expiration reduces risk of URL sharing or interception
+     *     - Each download requires re-authentication and workspace verification
+     *
+     *     Args:
+     *         session_id: UUID of the session
+     *         attachment_id: UUID of the attachment
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *         expires_in_minutes: URL expiration time in minutes (default: 15, max: 60)
+     *
+     *     Returns:
+     *         Dict with download_url and expires_at timestamp
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 401 if not authenticated
+     *             - 404 if session/attachment not found or wrong workspace
+     *             - 400 if expires_in_minutes exceeds maximum (60)
+     *
+     *     Example:
+     *         GET /api/v1/sessions/{uuid}/attachments/{uuid}/download?expires_in_minutes=30
+     *         Response: {
+     *             "download_url": "https://s3.../file?X-Amz-...",
+     *             "expires_in_seconds": 1800
+     *         }
+     */
+    get: operations['get_attachment_download_url_api_v1_sessions__session_id__attachments__attachment_id__download_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/sessions/{session_id}/attachments/{attachment_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Delete Session Attachment
+     * @description Soft delete a session attachment.
+     *
+     *     Marks attachment as deleted (soft delete) without removing from S3.
+     *     S3 cleanup happens via background job for deleted attachments.
+     *
+     *     Args:
+     *         session_id: UUID of the session
+     *         attachment_id: UUID of the attachment
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         No content (204) on success
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 401 if not authenticated
+     *             - 404 if session/attachment not found or wrong workspace
+     *
+     *     Example:
+     *         DELETE /api/v1/sessions/{uuid}/attachments/{uuid}
+     */
+    delete: operations['delete_session_attachment_api_v1_sessions__session_id__attachments__attachment_id__delete']
+    options?: never
+    head?: never
+    /**
+     * Rename Session Attachment
+     * @description Rename a session-level attachment file.
+     *
+     *     The file extension is automatically preserved. Invalid characters
+     *     (/ \ : * ? " < > |) are rejected. Duplicate filenames return 409 Conflict.
+     *
+     *     Validation:
+     *     - Filename length: 1-255 characters (after trimming whitespace)
+     *     - Prohibited characters: / \ : * ? " < > |
+     *     - Extension preservation: Original extension automatically appended
+     *     - Duplicate detection: Returns 409 if filename exists for same client
+     *     - Whitespace trimming: Leading/trailing spaces removed
+     *
+     *     Security:
+     *     - Requires workspace access to the session's client
+     *     - Validates attachment belongs to specified session
+     *     - Audit logs all rename operations
+     *
+     *     Args:
+     *         session_id: UUID of the session
+     *         attachment_id: UUID of the attachment to rename
+     *         rename_data: New filename (extension will be preserved)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Updated attachment metadata with new filename and updated timestamp
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 400 if filename is invalid (empty, too long, invalid chars)
+     *             - 403 if workspace access denied
+     *             - 404 if session or attachment not found
+     *             - 409 if duplicate filename exists
+     *
+     *     Example:
+     *         PATCH /api/v1/sessions/{uuid}/attachments/{uuid}
+     *         {
+     *             "file_name": "Left shoulder pain - Oct 2025"
+     *         }
+     */
+    patch: operations['rename_session_attachment_api_v1_sessions__session_id__attachments__attachment_id__patch']
+    trace?: never
+  }
+  '/api/v1/clients/{client_id}/attachments': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Client Attachments
+     * @description List all attachments for a client across all sessions.
+     *
+     *     Returns metadata for all attachments (filenames, sizes, types, session dates).
+     *     Includes both session-level and client-level attachments.
+     *     Does not include file content (use GET /attachments/{id}/download for content).
+     *
+     *     Args:
+     *         client_id: UUID of the client
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         List of attachment metadata with session context where applicable
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 401 if not authenticated
+     *             - 404 if client not found or wrong workspace
+     *
+     *     Example:
+     *         GET /api/v1/clients/{uuid}/attachments
+     *         Response: {
+     *             "items": [
+     *                 {
+     *                     "id": "uuid",
+     *                     "session_id": "uuid",
+     *                     "client_id": "uuid",
+     *                     "file_name": "wound_photo.jpg",
+     *                     "file_type": "image/jpeg",
+     *                     "file_size_bytes": 123456,
+     *                     "created_at": "2025-10-15T14:30:00Z",
+     *                     "session_date": "2025-10-15T13:00:00Z",
+     *                     "is_session_file": true
+     *                 },
+     *                 {
+     *                     "id": "uuid",
+     *                     "session_id": null,
+     *                     "client_id": "uuid",
+     *                     "file_name": "intake_form.pdf",
+     *                     "file_type": "application/pdf",
+     *                     "file_size_bytes": 234567,
+     *                     "created_at": "2025-10-01T10:00:00Z",
+     *                     "session_date": null,
+     *                     "is_session_file": false
+     *                 }
+     *             ],
+     *             "total": 2
+     *         }
+     */
+    get: operations['list_client_attachments_api_v1_clients__client_id__attachments_get']
+    put?: never
+    /**
+     * Upload Client Attachment
+     * @description Upload file attachment for a client (not tied to specific session).
+     *
+     *     This endpoint is for client-level documents like intake forms, consent documents,
+     *     insurance cards, or baseline assessments that aren't specific to a session.
+     *
+     *     Security features:
+     *     - Triple validation (MIME type, extension, content)
+     *     - EXIF metadata stripping (GPS, camera info)
+     *     - File size limits (10 MB per file, 100 MB total per client)
+     *     - Secure S3 key generation (UUID-based, no user-controlled names)
+     *     - Workspace isolation (verified before upload)
+     *     - Rate limiting (10 uploads per minute per user)
+     *     - Audit logging (automatic via middleware)
+     *
+     *     Supported file types:
+     *     - Images: JPEG, PNG, WebP (for baseline photos, insurance cards)
+     *     - Documents: PDF (for intake forms, consent documents, referrals)
+     *
+     *     Args:
+     *         client_id: UUID of the client
+     *         file: Uploaded file (multipart/form-data)
+     *         request: FastAPI request object (for audit logging)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *         redis_client: Redis client (for rate limiting)
+     *
+     *     Returns:
+     *         Created attachment metadata (id, filename, size, content_type, created_at)
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 401 if not authenticated
+     *             - 404 if client not found or wrong workspace
+     *             - 413 if file too large or total attachments exceed limit
+     *             - 415 if unsupported file type or validation fails
+     *             - 422 if validation error (MIME mismatch, corrupted file)
+     *             - 429 if rate limit exceeded (10 uploads/minute)
+     *
+     *     Example:
+     *         POST /api/v1/clients/{uuid}/attachments
+     *         Content-Type: multipart/form-data
+     *
+     *         file: (binary data)
+     */
+    post: operations['upload_client_attachment_api_v1_clients__client_id__attachments_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/clients/{client_id}/attachments/{attachment_id}/download': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Client Attachment Download Url
+     * @description Generate pre-signed download URL for client-level attachment.
+     *
+     *     Returns a temporary pre-signed URL that allows downloading the file from S3.
+     *     URL expires after specified time (default: 15 minutes, max: 60 minutes).
+     *
+     *     Security:
+     *     - URLs expire after 15 minutes by default (configurable, max 60 minutes)
+     *     - Short expiration reduces risk of URL sharing or interception
+     *     - Each download requires re-authentication and workspace verification
+     *     - Workspace isolation enforced
+     *
+     *     Args:
+     *         client_id: UUID of the client
+     *         attachment_id: UUID of the attachment
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *         expires_in_minutes: URL expiration time in minutes (default: 15, max: 60)
+     *
+     *     Returns:
+     *         Dict with download_url and expires_in_seconds
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 401 if not authenticated
+     *             - 404 if client/attachment not found or wrong workspace
+     *             - 400 if expires_in_minutes exceeds maximum (60)
+     *
+     *     Example:
+     *         GET /api/v1/clients/{uuid}/attachments/{uuid}/download?expires_in_minutes=30
+     *         Response: {
+     *             "download_url": "https://s3.../file?X-Amz-...",
+     *             "expires_in_seconds": 1800
+     *         }
+     */
+    get: operations['get_client_attachment_download_url_api_v1_clients__client_id__attachments__attachment_id__download_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/clients/{client_id}/attachments/{attachment_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Delete Client Attachment
+     * @description Soft delete a client-level attachment.
+     *
+     *     Marks attachment as deleted (soft delete) without removing from S3.
+     *     S3 cleanup happens via background job for deleted attachments.
+     *
+     *     Args:
+     *         client_id: UUID of the client
+     *         attachment_id: UUID of the attachment
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         No content (204) on success
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 401 if not authenticated
+     *             - 404 if client/attachment not found or wrong workspace
+     *
+     *     Example:
+     *         DELETE /api/v1/clients/{uuid}/attachments/{uuid}
+     */
+    delete: operations['delete_client_attachment_api_v1_clients__client_id__attachments__attachment_id__delete']
+    options?: never
+    head?: never
+    /**
+     * Rename Client Attachment
+     * @description Rename a client-level attachment file.
+     *
+     *     The file extension is automatically preserved. Invalid characters
+     *     (/ \ : * ? " < > |) are rejected. Duplicate filenames return 409 Conflict.
+     *
+     *     Validation:
+     *     - Filename length: 1-255 characters (after trimming whitespace)
+     *     - Prohibited characters: / \ : * ? " < > |
+     *     - Extension preservation: Original extension automatically appended
+     *     - Duplicate detection: Returns 409 if filename exists for same client
+     *     - Whitespace trimming: Leading/trailing spaces removed
+     *
+     *     Security:
+     *     - Requires workspace access to the client
+     *     - Validates attachment belongs to specified client
+     *     - Validates attachment is client-level (session_id is NULL)
+     *     - Audit logs all rename operations
+     *
+     *     Args:
+     *         client_id: UUID of the client
+     *         attachment_id: UUID of the attachment to rename
+     *         rename_data: New filename (extension will be preserved)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Updated attachment metadata with new filename
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 400 if filename is invalid (empty, too long, invalid chars)
+     *             - 403 if workspace access denied
+     *             - 404 if client or attachment not found
+     *             - 409 if duplicate filename exists
+     *
+     *     Example:
+     *         PATCH /api/v1/clients/{uuid}/attachments/{uuid}
+     *         {
+     *             "file_name": "Intake form - signed"
+     *         }
+     */
+    patch: operations['rename_client_attachment_api_v1_clients__client_id__attachments__attachment_id__patch']
+    trace?: never
+  }
+  '/api/v1/clients/{client_id}/attachments/download-multiple': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Download Multiple Attachments
+     * @description Download multiple attachments as a ZIP file.
+     *
+     *     Creates a ZIP archive containing all requested attachments and returns it
+     *     to the client. All attachments must belong to the specified client and
+     *     the user's workspace.
+     *
+     *     Security:
+     *     - Workspace isolation enforced (all attachments must belong to user's workspace)
+     *     - Client ownership verified (all attachments must belong to specified client)
+     *     - Soft-deleted attachments excluded
+     *     - File size limit: 100 MB total
+     *     - File count limit: 50 files maximum (enforced by schema)
+     *
+     *     Performance:
+     *     - In-memory ZIP creation (suitable for 100 MB limit)
+     *     - Single S3 request per file (no batching needed at this scale)
+     *     - Content-Length header for proper download progress
+     *
+     *     Args:
+     *         client_id: UUID of the client
+     *         request_body: List of attachment IDs to download
+     *         current_user: Authenticated user
+     *         db: Database session
+     *
+     *     Returns:
+     *         Response with ZIP file content
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 400 if invalid request (empty list handled by schema)
+     *             - 403 if workspace access denied
+     *             - 404 if client or any attachment not found
+     *             - 413 if total file size exceeds 100 MB
+     *             - 500 if ZIP creation or S3 download fails
+     *
+     *     Example:
+     *         POST /api/v1/clients/{uuid}/attachments/download-multiple
+     *         {
+     *             "attachment_ids": ["uuid1", "uuid2", "uuid3"]
+     *         }
+     *
+     *         Response:
+     *         Content-Type: application/zip
+     *         Content-Disposition: attachment; filename="client-files-20251019_143022.zip"
+     *         (binary ZIP data)
+     */
+    post: operations['download_multiple_attachments_api_v1_clients__client_id__attachments_download_multiple_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/services': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Services
+     * @description List all services in the workspace.
+     *
+     *     Returns a paginated list of services, ordered by name.
+     *     All results are scoped to the authenticated workspace.
+     *
+     *     SECURITY: Only returns services belonging to the authenticated user's
+     *     workspace (from JWT).
+     *
+     *     Args:
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *         page: Page number (1-indexed)
+     *         page_size: Number of items per page (max 100)
+     *         is_active: Filter by active status (default: true, None = all)
+     *
+     *     Returns:
+     *         Paginated list of services with total count
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated
+     */
+    get: operations['list_services_api_v1_services_get']
+    put?: never
+    /**
+     * Create Service
+     * @description Create a new service.
+     *
+     *     Creates a new service record in the authenticated workspace.
+     *     All service data is scoped to the workspace.
+     *
+     *     SECURITY: workspace_id is derived from authenticated user's JWT token (server-side).
+     *
+     *     Args:
+     *         service_data: Service creation data (without workspace_id)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Created service with all fields
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 422 if validation fails,
+     *             409 if service name already exists in workspace
+     */
+    post: operations['create_service_api_v1_services_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/services/{service_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Service
+     * @description Get a single service by ID.
+     *
+     *     Retrieves a service by ID, ensuring it belongs to the authenticated workspace.
+     *
+     *     SECURITY: Returns 404 for non-existent services and services in
+     *     other workspaces to prevent information leakage. workspace_id is derived
+     *     from JWT token.
+     *
+     *     Args:
+     *         service_id: UUID of the service
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Service details
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
+     */
+    get: operations['get_service_api_v1_services__service_id__get']
+    /**
+     * Update Service
+     * @description Update an existing service.
+     *
+     *     Updates service fields. Only provided fields are updated.
+     *     Service must belong to the authenticated workspace.
+     *
+     *     SECURITY: Verifies workspace ownership before allowing updates.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     Args:
+     *         service_id: UUID of the service to update
+     *         service_data: Fields to update
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Updated service
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
+     *             409 if name conflicts with existing service, 422 if validation fails
+     */
+    put: operations['update_service_api_v1_services__service_id__put']
+    post?: never
+    /**
+     * Delete Service
+     * @description Delete a service.
+     *
+     *     Soft deletes a service by setting is_active=False if referenced by
+     *     appointments.
+     *     Hard deletes if no appointments reference it.
+     *     Service must belong to the authenticated workspace.
+     *
+     *     SECURITY: Verifies workspace ownership before allowing deletion.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     Args:
+     *         service_id: UUID of the service to delete
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         No content (204) on success
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
+     */
+    delete: operations['delete_service_api_v1_services__service_id__delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/locations': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Locations
+     * @description List all locations in the workspace.
+     *
+     *     Returns a paginated list of locations, ordered by name.
+     *     All results are scoped to the authenticated workspace.
+     *
+     *     SECURITY: Only returns locations belonging to the authenticated user's
+     *     workspace (from JWT).
+     *
+     *     Args:
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *         page: Page number (1-indexed)
+     *         page_size: Number of items per page (max 100)
+     *         is_active: Filter by active status (default: true, None = all)
+     *         location_type: Filter by location type (clinic, home, online)
+     *
+     *     Returns:
+     *         Paginated list of locations with total count
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated
+     */
+    get: operations['list_locations_api_v1_locations_get']
+    put?: never
+    /**
+     * Create Location
+     * @description Create a new location.
+     *
+     *     Creates a new location record in the authenticated workspace.
+     *     All location data is scoped to the workspace.
+     *
+     *     SECURITY: workspace_id is derived from authenticated user's JWT token (server-side).
+     *
+     *     Args:
+     *         location_data: Location creation data (without workspace_id)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Created location with all fields
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 422 if validation fails,
+     *             409 if location name already exists in workspace
+     */
+    post: operations['create_location_api_v1_locations_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/locations/{location_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Location
+     * @description Get a single location by ID.
+     *
+     *     Retrieves a location by ID, ensuring it belongs to the authenticated workspace.
+     *
+     *     SECURITY: Returns 404 for non-existent locations and locations in
+     *     other workspaces to prevent information leakage. workspace_id is derived
+     *     from JWT token.
+     *
+     *     Args:
+     *         location_id: UUID of the location
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Location details
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
+     */
+    get: operations['get_location_api_v1_locations__location_id__get']
+    /**
+     * Update Location
+     * @description Update an existing location.
+     *
+     *     Updates location fields. Only provided fields are updated.
+     *     Location must belong to the authenticated workspace.
+     *
+     *     SECURITY: Verifies workspace ownership before allowing updates.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     Args:
+     *         location_id: UUID of the location to update
+     *         location_data: Fields to update
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Updated location
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace,
+     *             409 if name conflicts with existing location, 422 if validation fails
+     */
+    put: operations['update_location_api_v1_locations__location_id__put']
+    post?: never
+    /**
+     * Delete Location
+     * @description Delete a location.
+     *
+     *     Soft deletes a location by setting is_active=False if referenced by
+     *     appointments.
+     *     Hard deletes if no appointments reference it.
+     *     Location must belong to the authenticated workspace.
+     *
+     *     SECURITY: Verifies workspace ownership before allowing deletion.
+     *     workspace_id is derived from JWT token (server-side).
+     *
+     *     Args:
+     *         location_id: UUID of the location to delete
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         No content (204) on success
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 404 if not found or wrong workspace
+     */
+    delete: operations['delete_location_api_v1_locations__location_id__delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/workspaces/{workspace_id}/storage': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Workspace Storage Usage
+     * @description Get current workspace storage usage statistics.
+     *
+     *     Returns detailed storage usage information including:
+     *     - Total bytes used by all files
+     *     - Storage quota (maximum allowed)
+     *     - Remaining storage (can be negative if over quota)
+     *     - Usage percentage
+     *     - Quota exceeded flag
+     *
+     *     Args:
+     *         workspace_id: Workspace UUID
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Storage usage statistics
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 401 if not authenticated
+     *             - 403 if workspace_id doesn't match user's workspace
+     *             - 404 if workspace not found
+     *
+     *     Example:
+     *         GET /api/v1/workspaces/{uuid}/storage
+     *         Response: {
+     *             "used_bytes": 5368709120,
+     *             "quota_bytes": 10737418240,
+     *             "remaining_bytes": 5368709120,
+     *             "usage_percentage": 50.0,
+     *             "is_quota_exceeded": false,
+     *             "used_mb": 5120.0,
+     *             "quota_mb": 10240.0,
+     *             "remaining_mb": 5120.0
+     *         }
+     */
+    get: operations['get_workspace_storage_usage_api_v1_workspaces__workspace_id__storage_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/workspaces/{workspace_id}/storage/quota': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * Update Workspace Storage Quota
+     * @description Update workspace storage quota (admin only).
+     *
+     *     This endpoint allows administrators to increase or decrease the storage quota
+     *     for a workspace. Useful for:
+     *     - Upgrading workspace to higher tier
+     *     - Temporarily increasing quota for busy practices
+     *     - Reducing quota for inactive workspaces
+     *
+     *     IMPORTANT: This does NOT delete files if new quota is lower than current usage.
+     *     Workspace will be over quota until files are deleted.
+     *
+     *     Args:
+     *         workspace_id: Workspace UUID
+     *         quota_update: New quota in bytes
+     *         current_user: Authenticated user (must be admin)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Updated storage usage statistics
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 401 if not authenticated
+     *             - 403 if not admin or wrong workspace
+     *             - 404 if workspace not found
+     *             - 400 if quota_bytes is invalid (zero or negative)
+     *
+     *     Example:
+     *         PATCH /api/v1/workspaces/{uuid}/storage/quota
+     *         {
+     *             "quota_bytes": 21474836480
+     *         }
+     *         Response: (same as GET /storage)
+     */
+    patch: operations['update_workspace_storage_quota_api_v1_workspaces__workspace_id__storage_quota_patch']
+    trace?: never
+  }
+  '/api/v1/workspaces/{workspace_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * Update Workspace
+     * @description Update workspace configuration (payment settings, business details, VAT).
+     *
+     *     This endpoint allows authenticated users to update workspace configuration
+     *     including payment provider settings, business details for receipts, and
+     *     VAT registration status.
+     *
+     *     **Workspace Scoping:**
+     *     Users can only update their own workspace (workspace_id must match
+     *     current_user.workspace_id).
+     *
+     *     **Payment Provider Encryption:**
+     *     Payment provider configuration (API keys, secrets) is encrypted using
+     *     versioned AES-256-GCM encryption before storing in the database.
+     *
+     *     **Partial Updates:**
+     *     Only fields provided in the request body are updated. Omitted fields
+     *     remain unchanged.
+     *
+     *     Args:
+     *         workspace_id: UUID of workspace to update
+     *         update_data: Fields to update (only provided fields are changed)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Updated workspace configuration (without decrypted credentials)
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 401 if not authenticated
+     *             - 403 if workspace_id doesn't match user's workspace
+     *             - 404 if workspace not found
+     *
+     *     Security Notes:
+     *         - Payment credentials are encrypted before storage
+     *         - Decrypted credentials are NEVER returned in response
+     *         - Only payment_provider field is returned (not the config)
+     *
+     *     Example Request:
+     *         ```json
+     *         PATCH /api/v1/workspaces/{uuid}
+     *         {
+     *             "payment_provider": "manual",
+     *             "payment_provider_config": null,
+     *             "business_name": "Example Therapy Clinic",
+     *             "vat_registered": true,
+     *             "vat_rate": 17.00,
+     *             "payment_auto_send": false,
+     *             "payment_send_timing": "manual"
+     *         }
+     *         ```
+     *
+     *     Example Response:
+     *         ```json
+     *         {
+     *             "id": "550e8400-e29b-41d4-a716-446655440000",
+     *             "name": "Example Clinic",
+     *             "is_active": true,
+     *             "business_name": "Example Therapy Clinic",
+     *             "business_name_hebrew": null,
+     *             "tax_id": null,
+     *             "business_license_number": null,
+     *             "business_address": null,
+     *             "vat_registered": true,
+     *             "vat_rate": 17.00,
+     *             "payment_provider": "manual",
+     *             "payment_auto_send": false,
+     *             "payment_send_timing": "manual",
+     *             "storage_used_bytes": 0,
+     *             "storage_quota_bytes": 10737418240,
+     *             "timezone": "UTC"
+     *         }
+     *         ```
+     */
+    patch: operations['update_workspace_api_v1_workspaces__workspace_id__patch']
+    trace?: never
+  }
+  '/api/v1/users/me/notification-settings': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Notification Settings
+     * @description Get notification settings for the authenticated user.
+     *
+     *     Returns the user's current notification preferences including email toggles,
+     *     digest settings, and reminder configurations. If settings don't exist yet,
+     *     returns defaults.
+     *
+     *     Args:
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         NotificationSettingsResponse with current settings
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 401 if not authenticated
+     *             - 500 if database error occurs
+     *
+     *     Example:
+     *         ```
+     *         GET /api/v1/users/me/notification-settings
+     *         Authorization: Bearer <jwt_token>
+     *
+     *         Response 200 OK:
+     *         {
+     *             "id": "uuid",
+     *             "user_id": "uuid",
+     *             "workspace_id": "uuid",
+     *             "email_enabled": true,
+     *             "notify_appointment_booked": true,
+     *             "digest_enabled": false,
+     *             "digest_time": "08:00",
+     *             ...
+     *         }
+     *         ```
+     */
+    get: operations['get_notification_settings_api_v1_users_me_notification_settings_get']
+    /**
+     * Update Notification Settings
+     * @description Update notification settings for the authenticated user.
+     *
+     *     Performs a partial update - only provided fields are modified.
+     *     If settings don't exist, creates them with defaults and applies updates.
+     *
+     *     Validates:
+     *     - Time format (HH:MM in 24-hour format, e.g., "08:00", "18:30")
+     *     - Reminder minutes (must be one of: 15, 30, 60, 120, 1440)
+     *
+     *     Args:
+     *         updates: NotificationSettingsUpdate with fields to modify
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         NotificationSettingsResponse with updated settings
+     *
+     *     Raises:
+     *         HTTPException:
+     *             - 401 if not authenticated
+     *             - 400 if validation fails (invalid time format or reminder minutes)
+     *             - 500 if database error occurs
+     *
+     *     Example:
+     *         ```
+     *         PUT /api/v1/users/me/notification-settings
+     *         Authorization: Bearer <jwt_token>
+     *         Content-Type: application/json
+     *
+     *         {
+     *             "email_enabled": true,
+     *             "digest_enabled": true,
+     *             "digest_time": "08:00"
+     *         }
+     *
+     *         Response 200 OK:
+     *         {
+     *             "id": "uuid",
+     *             "user_id": "uuid",
+     *             "workspace_id": "uuid",
+     *             "email_enabled": true,
+     *             "digest_enabled": true,
+     *             "digest_time": "08:00",
+     *             ...
+     *         }
+     *         ```
+     *
+     *         Validation Error Example:
+     *         ```
+     *         PUT /api/v1/users/me/notification-settings
+     *         {
+     *             "digest_time": "25:00"  # Invalid time
+     *         }
+     *
+     *         Response 400 Bad Request:
+     *         {
+     *             "detail": "Time must be in HH:MM format (00:00 to 23:59), got: 25:00"
+     *         }
+     *         ```
+     */
+    put: operations['update_notification_settings_api_v1_users_me_notification_settings_put']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/integrations/google-calendar/status': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Integration Status
+     * @description Get Google Calendar integration status for the current user.
+     *
+     *     Returns whether the user has connected their Google Calendar account,
+     *     when the last sync occurred, and whether sync is currently enabled.
+     *
+     *     SECURITY: Only returns status for the authenticated user's workspace
+     *     (from JWT token). Workspace scoping prevents cross-workspace data access.
+     *
+     *     Args:
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Integration status with connection state and sync information
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated
+     *
+     *     Example Response:
+     *         {
+     *             "connected": true,
+     *             "last_sync_at": "2025-10-28T14:30:00Z",
+     *             "enabled": true
+     *         }
+     */
+    get: operations['get_integration_status_api_v1_integrations_google_calendar_status_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/integrations/google-calendar/authorize': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Authorize Google Calendar
+     * @description Generate Google Calendar OAuth authorization URL.
+     *
+     *     Creates a cryptographically secure state token for CSRF protection,
+     *     stores it in Redis with short expiration, and generates the OAuth URL
+     *     that the frontend should redirect the user to for authorization.
+     *
+     *     SECURITY:
+     *     - State token: 32 bytes of cryptographically secure random data
+     *     - Redis storage: 10-minute expiration prevents replay attacks
+     *     - Workspace scoping: State maps to workspace_id to prevent token stealing
+     *
+     *     Flow:
+     *     1. Generate CSRF state token (secrets.token_urlsafe)
+     *     2. Store state → workspace_id mapping in Redis (10min TTL)
+     *     3. Generate OAuth URL with state parameter
+     *     4. Return URL to frontend
+     *     5. Frontend redirects user to URL
+     *     6. Google redirects back to callback with state + code
+     *     7. Callback validates state and exchanges code for tokens
+     *
+     *     Args:
+     *         current_user: Authenticated user (from JWT token)
+     *         redis_client: Redis client for state storage
+     *
+     *     Returns:
+     *         Authorization URL for user to visit
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 500 if Redis fails
+     *
+     *     Example Response:
+     *         {
+     *             "authorization_url": "https://accounts.google.com/o/oauth2/auth?..."
+     *         }
+     */
+    post: operations['authorize_google_calendar_api_v1_integrations_google_calendar_authorize_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/integrations/google-calendar/callback': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Oauth Callback
+     * @description Handle OAuth callback from Google.
+     *
+     *     After user authorizes access on Google's consent screen, Google redirects
+     *     back to this endpoint with an authorization code and the state token.
+     *     This endpoint validates the state (CSRF protection), exchanges the code
+     *     for tokens, and redirects the user back to the frontend.
+     *
+     *     SECURITY:
+     *     - State validation: Prevents CSRF attacks on OAuth flow
+     *     - Workspace scoping: State maps to workspace_id for proper scoping
+     *     - NO authentication required: This is the OAuth callback URL
+     *     - Redirect validation: Only redirects to configured frontend URL
+     *
+     *     Flow:
+     *     1. Validate state token exists in Redis
+     *     2. Retrieve workspace_id from state
+     *     3. Exchange authorization code for access/refresh tokens
+     *     4. Store tokens in database (encrypted)
+     *     5. Delete state from Redis (one-time use)
+     *     6. Redirect to frontend settings page with success/error flag
+     *
+     *     Args:
+     *         code: OAuth authorization code from Google
+     *         state: CSRF state token (must match stored value)
+     *         db: Database session for token storage
+     *         redis_client: Redis client for state validation
+     *
+     *     Returns:
+     *         RedirectResponse to frontend settings page
+     *
+     *     Redirects:
+     *         - Success: {FRONTEND_URL}/settings?gcal=success
+     *         - Error: {FRONTEND_URL}/settings?gcal=error
+     *
+     *     Note:
+     *         This endpoint does NOT require authentication because it's the OAuth
+     *         callback URL. Authentication is implicitly validated via the state token
+     *         which maps to a workspace_id from an authenticated session.
+     */
+    get: operations['oauth_callback_api_v1_integrations_google_calendar_callback_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/integrations/google-calendar': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Disconnect Google Calendar
+     * @description Disconnect Google Calendar integration.
+     *
+     *     Permanently deletes the OAuth tokens for the current user, effectively
+     *     disconnecting their Google Calendar account from PazPaz. This action
+     *     cannot be undone - user must re-authorize to reconnect.
+     *
+     *     SECURITY:
+     *     - Workspace scoping: Only deletes tokens for authenticated user's workspace
+     *     - Idempotent: Returns 204 even if no integration exists (prevents info leakage)
+     *
+     *     Token Revocation:
+     *     - Deletes tokens from PazPaz database
+     *     - Does NOT revoke tokens with Google (user can do this in Google Account)
+     *     - Deleted tokens are encrypted at rest, so secure even if backups exist
+     *
+     *     Args:
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         No content (204) on success
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated
+     *
+     *     Example:
+     *         DELETE /api/v1/integrations/google-calendar
+     *         Response: 204 No Content
+     */
+    delete: operations['disconnect_google_calendar_api_v1_integrations_google_calendar_delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/integrations/google-calendar/settings': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * Update Settings
+     * @description Update Google Calendar sync settings.
+     *
+     *     Allows users to enable/disable sync and control whether client names
+     *     are included in calendar event titles.
+     *
+     *     SECURITY:
+     *     - Workspace scoping: Only updates settings for authenticated user's workspace
+     *     - Partial updates: Only provided fields are updated (PATCH semantics)
+     *
+     *     Args:
+     *         settings: Settings to update (partial updates supported)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Updated settings with sync status
+     *
+     *     Raises:
+     *         HTTPException: 404 if Google Calendar not connected
+     *
+     *     Example Request:
+     *         PATCH /api/v1/integrations/google-calendar/settings
+     *         {
+     *             "sync_client_names": true
+     *         }
+     *
+     *     Example Response:
+     *         {
+     *             "enabled": true,
+     *             "sync_client_names": true,
+     *             "last_sync_at": "2025-10-28T14:30:00Z",
+     *             "last_sync_status": "success",
+     *             "last_sync_error": null
+     *         }
+     */
+    patch: operations['update_settings_api_v1_integrations_google_calendar_settings_patch']
+    trace?: never
+  }
+  '/api/v1/payments/config': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Payment Config
+     * @description Get payment configuration for authenticated user's workspace.
+     *
+     *     **Phase 1 Behavior:**
+     *     - Returns bank account details for manual payment tracking
+     *
+     *     **Phase 1.5 Behavior:**
+     *     - Returns payment_mode (manual, smart_link, automated, or null)
+     *     - Returns payment_link_type and payment_link_template for smart links
+     *
+     *     **Phase 2+ Behavior:**
+     *     - payment_provider field for future automated integrations
+     *
+     *     **Workspace Scoping:**
+     *     - Automatically scoped to authenticated user's workspace
+     *     - workspace_id derived from JWT token (server-side, trusted)
+     *
+     *     Args:
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         PaymentConfigResponse with payment configuration
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated
+     *
+     *     Example Response (Phase 1.5 - Smart Links):
+     *         ```json
+     *         {
+     *             "payment_mode": "smart_link",
+     *             "bank_account_details": null,
+     *             "payment_link_type": "bit",
+     *             "payment_link_template": "050-1234567",
+     *             "payment_provider": null
+     *         }
+     *         ```
+     *
+     *     Example Response (Phase 1 - Manual):
+     *         ```json
+     *         {
+     *             "payment_mode": "manual",
+     *             "bank_account_details": "Bank Leumi, Account: 12345, Branch: 678",
+     *             "payment_link_type": null,
+     *             "payment_link_template": null,
+     *             "payment_provider": null
+     *         }
+     *         ```
+     */
+    get: operations['get_payment_config_api_v1_payments_config_get']
+    /**
+     * Update Payment Config
+     * @description Update payment configuration for authenticated user's workspace.
+     *
+     *     **Phase 1 Behavior:**
+     *     - Updates bank account details for manual payment tracking
+     *
+     *     **Phase 1.5 Behavior:**
+     *     - Updates payment_link_type and payment_link_template for smart links
+     *     - Validates phone format for Bit links
+     *     - Validates URL format for PayBox/custom links
+     *
+     *     **Phase 2+ Behavior:**
+     *     - payment_provider field not updatable via this endpoint (reserved for future)
+     *
+     *     **Workspace Scoping:**
+     *     - Automatically scoped to authenticated user's workspace
+     *     - workspace_id derived from JWT token (server-side, trusted)
+     *
+     *     **Validation:**
+     *     - Bit: Israeli mobile phone format (05X-XXXXXXX or 05XXXXXXXX)
+     *     - PayBox/Custom: Valid URL starting with http:// or https://
+     *
+     *     Args:
+     *         request_data: Payment configuration updates
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         PaymentConfigResponse with updated payment configuration
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated
+     *         HTTPException: 400 if validation fails
+     *
+     *     Example Request (Phase 1 - Manual):
+     *         ```json
+     *         {
+     *             "bank_account_details": "Bank Leumi, Account: 12345, Branch: 678"
+     *         }
+     *         ```
+     *
+     *     Example Request (Phase 1.5 - Bit):
+     *         ```json
+     *         {
+     *             "payment_link_type": "bit",
+     *             "payment_link_template": "050-1234567"
+     *         }
+     *         ```
+     *
+     *     Example Request (Phase 1.5 - PayBox):
+     *         ```json
+     *         {
+     *             "payment_link_type": "paybox",
+     *             "payment_link_template": "https://paybox.co.il/p/username"
+     *         }
+     *         ```
+     *
+     *     Example Response:
+     *         ```json
+     *         {
+     *             "payment_mode": "smart_link",
+     *             "bank_account_details": null,
+     *             "payment_link_type": "bit",
+     *             "payment_link_template": "050-1234567",
+     *             "payment_provider": null
+     *         }
+     *         ```
+     */
+    put: operations['update_payment_config_api_v1_payments_config_put']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/audit-events': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Audit Events
+     * @description List audit events for the workspace with optional filters.
+     *
+     *     Returns a paginated list of audit events, ordered by created_at descending.
+     *     All results are scoped to the authenticated workspace.
+     *
+     *     SECURITY:
+     *     - Requires JWT authentication
+     *     - Only workspace OWNER can access audit logs (HIPAA compliance requirement)
+     *     - Returns audit events belonging only to authenticated workspace
+     *
+     *     HIPAA Compliance:
+     *     - Audit events are immutable (enforced by database triggers)
+     *     - All PHI access is logged (Client, Session, PlanOfCare reads)
+     *     - Metadata is sanitized to prevent PII/PHI leakage
+     *     - Access to audit logs is restricted to workspace owners
+     *
+     *     Args:
+     *         page: Page number (1-indexed)
+     *         page_size: Number of items per page (max 100)
+     *         user_id: Filter by user who performed action
+     *         resource_type: Filter by resource type (Client, Session, etc.)
+     *         resource_id: Filter by specific resource ID
+     *         action: Filter by action type (CREATE, READ, UPDATE, DELETE)
+     *         start_date: Filter events on or after this date
+     *         end_date: Filter events on or before this date
+     *         phi_only: If True, only show PHI access events (Client/Session/PlanOfCare reads)
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Paginated list of audit events with total count
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 403 if not owner
+     *
+     *     Examples:
+     *         - GET /api/v1/audit-events?page=1&page_size=50
+     *         - GET /api/v1/audit-events?user_id={uuid}&action=READ
+     *         - GET /api/v1/audit-events?resource_type=Client&phi_only=true
+     *         - GET /api/v1/audit-events?start_date=2025-01-01T00:00:00Z
+     *           &end_date=2025-12-31T23:59:59Z
+     */
+    get: operations['list_audit_events_api_v1_audit_events_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/audit-events/{audit_event_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Audit Event
+     * @description Get a single audit event by ID.
+     *
+     *     Retrieves an audit event by ID, ensuring it belongs to the authenticated workspace.
+     *
+     *     SECURITY:
+     *     - Requires JWT authentication
+     *     - Only workspace OWNER can access audit logs (HIPAA compliance requirement)
+     *     - Returns 404 for both non-existent events and events in other workspaces
+     *       to prevent information leakage
+     *
+     *     Args:
+     *         audit_event_id: UUID of the audit event
+     *         current_user: Authenticated user (from JWT token)
+     *         db: Database session
+     *
+     *     Returns:
+     *         Audit event details
+     *
+     *     Raises:
+     *         HTTPException: 401 if not authenticated, 403 if not owner,
+     *                       404 if not found or wrong workspace
+     */
+    get: operations['get_audit_event_api_v1_audit_events__audit_event_id__get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/metrics': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Metrics
+     * @description Prometheus metrics endpoint.
+     *
+     *     Exposes application metrics in Prometheus format for scraping.
+     *
+     *     Metrics include:
+     *     - audit_events_total: Audit events by resource type, action, workspace
+     *     - audit_failures_total: Audit failures by resource type, action, error
+     *     - audit_latency_seconds: Audit event write latency histogram by action
+     *
+     *     Returns:
+     *         Prometheus-formatted metrics text
+     *
+     *     Example:
+     *         # HELP audit_events_total Total audit events created
+     *         # TYPE audit_events_total counter
+     *         audit_events_total{resource_type="Client",action="CREATE"} 42.0
+     */
+    get: operations['metrics_metrics_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/health': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Health Check
+     * @description Health check endpoint.
+     */
+    get: operations['health_check_health_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/health': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Api Health Check
+     * @description API v1 health check endpoint.
+     */
+    get: operations['api_health_check_api_v1_health_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
-export type webhooks = Record<string, never>;
+export type webhooks = Record<string, never>
 export interface components {
-    schemas: {
-        /**
-         * Activity
-         * @description Single activity event.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "type": "workspace.created",
-         *             "timestamp": "2025-10-22T10:30:00Z",
-         *             "description": "New workspace created: Sarah's Massage Therapy",
-         *             "metadata": {"workspace_id": "123e4567-...", "user_id": "987e6543-..."}
-         *         }
-         *         ```
-         */
-        Activity: {
-            /**
-             * Type
-             * @description Activity type (e.g., workspace.created)
-             */
-            type: string;
-            /**
-             * Timestamp
-             * Format: date-time
-             * @description When activity occurred (UTC)
-             */
-            timestamp: string;
-            /**
-             * Description
-             * @description Human-readable activity description
-             */
-            description: string;
-            /**
-             * Metadata
-             * @description Additional activity context
-             */
-            metadata?: {
-                [key: string]: unknown;
-            } | null;
-        };
-        /**
-         * ActivityResponse
-         * @description Response schema for activity timeline.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "activities": [
-         *                 {
-         *                     "type": "workspace.created",
-         *                     "timestamp": "2025-10-22T10:30:00Z",
-         *                     "description": "New workspace created",
-         *                     "metadata": {}
-         *                 }
-         *             ],
-         *             "total_count": 247,
-         *             "has_more": true,
-         *             "displayed_count": 20
-         *         }
-         *         ```
-         */
-        ActivityResponse: {
-            /**
-             * Activities
-             * @description Recent platform activities
-             */
-            activities?: components["schemas"]["Activity"][];
-            /**
-             * Total Count
-             * @description Total number of events in last 90 days
-             */
-            total_count: number;
-            /**
-             * Has More
-             * @description Whether more events are available beyond current page
-             */
-            has_more: boolean;
-            /**
-             * Displayed Count
-             * @description Number of events in current response
-             */
-            displayed_count: number;
-        };
-        /**
-         * AddToBlacklistRequest
-         * @description Request schema for adding email to blacklist.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "email": "spam@example.com",
-         *             "reason": "Repeated spam signups"
-         *         }
-         *         ```
-         */
-        AddToBlacklistRequest: {
-            /**
-             * Email
-             * Format: email
-             * @description Email address to blacklist
-             */
-            email: string;
-            /**
-             * Reason
-             * @description Reason for blacklisting (required for audit)
-             */
-            reason: string;
-        };
-        /**
-         * AppointmentCreate
-         * @description Schema for creating a new appointment.
-         *
-         *     SECURITY: workspace_id is NOT accepted from client requests.
-         *     It is automatically injected from the authenticated user's session.
-         *     This prevents workspace injection vulnerabilities.
-         */
-        AppointmentCreate: {
-            /**
-             * Client Id
-             * Format: uuid
-             * @description ID of the client for this appointment
-             */
-            client_id: string;
-            /**
-             * Scheduled Start
-             * Format: date-time
-             * @description Start time (timezone-aware UTC)
-             */
-            scheduled_start: string;
-            /**
-             * Scheduled End
-             * Format: date-time
-             * @description End time (timezone-aware UTC)
-             */
-            scheduled_end: string;
-            /** @description Type of location (clinic/home/online) */
-            location_type: components["schemas"]["LocationType"];
-            /**
-             * Location Details
-             * @description Additional location details
-             */
-            location_details?: string | null;
-            /**
-             * Notes
-             * @description Therapist notes for the appointment
-             */
-            notes?: string | null;
-            /**
-             * Payment Price
-             * @description Actual price for this appointment (overrides service price if set)
-             */
-            payment_price?: number | string | null;
-            /**
-             * @description Payment status: not_paid (default), paid, payment_sent, waived
-             * @default not_paid
-             */
-            payment_status: components["schemas"]["PaymentStatus"];
-            /** @description Payment method: cash, card, bank_transfer, bit, paybox, other */
-            payment_method?: components["schemas"]["PaymentMethod"] | null;
-            /**
-             * Payment Notes
-             * @description Free-text notes about payment (e.g., invoice number, special terms)
-             */
-            payment_notes?: string | null;
-        };
-        /**
-         * AppointmentDeleteRequest
-         * @description Schema for deleting an appointment with optional reason and session note action.
-         */
-        AppointmentDeleteRequest: {
-            /**
-             * Reason
-             * @description Optional reason for deletion (logged in audit trail)
-             */
-            reason?: string | null;
-            /**
-             * Session Note Action
-             * @description Action to take with session notes attached to this appointment. 'delete' = soft delete the session note with 30-day grace period, 'keep' = leave the session note unchanged (default if not specified). Required if appointment has session notes and you want to delete them.
-             */
-            session_note_action?: ("delete" | "keep") | null;
-            /**
-             * Deletion Reason
-             * @description Optional reason for deleting the session note (only used if session_note_action='delete'). This is separate from the appointment deletion reason and is stored with the soft-deleted session note.
-             */
-            deletion_reason?: string | null;
-        };
-        /**
-         * AppointmentListResponse
-         * @description Schema for paginated appointment list response.
-         */
-        AppointmentListResponse: {
-            /** Items */
-            items: components["schemas"]["AppointmentResponse"][];
-            /** Total */
-            total: number;
-            /** Page */
-            page: number;
-            /** Page Size */
-            page_size: number;
-            /** Total Pages */
-            total_pages: number;
-        };
-        /**
-         * AppointmentPaymentUpdate
-         * @description Schema for updating payment status on an appointment (Phase 1).
-         */
-        AppointmentPaymentUpdate: {
-            /**
-             * Payment Status
-             * @description Payment status: not_paid, paid, payment_sent, waived
-             * @enum {string}
-             */
-            payment_status: "not_paid" | "paid" | "payment_sent" | "waived";
-            /**
-             * Payment Method
-             * @description Payment method: cash, card, bank_transfer, bit, paybox, other
-             */
-            payment_method?: ("cash" | "card" | "bank_transfer" | "bit" | "paybox" | "other") | null;
-            /**
-             * Payment Price
-             * @description Actual price for this appointment (optional update)
-             */
-            payment_price?: number | string | null;
-            /**
-             * Payment Notes
-             * @description Free-text notes about payment (e.g., invoice number, special terms)
-             */
-            payment_notes?: string | null;
-            /**
-             * Paid At
-             * @description Timestamp when payment was marked as paid (auto-set if not provided when status='paid')
-             */
-            paid_at?: string | null;
-        };
-        /**
-         * AppointmentResponse
-         * @description Schema for appointment API responses.
-         */
-        AppointmentResponse: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Workspace Id
-             * Format: uuid
-             */
-            workspace_id: string;
-            /**
-             * Client Id
-             * Format: uuid
-             */
-            client_id: string;
-            /**
-             * Scheduled Start
-             * Format: date-time
-             */
-            scheduled_start: string;
-            /**
-             * Scheduled End
-             * Format: date-time
-             */
-            scheduled_end: string;
-            location_type: components["schemas"]["LocationType"];
-            /** Location Details */
-            location_details: string | null;
-            status: components["schemas"]["AppointmentStatus"];
-            /** Notes */
-            notes: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /**
-             * Edited At
-             * @description When appointment was last edited (NULL if never edited)
-             */
-            edited_at?: string | null;
-            /**
-             * Edit Count
-             * @description Number of times this appointment has been edited
-             * @default 0
-             */
-            edit_count: number;
-            /** @description Client information (included when requested) */
-            client?: components["schemas"]["ClientSummary"] | null;
-            /**
-             * Payment Price
-             * @description Actual price for this appointment (null = no price set)
-             */
-            payment_price?: string | null;
-            /**
-             * Payment Status
-             * @description Payment status: not_paid, paid, payment_sent, waived
-             * @default not_paid
-             */
-            payment_status: string;
-            /**
-             * Payment Method
-             * @description Payment method: cash, card, bank_transfer, bit, paybox, other
-             */
-            payment_method?: string | null;
-            /**
-             * Payment Notes
-             * @description Free-text notes about payment (e.g., invoice number, special terms)
-             */
-            payment_notes?: string | null;
-            /**
-             * Paid At
-             * @description Timestamp when payment was marked as paid
-             */
-            paid_at?: string | null;
-        };
-        /**
-         * AppointmentStatus
-         * @description Status of an appointment.
-         * @enum {string}
-         */
-        AppointmentStatus: "scheduled" | "attended" | "cancelled" | "no_show";
-        /**
-         * AppointmentUpdate
-         * @description Schema for updating an existing appointment.
-         */
-        AppointmentUpdate: {
-            /**
-             * Client Id
-             * @description ID of the client for this appointment
-             */
-            client_id?: string | null;
-            /**
-             * Scheduled Start
-             * @description Start time (timezone-aware UTC)
-             */
-            scheduled_start?: string | null;
-            /**
-             * Scheduled End
-             * @description End time (timezone-aware UTC)
-             */
-            scheduled_end?: string | null;
-            /** @description Type of location */
-            location_type?: components["schemas"]["LocationType"] | null;
-            /**
-             * Location Details
-             * @description Additional location details
-             */
-            location_details?: string | null;
-            /** @description Appointment status. Valid transitions: scheduled→attended, scheduled→cancelled, scheduled→no_show, attended→no_show, cancelled→scheduled, no_show→scheduled, no_show→attended. Cannot cancel attended appointments with session notes (delete session first). Cannot revert attended appointments to scheduled. */
-            status?: components["schemas"]["AppointmentStatus"] | null;
-            /**
-             * Notes
-             * @description Therapist notes
-             */
-            notes?: string | null;
-            /**
-             * Payment Price
-             * @description Actual price for this appointment (overrides service price if set)
-             */
-            payment_price?: number | string | null;
-            /** @description Payment status: not_paid, paid, payment_sent, waived */
-            payment_status?: components["schemas"]["PaymentStatus"] | null;
-            /** @description Payment method: cash, card, bank_transfer, bit, paybox, other */
-            payment_method?: components["schemas"]["PaymentMethod"] | null;
-            /**
-             * Payment Notes
-             * @description Free-text notes about payment (e.g., invoice number, special terms)
-             */
-            payment_notes?: string | null;
-            /**
-             * Paid At
-             * @description Timestamp when payment was marked as paid (auto-set if not provided when status='paid')
-             */
-            paid_at?: string | null;
-        };
-        /**
-         * AttachmentRenameRequest
-         * @description Request schema for renaming an attachment.
-         *
-         *     The filename is validated and normalized:
-         *     - Whitespace is trimmed
-         *     - Length must be 1-255 characters
-         *     - Invalid characters are rejected: / \ : * ? " < > |
-         *     - File extension is preserved automatically
-         *     - Duplicate filenames are rejected
-         */
-        AttachmentRenameRequest: {
-            /**
-             * File Name
-             * @description New filename (extension will be preserved automatically)
-             * @example Treatment notes - Oct 2025
-             * @example Left shoulder pain
-             */
-            file_name: string;
-        };
-        /**
-         * AuditAction
-         * @description Audit action types.
-         * @enum {string}
-         */
-        AuditAction: "CREATE" | "READ" | "UPDATE" | "DELETE" | "LOGIN" | "LOGOUT" | "EXPORT" | "PRINT" | "SHARE" | "DISCLOSE";
-        /**
-         * AuditEventListResponse
-         * @description Paginated response for audit event list.
-         */
-        AuditEventListResponse: {
-            /**
-             * Items
-             * @description List of audit events
-             */
-            items: components["schemas"]["AuditEventResponse"][];
-            /**
-             * Total
-             * @description Total number of audit events matching filters
-             */
-            total: number;
-            /**
-             * Page
-             * @description Current page number (1-indexed)
-             */
-            page: number;
-            /**
-             * Page Size
-             * @description Number of items per page
-             */
-            page_size: number;
-            /**
-             * Total Pages
-             * @description Total number of pages
-             */
-            total_pages: number;
-        };
-        /**
-         * AuditEventResponse
-         * @description Response schema for a single audit event.
-         */
-        AuditEventResponse: {
-            /**
-             * Id
-             * Format: uuid
-             * @description Unique identifier for the audit event
-             */
-            id: string;
-            /**
-             * Workspace Id
-             * Format: uuid
-             * @description Workspace this event belongs to
-             */
-            workspace_id: string;
-            /**
-             * User Id
-             * @description User who performed the action (None for system events)
-             */
-            user_id: string | null;
-            /**
-             * Event Type
-             * @description Event type (e.g., 'client.read', 'session.create')
-             */
-            event_type: string;
-            /**
-             * Resource Type
-             * @description Type of resource (Client, Session, Appointment, etc.)
-             */
-            resource_type: string;
-            /**
-             * Resource Id
-             * @description ID of the resource being accessed or modified
-             */
-            resource_id: string | null;
-            /** @description Action performed (CREATE, READ, UPDATE, DELETE, etc.) */
-            action: components["schemas"]["AuditAction"];
-            /**
-             * Ip Address
-             * @description IP address of the user
-             */
-            ip_address: string | null;
-            /**
-             * User Agent
-             * @description User agent string from the request
-             */
-            user_agent: string | null;
-            /**
-             * Metadata
-             * @description Additional context (NO PII/PHI)
-             */
-            metadata: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Created At
-             * Format: date-time
-             * @description When the event occurred
-             */
-            created_at: string;
-        };
-        /**
-         * BlacklistActionResponse
-         * @description Response schema for blacklist actions.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "message": "Email added to blacklist",
-         *             "email": "spam@example.com"
-         *         }
-         *         ```
-         */
-        BlacklistActionResponse: {
-            /**
-             * Message
-             * @description Action result message
-             */
-            message: string;
-            /**
-             * Email
-             * @description Affected email address
-             */
-            email: string;
-        };
-        /**
-         * BlacklistEntry
-         * @description Single blacklist entry.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "email": "blocked@example.com",
-         *             "reason": "Spam account",
-         *             "added_at": "2025-10-22T10:30:00Z",
-         *             "added_by": "admin@example.com"
-         *         }
-         *         ```
-         */
-        BlacklistEntry: {
-            /**
-             * Email
-             * @description Blacklisted email address
-             */
-            email: string;
-            /**
-             * Reason
-             * @description Reason for blacklisting
-             */
-            reason: string;
-            /**
-             * Added At
-             * Format: date-time
-             * @description When email was blacklisted (UTC)
-             */
-            added_at: string;
-            /**
-             * Added By
-             * @description Email of admin who added entry
-             */
-            added_by?: string | null;
-        };
-        /**
-         * BlacklistResponse
-         * @description Response schema for blacklist.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "blacklist": [
-         *                 {
-         *                     "email": "blocked@example.com",
-         *                     "reason": "Spam account",
-         *                     "added_at": "2025-10-22T10:30:00Z",
-         *                     "added_by": "admin@example.com"
-         *                 }
-         *             ]
-         *         }
-         *         ```
-         */
-        BlacklistResponse: {
-            /**
-             * Blacklist
-             * @description Blacklisted emails
-             */
-            blacklist?: components["schemas"]["BlacklistEntry"][];
-        };
-        /** Body_upload_client_attachment_api_v1_clients__client_id__attachments_post */
-        Body_upload_client_attachment_api_v1_clients__client_id__attachments_post: {
-            /**
-             * File
-             * Format: binary
-             */
-            file: string;
-        };
-        /** Body_upload_session_attachment_api_v1_sessions__session_id__attachments_post */
-        Body_upload_session_attachment_api_v1_sessions__session_id__attachments_post: {
-            /**
-             * File
-             * Format: binary
-             */
-            file: string;
-        };
-        /**
-         * BulkDownloadRequest
-         * @description Request schema for bulk downloading multiple attachments as a ZIP file.
-         *
-         *     Validation:
-         *     - At least 1 attachment ID required
-         *     - Maximum 50 attachments per request (prevents abuse)
-         *     - All attachment IDs must be valid UUIDs
-         *
-         *     Security:
-         *     - All attachments must belong to the specified client
-         *     - All attachments must belong to user's workspace
-         *     - Total file size limited to 100 MB
-         */
-        BulkDownloadRequest: {
-            /**
-             * Attachment Ids
-             * @description List of attachment UUIDs to download (1-50 files)
-             * @example [
-             *       "12345678-1234-5678-1234-567812345678",
-             *       "87654321-4321-8765-4321-876543218765"
-             *     ]
-             */
-            attachment_ids: string[];
-        };
-        /**
-         * ClientCreate
-         * @description Schema for creating a new client.
-         *
-         *     SECURITY: workspace_id is NOT accepted from client requests.
-         *     It is automatically injected from the authenticated user's session.
-         *     This prevents workspace injection vulnerabilities.
-         */
-        ClientCreate: {
-            /**
-             * First Name
-             * @description Client's first name
-             */
-            first_name: string;
-            /**
-             * Last Name
-             * @description Client's last name
-             */
-            last_name: string;
-            /**
-             * Email
-             * @description Client's email address
-             */
-            email?: string | null;
-            /**
-             * Phone
-             * @description Client's phone number
-             */
-            phone?: string | null;
-            /**
-             * Date Of Birth
-             * @description Client's date of birth
-             */
-            date_of_birth?: string | null;
-            /**
-             * Address
-             * @description Client's physical address
-             */
-            address?: string | null;
-            /**
-             * Medical History
-             * @description Relevant medical history and conditions (PHI)
-             */
-            medical_history?: string | null;
-            /**
-             * Emergency Contact Name
-             * @description Emergency contact person's name
-             */
-            emergency_contact_name?: string | null;
-            /**
-             * Emergency Contact Phone
-             * @description Emergency contact phone number
-             */
-            emergency_contact_phone?: string | null;
-            /**
-             * Is Active
-             * @description Active status (false = archived/soft deleted)
-             * @default true
-             */
-            is_active: boolean;
-            /**
-             * Consent Status
-             * @description Client consent to store and process data
-             * @default false
-             */
-            consent_status: boolean;
-            /**
-             * Google Calendar Consent
-             * @description Client consent to receive Google Calendar invitations (opt-out model: True=consented by default, False=opted out)
-             * @default true
-             */
-            google_calendar_consent: boolean | null;
-            /**
-             * Notes
-             * @description General notes about the client
-             */
-            notes?: string | null;
-            /**
-             * Tags
-             * @description Tags for categorization and filtering
-             */
-            tags?: string[] | null;
-        };
-        /**
-         * ClientListResponse
-         * @description Schema for paginated client list response.
-         */
-        ClientListResponse: {
-            /** Items */
-            items: components["schemas"]["ClientResponse"][];
-            /** Total */
-            total: number;
-            /** Page */
-            page: number;
-            /** Page Size */
-            page_size: number;
-            /** Total Pages */
-            total_pages: number;
-        };
-        /**
-         * ClientResponse
-         * @description Schema for client API responses.
-         */
-        ClientResponse: {
-            /**
-             * First Name
-             * @description Client's first name
-             */
-            first_name: string;
-            /**
-             * Last Name
-             * @description Client's last name
-             */
-            last_name: string;
-            /**
-             * Email
-             * @description Client's email address
-             */
-            email?: string | null;
-            /**
-             * Phone
-             * @description Client's phone number
-             */
-            phone?: string | null;
-            /**
-             * Date Of Birth
-             * @description Client's date of birth
-             */
-            date_of_birth?: string | null;
-            /**
-             * Address
-             * @description Client's physical address
-             */
-            address?: string | null;
-            /**
-             * Medical History
-             * @description Relevant medical history and conditions (PHI)
-             */
-            medical_history?: string | null;
-            /**
-             * Emergency Contact Name
-             * @description Emergency contact person's name
-             */
-            emergency_contact_name?: string | null;
-            /**
-             * Emergency Contact Phone
-             * @description Emergency contact phone number
-             */
-            emergency_contact_phone?: string | null;
-            /**
-             * Is Active
-             * @description Active status (false = archived/soft deleted)
-             * @default true
-             */
-            is_active: boolean;
-            /**
-             * Consent Status
-             * @description Client consent to store and process data
-             * @default false
-             */
-            consent_status: boolean;
-            /**
-             * Google Calendar Consent
-             * @description Client consent to receive Google Calendar invitations (opt-out model: True=consented by default, False=opted out)
-             * @default true
-             */
-            google_calendar_consent: boolean | null;
-            /**
-             * Notes
-             * @description General notes about the client
-             */
-            notes?: string | null;
-            /**
-             * Tags
-             * @description Tags for categorization and filtering
-             */
-            tags?: string[] | null;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Workspace Id
-             * Format: uuid
-             */
-            workspace_id: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /**
-             * Google Calendar Consent Date
-             * @description Date when client consented to Google Calendar invitations
-             */
-            google_calendar_consent_date?: string | null;
-            /**
-             * Next Appointment
-             * @description Next scheduled appointment after now
-             */
-            next_appointment?: string | null;
-            /**
-             * Last Appointment
-             * @description Most recent completed appointment
-             */
-            last_appointment?: string | null;
-            /**
-             * Appointment Count
-             * @description Total number of appointments
-             * @default 0
-             */
-            appointment_count: number;
-            /**
-             * Full Name
-             * @description Full name of the client.
-             */
-            readonly full_name: string;
-        };
-        /**
-         * ClientSummary
-         * @description Summary of client information for appointment responses.
-         */
-        ClientSummary: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** First Name */
-            first_name: string;
-            /** Last Name */
-            last_name: string;
-            /** Full Name */
-            full_name: string;
-        };
-        /**
-         * ClientUpdate
-         * @description Schema for updating an existing client.
-         */
-        ClientUpdate: {
-            /** First Name */
-            first_name?: string | null;
-            /** Last Name */
-            last_name?: string | null;
-            /** Email */
-            email?: string | null;
-            /** Phone */
-            phone?: string | null;
-            /** Date Of Birth */
-            date_of_birth?: string | null;
-            /** Address */
-            address?: string | null;
-            /** Medical History */
-            medical_history?: string | null;
-            /** Emergency Contact Name */
-            emergency_contact_name?: string | null;
-            /** Emergency Contact Phone */
-            emergency_contact_phone?: string | null;
-            /** Is Active */
-            is_active?: boolean | null;
-            /** Consent Status */
-            consent_status?: boolean | null;
-            /** Google Calendar Consent */
-            google_calendar_consent?: boolean | null;
-            /** Notes */
-            notes?: string | null;
-            /** Tags */
-            tags?: string[] | null;
-        };
-        /**
-         * ConflictCheckResponse
-         * @description Schema for conflict check response.
-         */
-        ConflictCheckResponse: {
-            /**
-             * Has Conflict
-             * @description Whether a conflict exists
-             */
-            has_conflict: boolean;
-            /**
-             * Conflicting Appointments
-             * @description List of conflicting appointments with privacy-preserving details
-             */
-            conflicting_appointments?: components["schemas"]["ConflictingAppointmentDetail"][];
-        };
-        /**
-         * ConflictingAppointmentDetail
-         * @description Privacy-preserving details of a conflicting appointment.
-         */
-        ConflictingAppointmentDetail: {
-            /**
-             * Id
-             * Format: uuid
-             * @description Appointment ID
-             */
-            id: string;
-            /**
-             * Scheduled Start
-             * Format: date-time
-             * @description Start time
-             */
-            scheduled_start: string;
-            /**
-             * Scheduled End
-             * Format: date-time
-             * @description End time
-             */
-            scheduled_end: string;
-            /**
-             * Client Initials
-             * @description Client initials for privacy (e.g., 'J.D.')
-             */
-            client_initials: string;
-            /** @description Location type */
-            location_type: components["schemas"]["LocationType"];
-            /** @description Appointment status */
-            status: components["schemas"]["AppointmentStatus"];
-        };
-        /**
-         * DeleteWorkspaceRequest
-         * @description Request schema for deleting workspace.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "reason": "User requested account deletion"
-         *         }
-         *         ```
-         */
-        DeleteWorkspaceRequest: {
-            /**
-             * Reason
-             * @description Reason for deletion (required for audit)
-             */
-            reason: string;
-        };
-        /**
-         * GoogleCalendarAuthorizeResponse
-         * @description Response schema for OAuth authorization URL generation.
-         *
-         *     Contains the Google OAuth 2.0 authorization URL that the frontend should
-         *     redirect the user to for granting calendar access permissions.
-         *
-         *     Attributes:
-         *         authorization_url: Full OAuth URL with all required parameters
-         */
-        GoogleCalendarAuthorizeResponse: {
-            /**
-             * Authorization Url
-             * @description Google OAuth 2.0 authorization URL for user to grant access
-             */
-            authorization_url: string;
-        };
-        /**
-         * GoogleCalendarSettingsResponse
-         * @description Response schema for Google Calendar settings.
-         *
-         *     Attributes:
-         *         enabled: Whether automatic sync is enabled
-         *         sync_client_names: Whether client names are included in events
-         *         notify_clients: Whether client notifications are enabled
-         *         last_sync_at: Timestamp of last successful sync
-         *         last_sync_status: Status of last sync ("success" or "error")
-         *         last_sync_error: Error message if last sync failed
-         */
-        GoogleCalendarSettingsResponse: {
-            /**
-             * Enabled
-             * @description Whether automatic sync is enabled
-             */
-            enabled: boolean;
-            /**
-             * Sync Client Names
-             * @description Whether client names are included in calendar events
-             */
-            sync_client_names: boolean;
-            /**
-             * Notify Clients
-             * @description Whether client notifications are enabled
-             */
-            notify_clients: boolean;
-            /**
-             * Has Google Baa
-             * @description Whether therapist has Google Workspace BAA signed
-             */
-            has_google_baa: boolean;
-            /**
-             * Last Sync At
-             * @description Timestamp of last sync (UTC)
-             */
-            last_sync_at?: string | null;
-            /**
-             * Last Sync Status
-             * @description Last sync status: "success" or "error"
-             */
-            last_sync_status?: string | null;
-            /**
-             * Last Sync Error
-             * @description Error message if last sync failed
-             */
-            last_sync_error?: string | null;
-        };
-        /**
-         * GoogleCalendarSettingsUpdate
-         * @description Request schema for updating Google Calendar sync settings.
-         *
-         *     All fields are optional to support partial updates.
-         *
-         *     Attributes:
-         *         enabled: Enable/disable automatic sync
-         *         sync_client_names: Include client names in calendar event titles
-         *         notify_clients: Send Google Calendar invitations to clients (requires client email)
-         *
-         *     Example:
-         *         {
-         *             "enabled": true,
-         *             "sync_client_names": false,
-         *             "notify_clients": true
-         *         }
-         */
-        GoogleCalendarSettingsUpdate: {
-            /**
-             * Enabled
-             * @description Enable or disable automatic calendar sync
-             */
-            enabled?: boolean | null;
-            /**
-             * Sync Client Names
-             * @description Include client names in calendar event titles (HIPAA consideration)
-             */
-            sync_client_names?: boolean | null;
-            /**
-             * Notify Clients
-             * @description Send Google Calendar invitations to clients (requires client email)
-             */
-            notify_clients?: boolean | null;
-            /**
-             * Has Google Baa
-             * @description Confirm Google Workspace Business Associate Agreement (BAA) is signed
-             */
-            has_google_baa?: boolean | null;
-        };
-        /**
-         * GoogleCalendarStatusResponse
-         * @description Response schema for Google Calendar integration status.
-         *
-         *     Indicates whether the current user has connected their Google Calendar account,
-         *     when the last sync occurred, and whether sync is currently enabled.
-         *
-         *     Attributes:
-         *         connected: True if user has authorized Google Calendar access
-         *         enabled: True if sync is active, False if paused
-         *         sync_client_names: Whether client names are included in calendar events
-         *         notify_clients: Whether client notifications are enabled
-         *         last_sync_at: Timestamp of most recent calendar sync (None if never synced)
-         */
-        GoogleCalendarStatusResponse: {
-            /**
-             * Connected
-             * @description Whether Google Calendar is connected for this user
-             */
-            connected: boolean;
-            /**
-             * Enabled
-             * @description Whether calendar sync is currently enabled
-             * @default false
-             */
-            enabled: boolean;
-            /**
-             * Sync Client Names
-             * @description Whether client names are included in calendar events
-             * @default false
-             */
-            sync_client_names: boolean;
-            /**
-             * Notify Clients
-             * @description Whether client notifications are enabled
-             * @default false
-             */
-            notify_clients: boolean;
-            /**
-             * Has Google Baa
-             * @description Whether therapist has Google Workspace BAA signed
-             * @default false
-             */
-            has_google_baa: boolean;
-            /**
-             * Last Sync At
-             * @description Timestamp of last calendar sync (UTC, None if never synced)
-             */
-            last_sync_at?: string | null;
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /**
-         * InviteTherapistRequest
-         * @description Request schema for inviting a therapist.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "workspace_name": "Sarah's Massage Therapy",
-         *             "therapist_email": "sarah@example.com",
-         *             "therapist_full_name": "Sarah Chen"
-         *         }
-         *         ```
-         */
-        InviteTherapistRequest: {
-            /**
-             * Workspace Name
-             * @description Name of the workspace to create
-             * @example Sarah's Massage Therapy
-             */
-            workspace_name: string;
-            /**
-             * Therapist Email
-             * Format: email
-             * @description Email address of the therapist (must be unique)
-             * @example sarah@example.com
-             */
-            therapist_email: string;
-            /**
-             * Therapist Full Name
-             * @description Full name of the therapist
-             * @example Sarah Chen
-             */
-            therapist_full_name: string;
-        };
-        /**
-         * InviteTherapistResponse
-         * @description Response schema for therapist invitation.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "workspace_id": "123e4567-e89b-12d3-a456-426614174000",
-         *             "user_id": "987e6543-e21b-34c5-b678-123456789012",
-         *             "invitation_url": "https://app.pazpaz.com/accept-invitation?token=..."
-         *         }
-         *         ```
-         */
-        InviteTherapistResponse: {
-            /**
-             * Workspace Id
-             * Format: uuid
-             * @description UUID of the created workspace
-             */
-            workspace_id: string;
-            /**
-             * User Id
-             * Format: uuid
-             * @description UUID of the created user (therapist)
-             */
-            user_id: string;
-            /**
-             * Invitation Url
-             * @description Magic link URL to send to therapist via email
-             * @example https://app.pazpaz.com/accept-invitation?token=abc123...
-             */
-            invitation_url: string;
-        };
-        /**
-         * LocationCreate
-         * @description Schema for creating a new location.
-         *
-         *     SECURITY: workspace_id is NOT accepted from client requests.
-         *     It is automatically injected from the authenticated user's session.
-         *     This prevents workspace injection vulnerabilities.
-         */
-        LocationCreate: {
-            /**
-             * Name
-             * @description Location name
-             */
-            name: string;
-            /** @description Type: clinic, home, or online */
-            location_type: components["schemas"]["LocationType"];
-            /**
-             * Address
-             * @description Physical address for clinic or home visits
-             */
-            address?: string | null;
-            /**
-             * Details
-             * @description Additional details (room, video link, parking)
-             */
-            details?: string | null;
-            /**
-             * Is Active
-             * @description Active locations appear in scheduling UI
-             * @default true
-             */
-            is_active: boolean;
-        };
-        /**
-         * LocationListResponse
-         * @description Schema for paginated location list response.
-         */
-        LocationListResponse: {
-            /** Items */
-            items: components["schemas"]["LocationResponse"][];
-            /** Total */
-            total: number;
-            /** Page */
-            page: number;
-            /** Page Size */
-            page_size: number;
-            /** Total Pages */
-            total_pages: number;
-        };
-        /**
-         * LocationResponse
-         * @description Schema for location API responses.
-         */
-        LocationResponse: {
-            /**
-             * Name
-             * @description Location name
-             */
-            name: string;
-            /** @description Type: clinic, home, or online */
-            location_type: components["schemas"]["LocationType"];
-            /**
-             * Address
-             * @description Physical address for clinic or home visits
-             */
-            address?: string | null;
-            /**
-             * Details
-             * @description Additional details (room, video link, parking)
-             */
-            details?: string | null;
-            /**
-             * Is Active
-             * @description Active locations appear in scheduling UI
-             * @default true
-             */
-            is_active: boolean;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Workspace Id
-             * Format: uuid
-             */
-            workspace_id: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * LocationType
-         * @description Type of location for an appointment.
-         * @enum {string}
-         */
-        LocationType: "clinic" | "home" | "online";
-        /**
-         * LocationUpdate
-         * @description Schema for updating an existing location.
-         */
-        LocationUpdate: {
-            /** Name */
-            name?: string | null;
-            location_type?: components["schemas"]["LocationType"] | null;
-            /** Address */
-            address?: string | null;
-            /** Details */
-            details?: string | null;
-            /** Is Active */
-            is_active?: boolean | null;
-        };
-        /**
-         * LogoutResponse
-         * @description Response schema for logout.
-         */
-        LogoutResponse: {
-            /**
-             * Message
-             * @description Success message
-             * @default Logged out successfully
-             */
-            message: string;
-        };
-        /**
-         * MagicLink2FARequest
-         * @description Request to complete authentication with 2FA after magic link.
-         */
-        MagicLink2FARequest: {
-            /**
-             * Temp Token
-             * @description Temporary token from magic link verification
-             */
-            temp_token: string;
-            /**
-             * Totp Code
-             * @description 6-digit TOTP code or 8-character backup code
-             * @example 123456
-             * @example A1B2C3D4
-             */
-            totp_code: string;
-        };
-        /**
-         * MagicLink2FAResponse
-         * @description Response for 2FA verification after magic link.
-         */
-        MagicLink2FAResponse: {
-            /**
-             * Access Token
-             * @description JWT access token
-             */
-            access_token: string;
-            /**
-             * Token Type
-             * @description Token type
-             * @default bearer
-             */
-            token_type: string;
-            /** @description Authenticated user information */
-            user: components["schemas"]["UserInToken"];
-        };
-        /**
-         * MagicLinkRequest
-         * @description Request schema for magic link generation.
-         */
-        MagicLinkRequest: {
-            /**
-             * Email
-             * Format: email
-             * @description Email address to send magic link to
-             */
-            email: string;
-        };
-        /**
-         * MagicLinkResponse
-         * @description Response schema for magic link request.
-         */
-        MagicLinkResponse: {
-            /**
-             * Message
-             * @description Success message (generic to prevent email enumeration)
-             * @default If an account exists with this email, a login link has been sent.
-             */
-            message: string;
-        };
-        /**
-         * NotificationSettingsResponse
-         * @description Response schema for user notification settings.
-         *
-         *     This schema represents the complete notification settings for a user,
-         *     including all email notification preferences, digest settings, and reminders.
-         */
-        NotificationSettingsResponse: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * User Id
-             * Format: uuid
-             */
-            user_id: string;
-            /**
-             * Workspace Id
-             * Format: uuid
-             */
-            workspace_id: string;
-            /**
-             * Email Enabled
-             * @description Master toggle - when false, no emails are sent
-             */
-            email_enabled: boolean;
-            /**
-             * Notify Appointment Booked
-             * @description Send email when new appointment is booked
-             */
-            notify_appointment_booked: boolean;
-            /**
-             * Notify Appointment Cancelled
-             * @description Send email when appointment is cancelled
-             */
-            notify_appointment_cancelled: boolean;
-            /**
-             * Notify Appointment Rescheduled
-             * @description Send email when appointment is rescheduled
-             */
-            notify_appointment_rescheduled: boolean;
-            /**
-             * Notify Appointment Confirmed
-             * @description Send email when client confirms appointment
-             */
-            notify_appointment_confirmed: boolean;
-            /**
-             * Digest Enabled
-             * @description Enable daily digest email (opt-in)
-             */
-            digest_enabled: boolean;
-            /**
-             * Digest Time
-             * @description Time to send digest in HH:MM format (24-hour, workspace timezone)
-             * @example 08:00
-             * @example 18:30
-             */
-            digest_time?: string | null;
-            /**
-             * Digest Days
-             * @description Days of week to send digest (0=Sunday, 1=Monday, ..., 6=Saturday)
-             * @example [
-             *       1,
-             *       2,
-             *       3,
-             *       4,
-             *       5
-             *     ]
-             * @example [
-             *       1,
-             *       3,
-             *       5
-             *     ]
-             * @example [
-             *       0,
-             *       1,
-             *       2,
-             *       3,
-             *       4,
-             *       5,
-             *       6
-             *     ]
-             */
-            digest_days: number[];
-            /**
-             * Tomorrow Digest Enabled
-             * @description Enable tomorrow's schedule digest email (opt-in)
-             */
-            tomorrow_digest_enabled: boolean;
-            /**
-             * Tomorrow Digest Time
-             * @description Time to send tomorrow's digest in HH:MM format (24-hour, workspace timezone)
-             * @example 20:00
-             * @example 19:30
-             */
-            tomorrow_digest_time?: string | null;
-            /**
-             * Tomorrow Digest Days
-             * @description Days of week to send tomorrow's digest (0=Sunday, 1=Monday, ..., 6=Saturday)
-             * @example [
-             *       0,
-             *       1,
-             *       2,
-             *       3,
-             *       4
-             *     ]
-             * @example [
-             *       1,
-             *       2,
-             *       3,
-             *       4,
-             *       5
-             *     ]
-             * @example [
-             *       0,
-             *       1,
-             *       2,
-             *       3,
-             *       4,
-             *       5,
-             *       6
-             *     ]
-             */
-            tomorrow_digest_days: number[];
-            /**
-             * Reminder Enabled
-             * @description Enable appointment reminder emails
-             */
-            reminder_enabled: boolean;
-            /**
-             * Reminder Minutes
-             * @description Minutes before appointment to send reminder (15, 30, 60, 120, 1440)
-             * @example 60
-             * @example 1440
-             */
-            reminder_minutes?: number | null;
-            /**
-             * Notes Reminder Enabled
-             * @description Enable draft session notes reminders
-             */
-            notes_reminder_enabled: boolean;
-            /**
-             * Notes Reminder Time
-             * @description Time to send notes reminder in HH:MM format (24-hour, workspace timezone)
-             * @example 18:00
-             * @example 20:00
-             */
-            notes_reminder_time?: string | null;
-            /**
-             * Extended Settings
-             * @description Future notification preferences (SMS, push, quiet hours, etc.)
-             */
-            extended_settings?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * NotificationSettingsUpdate
-         * @description Request schema for updating user notification settings.
-         *
-         *     All fields are optional to support partial updates.
-         *     Only provided fields will be updated.
-         */
-        NotificationSettingsUpdate: {
-            /**
-             * Email Enabled
-             * @description Master toggle - when false, no emails are sent
-             */
-            email_enabled?: boolean | null;
-            /**
-             * Notify Appointment Booked
-             * @description Send email when new appointment is booked
-             */
-            notify_appointment_booked?: boolean | null;
-            /**
-             * Notify Appointment Cancelled
-             * @description Send email when appointment is cancelled
-             */
-            notify_appointment_cancelled?: boolean | null;
-            /**
-             * Notify Appointment Rescheduled
-             * @description Send email when appointment is rescheduled
-             */
-            notify_appointment_rescheduled?: boolean | null;
-            /**
-             * Notify Appointment Confirmed
-             * @description Send email when client confirms appointment
-             */
-            notify_appointment_confirmed?: boolean | null;
-            /**
-             * Digest Enabled
-             * @description Enable daily digest email (opt-in)
-             */
-            digest_enabled?: boolean | null;
-            /**
-             * Digest Time
-             * @description Time to send digest in HH:MM format (24-hour, workspace timezone)
-             * @example 08:00
-             * @example 18:30
-             */
-            digest_time?: string | null;
-            /**
-             * Digest Days
-             * @description Days of week to send digest (0=Sunday, 1=Monday, ..., 6=Saturday)
-             * @example [
-             *       1,
-             *       2,
-             *       3,
-             *       4,
-             *       5
-             *     ]
-             * @example [
-             *       1,
-             *       3,
-             *       5
-             *     ]
-             * @example [
-             *       0,
-             *       1,
-             *       2,
-             *       3,
-             *       4,
-             *       5,
-             *       6
-             *     ]
-             */
-            digest_days?: number[] | null;
-            /**
-             * Tomorrow Digest Enabled
-             * @description Enable tomorrow's schedule digest email (opt-in)
-             */
-            tomorrow_digest_enabled?: boolean | null;
-            /**
-             * Tomorrow Digest Time
-             * @description Time to send tomorrow's digest in HH:MM format (24-hour, workspace timezone)
-             * @example 20:00
-             * @example 19:30
-             */
-            tomorrow_digest_time?: string | null;
-            /**
-             * Tomorrow Digest Days
-             * @description Days of week to send tomorrow's digest (0=Sunday, 1=Monday, ..., 6=Saturday)
-             * @example [
-             *       0,
-             *       1,
-             *       2,
-             *       3,
-             *       4
-             *     ]
-             * @example [
-             *       1,
-             *       2,
-             *       3,
-             *       4,
-             *       5
-             *     ]
-             * @example [
-             *       0,
-             *       1,
-             *       2,
-             *       3,
-             *       4,
-             *       5,
-             *       6
-             *     ]
-             */
-            tomorrow_digest_days?: number[] | null;
-            /**
-             * Reminder Enabled
-             * @description Enable appointment reminder emails
-             */
-            reminder_enabled?: boolean | null;
-            /**
-             * Reminder Minutes
-             * @description Minutes before appointment to send reminder (15, 30, 60, 120, 1440)
-             * @example 60
-             * @example 1440
-             */
-            reminder_minutes?: number | null;
-            /**
-             * Notes Reminder Enabled
-             * @description Enable draft session notes reminders
-             */
-            notes_reminder_enabled?: boolean | null;
-            /**
-             * Notes Reminder Time
-             * @description Time to send notes reminder in HH:MM format (24-hour, workspace timezone)
-             * @example 18:00
-             * @example 20:00
-             */
-            notes_reminder_time?: string | null;
-            /**
-             * Extended Settings
-             * @description Future notification preferences (SMS, push, quiet hours, etc.)
-             */
-            extended_settings?: {
-                [key: string]: unknown;
-            } | null;
-        };
-        /**
-         * PaymentConfigResponse
-         * @description Payment configuration for a workspace.
-         *
-         *     Phase 1: Manual payment tracking with bank account details.
-         *     Phase 1.5: Smart payment links (Bit, PayBox, custom URLs).
-         *     Phase 2+: Automated payment provider integrations.
-         */
-        PaymentConfigResponse: {
-            /**
-             * Payment Mode
-             * @description Current payment mode: 'manual', 'smart_link', 'automated', or null (disabled)
-             */
-            payment_mode?: string | null;
-            /**
-             * Bank Account Details
-             * @description Bank account details for manual payment tracking (free-text)
-             */
-            bank_account_details?: string | null;
-            /**
-             * Payment Link Type
-             * @description Payment link type: 'bit', 'paybox', 'custom', or null (disabled)
-             */
-            payment_link_type?: string | null;
-            /**
-             * Payment Link Template
-             * @description Payment link template: phone number (Bit), URL (PayBox/custom), or null
-             */
-            payment_link_template?: string | null;
-            /**
-             * Payment Provider
-             * @description Payment provider name (manual, or future automated providers), or null (disabled)
-             */
-            payment_provider?: string | null;
-        };
-        /**
-         * PaymentLinkResponse
-         * @description Schema for payment link preview/regeneration response.
-         */
-        PaymentLinkResponse: {
-            /**
-             * Payment Link
-             * @description Generated payment link
-             */
-            payment_link: string;
-            /**
-             * Payment Type
-             * @description Type of payment link: bit, paybox, bank, custom
-             */
-            payment_type: string;
-            /**
-             * Amount
-             * @description Payment amount
-             */
-            amount: string;
-            /**
-             * Display Text
-             * @description Human-readable description of payment method
-             */
-            display_text: string;
-        };
-        /**
-         * PaymentMethod
-         * @description Payment collection method.
-         *
-         *     Indicates how the payment was collected or will be collected.
-         *     This helps therapists track payment sources and reconcile accounts.
-         *
-         *     Attributes:
-         *         CASH: Cash payment
-         *         CARD: Credit/debit card payment (in-person or via terminal)
-         *         BANK_TRANSFER: Direct bank transfer or wire
-         *         BIT: Payment via Bit app (Israeli mobile payment)
-         *         PAYBOX: Payment via PayBox (Israeli payment service)
-         *         OTHER: Other payment method (specify in notes)
-         * @enum {string}
-         */
-        PaymentMethod: "cash" | "card" | "bank_transfer" | "bit" | "paybox" | "other";
-        /**
-         * PaymentStatus
-         * @description Appointment payment status.
-         *
-         *     Tracks the current payment state for an appointment. This is independent
-         *     of appointment or session status - clients may pay before, during, or after
-         *     their appointment.
-         *
-         *     Attributes:
-         *         NOT_PAID: Payment has not been received (default)
-         *         PAID: Payment has been received and confirmed
-         *         PAYMENT_SENT: Payment link or invoice sent to client
-         *         WAIVED: Payment waived (pro bono, scholarship, etc.)
-         * @enum {string}
-         */
-        PaymentStatus: "not_paid" | "paid" | "payment_sent" | "waived";
-        /**
-         * PendingInvitation
-         * @description Single pending invitation details.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "user_id": "987e6543-e21b-34c5-b678-123456789012",
-         *             "email": "sarah@example.com",
-         *             "full_name": "Sarah Chen",
-         *             "workspace_name": "Sarah's Massage Therapy",
-         *             "invited_at": "2025-10-15T10:30:00Z",
-         *             "expires_at": "2025-10-22T10:30:00Z"
-         *         }
-         *         ```
-         */
-        PendingInvitation: {
-            /**
-             * User Id
-             * Format: uuid
-             * @description UUID of the user
-             */
-            user_id: string;
-            /**
-             * Email
-             * @description Email address of the therapist
-             */
-            email: string;
-            /**
-             * Full Name
-             * @description Full name of the therapist
-             */
-            full_name: string;
-            /**
-             * Workspace Name
-             * @description Name of the workspace
-             */
-            workspace_name: string;
-            /**
-             * Invited At
-             * Format: date-time
-             * @description When invitation was sent (UTC timezone)
-             */
-            invited_at: string;
-            /**
-             * Expires At
-             * Format: date-time
-             * @description When invitation expires (UTC timezone)
-             */
-            expires_at: string;
-        };
-        /**
-         * PendingInvitationsResponse
-         * @description Response schema for listing pending invitations.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "invitations": [
-         *                 {
-         *                     "user_id": "987e6543-e21b-34c5-b678-123456789012",
-         *                     "email": "sarah@example.com",
-         *                     "full_name": "Sarah Chen",
-         *                     "workspace_name": "Sarah's Massage Therapy",
-         *                     "invited_at": "2025-10-15T10:30:00Z",
-         *                     "expires_at": "2025-10-22T10:30:00Z"
-         *                 }
-         *             ]
-         *         }
-         *         ```
-         */
-        PendingInvitationsResponse: {
-            /**
-             * Invitations
-             * @description List of pending invitations (not yet accepted)
-             */
-            invitations?: components["schemas"]["PendingInvitation"][];
-        };
-        /**
-         * PlatformMetrics
-         * @description Platform-wide metrics.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "total_workspaces": 24,
-         *             "active_users": 23,
-         *             "pending_invitations": 3,
-         *             "blacklisted_users": 2
-         *         }
-         *         ```
-         */
-        PlatformMetrics: {
-            /**
-             * Total Workspaces
-             * @description Total number of workspaces
-             */
-            total_workspaces: number;
-            /**
-             * Active Users
-             * @description Total number of active users
-             */
-            active_users: number;
-            /**
-             * Pending Invitations
-             * @description Number of pending invitations (not yet accepted)
-             */
-            pending_invitations: number;
-            /**
-             * Blacklisted Users
-             * @description Number of blacklisted email addresses
-             */
-            blacklisted_users: number;
-        };
-        /**
-         * ResendInvitationResponse
-         * @description Response schema for resending invitation.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "invitation_url": "https://app.pazpaz.com/accept-invitation?token=..."
-         *         }
-         *         ```
-         */
-        ResendInvitationResponse: {
-            /**
-             * Invitation Url
-             * @description New magic link URL to send to therapist via email
-             * @example https://app.pazpaz.com/accept-invitation?token=def456...
-             */
-            invitation_url: string;
-        };
-        /**
-         * ResourceType
-         * @description Resource types that can be audited.
-         * @enum {string}
-         */
-        ResourceType: "User" | "Client" | "Appointment" | "Session" | "SessionAttachment" | "PlanOfCare" | "Service" | "Location" | "Workspace";
-        /**
-         * SendPaymentRequestBody
-         * @description Schema for sending payment request to client.
-         */
-        SendPaymentRequestBody: {
-            /**
-             * Message
-             * @description Optional custom message to include in email
-             */
-            message?: string | null;
-        };
-        /**
-         * SendPaymentRequestResponse
-         * @description Schema for send payment request response.
-         */
-        SendPaymentRequestResponse: {
-            /**
-             * Success
-             * @description Whether payment request was sent successfully
-             */
-            success: boolean;
-            /**
-             * Payment Link
-             * @description Generated payment link
-             */
-            payment_link: string;
-            /**
-             * Message
-             * @description Human-readable success message
-             */
-            message: string;
-        };
-        /**
-         * ServiceCreate
-         * @description Schema for creating a new service.
-         *
-         *     SECURITY: workspace_id is NOT accepted from client requests.
-         *     It is automatically injected from the authenticated user's session.
-         *     This prevents workspace injection vulnerabilities.
-         */
-        ServiceCreate: {
-            /**
-             * Name
-             * @description Service name
-             */
-            name: string;
-            /**
-             * Description
-             * @description Optional description of the service
-             */
-            description?: string | null;
-            /**
-             * Default Duration Minutes
-             * @description Default duration in minutes (must be > 0)
-             */
-            default_duration_minutes: number;
-            /**
-             * Is Active
-             * @description Active services appear in scheduling UI
-             * @default true
-             */
-            is_active: boolean;
-        };
-        /**
-         * ServiceListResponse
-         * @description Schema for paginated service list response.
-         */
-        ServiceListResponse: {
-            /** Items */
-            items: components["schemas"]["ServiceResponse"][];
-            /** Total */
-            total: number;
-            /** Page */
-            page: number;
-            /** Page Size */
-            page_size: number;
-            /** Total Pages */
-            total_pages: number;
-        };
-        /**
-         * ServiceResponse
-         * @description Schema for service API responses.
-         */
-        ServiceResponse: {
-            /**
-             * Name
-             * @description Service name
-             */
-            name: string;
-            /**
-             * Description
-             * @description Optional description of the service
-             */
-            description?: string | null;
-            /**
-             * Default Duration Minutes
-             * @description Default duration in minutes (must be > 0)
-             */
-            default_duration_minutes: number;
-            /**
-             * Is Active
-             * @description Active services appear in scheduling UI
-             * @default true
-             */
-            is_active: boolean;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Workspace Id
-             * Format: uuid
-             */
-            workspace_id: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * ServiceUpdate
-         * @description Schema for updating an existing service.
-         */
-        ServiceUpdate: {
-            /** Name */
-            name?: string | null;
-            /** Description */
-            description?: string | null;
-            /** Default Duration Minutes */
-            default_duration_minutes?: number | null;
-            /** Is Active */
-            is_active?: boolean | null;
-        };
-        /**
-         * SessionAttachmentListResponse
-         * @description Response schema for list of session attachments.
-         */
-        SessionAttachmentListResponse: {
-            /**
-             * Items
-             * @description List of attachments
-             */
-            items: components["schemas"]["SessionAttachmentResponse"][];
-            /**
-             * Total
-             * @description Total number of attachments
-             */
-            total: number;
-        };
-        /**
-         * SessionAttachmentResponse
-         * @description Response schema for session attachment.
-         *
-         *     Returns metadata about uploaded file (not the file content itself).
-         *     Use GET /attachments/{id}/download to get pre-signed download URL.
-         *
-         *     Supports both session-level and client-level attachments:
-         *     - Session-level: session_id is set, is_session_file=True
-         *     - Client-level: session_id is None, is_session_file=False
-         */
-        SessionAttachmentResponse: {
-            /**
-             * Id
-             * Format: uuid
-             * @description Attachment UUID
-             */
-            id: string;
-            /**
-             * Session Id
-             * @description Session UUID (None for client-level attachments)
-             */
-            session_id: string | null;
-            /**
-             * Client Id
-             * Format: uuid
-             * @description Client UUID (always present)
-             */
-            client_id: string;
-            /**
-             * Workspace Id
-             * Format: uuid
-             * @description Workspace UUID
-             */
-            workspace_id: string;
-            /**
-             * File Name
-             * @description Sanitized filename
-             */
-            file_name: string;
-            /**
-             * File Type
-             * @description MIME type (e.g., image/jpeg)
-             */
-            file_type: string;
-            /**
-             * File Size Bytes
-             * @description File size in bytes
-             */
-            file_size_bytes: number;
-            /**
-             * Created At
-             * Format: date-time
-             * @description Upload timestamp
-             */
-            created_at: string;
-            /**
-             * Session Date
-             * @description Date of session (None for client-level attachments)
-             */
-            session_date?: string | null;
-            /**
-             * Is Session File
-             * @description True if attached to specific session, False if client-level
-             */
-            is_session_file: boolean;
-        };
-        /**
-         * SessionCreate
-         * @description Schema for creating a new session.
-         *
-         *     SECURITY: workspace_id is NOT accepted from client requests.
-         *     It is automatically injected from the authenticated user's session.
-         *     This prevents workspace injection vulnerabilities.
-         */
-        SessionCreate: {
-            /**
-             * Subjective
-             * @description Patient-reported symptoms (PHI - encrypted at rest)
-             */
-            subjective?: string | null;
-            /**
-             * Objective
-             * @description Therapist observations (PHI - encrypted at rest)
-             */
-            objective?: string | null;
-            /**
-             * Assessment
-             * @description Clinical assessment (PHI - encrypted at rest)
-             */
-            assessment?: string | null;
-            /**
-             * Plan
-             * @description Treatment plan (PHI - encrypted at rest)
-             */
-            plan?: string | null;
-            /**
-             * Session Date
-             * Format: date-time
-             * @description Date/time when session occurred (timezone-aware UTC)
-             */
-            session_date: string;
-            /**
-             * Duration Minutes
-             * @description Session duration in minutes (0-480 min, i.e., 0-8 hours)
-             */
-            duration_minutes?: number | null;
-            /**
-             * Client Id
-             * Format: uuid
-             * @description Client ID (must belong to same workspace)
-             */
-            client_id: string;
-            /**
-             * Appointment Id
-             * @description Optional appointment link
-             */
-            appointment_id?: string | null;
-        };
-        /**
-         * SessionDeleteRequest
-         * @description Schema for deleting a session with optional reason.
-         */
-        SessionDeleteRequest: {
-            /**
-             * Reason
-             * @description Optional reason for deletion (logged in audit trail)
-             */
-            reason?: string | null;
-        };
-        /**
-         * SessionDraftUpdate
-         * @description Schema for draft autosave updates (relaxed validation).
-         *
-         *     Used by PATCH /sessions/{id}/draft endpoint for frontend autosave.
-         *     All fields are optional to allow partial updates.
-         *     No validation on session_date (drafts can be incomplete).
-         */
-        SessionDraftUpdate: {
-            /** Subjective */
-            subjective?: string | null;
-            /** Objective */
-            objective?: string | null;
-            /** Assessment */
-            assessment?: string | null;
-            /** Plan */
-            plan?: string | null;
-            /** Duration Minutes */
-            duration_minutes?: number | null;
-        };
-        /**
-         * SessionListResponse
-         * @description Schema for paginated session list response.
-         */
-        SessionListResponse: {
-            /** Items */
-            items: components["schemas"]["SessionResponse"][];
-            /** Total */
-            total: number;
-            /** Page */
-            page: number;
-            /** Page Size */
-            page_size: number;
-            /** Total Pages */
-            total_pages: number;
-        };
-        /**
-         * SessionResponse
-         * @description Schema for session API responses.
-         */
-        SessionResponse: {
-            /**
-             * Subjective
-             * @description Patient-reported symptoms (PHI - encrypted at rest)
-             */
-            subjective?: string | null;
-            /**
-             * Objective
-             * @description Therapist observations (PHI - encrypted at rest)
-             */
-            objective?: string | null;
-            /**
-             * Assessment
-             * @description Clinical assessment (PHI - encrypted at rest)
-             */
-            assessment?: string | null;
-            /**
-             * Plan
-             * @description Treatment plan (PHI - encrypted at rest)
-             */
-            plan?: string | null;
-            /**
-             * Session Date
-             * Format: date-time
-             * @description Date/time when session occurred (timezone-aware UTC)
-             */
-            session_date: string;
-            /**
-             * Duration Minutes
-             * @description Session duration in minutes (0-480 min, i.e., 0-8 hours)
-             */
-            duration_minutes?: number | null;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Workspace Id
-             * Format: uuid
-             */
-            workspace_id: string;
-            /**
-             * Client Id
-             * Format: uuid
-             */
-            client_id: string;
-            /** Appointment Id */
-            appointment_id: string | null;
-            /**
-             * Created By User Id
-             * Format: uuid
-             */
-            created_by_user_id: string;
-            /** Is Draft */
-            is_draft: boolean;
-            /** Draft Last Saved At */
-            draft_last_saved_at: string | null;
-            /** Finalized At */
-            finalized_at: string | null;
-            /**
-             * Amended At
-             * @description When session was last amended (NULL if never amended)
-             */
-            amended_at?: string | null;
-            /**
-             * Amendment Count
-             * @description Number of times this finalized session has been amended
-             * @default 0
-             */
-            amendment_count: number;
-            /** Version */
-            version: number;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /**
-             * Deleted At
-             * @description When session was soft-deleted (NULL if active)
-             */
-            deleted_at?: string | null;
-            /**
-             * Deleted Reason
-             * @description Optional reason for soft deletion
-             */
-            deleted_reason?: string | null;
-            /**
-             * Deleted By User Id
-             * @description User who soft-deleted this session
-             */
-            deleted_by_user_id?: string | null;
-            /**
-             * Permanent Delete After
-             * @description Date when session will be permanently purged (deleted_at + 30 days)
-             */
-            permanent_delete_after?: string | null;
-            /**
-             * Attachment Count
-             * @description Number of file attachments for this session (excludes deleted)
-             * @default 0
-             */
-            attachment_count: number;
-        };
-        /**
-         * SessionUpdate
-         * @description Schema for updating a session (all fields optional for partial updates).
-         */
-        SessionUpdate: {
-            /** Subjective */
-            subjective?: string | null;
-            /** Objective */
-            objective?: string | null;
-            /** Assessment */
-            assessment?: string | null;
-            /** Plan */
-            plan?: string | null;
-            /** Session Date */
-            session_date?: string | null;
-            /** Duration Minutes */
-            duration_minutes?: number | null;
-        };
-        /**
-         * SessionVersionResponse
-         * @description Schema for session version history responses.
-         *
-         *     Represents a historical snapshot of a session note at a specific point in time.
-         */
-        SessionVersionResponse: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Session Id
-             * Format: uuid
-             */
-            session_id: string;
-            /**
-             * Version Number
-             * @description Version number (1 = original, 2+ = amendments)
-             */
-            version_number: number;
-            /**
-             * Subjective
-             * @description Subjective snapshot (decrypted PHI)
-             */
-            subjective?: string | null;
-            /**
-             * Objective
-             * @description Objective snapshot (decrypted PHI)
-             */
-            objective?: string | null;
-            /**
-             * Assessment
-             * @description Assessment snapshot (decrypted PHI)
-             */
-            assessment?: string | null;
-            /**
-             * Plan
-             * @description Plan snapshot (decrypted PHI)
-             */
-            plan?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             * @description When this version was created (finalized or amended)
-             */
-            created_at: string;
-            /**
-             * Created By User Id
-             * Format: uuid
-             * @description User who created this version
-             */
-            created_by_user_id: string;
-        };
-        /**
-         * SuspendWorkspaceRequest
-         * @description Request schema for suspending workspace.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "reason": "Terms of service violation"
-         *         }
-         *         ```
-         */
-        SuspendWorkspaceRequest: {
-            /**
-             * Reason
-             * @description Reason for suspension (required for audit)
-             */
-            reason: string;
-        };
-        /**
-         * TOTPDisableRequest
-         * @description Request to disable TOTP (requires verification).
-         * @example {
-         *       "totp_code": "123456"
-         *     }
-         */
-        TOTPDisableRequest: {
-            /**
-             * Totp Code
-             * @description Current 6-digit TOTP code or 8-character backup code
-             * @example 123456
-             * @example A1B2C3D4
-             */
-            totp_code: string;
-        };
-        /**
-         * TOTPEnrollResponse
-         * @description Response for TOTP enrollment.
-         */
-        TOTPEnrollResponse: {
-            /**
-             * Secret
-             * @description Base32-encoded TOTP secret (store securely in authenticator)
-             */
-            secret: string;
-            /**
-             * Qr Code
-             * @description Data URI with QR code image (scan with authenticator app)
-             */
-            qr_code: string;
-            /**
-             * Backup Codes
-             * @description One-time backup codes (save offline, shown only once)
-             * @example [
-             *       "A1B2C3D4",
-             *       "E5F6G7H8",
-             *       "I9J0K1L2"
-             *     ]
-             */
-            backup_codes: string[];
-        };
-        /**
-         * TOTPVerifyRequest
-         * @description Request to verify TOTP code during enrollment.
-         */
-        TOTPVerifyRequest: {
-            /**
-             * Code
-             * @description 6-digit TOTP code from authenticator app
-             * @example 123456
-             */
-            code: string;
-        };
-        /**
-         * TOTPVerifyResponse
-         * @description Response for TOTP verification.
-         */
-        TOTPVerifyResponse: {
-            /**
-             * Success
-             * @description Whether verification succeeded
-             */
-            success: boolean;
-            /**
-             * Message
-             * @description Success or error message
-             */
-            message: string;
-        };
-        /**
-         * TokenVerifyRequest
-         * @description Request schema for magic link token verification.
-         *
-         *     Security: Token length validation prevents malformed or suspicious tokens.
-         *     - Min 32 chars: Ensures sufficient entropy (minimum 256 bits for URL-safe base64)
-         *     - Max 128 chars: Prevents buffer overflow or DOS attacks via oversized tokens
-         *     - 384-bit tokens: 48 bytes base64url encoded = 64 characters
-         */
-        TokenVerifyRequest: {
-            /**
-             * Token
-             * @description Magic link token from email (384-bit entropy)
-             * @example abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567890ABCD
-             */
-            token: string;
-        };
-        /**
-         * TokenVerifyResponse
-         * @description Response schema for token verification.
-         */
-        TokenVerifyResponse: {
-            /**
-             * Access Token
-             * @description JWT access token
-             */
-            access_token: string;
-            /**
-             * Token Type
-             * @description Token type
-             * @default bearer
-             */
-            token_type: string;
-            /** @description Authenticated user information */
-            user: components["schemas"]["UserInToken"];
-        };
-        /**
-         * UpdatePaymentConfigRequest
-         * @description Request to update payment configuration.
-         */
-        UpdatePaymentConfigRequest: {
-            /**
-             * Bank Account Details
-             * @description Bank account details for manual payment tracking (free-text)
-             * @example Bank Leumi, Account: 12345, Branch: 678
-             */
-            bank_account_details?: string | null;
-            /**
-             * Payment Link Type
-             * @description Payment link type: 'bit', 'paybox', 'custom', or null to disable
-             * @example bit
-             * @example paybox
-             * @example custom
-             */
-            payment_link_type?: string | null;
-            /**
-             * Payment Link Template
-             * @description Payment link template: phone number for Bit (050-XXXXXXX), URL for PayBox/custom
-             * @example 050-1234567
-             * @example https://paybox.co.il/p/username
-             */
-            payment_link_template?: string | null;
-        };
-        /**
-         * UpdateWorkspaceRequest
-         * @description Request model for updating workspace configuration.
-         */
-        UpdateWorkspaceRequest: {
-            /**
-             * Bank Account Details
-             * @description Bank account details for manual payment tracking (free-text)
-             */
-            bank_account_details?: string | null;
-            /**
-             * Payment Provider
-             * @description Payment provider name (manual, or future automated providers), or null to disable
-             */
-            payment_provider?: string | null;
-            /**
-             * Payment Provider Config
-             * @description Payment provider configuration (API keys, secrets) - will be encrypted (future)
-             */
-            payment_provider_config?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Business Name
-             * @description Legal business name
-             */
-            business_name?: string | null;
-            /**
-             * Business Name Hebrew
-             * @description Business name in Hebrew (שם העסק בעברית)
-             */
-            business_name_hebrew?: string | null;
-            /**
-             * Tax Id
-             * @description Israeli Tax ID (ת.ז. or ח.פ.)
-             */
-            tax_id?: string | null;
-            /**
-             * Business License Number
-             * @description Business license number (מספר רישיון עסק)
-             */
-            business_license_number?: string | null;
-            /**
-             * Business Address
-             * @description Business address for tax receipts
-             */
-            business_address?: string | null;
-            /**
-             * Vat Registered
-             * @description Whether workspace is VAT registered (עוסק מורשה)
-             */
-            vat_registered?: boolean | null;
-            /**
-             * Vat Rate
-             * @description VAT rate percentage (e.g., 17.00 for Israel)
-             */
-            vat_rate?: number | string | null;
-            /**
-             * Payment Auto Send
-             * @description Automatically send payment requests after appointment completion
-             */
-            payment_auto_send?: boolean | null;
-            /**
-             * Payment Send Timing
-             * @description When to send: 'immediately' or 'after_session'
-             */
-            payment_send_timing?: string | null;
-        };
-        /**
-         * UserInToken
-         * @description User information included in token response.
-         */
-        UserInToken: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Workspace Id
-             * Format: uuid
-             */
-            workspace_id: string;
-            /** Email */
-            email: string;
-            /** Full Name */
-            full_name: string;
-            /** Role */
-            role: string;
-            /** Is Active */
-            is_active: boolean;
-            /** Is Platform Admin */
-            is_platform_admin: boolean;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-        };
-        /**
-         * WorkspaceActionResponse
-         * @description Response schema for workspace actions.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "message": "Workspace suspended successfully",
-         *             "workspace_id": "123e4567-...",
-         *             "status": "suspended"
-         *         }
-         *         ```
-         */
-        WorkspaceActionResponse: {
-            /**
-             * Message
-             * @description Action result message
-             */
-            message: string;
-            /**
-             * Workspace Id
-             * Format: uuid
-             * @description Workspace UUID
-             */
-            workspace_id: string;
-            /**
-             * Status
-             * @description New workspace status
-             */
-            status: string;
-        };
-        /**
-         * WorkspaceInfo
-         * @description Workspace information for platform admin.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "id": "123e4567-e89b-12d3-a456-426614174000",
-         *             "name": "Sarah's Massage Therapy",
-         *             "owner_email": "sarah@example.com",
-         *             "status": "active",
-         *             "created_at": "2025-10-01T00:00:00Z",
-         *             "user_count": 1,
-         *             "session_count": 12
-         *         }
-         *         ```
-         */
-        WorkspaceInfo: {
-            /**
-             * Id
-             * Format: uuid
-             * @description Workspace UUID
-             */
-            id: string;
-            /**
-             * Name
-             * @description Workspace name
-             */
-            name: string;
-            /**
-             * Owner Email
-             * @description Workspace owner email
-             */
-            owner_email: string;
-            /**
-             * Status
-             * @description Workspace status (active, suspended, deleted)
-             */
-            status: string;
-            /**
-             * Created At
-             * Format: date-time
-             * @description When workspace was created (UTC)
-             */
-            created_at: string;
-            /**
-             * User Count
-             * @description Number of users in workspace
-             */
-            user_count: number;
-            /**
-             * Session Count
-             * @description Number of sessions in workspace
-             */
-            session_count: number;
-        };
-        /**
-         * WorkspaceResponse
-         * @description Response model for workspace data.
-         */
-        WorkspaceResponse: {
-            /**
-             * Id
-             * Format: uuid
-             * @description Workspace UUID
-             */
-            id: string;
-            /**
-             * Name
-             * @description Workspace name
-             */
-            name: string;
-            /**
-             * Is Active
-             * @description Whether workspace is active
-             */
-            is_active: boolean;
-            /**
-             * Business Name
-             * @description Legal business name
-             */
-            business_name?: string | null;
-            /**
-             * Business Name Hebrew
-             * @description Business name in Hebrew
-             */
-            business_name_hebrew?: string | null;
-            /**
-             * Tax Id
-             * @description Israeli Tax ID
-             */
-            tax_id?: string | null;
-            /**
-             * Business License Number
-             * @description Business license number
-             */
-            business_license_number?: string | null;
-            /**
-             * Business Address
-             * @description Business address
-             */
-            business_address?: string | null;
-            /**
-             * Vat Registered
-             * @description Whether VAT registered
-             */
-            vat_registered: boolean;
-            /**
-             * Vat Rate
-             * @description VAT rate percentage
-             */
-            vat_rate: string;
-            /**
-             * Bank Account Details
-             * @description Bank account details for manual payment tracking
-             */
-            bank_account_details?: string | null;
-            /**
-             * Payment Provider
-             * @description Payment provider name (manual, or future automated providers), or null
-             */
-            payment_provider?: string | null;
-            /**
-             * Payment Auto Send
-             * @description Automatically send payment requests (future feature)
-             */
-            payment_auto_send: boolean;
-            /**
-             * Payment Send Timing
-             * @description When to send: immediately, end_of_day, end_of_month, manual (future feature)
-             */
-            payment_send_timing: string;
-            /**
-             * Storage Used Bytes
-             * @description Storage used in bytes
-             */
-            storage_used_bytes: number;
-            /**
-             * Storage Quota Bytes
-             * @description Storage quota in bytes
-             */
-            storage_quota_bytes: number;
-            /**
-             * Timezone
-             * @description IANA timezone name
-             */
-            timezone?: string | null;
-        };
-        /**
-         * WorkspaceStorageQuotaUpdateRequest
-         * @description Request model for updating workspace storage quota.
-         */
-        WorkspaceStorageQuotaUpdateRequest: {
-            /**
-             * Quota Bytes
-             * @description New storage quota in bytes (must be positive)
-             */
-            quota_bytes: number;
-        };
-        /**
-         * WorkspaceStorageUsageResponse
-         * @description Response model for workspace storage usage.
-         */
-        WorkspaceStorageUsageResponse: {
-            /**
-             * Used Bytes
-             * @description Total bytes used by all files in workspace
-             */
-            used_bytes: number;
-            /**
-             * Quota Bytes
-             * @description Maximum storage allowed for workspace in bytes
-             */
-            quota_bytes: number;
-            /**
-             * Remaining Bytes
-             * @description Bytes remaining (can be negative if quota exceeded)
-             */
-            remaining_bytes: number;
-            /**
-             * Usage Percentage
-             * @description Percentage of quota used (0-100+)
-             */
-            usage_percentage: number;
-            /**
-             * Is Quota Exceeded
-             * @description True if storage usage exceeds quota
-             */
-            is_quota_exceeded: boolean;
-            /**
-             * Used Mb
-             * @description Storage used in megabytes
-             */
-            used_mb: number;
-            /**
-             * Quota Mb
-             * @description Quota in megabytes
-             */
-            quota_mb: number;
-            /**
-             * Remaining Mb
-             * @description Remaining storage in megabytes
-             */
-            remaining_mb: number;
-        };
-        /**
-         * WorkspacesResponse
-         * @description Response schema for workspaces list.
-         *
-         *     Example:
-         *         ```json
-         *         {
-         *             "workspaces": [
-         *                 {
-         *                     "id": "123e4567-...",
-         *                     "name": "Sarah's Massage Therapy",
-         *                     "owner_email": "sarah@example.com",
-         *                     "status": "active",
-         *                     "created_at": "2025-10-01T00:00:00Z",
-         *                     "user_count": 1,
-         *                     "session_count": 12
-         *                 }
-         *             ]
-         *         }
-         *         ```
-         */
-        WorkspacesResponse: {
-            /**
-             * Workspaces
-             * @description List of workspaces
-             */
-            workspaces?: components["schemas"]["WorkspaceInfo"][];
-        };
-    };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+  schemas: {
+    /**
+     * Activity
+     * @description Single activity event.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "type": "workspace.created",
+     *             "timestamp": "2025-10-22T10:30:00Z",
+     *             "description": "New workspace created: Sarah's Massage Therapy",
+     *             "metadata": {"workspace_id": "123e4567-...", "user_id": "987e6543-..."}
+     *         }
+     *         ```
+     */
+    Activity: {
+      /**
+       * Type
+       * @description Activity type (e.g., workspace.created)
+       */
+      type: string
+      /**
+       * Timestamp
+       * Format: date-time
+       * @description When activity occurred (UTC)
+       */
+      timestamp: string
+      /**
+       * Description
+       * @description Human-readable activity description
+       */
+      description: string
+      /**
+       * Metadata
+       * @description Additional activity context
+       */
+      metadata?: {
+        [key: string]: unknown
+      } | null
+    }
+    /**
+     * ActivityResponse
+     * @description Response schema for activity timeline.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "activities": [
+     *                 {
+     *                     "type": "workspace.created",
+     *                     "timestamp": "2025-10-22T10:30:00Z",
+     *                     "description": "New workspace created",
+     *                     "metadata": {}
+     *                 }
+     *             ],
+     *             "total_count": 247,
+     *             "has_more": true,
+     *             "displayed_count": 20
+     *         }
+     *         ```
+     */
+    ActivityResponse: {
+      /**
+       * Activities
+       * @description Recent platform activities
+       */
+      activities?: components['schemas']['Activity'][]
+      /**
+       * Total Count
+       * @description Total number of events in last 90 days
+       */
+      total_count: number
+      /**
+       * Has More
+       * @description Whether more events are available beyond current page
+       */
+      has_more: boolean
+      /**
+       * Displayed Count
+       * @description Number of events in current response
+       */
+      displayed_count: number
+    }
+    /**
+     * AddToBlacklistRequest
+     * @description Request schema for adding email to blacklist.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "email": "spam@example.com",
+     *             "reason": "Repeated spam signups"
+     *         }
+     *         ```
+     */
+    AddToBlacklistRequest: {
+      /**
+       * Email
+       * Format: email
+       * @description Email address to blacklist
+       */
+      email: string
+      /**
+       * Reason
+       * @description Reason for blacklisting (required for audit)
+       */
+      reason: string
+    }
+    /**
+     * AppointmentCreate
+     * @description Schema for creating a new appointment.
+     *
+     *     SECURITY: workspace_id is NOT accepted from client requests.
+     *     It is automatically injected from the authenticated user's session.
+     *     This prevents workspace injection vulnerabilities.
+     */
+    AppointmentCreate: {
+      /**
+       * Client Id
+       * Format: uuid
+       * @description ID of the client for this appointment
+       */
+      client_id: string
+      /**
+       * Scheduled Start
+       * Format: date-time
+       * @description Start time (timezone-aware UTC)
+       */
+      scheduled_start: string
+      /**
+       * Scheduled End
+       * Format: date-time
+       * @description End time (timezone-aware UTC)
+       */
+      scheduled_end: string
+      /** @description Type of location (clinic/home/online) */
+      location_type: components['schemas']['LocationType']
+      /**
+       * Location Details
+       * @description Additional location details
+       */
+      location_details?: string | null
+      /**
+       * Notes
+       * @description Therapist notes for the appointment
+       */
+      notes?: string | null
+      /**
+       * Payment Price
+       * @description Actual price for this appointment (overrides service price if set)
+       */
+      payment_price?: number | string | null
+      /**
+       * @description Payment status: not_paid (default), paid, payment_sent, waived
+       * @default not_paid
+       */
+      payment_status: components['schemas']['PaymentStatus']
+      /** @description Payment method: cash, card, bank_transfer, bit, paybox, other */
+      payment_method?: components['schemas']['PaymentMethod'] | null
+      /**
+       * Payment Notes
+       * @description Free-text notes about payment (e.g., invoice number, special terms)
+       */
+      payment_notes?: string | null
+    }
+    /**
+     * AppointmentDeleteRequest
+     * @description Schema for deleting an appointment with optional reason and session note action.
+     */
+    AppointmentDeleteRequest: {
+      /**
+       * Reason
+       * @description Optional reason for deletion (logged in audit trail)
+       */
+      reason?: string | null
+      /**
+       * Session Note Action
+       * @description Action to take with session notes attached to this appointment. 'delete' = soft delete the session note with 30-day grace period, 'keep' = leave the session note unchanged (default if not specified). Required if appointment has session notes and you want to delete them.
+       */
+      session_note_action?: ('delete' | 'keep') | null
+      /**
+       * Deletion Reason
+       * @description Optional reason for deleting the session note (only used if session_note_action='delete'). This is separate from the appointment deletion reason and is stored with the soft-deleted session note.
+       */
+      deletion_reason?: string | null
+    }
+    /**
+     * AppointmentListResponse
+     * @description Schema for paginated appointment list response.
+     */
+    AppointmentListResponse: {
+      /** Items */
+      items: components['schemas']['AppointmentResponse'][]
+      /** Total */
+      total: number
+      /** Page */
+      page: number
+      /** Page Size */
+      page_size: number
+      /** Total Pages */
+      total_pages: number
+    }
+    /**
+     * AppointmentPaymentUpdate
+     * @description Schema for updating payment status on an appointment (Phase 1).
+     */
+    AppointmentPaymentUpdate: {
+      /**
+       * Payment Status
+       * @description Payment status: not_paid, paid, payment_sent, waived
+       * @enum {string}
+       */
+      payment_status: 'not_paid' | 'paid' | 'payment_sent' | 'waived'
+      /**
+       * Payment Method
+       * @description Payment method: cash, card, bank_transfer, bit, paybox, other
+       */
+      payment_method?:
+        | ('cash' | 'card' | 'bank_transfer' | 'bit' | 'paybox' | 'other')
+        | null
+      /**
+       * Payment Price
+       * @description Actual price for this appointment (optional update)
+       */
+      payment_price?: number | string | null
+      /**
+       * Payment Notes
+       * @description Free-text notes about payment (e.g., invoice number, special terms)
+       */
+      payment_notes?: string | null
+      /**
+       * Paid At
+       * @description Timestamp when payment was marked as paid (auto-set if not provided when status='paid')
+       */
+      paid_at?: string | null
+    }
+    /**
+     * AppointmentResponse
+     * @description Schema for appointment API responses.
+     */
+    AppointmentResponse: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * Workspace Id
+       * Format: uuid
+       */
+      workspace_id: string
+      /**
+       * Client Id
+       * Format: uuid
+       */
+      client_id: string
+      /**
+       * Scheduled Start
+       * Format: date-time
+       */
+      scheduled_start: string
+      /**
+       * Scheduled End
+       * Format: date-time
+       */
+      scheduled_end: string
+      location_type: components['schemas']['LocationType']
+      /** Location Details */
+      location_details: string | null
+      status: components['schemas']['AppointmentStatus']
+      /** Notes */
+      notes: string | null
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+      /**
+       * Edited At
+       * @description When appointment was last edited (NULL if never edited)
+       */
+      edited_at?: string | null
+      /**
+       * Edit Count
+       * @description Number of times this appointment has been edited
+       * @default 0
+       */
+      edit_count: number
+      /** @description Client information (included when requested) */
+      client?: components['schemas']['ClientSummary'] | null
+      /**
+       * Payment Price
+       * @description Actual price for this appointment (null = no price set)
+       */
+      payment_price?: string | null
+      /**
+       * Payment Status
+       * @description Payment status: not_paid, paid, payment_sent, waived
+       * @default not_paid
+       */
+      payment_status: string
+      /**
+       * Payment Method
+       * @description Payment method: cash, card, bank_transfer, bit, paybox, other
+       */
+      payment_method?: string | null
+      /**
+       * Payment Notes
+       * @description Free-text notes about payment (e.g., invoice number, special terms)
+       */
+      payment_notes?: string | null
+      /**
+       * Paid At
+       * @description Timestamp when payment was marked as paid
+       */
+      paid_at?: string | null
+    }
+    /**
+     * AppointmentStatus
+     * @description Status of an appointment.
+     * @enum {string}
+     */
+    AppointmentStatus: 'scheduled' | 'attended' | 'cancelled' | 'no_show'
+    /**
+     * AppointmentUpdate
+     * @description Schema for updating an existing appointment.
+     */
+    AppointmentUpdate: {
+      /**
+       * Client Id
+       * @description ID of the client for this appointment
+       */
+      client_id?: string | null
+      /**
+       * Scheduled Start
+       * @description Start time (timezone-aware UTC)
+       */
+      scheduled_start?: string | null
+      /**
+       * Scheduled End
+       * @description End time (timezone-aware UTC)
+       */
+      scheduled_end?: string | null
+      /** @description Type of location */
+      location_type?: components['schemas']['LocationType'] | null
+      /**
+       * Location Details
+       * @description Additional location details
+       */
+      location_details?: string | null
+      /** @description Appointment status. Valid transitions: scheduled→attended, scheduled→cancelled, scheduled→no_show, attended→no_show, cancelled→scheduled, no_show→scheduled, no_show→attended. Cannot cancel attended appointments with session notes (delete session first). Cannot revert attended appointments to scheduled. */
+      status?: components['schemas']['AppointmentStatus'] | null
+      /**
+       * Notes
+       * @description Therapist notes
+       */
+      notes?: string | null
+      /**
+       * Payment Price
+       * @description Actual price for this appointment (overrides service price if set)
+       */
+      payment_price?: number | string | null
+      /** @description Payment status: not_paid, paid, payment_sent, waived */
+      payment_status?: components['schemas']['PaymentStatus'] | null
+      /** @description Payment method: cash, card, bank_transfer, bit, paybox, other */
+      payment_method?: components['schemas']['PaymentMethod'] | null
+      /**
+       * Payment Notes
+       * @description Free-text notes about payment (e.g., invoice number, special terms)
+       */
+      payment_notes?: string | null
+      /**
+       * Paid At
+       * @description Timestamp when payment was marked as paid (auto-set if not provided when status='paid')
+       */
+      paid_at?: string | null
+    }
+    /**
+     * AttachmentRenameRequest
+     * @description Request schema for renaming an attachment.
+     *
+     *     The filename is validated and normalized:
+     *     - Whitespace is trimmed
+     *     - Length must be 1-255 characters
+     *     - Invalid characters are rejected: / \ : * ? " < > |
+     *     - File extension is preserved automatically
+     *     - Duplicate filenames are rejected
+     */
+    AttachmentRenameRequest: {
+      /**
+       * File Name
+       * @description New filename (extension will be preserved automatically)
+       * @example Treatment notes - Oct 2025
+       * @example Left shoulder pain
+       */
+      file_name: string
+    }
+    /**
+     * AuditAction
+     * @description Audit action types.
+     * @enum {string}
+     */
+    AuditAction:
+      | 'CREATE'
+      | 'READ'
+      | 'UPDATE'
+      | 'DELETE'
+      | 'LOGIN'
+      | 'LOGOUT'
+      | 'EXPORT'
+      | 'PRINT'
+      | 'SHARE'
+      | 'DISCLOSE'
+    /**
+     * AuditEventListResponse
+     * @description Paginated response for audit event list.
+     */
+    AuditEventListResponse: {
+      /**
+       * Items
+       * @description List of audit events
+       */
+      items: components['schemas']['AuditEventResponse'][]
+      /**
+       * Total
+       * @description Total number of audit events matching filters
+       */
+      total: number
+      /**
+       * Page
+       * @description Current page number (1-indexed)
+       */
+      page: number
+      /**
+       * Page Size
+       * @description Number of items per page
+       */
+      page_size: number
+      /**
+       * Total Pages
+       * @description Total number of pages
+       */
+      total_pages: number
+    }
+    /**
+     * AuditEventResponse
+     * @description Response schema for a single audit event.
+     */
+    AuditEventResponse: {
+      /**
+       * Id
+       * Format: uuid
+       * @description Unique identifier for the audit event
+       */
+      id: string
+      /**
+       * Workspace Id
+       * Format: uuid
+       * @description Workspace this event belongs to
+       */
+      workspace_id: string
+      /**
+       * User Id
+       * @description User who performed the action (None for system events)
+       */
+      user_id: string | null
+      /**
+       * Event Type
+       * @description Event type (e.g., 'client.read', 'session.create')
+       */
+      event_type: string
+      /**
+       * Resource Type
+       * @description Type of resource (Client, Session, Appointment, etc.)
+       */
+      resource_type: string
+      /**
+       * Resource Id
+       * @description ID of the resource being accessed or modified
+       */
+      resource_id: string | null
+      /** @description Action performed (CREATE, READ, UPDATE, DELETE, etc.) */
+      action: components['schemas']['AuditAction']
+      /**
+       * Ip Address
+       * @description IP address of the user
+       */
+      ip_address: string | null
+      /**
+       * User Agent
+       * @description User agent string from the request
+       */
+      user_agent: string | null
+      /**
+       * Metadata
+       * @description Additional context (NO PII/PHI)
+       */
+      metadata: {
+        [key: string]: unknown
+      } | null
+      /**
+       * Created At
+       * Format: date-time
+       * @description When the event occurred
+       */
+      created_at: string
+    }
+    /**
+     * BlacklistActionResponse
+     * @description Response schema for blacklist actions.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "message": "Email added to blacklist",
+     *             "email": "spam@example.com"
+     *         }
+     *         ```
+     */
+    BlacklistActionResponse: {
+      /**
+       * Message
+       * @description Action result message
+       */
+      message: string
+      /**
+       * Email
+       * @description Affected email address
+       */
+      email: string
+    }
+    /**
+     * BlacklistEntry
+     * @description Single blacklist entry.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "email": "blocked@example.com",
+     *             "reason": "Spam account",
+     *             "added_at": "2025-10-22T10:30:00Z",
+     *             "added_by": "admin@example.com"
+     *         }
+     *         ```
+     */
+    BlacklistEntry: {
+      /**
+       * Email
+       * @description Blacklisted email address
+       */
+      email: string
+      /**
+       * Reason
+       * @description Reason for blacklisting
+       */
+      reason: string
+      /**
+       * Added At
+       * Format: date-time
+       * @description When email was blacklisted (UTC)
+       */
+      added_at: string
+      /**
+       * Added By
+       * @description Email of admin who added entry
+       */
+      added_by?: string | null
+    }
+    /**
+     * BlacklistResponse
+     * @description Response schema for blacklist.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "blacklist": [
+     *                 {
+     *                     "email": "blocked@example.com",
+     *                     "reason": "Spam account",
+     *                     "added_at": "2025-10-22T10:30:00Z",
+     *                     "added_by": "admin@example.com"
+     *                 }
+     *             ]
+     *         }
+     *         ```
+     */
+    BlacklistResponse: {
+      /**
+       * Blacklist
+       * @description Blacklisted emails
+       */
+      blacklist?: components['schemas']['BlacklistEntry'][]
+    }
+    /** Body_upload_client_attachment_api_v1_clients__client_id__attachments_post */
+    Body_upload_client_attachment_api_v1_clients__client_id__attachments_post: {
+      /**
+       * File
+       * Format: binary
+       */
+      file: string
+    }
+    /** Body_upload_session_attachment_api_v1_sessions__session_id__attachments_post */
+    Body_upload_session_attachment_api_v1_sessions__session_id__attachments_post: {
+      /**
+       * File
+       * Format: binary
+       */
+      file: string
+    }
+    /**
+     * BulkDownloadRequest
+     * @description Request schema for bulk downloading multiple attachments as a ZIP file.
+     *
+     *     Validation:
+     *     - At least 1 attachment ID required
+     *     - Maximum 50 attachments per request (prevents abuse)
+     *     - All attachment IDs must be valid UUIDs
+     *
+     *     Security:
+     *     - All attachments must belong to the specified client
+     *     - All attachments must belong to user's workspace
+     *     - Total file size limited to 100 MB
+     */
+    BulkDownloadRequest: {
+      /**
+       * Attachment Ids
+       * @description List of attachment UUIDs to download (1-50 files)
+       * @example [
+       *       "12345678-1234-5678-1234-567812345678",
+       *       "87654321-4321-8765-4321-876543218765"
+       *     ]
+       */
+      attachment_ids: string[]
+    }
+    /**
+     * ClientCreate
+     * @description Schema for creating a new client.
+     *
+     *     SECURITY: workspace_id is NOT accepted from client requests.
+     *     It is automatically injected from the authenticated user's session.
+     *     This prevents workspace injection vulnerabilities.
+     */
+    ClientCreate: {
+      /**
+       * First Name
+       * @description Client's first name
+       */
+      first_name: string
+      /**
+       * Last Name
+       * @description Client's last name
+       */
+      last_name: string
+      /**
+       * Email
+       * @description Client's email address
+       */
+      email?: string | null
+      /**
+       * Phone
+       * @description Client's phone number
+       */
+      phone?: string | null
+      /**
+       * Date Of Birth
+       * @description Client's date of birth
+       */
+      date_of_birth?: string | null
+      /**
+       * Address
+       * @description Client's physical address
+       */
+      address?: string | null
+      /**
+       * Medical History
+       * @description Relevant medical history and conditions (PHI)
+       */
+      medical_history?: string | null
+      /**
+       * Emergency Contact Name
+       * @description Emergency contact person's name
+       */
+      emergency_contact_name?: string | null
+      /**
+       * Emergency Contact Phone
+       * @description Emergency contact phone number
+       */
+      emergency_contact_phone?: string | null
+      /**
+       * Is Active
+       * @description Active status (false = archived/soft deleted)
+       * @default true
+       */
+      is_active: boolean
+      /**
+       * Consent Status
+       * @description Client consent to store and process data
+       * @default false
+       */
+      consent_status: boolean
+      /**
+       * Google Calendar Consent
+       * @description Client consent to receive Google Calendar invitations (opt-out model: True=consented by default, False=opted out)
+       * @default true
+       */
+      google_calendar_consent: boolean | null
+      /**
+       * Notes
+       * @description General notes about the client
+       */
+      notes?: string | null
+      /**
+       * Tags
+       * @description Tags for categorization and filtering
+       */
+      tags?: string[] | null
+    }
+    /**
+     * ClientListResponse
+     * @description Schema for paginated client list response.
+     */
+    ClientListResponse: {
+      /** Items */
+      items: components['schemas']['ClientResponse'][]
+      /** Total */
+      total: number
+      /** Page */
+      page: number
+      /** Page Size */
+      page_size: number
+      /** Total Pages */
+      total_pages: number
+    }
+    /**
+     * ClientResponse
+     * @description Schema for client API responses.
+     */
+    ClientResponse: {
+      /**
+       * First Name
+       * @description Client's first name
+       */
+      first_name: string
+      /**
+       * Last Name
+       * @description Client's last name
+       */
+      last_name: string
+      /**
+       * Email
+       * @description Client's email address
+       */
+      email?: string | null
+      /**
+       * Phone
+       * @description Client's phone number
+       */
+      phone?: string | null
+      /**
+       * Date Of Birth
+       * @description Client's date of birth
+       */
+      date_of_birth?: string | null
+      /**
+       * Address
+       * @description Client's physical address
+       */
+      address?: string | null
+      /**
+       * Medical History
+       * @description Relevant medical history and conditions (PHI)
+       */
+      medical_history?: string | null
+      /**
+       * Emergency Contact Name
+       * @description Emergency contact person's name
+       */
+      emergency_contact_name?: string | null
+      /**
+       * Emergency Contact Phone
+       * @description Emergency contact phone number
+       */
+      emergency_contact_phone?: string | null
+      /**
+       * Is Active
+       * @description Active status (false = archived/soft deleted)
+       * @default true
+       */
+      is_active: boolean
+      /**
+       * Consent Status
+       * @description Client consent to store and process data
+       * @default false
+       */
+      consent_status: boolean
+      /**
+       * Google Calendar Consent
+       * @description Client consent to receive Google Calendar invitations (opt-out model: True=consented by default, False=opted out)
+       * @default true
+       */
+      google_calendar_consent: boolean | null
+      /**
+       * Notes
+       * @description General notes about the client
+       */
+      notes?: string | null
+      /**
+       * Tags
+       * @description Tags for categorization and filtering
+       */
+      tags?: string[] | null
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * Workspace Id
+       * Format: uuid
+       */
+      workspace_id: string
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+      /**
+       * Google Calendar Consent Date
+       * @description Date when client consented to Google Calendar invitations
+       */
+      google_calendar_consent_date?: string | null
+      /**
+       * Next Appointment
+       * @description Next scheduled appointment after now
+       */
+      next_appointment?: string | null
+      /**
+       * Last Appointment
+       * @description Most recent completed appointment
+       */
+      last_appointment?: string | null
+      /**
+       * Appointment Count
+       * @description Total number of appointments
+       * @default 0
+       */
+      appointment_count: number
+      /**
+       * Full Name
+       * @description Full name of the client.
+       */
+      readonly full_name: string
+    }
+    /**
+     * ClientSummary
+     * @description Summary of client information for appointment responses.
+     */
+    ClientSummary: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** First Name */
+      first_name: string
+      /** Last Name */
+      last_name: string
+      /** Full Name */
+      full_name: string
+    }
+    /**
+     * ClientUpdate
+     * @description Schema for updating an existing client.
+     */
+    ClientUpdate: {
+      /** First Name */
+      first_name?: string | null
+      /** Last Name */
+      last_name?: string | null
+      /** Email */
+      email?: string | null
+      /** Phone */
+      phone?: string | null
+      /** Date Of Birth */
+      date_of_birth?: string | null
+      /** Address */
+      address?: string | null
+      /** Medical History */
+      medical_history?: string | null
+      /** Emergency Contact Name */
+      emergency_contact_name?: string | null
+      /** Emergency Contact Phone */
+      emergency_contact_phone?: string | null
+      /** Is Active */
+      is_active?: boolean | null
+      /** Consent Status */
+      consent_status?: boolean | null
+      /** Google Calendar Consent */
+      google_calendar_consent?: boolean | null
+      /** Notes */
+      notes?: string | null
+      /** Tags */
+      tags?: string[] | null
+    }
+    /**
+     * ConflictCheckResponse
+     * @description Schema for conflict check response.
+     */
+    ConflictCheckResponse: {
+      /**
+       * Has Conflict
+       * @description Whether a conflict exists
+       */
+      has_conflict: boolean
+      /**
+       * Conflicting Appointments
+       * @description List of conflicting appointments with privacy-preserving details
+       */
+      conflicting_appointments?: components['schemas']['ConflictingAppointmentDetail'][]
+    }
+    /**
+     * ConflictingAppointmentDetail
+     * @description Privacy-preserving details of a conflicting appointment.
+     */
+    ConflictingAppointmentDetail: {
+      /**
+       * Id
+       * Format: uuid
+       * @description Appointment ID
+       */
+      id: string
+      /**
+       * Scheduled Start
+       * Format: date-time
+       * @description Start time
+       */
+      scheduled_start: string
+      /**
+       * Scheduled End
+       * Format: date-time
+       * @description End time
+       */
+      scheduled_end: string
+      /**
+       * Client Initials
+       * @description Client initials for privacy (e.g., 'J.D.')
+       */
+      client_initials: string
+      /** @description Location type */
+      location_type: components['schemas']['LocationType']
+      /** @description Appointment status */
+      status: components['schemas']['AppointmentStatus']
+    }
+    /**
+     * DeleteWorkspaceRequest
+     * @description Request schema for deleting workspace.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "reason": "User requested account deletion"
+     *         }
+     *         ```
+     */
+    DeleteWorkspaceRequest: {
+      /**
+       * Reason
+       * @description Reason for deletion (required for audit)
+       */
+      reason: string
+    }
+    /**
+     * GoogleCalendarAuthorizeResponse
+     * @description Response schema for OAuth authorization URL generation.
+     *
+     *     Contains the Google OAuth 2.0 authorization URL that the frontend should
+     *     redirect the user to for granting calendar access permissions.
+     *
+     *     Attributes:
+     *         authorization_url: Full OAuth URL with all required parameters
+     */
+    GoogleCalendarAuthorizeResponse: {
+      /**
+       * Authorization Url
+       * @description Google OAuth 2.0 authorization URL for user to grant access
+       */
+      authorization_url: string
+    }
+    /**
+     * GoogleCalendarSettingsResponse
+     * @description Response schema for Google Calendar settings.
+     *
+     *     Attributes:
+     *         enabled: Whether automatic sync is enabled
+     *         sync_client_names: Whether client names are included in events
+     *         notify_clients: Whether client notifications are enabled
+     *         last_sync_at: Timestamp of last successful sync
+     *         last_sync_status: Status of last sync ("success" or "error")
+     *         last_sync_error: Error message if last sync failed
+     */
+    GoogleCalendarSettingsResponse: {
+      /**
+       * Enabled
+       * @description Whether automatic sync is enabled
+       */
+      enabled: boolean
+      /**
+       * Sync Client Names
+       * @description Whether client names are included in calendar events
+       */
+      sync_client_names: boolean
+      /**
+       * Notify Clients
+       * @description Whether client notifications are enabled
+       */
+      notify_clients: boolean
+      /**
+       * Has Google Baa
+       * @description Whether therapist has Google Workspace BAA signed
+       */
+      has_google_baa: boolean
+      /**
+       * Last Sync At
+       * @description Timestamp of last sync (UTC)
+       */
+      last_sync_at?: string | null
+      /**
+       * Last Sync Status
+       * @description Last sync status: "success" or "error"
+       */
+      last_sync_status?: string | null
+      /**
+       * Last Sync Error
+       * @description Error message if last sync failed
+       */
+      last_sync_error?: string | null
+    }
+    /**
+     * GoogleCalendarSettingsUpdate
+     * @description Request schema for updating Google Calendar sync settings.
+     *
+     *     All fields are optional to support partial updates.
+     *
+     *     Attributes:
+     *         enabled: Enable/disable automatic sync
+     *         sync_client_names: Include client names in calendar event titles
+     *         notify_clients: Send Google Calendar invitations to clients (requires client email)
+     *
+     *     Example:
+     *         {
+     *             "enabled": true,
+     *             "sync_client_names": false,
+     *             "notify_clients": true
+     *         }
+     */
+    GoogleCalendarSettingsUpdate: {
+      /**
+       * Enabled
+       * @description Enable or disable automatic calendar sync
+       */
+      enabled?: boolean | null
+      /**
+       * Sync Client Names
+       * @description Include client names in calendar event titles (HIPAA consideration)
+       */
+      sync_client_names?: boolean | null
+      /**
+       * Notify Clients
+       * @description Send Google Calendar invitations to clients (requires client email)
+       */
+      notify_clients?: boolean | null
+      /**
+       * Has Google Baa
+       * @description Confirm Google Workspace Business Associate Agreement (BAA) is signed
+       */
+      has_google_baa?: boolean | null
+    }
+    /**
+     * GoogleCalendarStatusResponse
+     * @description Response schema for Google Calendar integration status.
+     *
+     *     Indicates whether the current user has connected their Google Calendar account,
+     *     when the last sync occurred, and whether sync is currently enabled.
+     *
+     *     Attributes:
+     *         connected: True if user has authorized Google Calendar access
+     *         enabled: True if sync is active, False if paused
+     *         sync_client_names: Whether client names are included in calendar events
+     *         notify_clients: Whether client notifications are enabled
+     *         last_sync_at: Timestamp of most recent calendar sync (None if never synced)
+     */
+    GoogleCalendarStatusResponse: {
+      /**
+       * Connected
+       * @description Whether Google Calendar is connected for this user
+       */
+      connected: boolean
+      /**
+       * Enabled
+       * @description Whether calendar sync is currently enabled
+       * @default false
+       */
+      enabled: boolean
+      /**
+       * Sync Client Names
+       * @description Whether client names are included in calendar events
+       * @default false
+       */
+      sync_client_names: boolean
+      /**
+       * Notify Clients
+       * @description Whether client notifications are enabled
+       * @default false
+       */
+      notify_clients: boolean
+      /**
+       * Has Google Baa
+       * @description Whether therapist has Google Workspace BAA signed
+       * @default false
+       */
+      has_google_baa: boolean
+      /**
+       * Last Sync At
+       * @description Timestamp of last calendar sync (UTC, None if never synced)
+       */
+      last_sync_at?: string | null
+    }
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: components['schemas']['ValidationError'][]
+    }
+    /**
+     * InviteTherapistRequest
+     * @description Request schema for inviting a therapist.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "workspace_name": "Sarah's Massage Therapy",
+     *             "therapist_email": "sarah@example.com",
+     *             "therapist_full_name": "Sarah Chen"
+     *         }
+     *         ```
+     */
+    InviteTherapistRequest: {
+      /**
+       * Workspace Name
+       * @description Name of the workspace to create
+       * @example Sarah's Massage Therapy
+       */
+      workspace_name: string
+      /**
+       * Therapist Email
+       * Format: email
+       * @description Email address of the therapist (must be unique)
+       * @example sarah@example.com
+       */
+      therapist_email: string
+      /**
+       * Therapist Full Name
+       * @description Full name of the therapist
+       * @example Sarah Chen
+       */
+      therapist_full_name: string
+    }
+    /**
+     * InviteTherapistResponse
+     * @description Response schema for therapist invitation.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "workspace_id": "123e4567-e89b-12d3-a456-426614174000",
+     *             "user_id": "987e6543-e21b-34c5-b678-123456789012",
+     *             "invitation_url": "https://app.pazpaz.com/accept-invitation?token=..."
+     *         }
+     *         ```
+     */
+    InviteTherapistResponse: {
+      /**
+       * Workspace Id
+       * Format: uuid
+       * @description UUID of the created workspace
+       */
+      workspace_id: string
+      /**
+       * User Id
+       * Format: uuid
+       * @description UUID of the created user (therapist)
+       */
+      user_id: string
+      /**
+       * Invitation Url
+       * @description Magic link URL to send to therapist via email
+       * @example https://app.pazpaz.com/accept-invitation?token=abc123...
+       */
+      invitation_url: string
+    }
+    /**
+     * LocationCreate
+     * @description Schema for creating a new location.
+     *
+     *     SECURITY: workspace_id is NOT accepted from client requests.
+     *     It is automatically injected from the authenticated user's session.
+     *     This prevents workspace injection vulnerabilities.
+     */
+    LocationCreate: {
+      /**
+       * Name
+       * @description Location name
+       */
+      name: string
+      /** @description Type: clinic, home, or online */
+      location_type: components['schemas']['LocationType']
+      /**
+       * Address
+       * @description Physical address for clinic or home visits
+       */
+      address?: string | null
+      /**
+       * Details
+       * @description Additional details (room, video link, parking)
+       */
+      details?: string | null
+      /**
+       * Is Active
+       * @description Active locations appear in scheduling UI
+       * @default true
+       */
+      is_active: boolean
+    }
+    /**
+     * LocationListResponse
+     * @description Schema for paginated location list response.
+     */
+    LocationListResponse: {
+      /** Items */
+      items: components['schemas']['LocationResponse'][]
+      /** Total */
+      total: number
+      /** Page */
+      page: number
+      /** Page Size */
+      page_size: number
+      /** Total Pages */
+      total_pages: number
+    }
+    /**
+     * LocationResponse
+     * @description Schema for location API responses.
+     */
+    LocationResponse: {
+      /**
+       * Name
+       * @description Location name
+       */
+      name: string
+      /** @description Type: clinic, home, or online */
+      location_type: components['schemas']['LocationType']
+      /**
+       * Address
+       * @description Physical address for clinic or home visits
+       */
+      address?: string | null
+      /**
+       * Details
+       * @description Additional details (room, video link, parking)
+       */
+      details?: string | null
+      /**
+       * Is Active
+       * @description Active locations appear in scheduling UI
+       * @default true
+       */
+      is_active: boolean
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * Workspace Id
+       * Format: uuid
+       */
+      workspace_id: string
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+    }
+    /**
+     * LocationType
+     * @description Type of location for an appointment.
+     * @enum {string}
+     */
+    LocationType: 'clinic' | 'home' | 'online'
+    /**
+     * LocationUpdate
+     * @description Schema for updating an existing location.
+     */
+    LocationUpdate: {
+      /** Name */
+      name?: string | null
+      location_type?: components['schemas']['LocationType'] | null
+      /** Address */
+      address?: string | null
+      /** Details */
+      details?: string | null
+      /** Is Active */
+      is_active?: boolean | null
+    }
+    /**
+     * LogoutResponse
+     * @description Response schema for logout.
+     */
+    LogoutResponse: {
+      /**
+       * Message
+       * @description Success message
+       * @default Logged out successfully
+       */
+      message: string
+    }
+    /**
+     * MagicLink2FARequest
+     * @description Request to complete authentication with 2FA after magic link.
+     */
+    MagicLink2FARequest: {
+      /**
+       * Temp Token
+       * @description Temporary token from magic link verification
+       */
+      temp_token: string
+      /**
+       * Totp Code
+       * @description 6-digit TOTP code or 8-character backup code
+       * @example 123456
+       * @example A1B2C3D4
+       */
+      totp_code: string
+    }
+    /**
+     * MagicLink2FAResponse
+     * @description Response for 2FA verification after magic link.
+     */
+    MagicLink2FAResponse: {
+      /**
+       * Access Token
+       * @description JWT access token
+       */
+      access_token: string
+      /**
+       * Token Type
+       * @description Token type
+       * @default bearer
+       */
+      token_type: string
+      /** @description Authenticated user information */
+      user: components['schemas']['UserInToken']
+    }
+    /**
+     * MagicLinkRequest
+     * @description Request schema for magic link generation.
+     */
+    MagicLinkRequest: {
+      /**
+       * Email
+       * Format: email
+       * @description Email address to send magic link to
+       */
+      email: string
+    }
+    /**
+     * MagicLinkResponse
+     * @description Response schema for magic link request.
+     */
+    MagicLinkResponse: {
+      /**
+       * Message
+       * @description Success message (generic to prevent email enumeration)
+       * @default If an account exists with this email, a login link has been sent.
+       */
+      message: string
+    }
+    /**
+     * NotificationSettingsResponse
+     * @description Response schema for user notification settings.
+     *
+     *     This schema represents the complete notification settings for a user,
+     *     including all email notification preferences, digest settings, and reminders.
+     */
+    NotificationSettingsResponse: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string
+      /**
+       * Workspace Id
+       * Format: uuid
+       */
+      workspace_id: string
+      /**
+       * Email Enabled
+       * @description Master toggle - when false, no emails are sent
+       */
+      email_enabled: boolean
+      /**
+       * Notify Appointment Booked
+       * @description Send email when new appointment is booked
+       */
+      notify_appointment_booked: boolean
+      /**
+       * Notify Appointment Cancelled
+       * @description Send email when appointment is cancelled
+       */
+      notify_appointment_cancelled: boolean
+      /**
+       * Notify Appointment Rescheduled
+       * @description Send email when appointment is rescheduled
+       */
+      notify_appointment_rescheduled: boolean
+      /**
+       * Notify Appointment Confirmed
+       * @description Send email when client confirms appointment
+       */
+      notify_appointment_confirmed: boolean
+      /**
+       * Digest Enabled
+       * @description Enable daily digest email (opt-in)
+       */
+      digest_enabled: boolean
+      /**
+       * Digest Time
+       * @description Time to send digest in HH:MM format (24-hour, workspace timezone)
+       * @example 08:00
+       * @example 18:30
+       */
+      digest_time?: string | null
+      /**
+       * Digest Days
+       * @description Days of week to send digest (0=Sunday, 1=Monday, ..., 6=Saturday)
+       * @example [
+       *       1,
+       *       2,
+       *       3,
+       *       4,
+       *       5
+       *     ]
+       * @example [
+       *       1,
+       *       3,
+       *       5
+       *     ]
+       * @example [
+       *       0,
+       *       1,
+       *       2,
+       *       3,
+       *       4,
+       *       5,
+       *       6
+       *     ]
+       */
+      digest_days: number[]
+      /**
+       * Tomorrow Digest Enabled
+       * @description Enable tomorrow's schedule digest email (opt-in)
+       */
+      tomorrow_digest_enabled: boolean
+      /**
+       * Tomorrow Digest Time
+       * @description Time to send tomorrow's digest in HH:MM format (24-hour, workspace timezone)
+       * @example 20:00
+       * @example 19:30
+       */
+      tomorrow_digest_time?: string | null
+      /**
+       * Tomorrow Digest Days
+       * @description Days of week to send tomorrow's digest (0=Sunday, 1=Monday, ..., 6=Saturday)
+       * @example [
+       *       0,
+       *       1,
+       *       2,
+       *       3,
+       *       4
+       *     ]
+       * @example [
+       *       1,
+       *       2,
+       *       3,
+       *       4,
+       *       5
+       *     ]
+       * @example [
+       *       0,
+       *       1,
+       *       2,
+       *       3,
+       *       4,
+       *       5,
+       *       6
+       *     ]
+       */
+      tomorrow_digest_days: number[]
+      /**
+       * Reminder Enabled
+       * @description Enable appointment reminder emails
+       */
+      reminder_enabled: boolean
+      /**
+       * Reminder Minutes
+       * @description Minutes before appointment to send reminder (15, 30, 60, 120, 1440)
+       * @example 60
+       * @example 1440
+       */
+      reminder_minutes?: number | null
+      /**
+       * Notes Reminder Enabled
+       * @description Enable draft session notes reminders
+       */
+      notes_reminder_enabled: boolean
+      /**
+       * Notes Reminder Time
+       * @description Time to send notes reminder in HH:MM format (24-hour, workspace timezone)
+       * @example 18:00
+       * @example 20:00
+       */
+      notes_reminder_time?: string | null
+      /**
+       * Extended Settings
+       * @description Future notification preferences (SMS, push, quiet hours, etc.)
+       */
+      extended_settings?: {
+        [key: string]: unknown
+      } | null
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+    }
+    /**
+     * NotificationSettingsUpdate
+     * @description Request schema for updating user notification settings.
+     *
+     *     All fields are optional to support partial updates.
+     *     Only provided fields will be updated.
+     */
+    NotificationSettingsUpdate: {
+      /**
+       * Email Enabled
+       * @description Master toggle - when false, no emails are sent
+       */
+      email_enabled?: boolean | null
+      /**
+       * Notify Appointment Booked
+       * @description Send email when new appointment is booked
+       */
+      notify_appointment_booked?: boolean | null
+      /**
+       * Notify Appointment Cancelled
+       * @description Send email when appointment is cancelled
+       */
+      notify_appointment_cancelled?: boolean | null
+      /**
+       * Notify Appointment Rescheduled
+       * @description Send email when appointment is rescheduled
+       */
+      notify_appointment_rescheduled?: boolean | null
+      /**
+       * Notify Appointment Confirmed
+       * @description Send email when client confirms appointment
+       */
+      notify_appointment_confirmed?: boolean | null
+      /**
+       * Digest Enabled
+       * @description Enable daily digest email (opt-in)
+       */
+      digest_enabled?: boolean | null
+      /**
+       * Digest Time
+       * @description Time to send digest in HH:MM format (24-hour, workspace timezone)
+       * @example 08:00
+       * @example 18:30
+       */
+      digest_time?: string | null
+      /**
+       * Digest Days
+       * @description Days of week to send digest (0=Sunday, 1=Monday, ..., 6=Saturday)
+       * @example [
+       *       1,
+       *       2,
+       *       3,
+       *       4,
+       *       5
+       *     ]
+       * @example [
+       *       1,
+       *       3,
+       *       5
+       *     ]
+       * @example [
+       *       0,
+       *       1,
+       *       2,
+       *       3,
+       *       4,
+       *       5,
+       *       6
+       *     ]
+       */
+      digest_days?: number[] | null
+      /**
+       * Tomorrow Digest Enabled
+       * @description Enable tomorrow's schedule digest email (opt-in)
+       */
+      tomorrow_digest_enabled?: boolean | null
+      /**
+       * Tomorrow Digest Time
+       * @description Time to send tomorrow's digest in HH:MM format (24-hour, workspace timezone)
+       * @example 20:00
+       * @example 19:30
+       */
+      tomorrow_digest_time?: string | null
+      /**
+       * Tomorrow Digest Days
+       * @description Days of week to send tomorrow's digest (0=Sunday, 1=Monday, ..., 6=Saturday)
+       * @example [
+       *       0,
+       *       1,
+       *       2,
+       *       3,
+       *       4
+       *     ]
+       * @example [
+       *       1,
+       *       2,
+       *       3,
+       *       4,
+       *       5
+       *     ]
+       * @example [
+       *       0,
+       *       1,
+       *       2,
+       *       3,
+       *       4,
+       *       5,
+       *       6
+       *     ]
+       */
+      tomorrow_digest_days?: number[] | null
+      /**
+       * Reminder Enabled
+       * @description Enable appointment reminder emails
+       */
+      reminder_enabled?: boolean | null
+      /**
+       * Reminder Minutes
+       * @description Minutes before appointment to send reminder (15, 30, 60, 120, 1440)
+       * @example 60
+       * @example 1440
+       */
+      reminder_minutes?: number | null
+      /**
+       * Notes Reminder Enabled
+       * @description Enable draft session notes reminders
+       */
+      notes_reminder_enabled?: boolean | null
+      /**
+       * Notes Reminder Time
+       * @description Time to send notes reminder in HH:MM format (24-hour, workspace timezone)
+       * @example 18:00
+       * @example 20:00
+       */
+      notes_reminder_time?: string | null
+      /**
+       * Extended Settings
+       * @description Future notification preferences (SMS, push, quiet hours, etc.)
+       */
+      extended_settings?: {
+        [key: string]: unknown
+      } | null
+    }
+    /**
+     * PaymentConfigResponse
+     * @description Payment configuration for a workspace.
+     *
+     *     Phase 1: Manual payment tracking with bank account details.
+     *     Phase 1.5: Smart payment links (Bit, PayBox, custom URLs).
+     *     Phase 2+: Automated payment provider integrations.
+     */
+    PaymentConfigResponse: {
+      /**
+       * Payment Mode
+       * @description Current payment mode: 'manual', 'smart_link', 'automated', or null (disabled)
+       */
+      payment_mode?: string | null
+      /**
+       * Bank Account Details
+       * @description Bank account details for manual payment tracking (free-text)
+       */
+      bank_account_details?: string | null
+      /**
+       * Payment Link Type
+       * @description Payment link type: 'bit', 'paybox', 'custom', or null (disabled)
+       */
+      payment_link_type?: string | null
+      /**
+       * Payment Link Template
+       * @description Payment link template: phone number (Bit), URL (PayBox/custom), or null
+       */
+      payment_link_template?: string | null
+      /**
+       * Payment Provider
+       * @description Payment provider name (manual, or future automated providers), or null (disabled)
+       */
+      payment_provider?: string | null
+    }
+    /**
+     * PaymentLinkResponse
+     * @description Schema for payment link preview/regeneration response.
+     */
+    PaymentLinkResponse: {
+      /**
+       * Payment Link
+       * @description Generated payment link
+       */
+      payment_link: string
+      /**
+       * Payment Type
+       * @description Type of payment link: bit, paybox, bank, custom
+       */
+      payment_type: string
+      /**
+       * Amount
+       * @description Payment amount
+       */
+      amount: string
+      /**
+       * Display Text
+       * @description Human-readable description of payment method
+       */
+      display_text: string
+    }
+    /**
+     * PaymentMethod
+     * @description Payment collection method.
+     *
+     *     Indicates how the payment was collected or will be collected.
+     *     This helps therapists track payment sources and reconcile accounts.
+     *
+     *     Attributes:
+     *         CASH: Cash payment
+     *         CARD: Credit/debit card payment (in-person or via terminal)
+     *         BANK_TRANSFER: Direct bank transfer or wire
+     *         BIT: Payment via Bit app (Israeli mobile payment)
+     *         PAYBOX: Payment via PayBox (Israeli payment service)
+     *         OTHER: Other payment method (specify in notes)
+     * @enum {string}
+     */
+    PaymentMethod: 'cash' | 'card' | 'bank_transfer' | 'bit' | 'paybox' | 'other'
+    /**
+     * PaymentStatus
+     * @description Appointment payment status.
+     *
+     *     Tracks the current payment state for an appointment. This is independent
+     *     of appointment or session status - clients may pay before, during, or after
+     *     their appointment.
+     *
+     *     Attributes:
+     *         NOT_PAID: Payment has not been received (default)
+     *         PAID: Payment has been received and confirmed
+     *         PAYMENT_SENT: Payment link or invoice sent to client
+     *         WAIVED: Payment waived (pro bono, scholarship, etc.)
+     * @enum {string}
+     */
+    PaymentStatus: 'not_paid' | 'paid' | 'payment_sent' | 'waived'
+    /**
+     * PendingInvitation
+     * @description Single pending invitation details.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "user_id": "987e6543-e21b-34c5-b678-123456789012",
+     *             "email": "sarah@example.com",
+     *             "full_name": "Sarah Chen",
+     *             "workspace_name": "Sarah's Massage Therapy",
+     *             "invited_at": "2025-10-15T10:30:00Z",
+     *             "expires_at": "2025-10-22T10:30:00Z"
+     *         }
+     *         ```
+     */
+    PendingInvitation: {
+      /**
+       * User Id
+       * Format: uuid
+       * @description UUID of the user
+       */
+      user_id: string
+      /**
+       * Email
+       * @description Email address of the therapist
+       */
+      email: string
+      /**
+       * Full Name
+       * @description Full name of the therapist
+       */
+      full_name: string
+      /**
+       * Workspace Name
+       * @description Name of the workspace
+       */
+      workspace_name: string
+      /**
+       * Invited At
+       * Format: date-time
+       * @description When invitation was sent (UTC timezone)
+       */
+      invited_at: string
+      /**
+       * Expires At
+       * Format: date-time
+       * @description When invitation expires (UTC timezone)
+       */
+      expires_at: string
+    }
+    /**
+     * PendingInvitationsResponse
+     * @description Response schema for listing pending invitations.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "invitations": [
+     *                 {
+     *                     "user_id": "987e6543-e21b-34c5-b678-123456789012",
+     *                     "email": "sarah@example.com",
+     *                     "full_name": "Sarah Chen",
+     *                     "workspace_name": "Sarah's Massage Therapy",
+     *                     "invited_at": "2025-10-15T10:30:00Z",
+     *                     "expires_at": "2025-10-22T10:30:00Z"
+     *                 }
+     *             ]
+     *         }
+     *         ```
+     */
+    PendingInvitationsResponse: {
+      /**
+       * Invitations
+       * @description List of pending invitations (not yet accepted)
+       */
+      invitations?: components['schemas']['PendingInvitation'][]
+    }
+    /**
+     * PlatformMetrics
+     * @description Platform-wide metrics.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "total_workspaces": 24,
+     *             "active_users": 23,
+     *             "pending_invitations": 3,
+     *             "blacklisted_users": 2
+     *         }
+     *         ```
+     */
+    PlatformMetrics: {
+      /**
+       * Total Workspaces
+       * @description Total number of workspaces
+       */
+      total_workspaces: number
+      /**
+       * Active Users
+       * @description Total number of active users
+       */
+      active_users: number
+      /**
+       * Pending Invitations
+       * @description Number of pending invitations (not yet accepted)
+       */
+      pending_invitations: number
+      /**
+       * Blacklisted Users
+       * @description Number of blacklisted email addresses
+       */
+      blacklisted_users: number
+    }
+    /**
+     * ResendInvitationResponse
+     * @description Response schema for resending invitation.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "invitation_url": "https://app.pazpaz.com/accept-invitation?token=..."
+     *         }
+     *         ```
+     */
+    ResendInvitationResponse: {
+      /**
+       * Invitation Url
+       * @description New magic link URL to send to therapist via email
+       * @example https://app.pazpaz.com/accept-invitation?token=def456...
+       */
+      invitation_url: string
+    }
+    /**
+     * ResourceType
+     * @description Resource types that can be audited.
+     * @enum {string}
+     */
+    ResourceType:
+      | 'User'
+      | 'Client'
+      | 'Appointment'
+      | 'Session'
+      | 'SessionAttachment'
+      | 'PlanOfCare'
+      | 'Service'
+      | 'Location'
+      | 'Workspace'
+    /**
+     * SendPaymentRequestBody
+     * @description Schema for sending payment request to client.
+     */
+    SendPaymentRequestBody: {
+      /**
+       * Message
+       * @description Optional custom message to include in email
+       */
+      message?: string | null
+    }
+    /**
+     * SendPaymentRequestResponse
+     * @description Schema for send payment request response.
+     */
+    SendPaymentRequestResponse: {
+      /**
+       * Success
+       * @description Whether payment request was sent successfully
+       */
+      success: boolean
+      /**
+       * Payment Link
+       * @description Generated payment link
+       */
+      payment_link: string
+      /**
+       * Message
+       * @description Human-readable success message
+       */
+      message: string
+    }
+    /**
+     * ServiceCreate
+     * @description Schema for creating a new service.
+     *
+     *     SECURITY: workspace_id is NOT accepted from client requests.
+     *     It is automatically injected from the authenticated user's session.
+     *     This prevents workspace injection vulnerabilities.
+     */
+    ServiceCreate: {
+      /**
+       * Name
+       * @description Service name
+       */
+      name: string
+      /**
+       * Description
+       * @description Optional description of the service
+       */
+      description?: string | null
+      /**
+       * Default Duration Minutes
+       * @description Default duration in minutes (must be > 0)
+       */
+      default_duration_minutes: number
+      /**
+       * Is Active
+       * @description Active services appear in scheduling UI
+       * @default true
+       */
+      is_active: boolean
+    }
+    /**
+     * ServiceListResponse
+     * @description Schema for paginated service list response.
+     */
+    ServiceListResponse: {
+      /** Items */
+      items: components['schemas']['ServiceResponse'][]
+      /** Total */
+      total: number
+      /** Page */
+      page: number
+      /** Page Size */
+      page_size: number
+      /** Total Pages */
+      total_pages: number
+    }
+    /**
+     * ServiceResponse
+     * @description Schema for service API responses.
+     */
+    ServiceResponse: {
+      /**
+       * Name
+       * @description Service name
+       */
+      name: string
+      /**
+       * Description
+       * @description Optional description of the service
+       */
+      description?: string | null
+      /**
+       * Default Duration Minutes
+       * @description Default duration in minutes (must be > 0)
+       */
+      default_duration_minutes: number
+      /**
+       * Is Active
+       * @description Active services appear in scheduling UI
+       * @default true
+       */
+      is_active: boolean
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * Workspace Id
+       * Format: uuid
+       */
+      workspace_id: string
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+    }
+    /**
+     * ServiceUpdate
+     * @description Schema for updating an existing service.
+     */
+    ServiceUpdate: {
+      /** Name */
+      name?: string | null
+      /** Description */
+      description?: string | null
+      /** Default Duration Minutes */
+      default_duration_minutes?: number | null
+      /** Is Active */
+      is_active?: boolean | null
+    }
+    /**
+     * SessionAttachmentListResponse
+     * @description Response schema for list of session attachments.
+     */
+    SessionAttachmentListResponse: {
+      /**
+       * Items
+       * @description List of attachments
+       */
+      items: components['schemas']['SessionAttachmentResponse'][]
+      /**
+       * Total
+       * @description Total number of attachments
+       */
+      total: number
+    }
+    /**
+     * SessionAttachmentResponse
+     * @description Response schema for session attachment.
+     *
+     *     Returns metadata about uploaded file (not the file content itself).
+     *     Use GET /attachments/{id}/download to get pre-signed download URL.
+     *
+     *     Supports both session-level and client-level attachments:
+     *     - Session-level: session_id is set, is_session_file=True
+     *     - Client-level: session_id is None, is_session_file=False
+     */
+    SessionAttachmentResponse: {
+      /**
+       * Id
+       * Format: uuid
+       * @description Attachment UUID
+       */
+      id: string
+      /**
+       * Session Id
+       * @description Session UUID (None for client-level attachments)
+       */
+      session_id: string | null
+      /**
+       * Client Id
+       * Format: uuid
+       * @description Client UUID (always present)
+       */
+      client_id: string
+      /**
+       * Workspace Id
+       * Format: uuid
+       * @description Workspace UUID
+       */
+      workspace_id: string
+      /**
+       * File Name
+       * @description Sanitized filename
+       */
+      file_name: string
+      /**
+       * File Type
+       * @description MIME type (e.g., image/jpeg)
+       */
+      file_type: string
+      /**
+       * File Size Bytes
+       * @description File size in bytes
+       */
+      file_size_bytes: number
+      /**
+       * Created At
+       * Format: date-time
+       * @description Upload timestamp
+       */
+      created_at: string
+      /**
+       * Session Date
+       * @description Date of session (None for client-level attachments)
+       */
+      session_date?: string | null
+      /**
+       * Is Session File
+       * @description True if attached to specific session, False if client-level
+       */
+      is_session_file: boolean
+    }
+    /**
+     * SessionCreate
+     * @description Schema for creating a new session.
+     *
+     *     SECURITY: workspace_id is NOT accepted from client requests.
+     *     It is automatically injected from the authenticated user's session.
+     *     This prevents workspace injection vulnerabilities.
+     */
+    SessionCreate: {
+      /**
+       * Subjective
+       * @description Patient-reported symptoms (PHI - encrypted at rest)
+       */
+      subjective?: string | null
+      /**
+       * Objective
+       * @description Therapist observations (PHI - encrypted at rest)
+       */
+      objective?: string | null
+      /**
+       * Assessment
+       * @description Clinical assessment (PHI - encrypted at rest)
+       */
+      assessment?: string | null
+      /**
+       * Plan
+       * @description Treatment plan (PHI - encrypted at rest)
+       */
+      plan?: string | null
+      /**
+       * Session Date
+       * Format: date-time
+       * @description Date/time when session occurred (timezone-aware UTC)
+       */
+      session_date: string
+      /**
+       * Duration Minutes
+       * @description Session duration in minutes (0-480 min, i.e., 0-8 hours)
+       */
+      duration_minutes?: number | null
+      /**
+       * Client Id
+       * Format: uuid
+       * @description Client ID (must belong to same workspace)
+       */
+      client_id: string
+      /**
+       * Appointment Id
+       * @description Optional appointment link
+       */
+      appointment_id?: string | null
+    }
+    /**
+     * SessionDeleteRequest
+     * @description Schema for deleting a session with optional reason.
+     */
+    SessionDeleteRequest: {
+      /**
+       * Reason
+       * @description Optional reason for deletion (logged in audit trail)
+       */
+      reason?: string | null
+    }
+    /**
+     * SessionDraftUpdate
+     * @description Schema for draft autosave updates (relaxed validation).
+     *
+     *     Used by PATCH /sessions/{id}/draft endpoint for frontend autosave.
+     *     All fields are optional to allow partial updates.
+     *     No validation on session_date (drafts can be incomplete).
+     */
+    SessionDraftUpdate: {
+      /** Subjective */
+      subjective?: string | null
+      /** Objective */
+      objective?: string | null
+      /** Assessment */
+      assessment?: string | null
+      /** Plan */
+      plan?: string | null
+      /** Duration Minutes */
+      duration_minutes?: number | null
+    }
+    /**
+     * SessionListResponse
+     * @description Schema for paginated session list response.
+     */
+    SessionListResponse: {
+      /** Items */
+      items: components['schemas']['SessionResponse'][]
+      /** Total */
+      total: number
+      /** Page */
+      page: number
+      /** Page Size */
+      page_size: number
+      /** Total Pages */
+      total_pages: number
+    }
+    /**
+     * SessionResponse
+     * @description Schema for session API responses.
+     */
+    SessionResponse: {
+      /**
+       * Subjective
+       * @description Patient-reported symptoms (PHI - encrypted at rest)
+       */
+      subjective?: string | null
+      /**
+       * Objective
+       * @description Therapist observations (PHI - encrypted at rest)
+       */
+      objective?: string | null
+      /**
+       * Assessment
+       * @description Clinical assessment (PHI - encrypted at rest)
+       */
+      assessment?: string | null
+      /**
+       * Plan
+       * @description Treatment plan (PHI - encrypted at rest)
+       */
+      plan?: string | null
+      /**
+       * Session Date
+       * Format: date-time
+       * @description Date/time when session occurred (timezone-aware UTC)
+       */
+      session_date: string
+      /**
+       * Duration Minutes
+       * @description Session duration in minutes (0-480 min, i.e., 0-8 hours)
+       */
+      duration_minutes?: number | null
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * Workspace Id
+       * Format: uuid
+       */
+      workspace_id: string
+      /**
+       * Client Id
+       * Format: uuid
+       */
+      client_id: string
+      /** Appointment Id */
+      appointment_id: string | null
+      /**
+       * Created By User Id
+       * Format: uuid
+       */
+      created_by_user_id: string
+      /** Is Draft */
+      is_draft: boolean
+      /** Draft Last Saved At */
+      draft_last_saved_at: string | null
+      /** Finalized At */
+      finalized_at: string | null
+      /**
+       * Amended At
+       * @description When session was last amended (NULL if never amended)
+       */
+      amended_at?: string | null
+      /**
+       * Amendment Count
+       * @description Number of times this finalized session has been amended
+       * @default 0
+       */
+      amendment_count: number
+      /** Version */
+      version: number
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+      /**
+       * Deleted At
+       * @description When session was soft-deleted (NULL if active)
+       */
+      deleted_at?: string | null
+      /**
+       * Deleted Reason
+       * @description Optional reason for soft deletion
+       */
+      deleted_reason?: string | null
+      /**
+       * Deleted By User Id
+       * @description User who soft-deleted this session
+       */
+      deleted_by_user_id?: string | null
+      /**
+       * Permanent Delete After
+       * @description Date when session will be permanently purged (deleted_at + 30 days)
+       */
+      permanent_delete_after?: string | null
+      /**
+       * Attachment Count
+       * @description Number of file attachments for this session (excludes deleted)
+       * @default 0
+       */
+      attachment_count: number
+    }
+    /**
+     * SessionUpdate
+     * @description Schema for updating a session (all fields optional for partial updates).
+     */
+    SessionUpdate: {
+      /** Subjective */
+      subjective?: string | null
+      /** Objective */
+      objective?: string | null
+      /** Assessment */
+      assessment?: string | null
+      /** Plan */
+      plan?: string | null
+      /** Session Date */
+      session_date?: string | null
+      /** Duration Minutes */
+      duration_minutes?: number | null
+    }
+    /**
+     * SessionVersionResponse
+     * @description Schema for session version history responses.
+     *
+     *     Represents a historical snapshot of a session note at a specific point in time.
+     */
+    SessionVersionResponse: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * Session Id
+       * Format: uuid
+       */
+      session_id: string
+      /**
+       * Version Number
+       * @description Version number (1 = original, 2+ = amendments)
+       */
+      version_number: number
+      /**
+       * Subjective
+       * @description Subjective snapshot (decrypted PHI)
+       */
+      subjective?: string | null
+      /**
+       * Objective
+       * @description Objective snapshot (decrypted PHI)
+       */
+      objective?: string | null
+      /**
+       * Assessment
+       * @description Assessment snapshot (decrypted PHI)
+       */
+      assessment?: string | null
+      /**
+       * Plan
+       * @description Plan snapshot (decrypted PHI)
+       */
+      plan?: string | null
+      /**
+       * Created At
+       * Format: date-time
+       * @description When this version was created (finalized or amended)
+       */
+      created_at: string
+      /**
+       * Created By User Id
+       * Format: uuid
+       * @description User who created this version
+       */
+      created_by_user_id: string
+    }
+    /**
+     * SuspendWorkspaceRequest
+     * @description Request schema for suspending workspace.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "reason": "Terms of service violation"
+     *         }
+     *         ```
+     */
+    SuspendWorkspaceRequest: {
+      /**
+       * Reason
+       * @description Reason for suspension (required for audit)
+       */
+      reason: string
+    }
+    /**
+     * TOTPDisableRequest
+     * @description Request to disable TOTP (requires verification).
+     * @example {
+     *       "totp_code": "123456"
+     *     }
+     */
+    TOTPDisableRequest: {
+      /**
+       * Totp Code
+       * @description Current 6-digit TOTP code or 8-character backup code
+       * @example 123456
+       * @example A1B2C3D4
+       */
+      totp_code: string
+    }
+    /**
+     * TOTPEnrollResponse
+     * @description Response for TOTP enrollment.
+     */
+    TOTPEnrollResponse: {
+      /**
+       * Secret
+       * @description Base32-encoded TOTP secret (store securely in authenticator)
+       */
+      secret: string
+      /**
+       * Qr Code
+       * @description Data URI with QR code image (scan with authenticator app)
+       */
+      qr_code: string
+      /**
+       * Backup Codes
+       * @description One-time backup codes (save offline, shown only once)
+       * @example [
+       *       "A1B2C3D4",
+       *       "E5F6G7H8",
+       *       "I9J0K1L2"
+       *     ]
+       */
+      backup_codes: string[]
+    }
+    /**
+     * TOTPVerifyRequest
+     * @description Request to verify TOTP code during enrollment.
+     */
+    TOTPVerifyRequest: {
+      /**
+       * Code
+       * @description 6-digit TOTP code from authenticator app
+       * @example 123456
+       */
+      code: string
+    }
+    /**
+     * TOTPVerifyResponse
+     * @description Response for TOTP verification.
+     */
+    TOTPVerifyResponse: {
+      /**
+       * Success
+       * @description Whether verification succeeded
+       */
+      success: boolean
+      /**
+       * Message
+       * @description Success or error message
+       */
+      message: string
+    }
+    /**
+     * TokenVerifyRequest
+     * @description Request schema for magic link token verification.
+     *
+     *     Security: Token length validation prevents malformed or suspicious tokens.
+     *     - Min 32 chars: Ensures sufficient entropy (minimum 256 bits for URL-safe base64)
+     *     - Max 128 chars: Prevents buffer overflow or DOS attacks via oversized tokens
+     *     - 384-bit tokens: 48 bytes base64url encoded = 64 characters
+     */
+    TokenVerifyRequest: {
+      /**
+       * Token
+       * @description Magic link token from email (384-bit entropy)
+       * @example abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567890ABCD
+       */
+      token: string
+    }
+    /**
+     * TokenVerifyResponse
+     * @description Response schema for token verification.
+     */
+    TokenVerifyResponse: {
+      /**
+       * Access Token
+       * @description JWT access token
+       */
+      access_token: string
+      /**
+       * Token Type
+       * @description Token type
+       * @default bearer
+       */
+      token_type: string
+      /** @description Authenticated user information */
+      user: components['schemas']['UserInToken']
+    }
+    /**
+     * UpdatePaymentConfigRequest
+     * @description Request to update payment configuration.
+     */
+    UpdatePaymentConfigRequest: {
+      /**
+       * Bank Account Details
+       * @description Bank account details for manual payment tracking (free-text)
+       * @example Bank Leumi, Account: 12345, Branch: 678
+       */
+      bank_account_details?: string | null
+      /**
+       * Payment Link Type
+       * @description Payment link type: 'bit', 'paybox', 'custom', or null to disable
+       * @example bit
+       * @example paybox
+       * @example custom
+       */
+      payment_link_type?: string | null
+      /**
+       * Payment Link Template
+       * @description Payment link template: phone number for Bit (050-XXXXXXX), URL for PayBox/custom
+       * @example 050-1234567
+       * @example https://paybox.co.il/p/username
+       */
+      payment_link_template?: string | null
+    }
+    /**
+     * UpdateWorkspaceRequest
+     * @description Request model for updating workspace configuration.
+     */
+    UpdateWorkspaceRequest: {
+      /**
+       * Bank Account Details
+       * @description Bank account details for manual payment tracking (free-text)
+       */
+      bank_account_details?: string | null
+      /**
+       * Payment Provider
+       * @description Payment provider name (manual, or future automated providers), or null to disable
+       */
+      payment_provider?: string | null
+      /**
+       * Payment Provider Config
+       * @description Payment provider configuration (API keys, secrets) - will be encrypted (future)
+       */
+      payment_provider_config?: {
+        [key: string]: unknown
+      } | null
+      /**
+       * Business Name
+       * @description Legal business name
+       */
+      business_name?: string | null
+      /**
+       * Business Name Hebrew
+       * @description Business name in Hebrew (שם העסק בעברית)
+       */
+      business_name_hebrew?: string | null
+      /**
+       * Tax Id
+       * @description Israeli Tax ID (ת.ז. or ח.פ.)
+       */
+      tax_id?: string | null
+      /**
+       * Business License Number
+       * @description Business license number (מספר רישיון עסק)
+       */
+      business_license_number?: string | null
+      /**
+       * Business Address
+       * @description Business address for tax receipts
+       */
+      business_address?: string | null
+      /**
+       * Vat Registered
+       * @description Whether workspace is VAT registered (עוסק מורשה)
+       */
+      vat_registered?: boolean | null
+      /**
+       * Vat Rate
+       * @description VAT rate percentage (e.g., 17.00 for Israel)
+       */
+      vat_rate?: number | string | null
+      /**
+       * Payment Auto Send
+       * @description Automatically send payment requests after appointment completion
+       */
+      payment_auto_send?: boolean | null
+      /**
+       * Payment Send Timing
+       * @description When to send: 'immediately' or 'after_session'
+       */
+      payment_send_timing?: string | null
+    }
+    /**
+     * UserInToken
+     * @description User information included in token response.
+     */
+    UserInToken: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * Workspace Id
+       * Format: uuid
+       */
+      workspace_id: string
+      /** Email */
+      email: string
+      /** Full Name */
+      full_name: string
+      /** Role */
+      role: string
+      /** Is Active */
+      is_active: boolean
+      /** Is Platform Admin */
+      is_platform_admin: boolean
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+    }
+    /** ValidationError */
+    ValidationError: {
+      /** Location */
+      loc: (string | number)[]
+      /** Message */
+      msg: string
+      /** Error Type */
+      type: string
+    }
+    /**
+     * WorkspaceActionResponse
+     * @description Response schema for workspace actions.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "message": "Workspace suspended successfully",
+     *             "workspace_id": "123e4567-...",
+     *             "status": "suspended"
+     *         }
+     *         ```
+     */
+    WorkspaceActionResponse: {
+      /**
+       * Message
+       * @description Action result message
+       */
+      message: string
+      /**
+       * Workspace Id
+       * Format: uuid
+       * @description Workspace UUID
+       */
+      workspace_id: string
+      /**
+       * Status
+       * @description New workspace status
+       */
+      status: string
+    }
+    /**
+     * WorkspaceInfo
+     * @description Workspace information for platform admin.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "id": "123e4567-e89b-12d3-a456-426614174000",
+     *             "name": "Sarah's Massage Therapy",
+     *             "owner_email": "sarah@example.com",
+     *             "status": "active",
+     *             "created_at": "2025-10-01T00:00:00Z",
+     *             "user_count": 1,
+     *             "session_count": 12
+     *         }
+     *         ```
+     */
+    WorkspaceInfo: {
+      /**
+       * Id
+       * Format: uuid
+       * @description Workspace UUID
+       */
+      id: string
+      /**
+       * Name
+       * @description Workspace name
+       */
+      name: string
+      /**
+       * Owner Email
+       * @description Workspace owner email
+       */
+      owner_email: string
+      /**
+       * Status
+       * @description Workspace status (active, suspended, deleted)
+       */
+      status: string
+      /**
+       * Created At
+       * Format: date-time
+       * @description When workspace was created (UTC)
+       */
+      created_at: string
+      /**
+       * User Count
+       * @description Number of users in workspace
+       */
+      user_count: number
+      /**
+       * Session Count
+       * @description Number of sessions in workspace
+       */
+      session_count: number
+    }
+    /**
+     * WorkspaceResponse
+     * @description Response model for workspace data.
+     */
+    WorkspaceResponse: {
+      /**
+       * Id
+       * Format: uuid
+       * @description Workspace UUID
+       */
+      id: string
+      /**
+       * Name
+       * @description Workspace name
+       */
+      name: string
+      /**
+       * Is Active
+       * @description Whether workspace is active
+       */
+      is_active: boolean
+      /**
+       * Business Name
+       * @description Legal business name
+       */
+      business_name?: string | null
+      /**
+       * Business Name Hebrew
+       * @description Business name in Hebrew
+       */
+      business_name_hebrew?: string | null
+      /**
+       * Tax Id
+       * @description Israeli Tax ID
+       */
+      tax_id?: string | null
+      /**
+       * Business License Number
+       * @description Business license number
+       */
+      business_license_number?: string | null
+      /**
+       * Business Address
+       * @description Business address
+       */
+      business_address?: string | null
+      /**
+       * Vat Registered
+       * @description Whether VAT registered
+       */
+      vat_registered: boolean
+      /**
+       * Vat Rate
+       * @description VAT rate percentage
+       */
+      vat_rate: string
+      /**
+       * Bank Account Details
+       * @description Bank account details for manual payment tracking
+       */
+      bank_account_details?: string | null
+      /**
+       * Payment Provider
+       * @description Payment provider name (manual, or future automated providers), or null
+       */
+      payment_provider?: string | null
+      /**
+       * Payment Auto Send
+       * @description Automatically send payment requests (future feature)
+       */
+      payment_auto_send: boolean
+      /**
+       * Payment Send Timing
+       * @description When to send: immediately, end_of_day, end_of_month, manual (future feature)
+       */
+      payment_send_timing: string
+      /**
+       * Storage Used Bytes
+       * @description Storage used in bytes
+       */
+      storage_used_bytes: number
+      /**
+       * Storage Quota Bytes
+       * @description Storage quota in bytes
+       */
+      storage_quota_bytes: number
+      /**
+       * Timezone
+       * @description IANA timezone name
+       */
+      timezone?: string | null
+    }
+    /**
+     * WorkspaceStorageQuotaUpdateRequest
+     * @description Request model for updating workspace storage quota.
+     */
+    WorkspaceStorageQuotaUpdateRequest: {
+      /**
+       * Quota Bytes
+       * @description New storage quota in bytes (must be positive)
+       */
+      quota_bytes: number
+    }
+    /**
+     * WorkspaceStorageUsageResponse
+     * @description Response model for workspace storage usage.
+     */
+    WorkspaceStorageUsageResponse: {
+      /**
+       * Used Bytes
+       * @description Total bytes used by all files in workspace
+       */
+      used_bytes: number
+      /**
+       * Quota Bytes
+       * @description Maximum storage allowed for workspace in bytes
+       */
+      quota_bytes: number
+      /**
+       * Remaining Bytes
+       * @description Bytes remaining (can be negative if quota exceeded)
+       */
+      remaining_bytes: number
+      /**
+       * Usage Percentage
+       * @description Percentage of quota used (0-100+)
+       */
+      usage_percentage: number
+      /**
+       * Is Quota Exceeded
+       * @description True if storage usage exceeds quota
+       */
+      is_quota_exceeded: boolean
+      /**
+       * Used Mb
+       * @description Storage used in megabytes
+       */
+      used_mb: number
+      /**
+       * Quota Mb
+       * @description Quota in megabytes
+       */
+      quota_mb: number
+      /**
+       * Remaining Mb
+       * @description Remaining storage in megabytes
+       */
+      remaining_mb: number
+    }
+    /**
+     * WorkspacesResponse
+     * @description Response schema for workspaces list.
+     *
+     *     Example:
+     *         ```json
+     *         {
+     *             "workspaces": [
+     *                 {
+     *                     "id": "123e4567-...",
+     *                     "name": "Sarah's Massage Therapy",
+     *                     "owner_email": "sarah@example.com",
+     *                     "status": "active",
+     *                     "created_at": "2025-10-01T00:00:00Z",
+     *                     "user_count": 1,
+     *                     "session_count": 12
+     *                 }
+     *             ]
+     *         }
+     *         ```
+     */
+    WorkspacesResponse: {
+      /**
+       * Workspaces
+       * @description List of workspaces
+       */
+      workspaces?: components['schemas']['WorkspaceInfo'][]
+    }
+  }
+  responses: never
+  parameters: never
+  requestBodies: never
+  headers: never
+  pathItems: never
 }
-export type $defs = Record<string, never>;
+export type $defs = Record<string, never>
 export interface operations {
-    request_magic_link_endpoint_api_v1_auth_magic_link_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MagicLinkRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MagicLinkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    verify_magic_link_endpoint_api_v1_auth_verify_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TokenVerifyRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TokenVerifyResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    verify_magic_link_2fa_endpoint_api_v1_auth_verify_2fa_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MagicLink2FARequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MagicLink2FAResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    accept_invitation_api_v1_auth_accept_invite_get: {
-        parameters: {
-            query: {
-                /** @description Invitation token from email */
-                token: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_current_user_endpoint_api_v1_auth_me_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserInToken"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    logout_endpoint_api_v1_auth_logout_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LogoutResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    enroll_user_totp_api_v1_auth_totp_enroll_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TOTPEnrollResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    verify_user_totp_api_v1_auth_totp_verify_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TOTPVerifyRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TOTPVerifyResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    refresh_session_endpoint_api_v1_auth_session_refresh_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    disable_user_totp_api_v1_auth_totp_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TOTPDisableRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    invite_therapist_api_v1_platform_admin_invite_therapist_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InviteTherapistRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InviteTherapistResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    resend_invitation_api_v1_platform_admin_resend_invitation__user_id__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ResendInvitationResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_pending_invitations_api_v1_platform_admin_pending_invitations_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PendingInvitationsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_metrics_api_v1_platform_admin_metrics_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PlatformMetrics"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_activity_api_v1_platform_admin_activity_get: {
-        parameters: {
-            query?: {
-                /** @description Number of activities per page */
-                limit?: number;
-                /** @description Number of activities to skip */
-                offset?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_workspaces_api_v1_platform_admin_workspaces_get: {
-        parameters: {
-            query?: {
-                /** @description Search workspace name or owner email */
-                search?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspacesResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_workspace_details_api_v1_platform_admin_workspaces__workspace_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceInfo"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_workspace_api_v1_platform_admin_workspaces__workspace_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DeleteWorkspaceRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceActionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    suspend_workspace_api_v1_platform_admin_workspaces__workspace_id__suspend_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SuspendWorkspaceRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceActionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    reactivate_workspace_api_v1_platform_admin_workspaces__workspace_id__reactivate_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceActionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_blacklist_api_v1_platform_admin_blacklist_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BlacklistResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    add_to_blacklist_api_v1_platform_admin_blacklist_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AddToBlacklistRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BlacklistActionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    remove_from_blacklist_api_v1_platform_admin_blacklist__email__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                email: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BlacklistActionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_clients_api_v1_clients_get: {
-        parameters: {
-            query?: {
-                /** @description Page number (1-indexed) */
-                page?: number;
-                /** @description Items per page */
-                page_size?: number;
-                /** @description Include archived/inactive clients */
-                include_inactive?: boolean;
-                /** @description Include appointment stats (slower) */
-                include_appointments?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClientListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_client_api_v1_clients_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClientCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClientResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_client_api_v1_clients__client_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                client_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClientResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_client_api_v1_clients__client_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                client_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClientUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClientResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_client_api_v1_clients__client_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                client_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_appointments_api_v1_appointments_get: {
-        parameters: {
-            query?: {
-                /** @description Page number (1-indexed) */
-                page?: number;
-                /** @description Items per page */
-                page_size?: number;
-                /** @description Filter by start date (inclusive) */
-                start_date?: string | null;
-                /** @description Filter by end date (inclusive) */
-                end_date?: string | null;
-                /** @description Filter by client ID */
-                client_id?: string | null;
-                /** @description Filter by status */
-                status?: components["schemas"]["AppointmentStatus"] | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AppointmentListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_appointment_api_v1_appointments_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AppointmentCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AppointmentResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    check_appointment_conflicts_api_v1_appointments_conflicts_get: {
-        parameters: {
-            query: {
-                /** @description Start time to check */
-                scheduled_start: string;
-                /** @description End time to check */
-                scheduled_end: string;
-                /** @description Appointment ID to exclude (for updates) */
-                exclude_appointment_id?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConflictCheckResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_appointment_api_v1_appointments__appointment_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                appointment_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AppointmentResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_appointment_api_v1_appointments__appointment_id__put: {
-        parameters: {
-            query?: {
-                /** @description Allow update even if conflicts exist (for 'Keep Both' scenario) */
-                allow_conflict?: boolean;
-            };
-            header?: never;
-            path: {
-                appointment_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AppointmentUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AppointmentResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_appointment_api_v1_appointments__appointment_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                appointment_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["AppointmentDeleteRequest"] | null;
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_appointment_payment_api_v1_appointments__appointment_id__payment_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                appointment_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AppointmentPaymentUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AppointmentResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_payment_link_api_v1_appointments__appointment_id__payment_link_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                appointment_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaymentLinkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    send_payment_request_api_v1_appointments__appointment_id__send_payment_request_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                appointment_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SendPaymentRequestBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SendPaymentRequestResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_sessions_api_v1_sessions_get: {
-        parameters: {
-            query?: {
-                /** @description Page number (1-indexed) */
-                page?: number;
-                /** @description Items per page */
-                page_size?: number;
-                /** @description Filter by client ID (optional if appointment_id provided) */
-                client_id?: string | null;
-                /** @description Filter by appointment ID (optional if client_id provided) */
-                appointment_id?: string | null;
-                /** @description Filter by draft status */
-                is_draft?: boolean | null;
-                /** @description Include soft-deleted sessions (for restoration) */
-                include_deleted?: boolean;
-                /** @description Search across SOAP fields (subjective, objective, assessment, plan). Case-insensitive partial matching. */
-                search?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_session_api_v1_sessions_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SessionCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_session_api_v1_sessions__session_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_session_api_v1_sessions__session_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SessionUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_session_api_v1_sessions__session_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["SessionDeleteRequest"] | null;
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    save_draft_api_v1_sessions__session_id__draft_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SessionDraftUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    finalize_session_api_v1_sessions__session_id__finalize_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    unfinalize_session_api_v1_sessions__session_id__unfinalize_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_session_versions_api_v1_sessions__session_id__versions_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionVersionResponse"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    restore_session_api_v1_sessions__session_id__restore_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    permanently_delete_session_api_v1_sessions__session_id__permanent_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_latest_finalized_session_api_v1_sessions_clients__client_id__latest_finalized_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                client_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_session_attachments_api_v1_sessions__session_id__attachments_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionAttachmentListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    upload_session_attachment_api_v1_sessions__session_id__attachments_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_upload_session_attachment_api_v1_sessions__session_id__attachments_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionAttachmentResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_attachment_download_url_api_v1_sessions__session_id__attachments__attachment_id__download_get: {
-        parameters: {
-            query?: {
-                expires_in_minutes?: number;
-            };
-            header?: never;
-            path: {
-                session_id: string;
-                attachment_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_session_attachment_api_v1_sessions__session_id__attachments__attachment_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-                attachment_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    rename_session_attachment_api_v1_sessions__session_id__attachments__attachment_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-                attachment_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AttachmentRenameRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionAttachmentResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_client_attachments_api_v1_clients__client_id__attachments_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                client_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionAttachmentListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    upload_client_attachment_api_v1_clients__client_id__attachments_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                client_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_upload_client_attachment_api_v1_clients__client_id__attachments_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionAttachmentResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_client_attachment_download_url_api_v1_clients__client_id__attachments__attachment_id__download_get: {
-        parameters: {
-            query?: {
-                expires_in_minutes?: number;
-            };
-            header?: never;
-            path: {
-                client_id: string;
-                attachment_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_client_attachment_api_v1_clients__client_id__attachments__attachment_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                client_id: string;
-                attachment_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    rename_client_attachment_api_v1_clients__client_id__attachments__attachment_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                client_id: string;
-                attachment_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AttachmentRenameRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionAttachmentResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    download_multiple_attachments_api_v1_clients__client_id__attachments_download_multiple_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                client_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BulkDownloadRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_services_api_v1_services_get: {
-        parameters: {
-            query?: {
-                /** @description Page number (1-indexed) */
-                page?: number;
-                /** @description Items per page */
-                page_size?: number;
-                /** @description Filter by active status (default: true) */
-                is_active?: boolean | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ServiceListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_service_api_v1_services_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ServiceCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ServiceResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_service_api_v1_services__service_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                service_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ServiceResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_service_api_v1_services__service_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                service_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ServiceUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ServiceResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_service_api_v1_services__service_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                service_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_locations_api_v1_locations_get: {
-        parameters: {
-            query?: {
-                /** @description Page number (1-indexed) */
-                page?: number;
-                /** @description Items per page */
-                page_size?: number;
-                /** @description Filter by active status (default: true) */
-                is_active?: boolean | null;
-                /** @description Filter by location type */
-                location_type?: components["schemas"]["LocationType"] | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LocationListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_location_api_v1_locations_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LocationCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LocationResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_location_api_v1_locations__location_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                location_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LocationResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_location_api_v1_locations__location_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                location_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LocationUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LocationResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_location_api_v1_locations__location_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                location_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_workspace_storage_usage_api_v1_workspaces__workspace_id__storage_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceStorageUsageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_workspace_storage_quota_api_v1_workspaces__workspace_id__storage_quota_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WorkspaceStorageQuotaUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceStorageUsageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_workspace_api_v1_workspaces__workspace_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateWorkspaceRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_notification_settings_api_v1_users_me_notification_settings_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NotificationSettingsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_notification_settings_api_v1_users_me_notification_settings_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["NotificationSettingsUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NotificationSettingsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_integration_status_api_v1_integrations_google_calendar_status_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GoogleCalendarStatusResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    authorize_google_calendar_api_v1_integrations_google_calendar_authorize_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GoogleCalendarAuthorizeResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    oauth_callback_api_v1_integrations_google_calendar_callback_get: {
-        parameters: {
-            query?: {
-                /** @description OAuth authorization code from Google */
-                code?: string | null;
-                /** @description CSRF state token */
-                state?: string | null;
-                /** @description OAuth error from Google */
-                error?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    disconnect_google_calendar_api_v1_integrations_google_calendar_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_settings_api_v1_integrations_google_calendar_settings_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GoogleCalendarSettingsUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GoogleCalendarSettingsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_payment_config_api_v1_payments_config_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaymentConfigResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_payment_config_api_v1_payments_config_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdatePaymentConfigRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaymentConfigResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_audit_events_api_v1_audit_events_get: {
-        parameters: {
-            query?: {
-                /** @description Page number (1-indexed) */
-                page?: number;
-                /** @description Items per page */
-                page_size?: number;
-                /** @description Filter by user */
-                user_id?: string | null;
-                /** @description Filter by resource type */
-                resource_type?: components["schemas"]["ResourceType"] | null;
-                /** @description Filter by resource ID */
-                resource_id?: string | null;
-                /** @description Filter by action type */
-                action?: components["schemas"]["AuditAction"] | null;
-                /** @description Filter events on or after this date */
-                start_date?: string | null;
-                /** @description Filter events on or before this date */
-                end_date?: string | null;
-                /** @description Filter to only PHI access events */
-                phi_only?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuditEventListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_audit_event_api_v1_audit_events__audit_event_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                audit_event_id: string;
-            };
-            cookie?: {
-                access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuditEventResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    metrics_metrics_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    health_check_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    api_health_check_api_v1_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
+  request_magic_link_endpoint_api_v1_auth_magic_link_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MagicLinkRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['MagicLinkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  verify_magic_link_endpoint_api_v1_auth_verify_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TokenVerifyRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['TokenVerifyResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  verify_magic_link_2fa_endpoint_api_v1_auth_verify_2fa_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MagicLink2FARequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['MagicLink2FAResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  accept_invitation_api_v1_auth_accept_invite_get: {
+    parameters: {
+      query: {
+        /** @description Invitation token from email */
+        token: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_current_user_endpoint_api_v1_auth_me_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['UserInToken']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  logout_endpoint_api_v1_auth_logout_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['LogoutResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  enroll_user_totp_api_v1_auth_totp_enroll_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['TOTPEnrollResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  verify_user_totp_api_v1_auth_totp_verify_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TOTPVerifyRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['TOTPVerifyResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  refresh_session_endpoint_api_v1_auth_session_refresh_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  disable_user_totp_api_v1_auth_totp_delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TOTPDisableRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  invite_therapist_api_v1_platform_admin_invite_therapist_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['InviteTherapistRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['InviteTherapistResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  resend_invitation_api_v1_platform_admin_resend_invitation__user_id__post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        user_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ResendInvitationResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_pending_invitations_api_v1_platform_admin_pending_invitations_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PendingInvitationsResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_metrics_api_v1_platform_admin_metrics_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PlatformMetrics']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_activity_api_v1_platform_admin_activity_get: {
+    parameters: {
+      query?: {
+        /** @description Number of activities per page */
+        limit?: number
+        /** @description Number of activities to skip */
+        offset?: number
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ActivityResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_workspaces_api_v1_platform_admin_workspaces_get: {
+    parameters: {
+      query?: {
+        /** @description Search workspace name or owner email */
+        search?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkspacesResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_workspace_details_api_v1_platform_admin_workspaces__workspace_id__get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workspace_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkspaceInfo']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  delete_workspace_api_v1_platform_admin_workspaces__workspace_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workspace_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DeleteWorkspaceRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkspaceActionResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  suspend_workspace_api_v1_platform_admin_workspaces__workspace_id__suspend_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workspace_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SuspendWorkspaceRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkspaceActionResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  reactivate_workspace_api_v1_platform_admin_workspaces__workspace_id__reactivate_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workspace_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkspaceActionResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_blacklist_api_v1_platform_admin_blacklist_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['BlacklistResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  add_to_blacklist_api_v1_platform_admin_blacklist_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AddToBlacklistRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['BlacklistActionResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  remove_from_blacklist_api_v1_platform_admin_blacklist__email__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        email: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['BlacklistActionResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_clients_api_v1_clients_get: {
+    parameters: {
+      query?: {
+        /** @description Page number (1-indexed) */
+        page?: number
+        /** @description Items per page */
+        page_size?: number
+        /** @description Include archived/inactive clients */
+        include_inactive?: boolean
+        /** @description Include appointment stats (slower) */
+        include_appointments?: boolean
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ClientListResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  create_client_api_v1_clients_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ClientCreate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ClientResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_client_api_v1_clients__client_id__get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        client_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ClientResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  update_client_api_v1_clients__client_id__put: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        client_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ClientUpdate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ClientResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  delete_client_api_v1_clients__client_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        client_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_appointments_api_v1_appointments_get: {
+    parameters: {
+      query?: {
+        /** @description Page number (1-indexed) */
+        page?: number
+        /** @description Items per page */
+        page_size?: number
+        /** @description Filter by start date (inclusive) */
+        start_date?: string | null
+        /** @description Filter by end date (inclusive) */
+        end_date?: string | null
+        /** @description Filter by client ID */
+        client_id?: string | null
+        /** @description Filter by status */
+        status?: components['schemas']['AppointmentStatus'] | null
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AppointmentListResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  create_appointment_api_v1_appointments_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AppointmentCreate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AppointmentResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  check_appointment_conflicts_api_v1_appointments_conflicts_get: {
+    parameters: {
+      query: {
+        /** @description Start time to check */
+        scheduled_start: string
+        /** @description End time to check */
+        scheduled_end: string
+        /** @description Appointment ID to exclude (for updates) */
+        exclude_appointment_id?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConflictCheckResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_appointment_api_v1_appointments__appointment_id__get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        appointment_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AppointmentResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  update_appointment_api_v1_appointments__appointment_id__put: {
+    parameters: {
+      query?: {
+        /** @description Allow update even if conflicts exist (for 'Keep Both' scenario) */
+        allow_conflict?: boolean
+      }
+      header?: never
+      path: {
+        appointment_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AppointmentUpdate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AppointmentResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  delete_appointment_api_v1_appointments__appointment_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        appointment_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['AppointmentDeleteRequest'] | null
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  update_appointment_payment_api_v1_appointments__appointment_id__payment_patch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        appointment_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AppointmentPaymentUpdate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AppointmentResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_payment_link_api_v1_appointments__appointment_id__payment_link_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        appointment_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PaymentLinkResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  send_payment_request_api_v1_appointments__appointment_id__send_payment_request_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        appointment_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SendPaymentRequestBody']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SendPaymentRequestResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_sessions_api_v1_sessions_get: {
+    parameters: {
+      query?: {
+        /** @description Page number (1-indexed) */
+        page?: number
+        /** @description Items per page */
+        page_size?: number
+        /** @description Filter by client ID (optional if appointment_id provided) */
+        client_id?: string | null
+        /** @description Filter by appointment ID (optional if client_id provided) */
+        appointment_id?: string | null
+        /** @description Filter by draft status */
+        is_draft?: boolean | null
+        /** @description Include soft-deleted sessions (for restoration) */
+        include_deleted?: boolean
+        /** @description Search across SOAP fields (subjective, objective, assessment, plan). Case-insensitive partial matching. */
+        search?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionListResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  create_session_api_v1_sessions_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SessionCreate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_session_api_v1_sessions__session_id__get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  update_session_api_v1_sessions__session_id__put: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SessionUpdate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  delete_session_api_v1_sessions__session_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['SessionDeleteRequest'] | null
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  save_draft_api_v1_sessions__session_id__draft_patch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SessionDraftUpdate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  finalize_session_api_v1_sessions__session_id__finalize_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  unfinalize_session_api_v1_sessions__session_id__unfinalize_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_session_versions_api_v1_sessions__session_id__versions_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionVersionResponse'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  restore_session_api_v1_sessions__session_id__restore_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  permanently_delete_session_api_v1_sessions__session_id__permanent_delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_latest_finalized_session_api_v1_sessions_clients__client_id__latest_finalized_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        client_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_session_attachments_api_v1_sessions__session_id__attachments_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionAttachmentListResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  upload_session_attachment_api_v1_sessions__session_id__attachments_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'multipart/form-data': components['schemas']['Body_upload_session_attachment_api_v1_sessions__session_id__attachments_post']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionAttachmentResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_attachment_download_url_api_v1_sessions__session_id__attachments__attachment_id__download_get: {
+    parameters: {
+      query?: {
+        expires_in_minutes?: number
+      }
+      header?: never
+      path: {
+        session_id: string
+        attachment_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  delete_session_attachment_api_v1_sessions__session_id__attachments__attachment_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+        attachment_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  rename_session_attachment_api_v1_sessions__session_id__attachments__attachment_id__patch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+        attachment_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AttachmentRenameRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionAttachmentResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_client_attachments_api_v1_clients__client_id__attachments_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        client_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionAttachmentListResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  upload_client_attachment_api_v1_clients__client_id__attachments_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        client_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'multipart/form-data': components['schemas']['Body_upload_client_attachment_api_v1_clients__client_id__attachments_post']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionAttachmentResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_client_attachment_download_url_api_v1_clients__client_id__attachments__attachment_id__download_get: {
+    parameters: {
+      query?: {
+        expires_in_minutes?: number
+      }
+      header?: never
+      path: {
+        client_id: string
+        attachment_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  delete_client_attachment_api_v1_clients__client_id__attachments__attachment_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        client_id: string
+        attachment_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  rename_client_attachment_api_v1_clients__client_id__attachments__attachment_id__patch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        client_id: string
+        attachment_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AttachmentRenameRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionAttachmentResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  download_multiple_attachments_api_v1_clients__client_id__attachments_download_multiple_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        client_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['BulkDownloadRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_services_api_v1_services_get: {
+    parameters: {
+      query?: {
+        /** @description Page number (1-indexed) */
+        page?: number
+        /** @description Items per page */
+        page_size?: number
+        /** @description Filter by active status (default: true) */
+        is_active?: boolean | null
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ServiceListResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  create_service_api_v1_services_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ServiceCreate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ServiceResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_service_api_v1_services__service_id__get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        service_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ServiceResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  update_service_api_v1_services__service_id__put: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        service_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ServiceUpdate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ServiceResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  delete_service_api_v1_services__service_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        service_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_locations_api_v1_locations_get: {
+    parameters: {
+      query?: {
+        /** @description Page number (1-indexed) */
+        page?: number
+        /** @description Items per page */
+        page_size?: number
+        /** @description Filter by active status (default: true) */
+        is_active?: boolean | null
+        /** @description Filter by location type */
+        location_type?: components['schemas']['LocationType'] | null
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['LocationListResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  create_location_api_v1_locations_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LocationCreate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['LocationResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_location_api_v1_locations__location_id__get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        location_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['LocationResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  update_location_api_v1_locations__location_id__put: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        location_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LocationUpdate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['LocationResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  delete_location_api_v1_locations__location_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        location_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_workspace_storage_usage_api_v1_workspaces__workspace_id__storage_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workspace_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkspaceStorageUsageResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  update_workspace_storage_quota_api_v1_workspaces__workspace_id__storage_quota_patch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workspace_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['WorkspaceStorageQuotaUpdateRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkspaceStorageUsageResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  update_workspace_api_v1_workspaces__workspace_id__patch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workspace_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateWorkspaceRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkspaceResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_notification_settings_api_v1_users_me_notification_settings_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['NotificationSettingsResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  update_notification_settings_api_v1_users_me_notification_settings_put: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['NotificationSettingsUpdate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['NotificationSettingsResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_integration_status_api_v1_integrations_google_calendar_status_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['GoogleCalendarStatusResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  authorize_google_calendar_api_v1_integrations_google_calendar_authorize_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['GoogleCalendarAuthorizeResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  oauth_callback_api_v1_integrations_google_calendar_callback_get: {
+    parameters: {
+      query?: {
+        /** @description OAuth authorization code from Google */
+        code?: string | null
+        /** @description CSRF state token */
+        state?: string | null
+        /** @description OAuth error from Google */
+        error?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  disconnect_google_calendar_api_v1_integrations_google_calendar_delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  update_settings_api_v1_integrations_google_calendar_settings_patch: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['GoogleCalendarSettingsUpdate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['GoogleCalendarSettingsResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_payment_config_api_v1_payments_config_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PaymentConfigResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  update_payment_config_api_v1_payments_config_put: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdatePaymentConfigRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PaymentConfigResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_audit_events_api_v1_audit_events_get: {
+    parameters: {
+      query?: {
+        /** @description Page number (1-indexed) */
+        page?: number
+        /** @description Items per page */
+        page_size?: number
+        /** @description Filter by user */
+        user_id?: string | null
+        /** @description Filter by resource type */
+        resource_type?: components['schemas']['ResourceType'] | null
+        /** @description Filter by resource ID */
+        resource_id?: string | null
+        /** @description Filter by action type */
+        action?: components['schemas']['AuditAction'] | null
+        /** @description Filter events on or after this date */
+        start_date?: string | null
+        /** @description Filter events on or before this date */
+        end_date?: string | null
+        /** @description Filter to only PHI access events */
+        phi_only?: boolean
+      }
+      header?: never
+      path?: never
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AuditEventListResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_audit_event_api_v1_audit_events__audit_event_id__get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        audit_event_id: string
+      }
+      cookie?: {
+        access_token?: string | null
+      }
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AuditEventResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  metrics_metrics_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+    }
+  }
+  health_check_health_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+    }
+  }
+  api_health_check_api_v1_health_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+    }
+  }
 }

@@ -38,7 +38,9 @@ async def enqueue_session_embeddings(session_id: str, workspace_id: str):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python generate_session_embeddings_manual.py <session_id> <workspace_id>")
+        print(
+            "Usage: python generate_session_embeddings_manual.py <session_id> <workspace_id>"
+        )
         sys.exit(1)
 
     session_id = sys.argv[1]

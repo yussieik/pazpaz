@@ -259,7 +259,9 @@ function applySuggestion(suggestion: string) {
           <!-- Loading state -->
           <div v-if="loadingSession" class="mt-4 py-4 text-center">
             <LoadingSpinner size="md" color="slate" />
-            <p class="mt-2 text-sm text-slate-600">{{ t('calendar.deleteAppointment.loadingSessionNote') }}</p>
+            <p class="mt-2 text-sm text-slate-600">
+              {{ t('calendar.deleteAppointment.loadingSessionNote') }}
+            </p>
           </div>
 
           <!-- Session Note Action Selection (if session exists) -->
@@ -285,7 +287,9 @@ function applySuggestion(suggestion: string) {
               />
               <div class="flex-1">
                 <div class="flex items-center gap-2">
-                  <span class="font-medium text-slate-900">{{ t('calendar.deleteAppointment.keepSessionNote') }}</span>
+                  <span class="font-medium text-slate-900">{{
+                    t('calendar.deleteAppointment.keepSessionNote')
+                  }}</span>
                   <span
                     v-if="hasSubstantialContent(sessionNote)"
                     class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700"
@@ -294,7 +298,11 @@ function applySuggestion(suggestion: string) {
                   </span>
                 </div>
                 <p class="mt-1 text-sm text-slate-600">
-                  {{ t('calendar.deleteAppointment.preserveClinical', { count: sessionNoteWordCount }) }}
+                  {{
+                    t('calendar.deleteAppointment.preserveClinical', {
+                      count: sessionNoteWordCount,
+                    })
+                  }}
                 </p>
               </div>
             </label>
@@ -316,7 +324,9 @@ function applySuggestion(suggestion: string) {
               />
               <div class="flex-1">
                 <div class="flex items-center gap-2">
-                  <span class="font-medium text-slate-900">{{ t('calendar.deleteAppointment.deleteSessionNote') }}</span>
+                  <span class="font-medium text-slate-900">{{
+                    t('calendar.deleteAppointment.deleteSessionNote')
+                  }}</span>
                 </div>
                 <p class="mt-1 text-sm text-slate-600">
                   {{ t('calendar.deleteAppointment.recoveryPeriod') }}
@@ -523,7 +533,11 @@ function applySuggestion(suggestion: string) {
               class="order-1 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:order-2 sm:w-auto"
             >
               <LoadingSpinner v-if="isDeleting" size="sm" color="blue" />
-              <span>{{ isDeleting ? t('calendar.deleteAppointment.deletingButton') : t('calendar.deleteAppointment.yesDeleteButton') }}</span>
+              <span>{{
+                isDeleting
+                  ? t('calendar.deleteAppointment.deletingButton')
+                  : t('calendar.deleteAppointment.yesDeleteButton')
+              }}</span>
             </button>
           </div>
         </div>

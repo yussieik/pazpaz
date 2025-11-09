@@ -65,6 +65,10 @@ from pazpaz.ai.query_expansion import expand_query
 from pazpaz.ai.retrieval import ClientContext, SessionContext, get_retrieval_service
 from pazpaz.ai.retry_policy import retry_with_backoff
 from pazpaz.ai.search_config import compute_adaptive_threshold, should_expand_query
+from pazpaz.ai.treatment_recommender import (
+    RecommendationResponse,
+    TreatmentRecommender,
+)
 from pazpaz.core.config import settings
 from pazpaz.core.logging import get_logger
 from pazpaz.models.audit_event import AuditAction, ResourceType
@@ -244,6 +248,8 @@ class ClinicalAgent:
         self.model = model or settings.cohere_chat_model
         self.retrieval_service = get_retrieval_service(db)
         self.redis = redis
+        # Initialize treatment recommender
+        self.treatment_recommender = TreatmentRecommender(self)
 
     async def query(
         self,
@@ -647,6 +653,52 @@ class ClinicalAgent:
                 retrieved_count=0,
                 processing_time_ms=processing_time,
             )
+
+    async def recommend_treatment_plan(
+        self,
+        workspace_id: uuid.UUID,
+        subjective: str,
+        objective: str,
+        assessment: str,
+        client_id: uuid.UUID | None = None,
+    ) -> RecommendationResponse:
+        """
+        Generate treatment plan recommendations (delegated to TreatmentRecommender).
+
+        This method delegates to TreatmentRecommender for all treatment recommendation logic.
+        See TreatmentRecommender.recommend_treatment_plan for full documentation.
+
+        Args:
+            workspace_id: Workspace ID (MANDATORY - multi-tenant isolation)
+            subjective: Subjective findings (S in SOAP)
+            objective: Objective findings (O in SOAP)
+            assessment: Clinical assessment (A in SOAP)
+            client_id: Optional client ID for patient-specific context
+
+        Returns:
+            RecommendationResponse with 1-2 treatment recommendations
+
+        Raises:
+            AgentError: If recommendation generation fails
+            ValueError: If parameters are invalid
+
+        Example:
+            >>> response = await agent.recommend_treatment_plan(
+            ...     workspace_id=workspace_id,
+            ...     subjective="Patient reports tight upper trapezius...",
+            ...     objective="Palpation reveals trigger points...",
+            ...     assessment="Myofascial pain syndrome...",
+            ...     client_id=client_id,
+            ... )
+            >>> print(response.recommendations[0].description)
+        """
+        return await self.treatment_recommender.recommend_treatment_plan(
+            workspace_id=workspace_id,
+            subjective=subjective,
+            objective=objective,
+            assessment=assessment,
+            client_id=client_id,
+        )
 
     def _format_context(
         self,

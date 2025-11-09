@@ -154,7 +154,11 @@ onKeyStroke(['Meta+Shift+n', 'Control+Shift+n'], (e) => {
         <IconClock size="md" class="shrink-0 text-blue-600" />
         <div class="flex-1">
           <p class="text-sm font-medium text-slate-900">
-            {{ t('calendar.appointmentDetails.statusCard.appointmentEnded', { timeAgo: timeSinceEnd }) }}
+            {{
+              t('calendar.appointmentDetails.statusCard.appointmentEnded', {
+                timeAgo: timeSinceEnd,
+              })
+            }}
           </p>
           <p class="mt-0.5 text-xs text-slate-600">
             {{ t('calendar.appointmentDetails.statusCard.readyToDocument') }}

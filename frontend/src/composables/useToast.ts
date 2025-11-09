@@ -16,10 +16,19 @@ interface ExtendedToastOptions extends Partial<ToastOptions> {
  * provides the actual runtime API for methods we use.
  */
 interface ExtendedToast {
-  success: (message: string | Component, options?: ExtendedToastOptions) => string | number
-  error: (message: string | Component, options?: ExtendedToastOptions) => string | number
+  success: (
+    message: string | Component,
+    options?: ExtendedToastOptions
+  ) => string | number
+  error: (
+    message: string | Component,
+    options?: ExtendedToastOptions
+  ) => string | number
   info: (message: string | Component, options?: ExtendedToastOptions) => string | number
-  warning: (message: string | Component, options?: ExtendedToastOptions) => string | number
+  warning: (
+    message: string | Component,
+    options?: ExtendedToastOptions
+  ) => string | number
   dismiss: (toastId: string | number) => void
 }
 

@@ -221,7 +221,7 @@ async def create_test_client_with_sessions(workspace_id: str):
 
         await db.commit()
 
-        print(f"\n✅ Created 3 sessions:")
+        print("\n✅ Created 3 sessions:")
         print(f"   Session 1: {session1.session_date} (Initial - acute flare-up)")
         print(f"   Session 2: {session2.session_date} (Follow-up - improving)")
         print(f"   Session 3: {session3.session_date} (Progress - near resolution)")
@@ -239,7 +239,7 @@ async def create_test_client_with_sessions(workspace_id: str):
         print("   - 'What is Sarah's medical history?'")
         print("   - 'Is Sarah ready to return to yoga?'")
         print("   - 'מתי התחילו הכאבים של שרה?' (Hebrew)")
-        print(f"\n📊 Client Details:")
+        print("\n📊 Client Details:")
         print(f"   Name: {client.first_name} {client.last_name}")
         print(f"   Client ID: {client.id}")
         print(f"   Workspace ID: {workspace.id}")
@@ -254,7 +254,9 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python create_test_client_with_sessions.py <workspace_id>")
         print("\nTo find your workspace_id, run:")
-        print("  docker compose exec db psql -U pazpaz -d pazpaz -c \"SELECT id, name FROM workspaces;\"")
+        print(
+            '  docker compose exec db psql -U pazpaz -d pazpaz -c "SELECT id, name FROM workspaces;"'
+        )
         sys.exit(1)
 
     workspace_id = sys.argv[1]

@@ -7,7 +7,6 @@ when using mismatched input_type (search_document vs search_query).
 """
 
 import asyncio
-import os
 
 from pazpaz.ai.embeddings import get_embedding_service
 
@@ -32,7 +31,9 @@ async def test_hebrew_embeddings():
     query_as_doc_embedding = await service_doc.embed_text(query_text)
 
     # Calculate cosine similarity
-    similarity_doc_to_doc = calculate_cosine_similarity(doc_embedding, query_as_doc_embedding)
+    similarity_doc_to_doc = calculate_cosine_similarity(
+        doc_embedding, query_as_doc_embedding
+    )
     print(f"Document (search_document): '{document_text}'")
     print(f"Query    (search_document): '{query_text}'")
     print(f"Similarity: {similarity_doc_to_doc:.4f}")
@@ -44,7 +45,9 @@ async def test_hebrew_embeddings():
     service_query = get_embedding_service(input_type="search_query")
     query_embedding = await service_query.embed_text(query_text)
 
-    similarity_doc_to_query = calculate_cosine_similarity(doc_embedding, query_embedding)
+    similarity_doc_to_query = calculate_cosine_similarity(
+        doc_embedding, query_embedding
+    )
     print(f"Document (search_document): '{document_text}'")
     print(f"Query    (search_query):    '{query_text}'")
     print(f"Similarity: {similarity_doc_to_query:.4f}")
@@ -55,7 +58,9 @@ async def test_hebrew_embeddings():
 
     doc_as_query_embedding = await service_query.embed_text(document_text)
 
-    similarity_query_to_query = calculate_cosine_similarity(doc_as_query_embedding, query_embedding)
+    similarity_query_to_query = calculate_cosine_similarity(
+        doc_as_query_embedding, query_embedding
+    )
     print(f"Document (search_query): '{document_text}'")
     print(f"Query    (search_query): '{query_text}'")
     print(f"Similarity: {similarity_query_to_query:.4f}")
@@ -73,13 +78,17 @@ async def test_hebrew_embeddings():
     print("=" * 80)
 
     if similarity_doc_to_query < 0.3:
-        print("🔴 ISSUE CONFIRMED: Current system (doc→query) similarity < 0.3 threshold!")
+        print(
+            "🔴 ISSUE CONFIRMED: Current system (doc→query) similarity < 0.3 threshold!"
+        )
         print("   This explains why Hebrew queries return no results.")
     else:
         print("🟢 Current system similarity is above threshold - issue elsewhere")
 
     if similarity_doc_to_doc > similarity_doc_to_query:
-        print(f"\n💡 Using matching input_types improves similarity by {((similarity_doc_to_doc - similarity_doc_to_query) / similarity_doc_to_query * 100):.1f}%")
+        print(
+            f"\n💡 Using matching input_types improves similarity by {((similarity_doc_to_doc - similarity_doc_to_query) / similarity_doc_to_query * 100):.1f}%"
+        )
 
     print("\n" + "=" * 80)
 
@@ -89,7 +98,7 @@ def calculate_cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
     import math
 
     # Dot product
-    dot_product = sum(a * b for a, b in zip(vec1, vec2))
+    dot_product = sum(a * b for a, b in zip(vec1, vec2, strict=False))
 
     # Magnitudes
     magnitude1 = math.sqrt(sum(a * a for a in vec1))

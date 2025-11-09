@@ -91,7 +91,10 @@ async function loadAttachmentsList() {
 async function handleDownload(attachment: AttachmentResponse) {
   try {
     // Show info toast for download started
-    showInfo(t('sessions.attachments.list.downloading', { fileName: attachment.file_name }), { timeout: 2000 })
+    showInfo(
+      t('sessions.attachments.list.downloading', { fileName: attachment.file_name }),
+      { timeout: 2000 }
+    )
     await downloadAttachment(props.sessionId, attachment.id, attachment.file_name)
   } catch (error) {
     console.error('Download error:', error)
@@ -123,7 +126,11 @@ async function handleDelete() {
 
   try {
     await deleteAttachment(props.sessionId, attachmentToDelete.value.id)
-    showSuccess(t('sessions.attachments.list.deleteSuccess', { fileName: attachmentToDelete.value.file_name }))
+    showSuccess(
+      t('sessions.attachments.list.deleteSuccess', {
+        fileName: attachmentToDelete.value.file_name,
+      })
+    )
 
     // Remove from local list
     attachments.value = attachments.value.filter(
@@ -359,8 +366,16 @@ defineExpose({
             <button
               @click="handleRenameClick(attachment)"
               class="truncate text-left text-sm font-medium text-slate-900 transition-colors hover:text-blue-600 focus:text-blue-600 focus:underline focus:outline-none"
-              :title="t('sessions.attachments.list.renameTooltip', { fileName: attachment.file_name })"
-              :aria-label="t('sessions.attachments.list.renameAriaLabel', { fileName: attachment.file_name })"
+              :title="
+                t('sessions.attachments.list.renameTooltip', {
+                  fileName: attachment.file_name,
+                })
+              "
+              :aria-label="
+                t('sessions.attachments.list.renameAriaLabel', {
+                  fileName: attachment.file_name,
+                })
+              "
             >
               {{ attachment.file_name }}
             </button>
@@ -460,7 +475,9 @@ defineExpose({
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
-                <span class="ml-1.5 hidden text-sm font-medium md:inline">{{ t('sessions.attachments.list.saveButton') }}</span>
+                <span class="ml-1.5 hidden text-sm font-medium md:inline">{{
+                  t('sessions.attachments.list.saveButton')
+                }}</span>
               </button>
 
               <!-- Cancel Button -->
@@ -485,7 +502,9 @@ defineExpose({
                     d="M6 18L18 6M6 6l12 12"
                   />
                 </svg>
-                <span class="ml-1.5 hidden text-sm font-medium md:inline">{{ t('sessions.attachments.list.cancelButton') }}</span>
+                <span class="ml-1.5 hidden text-sm font-medium md:inline">{{
+                  t('sessions.attachments.list.cancelButton')
+                }}</span>
               </button>
             </form>
 
@@ -512,7 +531,11 @@ defineExpose({
           <button
             @click="handleDownload(attachment)"
             class="rounded p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none"
-            :aria-label="t('sessions.attachments.list.downloadAriaLabel', { fileName: attachment.file_name })"
+            :aria-label="
+              t('sessions.attachments.list.downloadAriaLabel', {
+                fileName: attachment.file_name,
+              })
+            "
             :title="t('sessions.attachments.list.downloadTitle')"
           >
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -529,7 +552,11 @@ defineExpose({
           <button
             @click="confirmDelete(attachment)"
             class="rounded p-2 text-slate-600 transition-colors hover:bg-red-50 hover:text-red-600 focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:outline-none"
-            :aria-label="t('sessions.attachments.list.deleteAriaLabel', { fileName: attachment.file_name })"
+            :aria-label="
+              t('sessions.attachments.list.deleteAriaLabel', {
+                fileName: attachment.file_name,
+              })
+            "
             :title="t('sessions.attachments.list.deleteTitle')"
           >
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -588,8 +615,14 @@ defineExpose({
               <h3 id="delete-dialog-title" class="text-lg font-semibold text-slate-900">
                 {{ t('sessions.attachments.list.deleteDialogTitle') }}
               </h3>
-              <p class="mt-2 text-sm text-slate-600" v-html="t('sessions.attachments.list.deleteDialogMessage', { fileName: attachmentToDelete?.file_name })">
-              </p>
+              <p
+                class="mt-2 text-sm text-slate-600"
+                v-html="
+                  t('sessions.attachments.list.deleteDialogMessage', {
+                    fileName: attachmentToDelete?.file_name,
+                  })
+                "
+              ></p>
             </div>
           </div>
           <div class="mt-6 flex justify-end gap-3">
@@ -627,7 +660,11 @@ defineExpose({
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
-              {{ isDeleting ? t('sessions.attachments.list.deletingButton') : t('sessions.attachments.list.deleteButton') }}
+              {{
+                isDeleting
+                  ? t('sessions.attachments.list.deletingButton')
+                  : t('sessions.attachments.list.deleteButton')
+              }}
             </button>
           </div>
         </div>

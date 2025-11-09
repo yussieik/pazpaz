@@ -52,11 +52,15 @@ const modifierKey = computed(() => (isMac.value ? '⌘' : 'Ctrl'))
 
 // Computed properties
 const modalTitle = computed(() =>
-  props.mode === 'create' ? t('clients.formModal.createTitle') : t('clients.formModal.editTitle')
+  props.mode === 'create'
+    ? t('clients.formModal.createTitle')
+    : t('clients.formModal.editTitle')
 )
 
 const submitButtonText = computed(() =>
-  props.mode === 'create' ? t('clients.formModal.addButton') : t('clients.formModal.saveButton')
+  props.mode === 'create'
+    ? t('clients.formModal.addButton')
+    : t('clients.formModal.saveButton')
 )
 
 // Check if email is provided for calendar consent
@@ -479,7 +483,9 @@ onUnmounted(() => {
                     "
                     class="mt-1 text-xs text-slate-400"
                   >
-                    {{ t('clients.formModal.fields.calendarConsent.consentGrantedLabel') }}
+                    {{
+                      t('clients.formModal.fields.calendarConsent.consentGrantedLabel')
+                    }}
                     {{ formatDate(props.client.google_calendar_consent_date) }}
                   </p>
                 </div>
@@ -503,7 +509,9 @@ onUnmounted(() => {
                       clip-rule="evenodd"
                     />
                   </svg>
-                  <span>{{ t('clients.formModal.fields.calendarConsent.emailRequiredWarning') }}</span>
+                  <span>{{
+                    t('clients.formModal.fields.calendarConsent.emailRequiredWarning')
+                  }}</span>
                 </p>
               </div>
             </div>
@@ -517,8 +525,14 @@ onUnmounted(() => {
               class="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             >
               <span>
-                {{ isAdditionalDetailsExpanded ? t('clients.formModal.fields.toggleDetails.hide') : t('clients.formModal.fields.toggleDetails.addMore') }}
-                <span class="text-slate-500">{{ t('clients.formModal.fields.toggleDetails.optional') }}</span>
+                {{
+                  isAdditionalDetailsExpanded
+                    ? t('clients.formModal.fields.toggleDetails.hide')
+                    : t('clients.formModal.fields.toggleDetails.addMore')
+                }}
+                <span class="text-slate-500">{{
+                  t('clients.formModal.fields.toggleDetails.optional')
+                }}</span>
               </span>
               <svg
                 :class="[
@@ -603,7 +617,9 @@ onUnmounted(() => {
                     v-model="formData.emergency_contact_name"
                     v-rtl
                     type="text"
-                    :placeholder="t('clients.formModal.fields.emergencyContactName.placeholder')"
+                    :placeholder="
+                      t('clients.formModal.fields.emergencyContactName.placeholder')
+                    "
                     class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                   />
                 </div>
@@ -621,7 +637,9 @@ onUnmounted(() => {
                     v-model="formData.emergency_contact_phone"
                     type="tel"
                     dir="ltr"
-                    :placeholder="t('clients.formModal.fields.emergencyContactPhone.placeholder')"
+                    :placeholder="
+                      t('clients.formModal.fields.emergencyContactPhone.placeholder')
+                    "
                     class="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                   />
                 </div>
@@ -632,11 +650,15 @@ onUnmounted(() => {
                     for="medical-history"
                     class="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-900"
                   >
-                    <span>{{ t('clients.formModal.fields.medicalHistory.label') }}</span>
+                    <span>{{
+                      t('clients.formModal.fields.medicalHistory.label')
+                    }}</span>
                     <span
                       class="text-xs text-slate-500"
                       aria-label="Encrypted and private"
-                      >{{ t('clients.formModal.fields.medicalHistory.encryptedNote') }}</span
+                      >{{
+                        t('clients.formModal.fields.medicalHistory.encryptedNote')
+                      }}</span
                     >
                   </label>
                   <textarea
@@ -644,7 +666,9 @@ onUnmounted(() => {
                     v-model="formData.medical_history"
                     v-rtl
                     rows="4"
-                    :placeholder="t('clients.formModal.fields.medicalHistory.placeholder')"
+                    :placeholder="
+                      t('clients.formModal.fields.medicalHistory.placeholder')
+                    "
                     class="mt-1 block min-h-[100px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm"
                   ></textarea>
                 </div>
@@ -711,7 +735,11 @@ onUnmounted(() => {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  {{ mode === 'edit' ? t('clients.formModal.savingStatus') : t('clients.formModal.addingStatus') }}
+                  {{
+                    mode === 'edit'
+                      ? t('clients.formModal.savingStatus')
+                      : t('clients.formModal.addingStatus')
+                  }}
                 </span>
                 <span v-else>{{ submitButtonText }}</span>
               </button>

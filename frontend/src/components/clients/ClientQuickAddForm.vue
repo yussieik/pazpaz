@@ -117,13 +117,17 @@ function handleKeydown(e: KeyboardEvent) {
           d="M12 4v16m8-8H4"
         />
       </svg>
-      <h3 class="text-sm font-semibold text-slate-900">{{ t('clients.quickAddForm.title') }}</h3>
+      <h3 class="text-sm font-semibold text-slate-900">
+        {{ t('clients.quickAddForm.title') }}
+      </h3>
     </div>
 
     <form @submit.prevent="handleSubmit" class="space-y-3">
       <!-- First Name -->
       <div>
-        <label for="quick-add-first-name" class="sr-only">{{ t('clients.quickAddForm.firstNameLabel') }}</label>
+        <label for="quick-add-first-name" class="sr-only">{{
+          t('clients.quickAddForm.firstNameLabel')
+        }}</label>
         <input
           id="quick-add-first-name"
           ref="firstNameInput"
@@ -148,7 +152,9 @@ function handleKeydown(e: KeyboardEvent) {
 
       <!-- Last Name -->
       <div>
-        <label for="quick-add-last-name" class="sr-only">{{ t('clients.quickAddForm.lastNameLabel') }}</label>
+        <label for="quick-add-last-name" class="sr-only">{{
+          t('clients.quickAddForm.lastNameLabel')
+        }}</label>
         <input
           id="quick-add-last-name"
           v-model="formData.last_name"
@@ -172,7 +178,9 @@ function handleKeydown(e: KeyboardEvent) {
 
       <!-- Phone (Optional) -->
       <div>
-        <label for="quick-add-phone" class="sr-only">{{ t('clients.quickAddForm.phoneLabel') }}</label>
+        <label for="quick-add-phone" class="sr-only">{{
+          t('clients.quickAddForm.phoneLabel')
+        }}</label>
         <input
           id="quick-add-phone"
           v-model="formData.phone"
@@ -203,6 +211,8 @@ function handleKeydown(e: KeyboardEvent) {
       </div>
     </form>
 
-    <p class="mt-2 text-xs text-slate-500">{{ t('clients.quickAddForm.keyboardHint') }}</p>
+    <p class="mt-2 text-xs text-slate-500">
+      {{ t('clients.quickAddForm.keyboardHint') }}
+    </p>
   </div>
 </template>

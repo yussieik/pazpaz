@@ -390,7 +390,11 @@ onMounted(async () => {
               {{ t('settings.googleCalendar.connected.successTitle') }}
             </h3>
             <p v-if="formattedLastSync" class="mt-1 text-xs text-green-700">
-              {{ t('settings.googleCalendar.connected.lastSynced', { time: formattedLastSync }) }}
+              {{
+                t('settings.googleCalendar.connected.lastSynced', {
+                  time: formattedLastSync,
+                })
+              }}
             </p>
           </div>
         </div>
@@ -463,13 +467,19 @@ onMounted(async () => {
                   {{ t('settings.googleCalendar.connected.clientNotificationsLabel') }}
                 </label>
                 <p class="mt-1 text-sm text-slate-600">
-                  {{ t('settings.googleCalendar.connected.clientNotificationsDescription') }}
+                  {{
+                    t(
+                      'settings.googleCalendar.connected.clientNotificationsDescription'
+                    )
+                  }}
                 </p>
                 <p
                   v-if="!settings.has_google_baa"
                   class="mt-2 text-xs font-medium text-amber-700"
                 >
-                  {{ t('settings.googleCalendar.connected.clientNotificationsBaaWarning') }}
+                  {{
+                    t('settings.googleCalendar.connected.clientNotificationsBaaWarning')
+                  }}
                 </p>
               </div>
               <div class="flex-shrink-0">
@@ -514,7 +524,9 @@ onMounted(async () => {
                       {{ t('settings.googleCalendar.connected.privacyNoticeTitle') }}
                     </p>
                     <p class="mt-1 text-xs text-slate-700">
-                      {{ t('settings.googleCalendar.connected.privacyNoticeDescription') }}
+                      {{
+                        t('settings.googleCalendar.connected.privacyNoticeDescription')
+                      }}
                     </p>
                   </div>
                 </div>

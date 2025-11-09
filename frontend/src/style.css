@@ -132,7 +132,7 @@
  */
 
 /* Visual hierarchy for section headers with left accent bar */
-.prose-clinical strong[class*="border-l-3"] {
+.prose-clinical strong[class*='border-l-3'] {
   border-left-width: 3px;
 }
 

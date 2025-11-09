@@ -246,11 +246,16 @@ function handleKeydown(e: KeyboardEvent) {
 
       <!-- Primary Action Text -->
       <p class="mt-3 text-sm text-gray-700">
-        <span class="font-medium text-blue-600">{{ t('sessions.attachments.upload.clickToUpload') }}</span> {{ t('sessions.attachments.upload.dragAndDrop') }}
+        <span class="font-medium text-blue-600">{{
+          t('sessions.attachments.upload.clickToUpload')
+        }}</span>
+        {{ t('sessions.attachments.upload.dragAndDrop') }}
       </p>
 
       <!-- File Constraints -->
-      <p class="mt-1 text-xs text-gray-500">{{ t('sessions.attachments.upload.fileConstraints') }}</p>
+      <p class="mt-1 text-xs text-gray-500">
+        {{ t('sessions.attachments.upload.fileConstraints') }}
+      </p>
 
       <!-- Hidden file input -->
       <input

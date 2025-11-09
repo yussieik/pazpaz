@@ -31,7 +31,6 @@ Create Date: 2025-11-02 12:07:31.962269
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
 
 from alembic import op
 

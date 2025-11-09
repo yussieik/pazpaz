@@ -56,7 +56,8 @@ INJECTION_REGEX = [re.compile(pattern) for pattern in INJECTION_PATTERNS]
 
 # Control characters that should not appear in legitimate queries
 # U+0000-U+001F (C0 controls), U+007F (DEL), U+0080-U+009F (C1 controls)
-CONTROL_CHARS_REGEX = re.compile(r"[\x00-\x1F\x7F-\x9F]")
+# EXCEPT: \t (0x09), \n (0x0A), \r (0x0D) which are legitimate whitespace in SOAP notes
+CONTROL_CHARS_REGEX = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]")
 
 # Zero-width characters used for obfuscation
 ZERO_WIDTH_CHARS_REGEX = re.compile(

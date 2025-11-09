@@ -46,6 +46,9 @@ class ResourceType(str, enum.Enum):
     LOCATION = "Location"
     WORKSPACE = "Workspace"
     AI_AGENT = "AIAgent"  # AI agent queries (PHI access for RAG)
+    AI_RECOMMENDATION = (
+        "AIRecommendation"  # AI treatment recommendations (PHI access for SOAP notes)
+    )
 
 
 class AuditEvent(Base):

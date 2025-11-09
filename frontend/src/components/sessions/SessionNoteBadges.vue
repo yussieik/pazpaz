@@ -76,7 +76,9 @@ function formatRelativeTime(isoString: string | null | undefined): string {
         />
       </svg>
 
-      {{ isDraft ? t('sessions.view.statusDraft') : t('sessions.view.statusFinalized') }}
+      {{
+        isDraft ? t('sessions.view.statusDraft') : t('sessions.view.statusFinalized')
+      }}
     </span>
 
     <!-- Amended Badge (only if amended) -->

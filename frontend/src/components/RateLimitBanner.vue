@@ -25,7 +25,9 @@
             />
           </svg>
           <div>
-            <p class="text-sm font-medium text-yellow-800">{{ t('common.rateLimit.title') }}</p>
+            <p class="text-sm font-medium text-yellow-800">
+              {{ t('common.rateLimit.title') }}
+            </p>
             <p class="text-xs text-yellow-700">
               {{ t('common.rateLimit.description') }}
             </p>
@@ -45,7 +47,11 @@
             <span class="text-yellow-600">-</span>
             <span
               class="font-mono tabular-nums"
-              :aria-label="t('common.rateLimit.timeRemaining', { seconds: getRemainingSeconds(limit.endpoint) })"
+              :aria-label="
+                t('common.rateLimit.timeRemaining', {
+                  seconds: getRemainingSeconds(limit.endpoint),
+                })
+              "
             >
               {{ getRemainingSeconds(limit.endpoint) }}s
             </span>

@@ -154,7 +154,9 @@ function selectClient(client: Client) {
   searchQuery.value = ''
   emit('update:modelValue', client.id)
   closeDropdown()
-  announce(t('clients.combobox.announcements.clientSelected', { clientName: client.full_name }))
+  announce(
+    t('clients.combobox.announcements.clientSelected', { clientName: client.full_name })
+  )
 }
 
 /**
@@ -185,7 +187,11 @@ async function handleQuickAddSubmit(clientData: ClientCreate) {
   const newClient = await createClient(clientData)
   if (newClient) {
     selectClient(newClient)
-    announce(t('clients.combobox.announcements.clientCreated', { clientName: newClient.full_name }))
+    announce(
+      t('clients.combobox.announcements.clientCreated', {
+        clientName: newClient.full_name,
+      })
+    )
   }
 }
 
@@ -326,7 +332,9 @@ defineExpose({
         "
         aria-autocomplete="list"
         :placeholder="
-          selectedClient ? selectedClient.full_name : t('clients.combobox.placeholderEmpty')
+          selectedClient
+            ? selectedClient.full_name
+            : t('clients.combobox.placeholderEmpty')
         "
         :disabled="disabled"
         @focus="handleInputFocus"
@@ -416,7 +424,11 @@ defineExpose({
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             ></path>
           </svg>
-          <span>{{ isSearching ? t('clients.combobox.searchingStatus') : t('clients.combobox.loadingStatus') }}</span>
+          <span>{{
+            isSearching
+              ? t('clients.combobox.searchingStatus')
+              : t('clients.combobox.loadingStatus')
+          }}</span>
         </div>
 
         <!-- Error State -->

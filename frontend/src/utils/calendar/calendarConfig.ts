@@ -86,7 +86,15 @@ export function getCalendarOptions(currentLocale: string, isMobile = false) {
   const dayHeaderContent =
     currentLocale === 'he'
       ? (args: { date: Date }) => {
-          const dayNamesDesktop = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+          const dayNamesDesktop = [
+            'ראשון',
+            'שני',
+            'שלישי',
+            'רביעי',
+            'חמישי',
+            'שישי',
+            'שבת',
+          ]
           const dayNamesMobile = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳']
           return isMobile
             ? dayNamesMobile[args.date.getDay()]
@@ -95,7 +103,7 @@ export function getCalendarOptions(currentLocale: string, isMobile = false) {
       : undefined
 
   return {
-    headerToolbar: false as false,
+    headerToolbar: false as const,
     allDaySlot: false,
     nowIndicator: true,
     editable: true,

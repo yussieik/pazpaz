@@ -26,9 +26,7 @@ async def generate_embeddings_for_client(client_id: str):
     """Generate embeddings for all sessions of a client."""
     async with AsyncSessionLocal() as db:
         # Fetch client
-        result = await db.execute(
-            select(Client).where(Client.id == client_id)
-        )
+        result = await db.execute(select(Client).where(Client.id == client_id))
         client = result.scalar_one_or_none()
 
         if not client:
@@ -42,7 +40,7 @@ async def generate_embeddings_for_client(client_id: str):
         result = await db.execute(
             select(Session).where(
                 Session.client_id == client_id,
-                Session.workspace_id == client.workspace_id
+                Session.workspace_id == client.workspace_id,
             )
         )
         sessions = result.scalars().all()
@@ -66,13 +64,13 @@ async def generate_embeddings_for_client(client_id: str):
             # Collect SOAP fields
             fields_to_embed = {}
             if session.subjective:
-                fields_to_embed['subjective'] = session.subjective
+                fields_to_embed["subjective"] = session.subjective
             if session.objective:
-                fields_to_embed['objective'] = session.objective
+                fields_to_embed["objective"] = session.objective
             if session.assessment:
-                fields_to_embed['assessment'] = session.assessment
+                fields_to_embed["assessment"] = session.assessment
             if session.plan:
-                fields_to_embed['plan'] = session.plan
+                fields_to_embed["plan"] = session.plan
 
             if not fields_to_embed:
                 print("   ⚠️  No SOAP fields to embed, skipping...")
@@ -83,10 +81,10 @@ async def generate_embeddings_for_client(client_id: str):
             # Generate embeddings
             try:
                 embeddings = await embedding_service.embed_soap_fields(
-                    subjective=fields_to_embed.get('subjective'),
-                    objective=fields_to_embed.get('objective'),
-                    assessment=fields_to_embed.get('assessment'),
-                    plan=fields_to_embed.get('plan'),
+                    subjective=fields_to_embed.get("subjective"),
+                    objective=fields_to_embed.get("objective"),
+                    assessment=fields_to_embed.get("assessment"),
+                    plan=fields_to_embed.get("plan"),
                 )
                 print(f"   ✅ Generated {len(embeddings)} embeddings")
 
@@ -96,7 +94,7 @@ async def generate_embeddings_for_client(client_id: str):
                     session_id=session.id,
                     embeddings=embeddings,
                 )
-                print(f"   ✅ Stored embeddings in database")
+                print("   ✅ Stored embeddings in database")
 
             except Exception as e:
                 print(f"   ❌ Error generating embeddings: {e}")
@@ -104,11 +102,13 @@ async def generate_embeddings_for_client(client_id: str):
 
         await db.commit()
 
-        print(f"\n🎉 Embedding generation complete!")
-        print(f"\n📊 Summary:")
+        print("\n🎉 Embedding generation complete!")
+        print("\n📊 Summary:")
         print(f"   Client: {client.first_name} {client.last_name}")
         print(f"   Sessions processed: {len(sessions)}")
-        print(f"   Total embeddings: {len(sessions) * 4} (assuming 4 SOAP fields per session)")
+        print(
+            f"   Total embeddings: {len(sessions) * 4} (assuming 4 SOAP fields per session)"
+        )
 
         print("\n✅ Ready to test AI agent with queries like:")
         print("   - 'When did Sarah's back pain start?'")

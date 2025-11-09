@@ -28,9 +28,10 @@ Performance:
 
 from __future__ import annotations
 
+import math
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,6 +72,7 @@ class SessionContext:
         assessment: Clinical assessment (PHI - decrypted)
         plan: Treatment plan (PHI - decrypted)
         similarity_score: Cosine similarity to query (0.0 to 1.0)
+        weighted_score: Temporal weighted similarity score (0.0 to 1.0)
         matched_field: Which SOAP field matched the query
 
     Example:
@@ -84,6 +86,7 @@ class SessionContext:
         ...     assessment="Acute lower back strain...",
         ...     plan="Rest, ice, follow-up in 2 weeks...",
         ...     similarity_score=0.85,
+        ...     weighted_score=0.74,  # Temporal weighting applied
         ...     matched_field="subjective",
         ... )
     """
@@ -97,6 +100,7 @@ class SessionContext:
     assessment: str | None
     plan: str | None
     similarity_score: float
+    weighted_score: float
     matched_field: str
 
 
@@ -133,6 +137,50 @@ class ClientContext:
     notes: str | None
     similarity_score: float
     matched_field: str
+
+
+def apply_temporal_weighting(
+    similarity: float,
+    session_date: datetime,
+    decay_rate: float = 0.02,
+) -> float:
+    """
+    Apply temporal weighting to similarity score.
+
+    Recent sessions get higher weight, older sessions decay exponentially.
+    This ensures treatment recommendations prioritize recent clinical history
+    while still allowing highly relevant old sessions to contribute.
+
+    Args:
+        similarity: Original cosine similarity (0.0 to 1.0)
+        session_date: When the session occurred
+        decay_rate: Exponential decay rate (default: 0.02 = 35-day half-life)
+            - 0.01 = slow decay (~70-day half-life)
+            - 0.02 = moderate decay (~35-day half-life) [default]
+            - 0.05 = aggressive decay (~14-day half-life)
+
+    Returns:
+        Weighted similarity score (0.0 to 1.0)
+
+    Examples:
+        With default decay_rate=0.02 (moderate):
+        - 7 days ago:   similarity * 0.87
+        - 1 month ago:  similarity * 0.55
+        - 3 months ago: similarity * 0.17
+        - 6 months ago: similarity * 0.03
+    """
+    # Handle timezone-naive session_date (assume UTC if no timezone)
+    if session_date.tzinfo is None:
+        session_date = session_date.replace(tzinfo=UTC)
+
+    now = datetime.now(UTC)
+    days_ago = (now - session_date).days
+
+    # Exponential decay: exp(-decay_rate * days_ago)
+    # Clamp days_ago to 0 minimum (future dates get no penalty)
+    recency_weight = math.exp(-decay_rate * max(0, days_ago))
+
+    return similarity * recency_weight
 
 
 class RetrievalService:
@@ -363,6 +411,33 @@ class RetrievalService:
                             max_similarity = similarity
                             matched_field = field_name
 
+                # Apply temporal weighting to prioritize recent sessions
+                weighted_score = apply_temporal_weighting(
+                    max_similarity, session.session_date
+                )
+
+                # Calculate temporal weighting metrics for logging
+                session_date_utc = (
+                    session.session_date.replace(tzinfo=UTC)
+                    if session.session_date.tzinfo is None
+                    else session.session_date
+                )
+                days_ago = (datetime.now(UTC) - session_date_utc).days
+                recency_weight = (
+                    weighted_score / max_similarity if max_similarity > 0 else 0
+                )
+
+                logger.debug(
+                    "temporal_weighting_applied",
+                    session_id=str(session.id),
+                    session_date=session.session_date.isoformat(),
+                    days_ago=days_ago,
+                    similarity_score=round(max_similarity, 4),
+                    recency_weight=round(recency_weight, 4),
+                    weighted_score=round(weighted_score, 4),
+                    matched_field=matched_field,
+                )
+
                 # Build context
                 context = SessionContext(
                     session_id=session.id,
@@ -376,13 +451,31 @@ class RetrievalService:
                     assessment=session.assessment,  # Auto-decrypted
                     plan=session.plan,  # Auto-decrypted
                     similarity_score=max_similarity,
+                    weighted_score=weighted_score,
                     matched_field=matched_field,
                 )
 
                 contexts.append(context)
 
-            # Sort by similarity (highest first)
-            contexts.sort(key=lambda c: c.similarity_score, reverse=True)
+            # Sort by weighted similarity (prioritizes recent + relevant sessions)
+            contexts.sort(key=lambda c: c.weighted_score, reverse=True)
+
+            # Log final ranking after temporal weighting
+            logger.info(
+                "sessions_ranked_by_temporal_weighting",
+                workspace_id=str(workspace_id),
+                total_sessions=len(contexts),
+                rankings=[
+                    {
+                        "session_id": str(c.session_id),
+                        "rank": i + 1,
+                        "similarity": round(c.similarity_score, 4),
+                        "weighted": round(c.weighted_score, 4),
+                        "date": c.session_date.isoformat(),
+                    }
+                    for i, c in enumerate(contexts)
+                ],
+            )
 
             return contexts
 

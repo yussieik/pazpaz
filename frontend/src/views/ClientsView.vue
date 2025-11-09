@@ -72,10 +72,12 @@ async function handleCreateClient(data: ClientCreate) {
     router.push(`/clients/${newClient.id}`)
 
     // Show success toast
-    showSuccess(t('clients.view.toasts.clientAdded', {
-      firstName: newClient.first_name,
-      lastName: newClient.last_name
-    }))
+    showSuccess(
+      t('clients.view.toasts.clientAdded', {
+        firstName: newClient.first_name,
+        lastName: newClient.last_name,
+      })
+    )
   } catch (error) {
     // Keep modal open and show error
     console.error('Failed to create client:', error)
@@ -165,16 +167,19 @@ onUnmounted(() => {
               ? t('clients.view.searchPlaceholderMobile')
               : t('clients.view.searchPlaceholderDesktop')
           "
-          :aria-label="shouldDeferKeyboard ? t('clients.view.searchAriaLabel') : undefined"
-          class="block w-full rounded-lg border border-slate-300 bg-white py-3 pe-3 ps-10 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+          :aria-label="
+            shouldDeferKeyboard ? t('clients.view.searchAriaLabel') : undefined
+          "
+          class="block w-full rounded-lg border border-slate-300 bg-white py-3 ps-10 pe-3 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
         />
       </div>
 
       <!-- Client count (subtle, right-aligned on desktop) -->
       <div class="text-sm text-slate-600" aria-live="polite" aria-atomic="true">
-        {{ filteredClients.length === 1
-          ? t('clients.view.clientCountSingular', { count: filteredClients.length })
-          : t('clients.view.clientCountPlural', { count: filteredClients.length })
+        {{
+          filteredClients.length === 1
+            ? t('clients.view.clientCountSingular', { count: filteredClients.length })
+            : t('clients.view.clientCountPlural', { count: filteredClients.length })
         }}
       </div>
     </div>
@@ -185,7 +190,9 @@ onUnmounted(() => {
         <div
           class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-emerald-600 border-r-transparent"
         ></div>
-        <p class="mt-4 text-sm text-slate-600">{{ t('clients.view.loadingMessage') }}</p>
+        <p class="mt-4 text-sm text-slate-600">
+          {{ t('clients.view.loadingMessage') }}
+        </p>
       </div>
     </div>
 
@@ -218,7 +225,9 @@ onUnmounted(() => {
           />
         </svg>
       </div>
-      <h2 class="mb-3 text-xl font-semibold text-slate-900">{{ t('clients.view.emptyState.title') }}</h2>
+      <h2 class="mb-3 text-xl font-semibold text-slate-900">
+        {{ t('clients.view.emptyState.title') }}
+      </h2>
       <p class="mb-6 text-slate-600">
         {{ t('clients.view.emptyState.description') }}
       </p>
@@ -289,18 +298,27 @@ onUnmounted(() => {
         <!-- Client Metadata -->
         <div class="space-y-1 text-sm text-slate-600">
           <p v-if="client.phone">
-            <span class="font-medium">{{ t('clients.view.clientCard.phoneLabel') }}</span> {{ client.phone }}
+            <span class="font-medium">{{
+              t('clients.view.clientCard.phoneLabel')
+            }}</span>
+            {{ client.phone }}
           </p>
           <p v-if="client.next_appointment">
-            <span class="font-medium">{{ t('clients.view.clientCard.nextLabel') }}</span>
+            <span class="font-medium">{{
+              t('clients.view.clientCard.nextLabel')
+            }}</span>
             {{ new Date(client.next_appointment).toLocaleDateString() }}
           </p>
           <p v-else-if="client.last_appointment">
-            <span class="font-medium">{{ t('clients.view.clientCard.lastLabel') }}</span>
+            <span class="font-medium">{{
+              t('clients.view.clientCard.lastLabel')
+            }}</span>
             {{ new Date(client.last_appointment).toLocaleDateString() }}
           </p>
           <p v-if="client.appointment_count !== undefined">
-            <span class="font-medium">{{ t('clients.view.clientCard.appointmentsLabel') }}</span>
+            <span class="font-medium">{{
+              t('clients.view.clientCard.appointmentsLabel')
+            }}</span>
             {{ client.appointment_count }}
           </p>
         </div>

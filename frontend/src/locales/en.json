@@ -1112,5 +1112,38 @@
       "assessment": "Assessment",
       "plan": "Plan"
     }
+  },
+  "treatmentRecommendations": {
+    "title": "Treatment Recommendations",
+    "getRecommendationsButton": "Get Recommendations",
+    "gettingRecommendations": "Getting recommendations...",
+    "closeButton": "Close",
+    "useThisButton": "Use This",
+    "usingButton": "Using...",
+    "therapyTypes": {
+      "massage": "Massage",
+      "physiotherapy": "Physiotherapy",
+      "psychotherapy": "Psychotherapy",
+      "generic": "General"
+    },
+    "evidence": {
+      "workspacePatterns": "Based on {count} similar case | Based on {count} similar cases",
+      "clinicalGuidelines": "Clinical guidelines",
+      "hybrid": "Hybrid ({count} case + guidelines) | Hybrid ({count} cases + guidelines)"
+    },
+    "emptyState": {
+      "title": "Ready for recommendations?",
+      "description": "Fill in the Subjective, Objective, and Assessment fields, then click \"Get Recommendations\" to receive AI-powered treatment suggestions."
+    },
+    "errors": {
+      "missingFields": "Please fill in Subjective, Objective, and Assessment fields first",
+      "rateLimitExceeded": "Rate limit exceeded. Maximum 60 recommendation requests per hour.",
+      "authenticationRequired": "Please sign in to use treatment recommendations",
+      "invalidInput": "Invalid input. Please check your SOAP note fields.",
+      "serverError": "Failed to generate recommendations. Please try again later.",
+      "genericError": "Failed to get recommendations. Please try again."
+    },
+    "processingTime": "Generated in {time}ms",
+    "recommendationCount": "{count} recommendation | {count} recommendations"
   }
 }

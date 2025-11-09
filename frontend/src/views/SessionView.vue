@@ -54,7 +54,7 @@ const pageTitle = computed(() => {
   if (client.value) {
     return t('sessions.view.pageTitle', {
       firstName: client.value.first_name,
-      lastName: client.value.last_name
+      lastName: client.value.last_name,
     })
   }
   return t('sessions.view.pageTitleDefault')
@@ -139,7 +139,8 @@ async function loadSession(silent = false) {
     } else if (axiosError.response?.status === 403) {
       loadError.value = t('sessions.view.errorPermission')
     } else {
-      loadError.value = axiosError.response?.data?.detail || t('sessions.view.errorGeneric')
+      loadError.value =
+        axiosError.response?.data?.detail || t('sessions.view.errorGeneric')
     }
   } finally {
     if (!silent) {
@@ -239,7 +240,11 @@ onKeyStroke('Escape', (e) => {
               d="M15 19l-7-7 7-7"
             />
           </svg>
-          {{ session?.client_id ? t('sessions.view.backToClient') : t('sessions.view.backToCalendar') }}
+          {{
+            session?.client_id
+              ? t('sessions.view.backToClient')
+              : t('sessions.view.backToCalendar')
+          }}
         </button>
       </Transition>
     </div>
@@ -264,7 +269,9 @@ onKeyStroke('Escape', (e) => {
           </svg>
         </div>
         <div class="ml-3">
-          <h3 class="text-sm font-medium text-red-800">{{ t('sessions.view.errorTitle') }}</h3>
+          <h3 class="text-sm font-medium text-red-800">
+            {{ t('sessions.view.errorTitle') }}
+          </h3>
           <div class="mt-2 text-sm text-red-700">
             <p>{{ loadError }}</p>
           </div>

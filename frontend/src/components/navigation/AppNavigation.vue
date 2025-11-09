@@ -168,7 +168,11 @@ onUnmounted(() => {
             @click="initiateLogout"
             :disabled="isLoggingOut"
           >
-            {{ isLoggingOut ? t('common.navigation.signingOut') : t('common.navigation.signOut') }}
+            {{
+              isLoggingOut
+                ? t('common.navigation.signingOut')
+                : t('common.navigation.signOut')
+            }}
           </button>
 
           <!-- Mobile menu button -->
@@ -303,7 +307,11 @@ onUnmounted(() => {
                 @click="initiateLogout"
                 :disabled="isLoggingOut"
               >
-                {{ isLoggingOut ? t('common.navigation.signingOut') : t('common.navigation.signOut') }}
+                {{
+                  isLoggingOut
+                    ? t('common.navigation.signingOut')
+                    : t('common.navigation.signOut')
+                }}
               </button>
             </div>
           </div>

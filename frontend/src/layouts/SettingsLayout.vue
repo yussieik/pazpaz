@@ -62,7 +62,10 @@ watch(currentTabIndex, async (newIndex) => {
 useSwipe(mainContentRef, {
   threshold: 80,
   passive: true,
-  onSwipeEnd: (_e: TouchEvent, direction: 'left' | 'right' | 'up' | 'down' | 'none') => {
+  onSwipeEnd: (
+    _e: TouchEvent,
+    direction: 'left' | 'right' | 'up' | 'down' | 'none'
+  ) => {
     // Respect reduced motion preference
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       return
@@ -104,8 +107,8 @@ useSwipe(mainContentRef, {
     <!-- Content Area -->
     <div class="flex flex-1 flex-col overflow-hidden">
       <!-- Mobile Horizontal Tabs (visible on mobile only) -->
-      <nav class="bg-white px-4 lg:hidden border-b border-slate-200">
-        <ul ref="tabsRef" class="flex overflow-x-auto -mb-px scrollbar-hide">
+      <nav class="border-b border-slate-200 bg-white px-4 lg:hidden">
+        <ul ref="tabsRef" class="scrollbar-hide -mb-px flex overflow-x-auto">
           <li>
             <RouterLink
               to="/settings/notifications"
@@ -192,7 +195,8 @@ useSwipe(mainContentRef, {
               to="/settings/language"
               class="flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors"
               :class="{
-                'border-emerald-600 text-emerald-700': $route.path === '/settings/language',
+                'border-emerald-600 text-emerald-700':
+                  $route.path === '/settings/language',
                 'border-transparent text-slate-600 hover:text-slate-900':
                   $route.path !== '/settings/language',
               }"

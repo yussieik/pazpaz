@@ -147,8 +147,12 @@ function handleKeydown(event: KeyboardEvent) {
               <p id="conflict-description" class="mt-1 text-sm text-gray-600">
                 {{
                   conflicts.length === 1
-                    ? t('calendar.conflictModal.descriptionSingular', { count: conflicts.length })
-                    : t('calendar.conflictModal.descriptionPlural', { count: conflicts.length })
+                    ? t('calendar.conflictModal.descriptionSingular', {
+                        count: conflicts.length,
+                      })
+                    : t('calendar.conflictModal.descriptionPlural', {
+                        count: conflicts.length,
+                      })
                 }}
               </p>
             </div>
@@ -199,7 +203,8 @@ function handleKeydown(event: KeyboardEvent) {
                     </div>
                     <div class="min-w-0 flex-1">
                       <p class="truncate text-sm font-medium text-gray-900">
-                        {{ t('calendar.conflictModal.clientLabel') }} {{ conflict.client_initials }}
+                        {{ t('calendar.conflictModal.clientLabel') }}
+                        {{ conflict.client_initials }}
                       </p>
                     </div>
                   </div>

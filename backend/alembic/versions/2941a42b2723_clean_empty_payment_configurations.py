@@ -18,13 +18,14 @@ Revises: 0d6b572f1853
 Create Date: 2025-11-04 13:11:32.005917
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '2941a42b2723'
-down_revision: str | Sequence[str] | None = '0d6b572f1853'
+revision: str = "2941a42b2723"
+down_revision: str | Sequence[str] | None = "0d6b572f1853"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

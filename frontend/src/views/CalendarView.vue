@@ -136,11 +136,7 @@ function handleEventClick(clickInfo: EventClickArg) {
 const { showLoadingSpinner } = useCalendarLoading()
 
 // Mobile swipe navigation - hidden on desktop (≥640px)
-const { isNavigating } = useCalendarSwipe(
-  calendarContainerRef,
-  handlePrev,
-  handleNext
-)
+const { isNavigating } = useCalendarSwipe(calendarContainerRef, handlePrev, handleNext)
 
 // Mobile drag scroll isolation - locks body scroll during drag on mobile (<768px)
 const { activateScrollIsolation, deactivateScrollIsolation } =
@@ -416,7 +412,8 @@ async function handleQuickComplete(appointmentId: string) {
     await appointmentsStore.updateAppointmentStatus(appointmentId, 'attended')
 
     // Show success toast with client name
-    const clientName = appointment.client?.first_name || t('calendar.calendarView.appointmentFallback')
+    const clientName =
+      appointment.client?.first_name || t('calendar.calendarView.appointmentFallback')
     showSuccess(t('calendar.calendarView.messages.attended', { clientName }), {
       toastId: `attendance-${appointmentId}-${Date.now()}`,
     })
@@ -472,7 +469,9 @@ async function handleDeleteConfirm(payload: {
     appointmentToDelete.value = null
   } catch (error) {
     const errorMessage =
-      error instanceof Error ? error.message : t('calendar.calendarView.messages.deleteError')
+      error instanceof Error
+        ? error.message
+        : t('calendar.calendarView.messages.deleteError')
     showError(errorMessage)
   }
 }
@@ -756,7 +755,9 @@ async function performReschedule(appointmentId: string, newStart: Date, newEnd: 
 
   // Get client name for toast message
   const clientName =
-    appointment.client?.first_name || appointment.client?.full_name || t('calendar.calendarView.appointmentFallback')
+    appointment.client?.first_name ||
+    appointment.client?.full_name ||
+    t('calendar.calendarView.appointmentFallback')
 
   // Optimistic update
   try {
@@ -790,7 +791,10 @@ async function performReschedule(appointmentId: string, newStart: Date, newEnd: 
     }
 
     // Show toast with specific undo handler
-    showSuccessWithUndo(t('calendar.calendarView.messages.rescheduled', { clientName }), handleUndo)
+    showSuccessWithUndo(
+      t('calendar.calendarView.messages.rescheduled', { clientName }),
+      handleUndo
+    )
   } catch (error) {
     console.error('Failed to reschedule appointment:', error)
     // TODO: Show error toast
@@ -837,7 +841,9 @@ async function handleConfirmConflictReschedule() {
 
   // Get client name for toast message
   const clientName =
-    appointment.client?.first_name || appointment.client?.full_name || t('calendar.calendarView.appointmentFallback')
+    appointment.client?.first_name ||
+    appointment.client?.full_name ||
+    t('calendar.calendarView.appointmentFallback')
 
   try {
     // Force update even with conflict by passing allowConflict: true
@@ -875,7 +881,10 @@ async function handleConfirmConflictReschedule() {
     }
 
     // Show toast with specific undo handler
-    showSuccessWithUndo(t('calendar.calendarView.messages.rescheduled', { clientName }), handleUndo)
+    showSuccessWithUndo(
+      t('calendar.calendarView.messages.rescheduled', { clientName }),
+      handleUndo
+    )
 
     // Close conflict modal and reset drag state
     showDragConflictModal.value = false
@@ -996,7 +1005,9 @@ async function handleUpdateStatus(appointmentId: string, newStatus: string) {
   } catch (error) {
     console.error('Failed to update appointment status:', error)
     const errorMessage =
-      error instanceof Error ? error.message : t('calendar.calendarView.messages.statusUpdateError')
+      error instanceof Error
+        ? error.message
+        : t('calendar.calendarView.messages.statusUpdateError')
     alert(`Error: ${errorMessage}`)
   }
 }
@@ -1241,7 +1252,8 @@ async function handleCreateAppointment(data: AppointmentFormData) {
     createModalPrefillData.value = null
 
     // Show success toast with rich content
-    const clientName = newAppt.client?.full_name || t('calendar.calendarView.appointmentFallback')
+    const clientName =
+      newAppt.client?.full_name || t('calendar.calendarView.appointmentFallback')
     showAppointmentSuccess(t('calendar.calendarView.messages.created'), {
       clientName,
       datetime: format(new Date(newAppt.scheduled_start), "MMM d 'at' h:mm a"),
@@ -1338,12 +1350,18 @@ async function handleConfirmCancel(reason: string) {
     }
 
     // Show undo toast with client name
-    const clientName = appointment.client?.first_name || t('calendar.calendarView.appointmentFallback')
-    showSuccessWithUndo(t('calendar.calendarView.messages.cancelled', { clientName }), handleUndoCancel)
+    const clientName =
+      appointment.client?.first_name || t('calendar.calendarView.appointmentFallback')
+    showSuccessWithUndo(
+      t('calendar.calendarView.messages.cancelled', { clientName }),
+      handleUndoCancel
+    )
 
     // Screen reader announcement
     await announce(
-      t('calendar.calendarView.messages.cancelledAnnouncement', { clientName: appointment.client?.full_name || 'client' })
+      t('calendar.calendarView.messages.cancelledAnnouncement', {
+        clientName: appointment.client?.full_name || 'client',
+      })
     )
 
     // Close dialog and clear cancel state

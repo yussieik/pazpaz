@@ -155,7 +155,7 @@ async function clearAllClientSideStorage() {
 </script>
 
 <template>
-  <div id="app" class="min-h-screen bg-gray-50 overflow-x-hidden">
+  <div id="app" class="min-h-screen overflow-x-hidden bg-gray-50">
     <!-- Session Expiration Banner (5-minute warning) -->
     <SessionExpirationBanner
       :visible="sessionExpiration.showBanner.value"

@@ -25,7 +25,9 @@
             </svg>
             <div class="flex-1">
               <p class="text-sm text-amber-900">
-                <span class="font-medium">{{ t('auth.sessionExpiration.banner.title') }}</span>
+                <span class="font-medium">{{
+                  t('auth.sessionExpiration.banner.title')
+                }}</span>
                 {{ t('auth.sessionExpiration.banner.message') }}
                 <strong class="font-mono">{{ formattedTime }}</strong
                 >.

@@ -533,7 +533,11 @@ function handleSubmit() {
                     }}
                   </button>
                   <span v-else class="text-emerald-600">
-                    {{ t('auth.login.success.resend.cooldown', { seconds: resendCooldown }) }}
+                    {{
+                      t('auth.login.success.resend.cooldown', {
+                        seconds: resendCooldown,
+                      })
+                    }}
                   </span>
                 </p>
               </div>

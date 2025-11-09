@@ -38,8 +38,11 @@ import SessionAmendmentIndicator from './SessionAmendmentIndicator.vue'
 import PreviousSessionPanel from './PreviousSessionPanel.vue'
 import PreviousSessionSummaryStrip from './PreviousSessionSummaryStrip.vue'
 import SessionAttachments from './SessionAttachments.vue'
+import TreatmentRecommendations from './TreatmentRecommendations.vue'
 import IconWarning from '@/components/icons/IconWarning.vue'
 import AutosaveBanner from '@/components/common/AutosaveBanner.vue'
+import { useTreatmentRecommendations } from '@/composables/useTreatmentRecommendations'
+import type { TreatmentRecommendationItem } from '@/types/recommendations'
 
 const { t } = useI18n()
 
@@ -113,6 +116,74 @@ const localBackupData = ref<{
   session_date: string
   duration_minutes: number | null
 } | null>(null)
+
+// Treatment Recommendations state (ADR 0002 - Milestone 2)
+const showRecommendations = ref(false)
+const {
+  recommendations,
+  isLoading: isLoadingRecommendations,
+  error: recommendationsError,
+  getRecommendations,
+  insertRecommendation,
+  clearRecommendations,
+} = useTreatmentRecommendations()
+
+// Check if SOAP fields are ready for recommendations
+const canGetRecommendations = computed(() => {
+  return (
+    formData.value.subjective.trim() !== '' &&
+    formData.value.objective.trim() !== '' &&
+    formData.value.assessment.trim() !== ''
+  )
+})
+
+// Handle "Get Recommendations" button click
+async function handleGetRecommendations() {
+  if (!canGetRecommendations.value) {
+    // Show error message if required fields are missing
+    return
+  }
+
+  try {
+    await getRecommendations({
+      subjective: formData.value.subjective,
+      objective: formData.value.objective,
+      assessment: formData.value.assessment,
+      client_id: session.value?.client_id,
+    })
+    showRecommendations.value = true
+  } catch (error) {
+    // Error is already set in the composable
+    console.error('[SessionEditor] Failed to get recommendations:', error)
+    showRecommendations.value = true // Show error state
+  }
+}
+
+// Handle using a recommendation (insert into Plan field)
+function handleUseRecommendation(recommendation: TreatmentRecommendationItem) {
+  const recommendationText = insertRecommendation(recommendation)
+
+  // If Plan field is empty, insert directly
+  if (formData.value.plan.trim() === '') {
+    formData.value.plan = recommendationText
+  } else {
+    // If Plan has content, append with double newline separator
+    formData.value.plan = `${formData.value.plan}\n\n${recommendationText}`
+  }
+
+  // Close recommendations panel
+  showRecommendations.value = false
+  clearRecommendations()
+
+  // Immediate sync to server
+  flushSync()
+}
+
+// Handle closing recommendations panel
+function handleCloseRecommendations() {
+  showRecommendations.value = false
+  clearRecommendations()
+}
 
 // Character limits
 const CHAR_LIMIT = 5000
@@ -294,7 +365,8 @@ async function loadSession(silent = false) {
     if (axiosError.response?.status === 404) {
       loadError.value = t('sessions.view.errorNotFound')
     } else {
-      loadError.value = axiosError.response?.data?.detail || t('sessions.editor.errors.loadFailed')
+      loadError.value =
+        axiosError.response?.data?.detail || t('sessions.editor.errors.loadFailed')
     }
   } finally {
     if (!silent) {
@@ -599,28 +671,40 @@ onBeforeUnmount(() => {
                 />
               </svg>
               <div class="flex-1">
-                <h3 class="text-sm font-semibold text-blue-900">{{ t('sessions.editor.soapGuide.title') }}</h3>
+                <h3 class="text-sm font-semibold text-blue-900">
+                  {{ t('sessions.editor.soapGuide.title') }}
+                </h3>
                 <div class="mt-2 space-y-2 text-sm text-blue-800">
                   <div>
-                    <strong>{{ t('sessions.editor.soapGuide.subjective.title') }}</strong> {{ t('sessions.editor.soapGuide.subjective.description') }}
+                    <strong>{{
+                      t('sessions.editor.soapGuide.subjective.title')
+                    }}</strong>
+                    {{ t('sessions.editor.soapGuide.subjective.description') }}
                     <span class="mt-0.5 block text-xs text-blue-700">
                       {{ t('sessions.editor.soapGuide.subjective.example') }}
                     </span>
                   </div>
                   <div>
-                    <strong>{{ t('sessions.editor.soapGuide.objective.title') }}</strong> {{ t('sessions.editor.soapGuide.objective.description') }}
+                    <strong>{{
+                      t('sessions.editor.soapGuide.objective.title')
+                    }}</strong>
+                    {{ t('sessions.editor.soapGuide.objective.description') }}
                     <span class="mt-0.5 block text-xs text-blue-700">
                       {{ t('sessions.editor.soapGuide.objective.example') }}
                     </span>
                   </div>
                   <div>
-                    <strong>{{ t('sessions.editor.soapGuide.assessment.title') }}</strong> {{ t('sessions.editor.soapGuide.assessment.description') }}
+                    <strong>{{
+                      t('sessions.editor.soapGuide.assessment.title')
+                    }}</strong>
+                    {{ t('sessions.editor.soapGuide.assessment.description') }}
                     <span class="mt-0.5 block text-xs text-blue-700">
                       {{ t('sessions.editor.soapGuide.assessment.example') }}
                     </span>
                   </div>
                   <div>
-                    <strong>{{ t('sessions.editor.soapGuide.plan.title') }}</strong> {{ t('sessions.editor.soapGuide.plan.description') }}
+                    <strong>{{ t('sessions.editor.soapGuide.plan.title') }}</strong>
+                    {{ t('sessions.editor.soapGuide.plan.description') }}
                     <span class="mt-0.5 block text-xs text-blue-700">
                       {{ t('sessions.editor.soapGuide.plan.example') }}
                     </span>
@@ -923,12 +1007,117 @@ onBeforeUnmount(() => {
               :placeholder="t('sessions.editor.fields.plan.placeholder')"
               class="block w-full rounded-md border-slate-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             ></textarea>
+
+            <!-- Get Recommendations Button (ADR 0002 - Milestone 2) -->
+            <div class="mt-3">
+              <button
+                @click="handleGetRecommendations"
+                :disabled="!canGetRecommendations || isLoadingRecommendations"
+                type="button"
+                :class="[
+                  'group inline-flex items-center gap-2.5 rounded-lg px-5 py-2.5 text-sm font-semibold text-white',
+                  'bg-gradient-to-r from-emerald-600 to-emerald-700',
+                  'shadow-md shadow-emerald-900/20',
+                  'transition-all duration-200 ease-out',
+                  'hover:-translate-y-0.5 hover:from-emerald-700 hover:to-emerald-800 hover:shadow-lg hover:shadow-emerald-900/30',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2',
+                  'disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none',
+                ]"
+                :aria-label="t('treatmentRecommendations.getRecommendationsButton')"
+              >
+                <!-- Lightbulb icon with glow effect -->
+                <span
+                  v-if="!isLoadingRecommendations"
+                  class="relative flex h-5 w-5 items-center justify-center"
+                >
+                  <!-- Glow ring (appears on hover) -->
+                  <span
+                    class="absolute h-5 w-5 rounded-full bg-white opacity-0 transition-opacity duration-200 group-hover:opacity-20"
+                    aria-hidden="true"
+                  />
+                  <!-- Icon -->
+                  <svg
+                    class="relative h-5 w-5 transition-transform group-hover:scale-110"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                    />
+                  </svg>
+                </span>
+
+                <!-- Loading spinner -->
+                <svg
+                  v-else
+                  class="h-5 w-5 animate-spin"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  />
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+
+                <!-- Text (responsive) -->
+                <span class="hidden sm:inline" v-if="isLoadingRecommendations">
+                  {{ t('treatmentRecommendations.gettingRecommendations') }}
+                </span>
+                <span class="hidden sm:inline" v-else>
+                  {{ t('treatmentRecommendations.getRecommendationsButton') }}
+                </span>
+                <!-- Mobile text (shorter) -->
+                <span class="sm:hidden" v-if="isLoadingRecommendations">
+                  {{ t('treatmentRecommendations.gettingRecommendations') }}
+                </span>
+                <span class="sm:hidden" v-else>Get Recommendations</span>
+
+                <!-- Keyboard hint (desktop only, appears on hover) -->
+                <kbd
+                  v-if="!isLoadingRecommendations"
+                  class="ml-1 hidden rounded bg-emerald-700/80 px-1.5 py-0.5 font-mono text-xs text-emerald-100 opacity-0 transition-opacity duration-200 group-hover:opacity-100 lg:inline-block"
+                >
+                  ⌥R
+                </kbd>
+              </button>
+              <p v-if="!canGetRecommendations" class="mt-2 text-xs text-slate-500">
+                {{ t('treatmentRecommendations.errors.missingFields') }}
+              </p>
+            </div>
+
+            <!-- Treatment Recommendations Panel -->
+            <div v-if="showRecommendations" class="mt-4">
+              <TreatmentRecommendations
+                :recommendations="recommendations"
+                :is-loading="isLoadingRecommendations"
+                :error="recommendationsError"
+                @use-recommendation="handleUseRecommendation"
+                @close="handleCloseRecommendations"
+              />
+            </div>
           </div>
         </div>
 
         <!-- Attachments Section (only for existing sessions) -->
         <div v-if="session && !session.deleted_at" class="mt-8">
-          <h3 class="mb-4 text-lg font-semibold text-slate-900">{{ t('sessions.editor.attachments.title') }}</h3>
+          <h3 class="mb-4 text-lg font-semibold text-slate-900">
+            {{ t('sessions.editor.attachments.title') }}
+          </h3>
           <SessionAttachments :session-id="props.sessionId" />
         </div>
       </div>

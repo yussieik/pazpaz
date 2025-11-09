@@ -62,7 +62,10 @@ function getPaymentStatusLabel(status: string): string {
   <div class="space-y-4">
     <!-- Price Input -->
     <div>
-      <label for="payment-price" class="mb-1.5 block text-sm font-medium text-slate-700">
+      <label
+        for="payment-price"
+        class="mb-1.5 block text-sm font-medium text-slate-700"
+      >
         Price (₪)
       </label>
       <input
@@ -73,24 +76,29 @@ function getPaymentStatusLabel(status: string): string {
         min="0"
         placeholder="Enter price"
         :disabled="readonly"
-        class="block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 transition-colors focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
+        class="block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 placeholder-slate-400 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
       />
     </div>
 
     <!-- Payment Status Dropdown -->
     <div>
-      <label for="payment-status" class="mb-1.5 block text-sm font-medium text-slate-700">
+      <label
+        for="payment-status"
+        class="mb-1.5 block text-sm font-medium text-slate-700"
+      >
         Status
       </label>
       <select
         id="payment-status"
         v-model="localStatus"
         :disabled="readonly"
-        class="block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 transition-colors focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
+        class="block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500 sm:text-sm"
       >
         <option value="not_paid">{{ getPaymentStatusLabel('not_paid') }}</option>
         <option value="paid">{{ getPaymentStatusLabel('paid') }}</option>
-        <option value="payment_sent">{{ getPaymentStatusLabel('payment_sent') }}</option>
+        <option value="payment_sent">
+          {{ getPaymentStatusLabel('payment_sent') }}
+        </option>
         <option value="waived">{{ getPaymentStatusLabel('waived') }}</option>
       </select>
     </div>

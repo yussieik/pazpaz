@@ -151,15 +151,19 @@ const copyButtonState = computed(() => {
       :class="[
         'flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200',
         sendButtonState.variant === 'primary' &&
-          'bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed',
+          'bg-emerald-600 text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50',
         sendButtonState.variant === 'secondary' &&
-          'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed',
+          'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50',
         sendButtonState.variant === 'success' &&
-          'bg-emerald-600 text-white cursor-default opacity-95',
+          'cursor-default bg-emerald-600 text-white opacity-95',
       ]"
     >
       <LoadingSpinner v-if="sendButtonState.showSpinner" size="sm" />
-      <IconSend v-else-if="sendButtonState.icon === 'send'" class="h-4 w-4" aria-hidden="true" />
+      <IconSend
+        v-else-if="sendButtonState.icon === 'send'"
+        class="h-4 w-4"
+        aria-hidden="true"
+      />
       <IconRefresh
         v-else-if="sendButtonState.icon === 'refresh'"
         class="h-4 w-4"
@@ -181,8 +185,16 @@ const copyButtonState = computed(() => {
       class="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-all duration-200 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
     >
       <LoadingSpinner v-if="copyButtonState.showSpinner" size="sm" color="slate" />
-      <IconCopy v-else-if="copyButtonState.icon === 'copy'" class="h-4 w-4" aria-hidden="true" />
-      <IconCheck v-else-if="copyButtonState.icon === 'check'" class="h-4 w-4" aria-hidden="true" />
+      <IconCopy
+        v-else-if="copyButtonState.icon === 'copy'"
+        class="h-4 w-4"
+        aria-hidden="true"
+      />
+      <IconCheck
+        v-else-if="copyButtonState.icon === 'check'"
+        class="h-4 w-4"
+        aria-hidden="true"
+      />
       <span>{{ copyButtonState.label }}</span>
     </button>
 
@@ -210,7 +222,8 @@ const copyButtonState = computed(() => {
   <!-- Read-only message when payments are disabled -->
   <div v-else class="rounded-lg bg-slate-50 p-4 text-center">
     <p class="text-sm text-slate-600">
-      Payment actions are not available because payments are currently disabled in your workspace settings.
+      Payment actions are not available because payments are currently disabled in your
+      workspace settings.
     </p>
     <p class="mt-2 text-xs text-slate-500">
       Payment data is preserved from when payments were enabled.

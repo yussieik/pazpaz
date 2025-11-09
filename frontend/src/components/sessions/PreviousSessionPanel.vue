@@ -172,7 +172,9 @@ watch(
       <!-- Panel Header -->
       <div class="mb-4 flex items-center justify-between border-b border-gray-300 pb-3">
         <div>
-          <h3 class="text-sm font-semibold text-gray-900">{{ t('sessions.previousPanel.title') }}</h3>
+          <h3 class="text-sm font-semibold text-gray-900">
+            {{ t('sessions.previousPanel.title') }}
+          </h3>
           <span
             v-if="displaySession && viewMode !== 'history'"
             class="text-xs text-gray-600"
@@ -350,7 +352,11 @@ watch(
               v-if="displaySession.subjective"
               @click="copyField('subjective', displaySession.subjective)"
               class="rounded p-1 text-gray-500 opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-gray-700 focus:opacity-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              :title="copiedField === 'subjective' ? t('sessions.previousPanel.copiedTooltip') : t('sessions.previousPanel.copyTooltip')"
+              :title="
+                copiedField === 'subjective'
+                  ? t('sessions.previousPanel.copiedTooltip')
+                  : t('sessions.previousPanel.copyTooltip')
+              "
               type="button"
             >
               <IconCheck
@@ -366,7 +372,9 @@ watch(
           >
             {{ displaySession.subjective }}
           </p>
-          <p v-else class="text-sm text-gray-500 italic">{{ t('sessions.previousPanel.noFieldNotes.subjective') }}</p>
+          <p v-else class="text-sm text-gray-500 italic">
+            {{ t('sessions.previousPanel.noFieldNotes.subjective') }}
+          </p>
         </div>
 
         <!-- Objective -->
@@ -381,7 +389,11 @@ watch(
               v-if="displaySession.objective"
               @click="copyField('objective', displaySession.objective)"
               class="rounded p-1 text-gray-500 opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-gray-700 focus:opacity-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              :title="copiedField === 'objective' ? t('sessions.previousPanel.copiedTooltip') : t('sessions.previousPanel.copyTooltip')"
+              :title="
+                copiedField === 'objective'
+                  ? t('sessions.previousPanel.copiedTooltip')
+                  : t('sessions.previousPanel.copyTooltip')
+              "
               type="button"
             >
               <IconCheck
@@ -397,7 +409,9 @@ watch(
           >
             {{ displaySession.objective }}
           </p>
-          <p v-else class="text-sm text-gray-500 italic">{{ t('sessions.previousPanel.noFieldNotes.objective') }}</p>
+          <p v-else class="text-sm text-gray-500 italic">
+            {{ t('sessions.previousPanel.noFieldNotes.objective') }}
+          </p>
         </div>
 
         <!-- Assessment -->
@@ -412,7 +426,11 @@ watch(
               v-if="displaySession.assessment"
               @click="copyField('assessment', displaySession.assessment)"
               class="rounded p-1 text-gray-500 opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-gray-700 focus:opacity-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              :title="copiedField === 'assessment' ? t('sessions.previousPanel.copiedTooltip') : t('sessions.previousPanel.copyTooltip')"
+              :title="
+                copiedField === 'assessment'
+                  ? t('sessions.previousPanel.copiedTooltip')
+                  : t('sessions.previousPanel.copyTooltip')
+              "
               type="button"
             >
               <IconCheck
@@ -428,7 +446,9 @@ watch(
           >
             {{ displaySession.assessment }}
           </p>
-          <p v-else class="text-sm text-gray-500 italic">{{ t('sessions.previousPanel.noFieldNotes.assessment') }}</p>
+          <p v-else class="text-sm text-gray-500 italic">
+            {{ t('sessions.previousPanel.noFieldNotes.assessment') }}
+          </p>
         </div>
 
         <!-- Plan -->
@@ -443,7 +463,11 @@ watch(
               v-if="displaySession.plan"
               @click="copyField('plan', displaySession.plan)"
               class="rounded p-1 text-gray-500 opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-gray-700 focus:opacity-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              :title="copiedField === 'plan' ? t('sessions.previousPanel.copiedTooltip') : t('sessions.previousPanel.copyTooltip')"
+              :title="
+                copiedField === 'plan'
+                  ? t('sessions.previousPanel.copiedTooltip')
+                  : t('sessions.previousPanel.copyTooltip')
+              "
               type="button"
             >
               <IconCheck v-if="copiedField === 'plan'" class="h-4 w-4 text-green-600" />
@@ -456,7 +480,9 @@ watch(
           >
             {{ displaySession.plan }}
           </p>
-          <p v-else class="text-sm text-gray-500 italic">{{ t('sessions.previousPanel.noFieldNotes.plan') }}</p>
+          <p v-else class="text-sm text-gray-500 italic">
+            {{ t('sessions.previousPanel.noFieldNotes.plan') }}
+          </p>
         </div>
 
         <!-- Link to Full Session -->
@@ -564,7 +590,9 @@ watch(
           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
         />
       </svg>
-      <h4 class="text-sm font-semibold text-gray-900">{{ t('sessions.previousPanel.noSessionsTitle') }}</h4>
+      <h4 class="text-sm font-semibold text-gray-900">
+        {{ t('sessions.previousPanel.noSessionsTitle') }}
+      </h4>
     </div>
 
     <!-- View Mode: Summary (default) -->

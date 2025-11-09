@@ -297,7 +297,7 @@ describe('Magic Link Authentication Flow', () => {
       const enterEvent = new KeyboardEvent('keydown', {
         key: 'Enter',
         bubbles: true,
-        cancelable: true
+        cancelable: true,
       })
       window.dispatchEvent(enterEvent)
       await flushPromises()
@@ -331,7 +331,7 @@ describe('Magic Link Authentication Flow', () => {
       const escapeEvent = new KeyboardEvent('keydown', {
         key: 'Escape',
         bubbles: true,
-        cancelable: true
+        cancelable: true,
       })
       window.dispatchEvent(escapeEvent)
       await flushPromises()

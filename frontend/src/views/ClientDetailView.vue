@@ -598,7 +598,7 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
           <div class="flex-1">
             <h2
               id="emergency-contact-heading"
-              class="text-xs font-medium uppercase tracking-wider text-amber-700"
+              class="text-xs font-medium tracking-wider text-amber-700 uppercase"
             >
               {{ t('clients.detailView.emergencyContactHeader') }}
             </h2>
@@ -890,7 +890,11 @@ async function handleScheduleAppointment(data: AppointmentFormData) {
 
         <!-- AI Assistant Tab -->
         <div v-else-if="activeTab === 'ai-assistant'" class="h-[calc(100vh-20rem)]">
-          <AgentChatInterface v-if="client" :client-id="client.id" class="h-full w-full" />
+          <AgentChatInterface
+            v-if="client"
+            :client-id="client.id"
+            class="h-full w-full"
+          />
         </div>
       </div>
     </div>
