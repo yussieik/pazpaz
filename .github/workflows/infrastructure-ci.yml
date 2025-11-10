@@ -1,22 +1,3 @@
-# Infrastructure CI/CD Pipeline
-# Validates Docker Compose, Nginx configuration, shell scripts, and environment templates
-#
-# Triggers:
-# - On push/PR affecting infrastructure files
-# - Manual dispatch for on-demand validation
-#
-# Jobs:
-# 1. Validate Docker Compose syntax and configuration
-# 2. Validate Nginx configuration files
-# 3. Validate shell scripts (syntax and shellcheck)
-# 4. Validate environment templates
-# 5. Test Docker builds (optional)
-#
-# Security:
-# - No real secrets used in CI
-# - Test with example values only
-# - Validate but don't execute production scripts
-
 name: Infrastructure CI
 
 on:
@@ -39,1047 +20,143 @@ on:
       - '.env.example'
       - '.github/workflows/infrastructure-ci.yml'
   workflow_dispatch:
-    inputs:
-      debug_enabled:
-        description: 'Enable debug logging'
-        type: boolean
-        required: false
-        default: false
-
-env:
-  DOCKER_COMPOSE_VERSION: "2.24.0"
-  NGINX_VERSION: "1.25-alpine"
-  SHELLCHECK_VERSION: "0.10.0"
 
 jobs:
-  # =============================================================================
-  # Job 1: Validate Docker Compose Configuration
-  # =============================================================================
-  validate-docker-compose:
-    name: Validate Docker Compose
+  validate:
+    name: Validate Infrastructure
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
-      - name: Install Docker Compose
+      - name: Install validation tools
         run: |
-          echo "📦 Installing Docker Compose v${DOCKER_COMPOSE_VERSION}..."
-          sudo curl -L "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo apt-get update
+          sudo apt-get install -y shellcheck nginx
+
+          # Install Docker Compose
+          sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
-          docker-compose version
 
-      - name: Create test environment file for validation
+      - name: Create test environment file
         run: |
-          echo "📝 Creating test .env.production file for CI validation..."
-
-          # Create a minimal but complete test environment file
-          # All values are test/dummy values for CI validation only
           cat > .env.production << 'EOF'
-          # Test environment file for CI validation
-          # DO NOT USE THESE VALUES IN PRODUCTION
-
-          # GitHub Container Registry
+          # Test environment for CI validation
           GITHUB_REPOSITORY=testuser/pazpaz
           IMAGE_TAG=test
           VERSION=test
-
-          # Database Configuration
           POSTGRES_PASSWORD=test_postgres_password_32_chars_long_for_ci
-
-          # Redis Configuration
           REDIS_PASSWORD=test_redis_password_32_chars_long_for_ci_test
-
-          # MinIO/S3 Configuration
           S3_ACCESS_KEY=test_access_key_20chr
           S3_SECRET_KEY=test_secret_key_40_characters_long_for_ci
           S3_BUCKET_NAME=pazpaz-attachments
           S3_REGION=us-east-1
           MINIO_ENCRYPTION_KEY=dGVzdF9lbmNyeXB0aW9uX2tleV9mb3JfY2lfZXhhY3RseTMyYnl0ZXM=
-
-          # Application Security
           SECRET_KEY=test_secret_key_64_characters_long_for_ci_validation_only_12345
           JWT_SECRET_KEY=test_jwt_secret_32_chars_for_ci
           ENCRYPTION_MASTER_KEY=dGVzdF9lbmNyeXB0aW9uX21hc3Rlcl9rZXlfZm9yX2NpXzMyYnl0ZXM=
-
-          # Application Configuration
           FRONTEND_URL=https://test.pazpaz.com
           ALLOWED_HOSTS=test.pazpaz.com,api.test.pazpaz.com
           CORS_ALLOWED_ORIGINS=
-
-          # Email Configuration
           SMTP_HOST=smtp.test.com
           SMTP_PORT=587
           SMTP_USER=testuser
           SMTP_PASSWORD=test_smtp_password_for_ci
           SMTP_USE_TLS=true
           EMAILS_FROM_EMAIL=noreply@test.pazpaz.com
-
-          # Monitoring & Logging
           SENTRY_DSN=
           LOG_LEVEL=INFO
-
-          # Performance Tuning
           WORKERS=4
           MAX_CONNECTIONS=100
           DB_POOL_SIZE=20
           DB_MAX_OVERFLOW=40
           REDIS_MAX_CONNECTIONS=50
-
-          # Feature Flags
           ENABLE_2FA=true
           ENABLE_FILE_UPLOADS=true
           ENABLE_EMAIL_NOTIFICATIONS=true
           ENABLE_VIRUS_SCANNING=true
-
-          # SSL/TLS Configuration
           DB_SSL_ENABLED=false
           DB_SSL_MODE=prefer
-
-          # Backup Configuration
           BACKUP_SCHEDULE="0 2 * * *"
           BACKUP_RETENTION_DAYS=30
           BACKUP_S3_BUCKET=
           BACKUP_S3_ACCESS_KEY=
           BACKUP_S3_SECRET_KEY=
           BACKUP_S3_REGION=us-east-1
-
-          # Deployment Information
           DEPLOYMENT_ENV=test
           DEPLOYMENT_REGION=us-east-1
           DEPLOYMENT_TIMESTAMP=$(date +%s)
           EOF
 
-          echo "✅ Test environment file created"
-
-          # Verify the file was created
-          if [ ! -f .env.production ]; then
-            echo "❌ Failed to create .env.production"
-            exit 1
-          fi
-
-          # Show variable count for validation
-          echo "📊 Environment file contains $(grep -c '^[A-Z_]*=' .env.production) variables"
-
-      - name: Validate docker-compose.yml syntax
+      - name: Run infrastructure validation
         run: |
-          echo "🔍 Validating docker-compose.yml..."
-          docker-compose -f docker-compose.yml config --quiet || {
-            echo "❌ docker-compose.yml validation failed"
-            exit 1
-          }
-          echo "✅ docker-compose.yml is valid"
+          chmod +x scripts/validate-infrastructure.sh
+          ./scripts/validate-infrastructure.sh --check=all
 
-      - name: Validate docker-compose.prod.yml syntax
-        run: |
-          echo "🔍 Validating docker-compose.prod.yml..."
-          docker-compose -f docker-compose.prod.yml config --quiet || {
-            echo "❌ docker-compose.prod.yml validation failed"
-            exit 1
-          }
-          echo "✅ docker-compose.prod.yml is valid"
-
-      - name: Check for required environment variables
-        run: |
-          echo "🔍 Checking for required environment variables in Docker Compose files..."
-
-          # Extract all ${VAR} references from docker-compose files
-          echo "Variables in docker-compose.yml:"
-          grep -oE '\$\{[A-Z_]+[^}]*\}' docker-compose.yml | sort -u || echo "None found"
-
-          echo -e "\nVariables in docker-compose.prod.yml:"
-          grep -oE '\$\{[A-Z_]+[^}]*\}' docker-compose.prod.yml | sort -u || echo "None found"
-
-      - name: Validate Docker Compose networks
-        run: |
-          echo "🔍 Validating network configuration..."
-
-          # Check that production has proper network isolation
-          if grep -q "network_mode: host" docker-compose.prod.yml; then
-            echo "⚠️  Warning: host network mode detected in production config"
-          fi
-
-          # Verify internal networks are defined
-          # First, let's see what docker-compose config outputs for debugging (optional)
-          echo "📊 Checking network definitions in docker-compose.prod.yml..."
-
-          for network in frontend backend database; do
-            # Check if network is defined in the networks section at the end of the file
-            # Networks are defined at the root level with proper indentation
-            if grep -q "^  ${network}:" docker-compose.prod.yml && \
-               sed -n '/^networks:/,/^[a-z]/p' docker-compose.prod.yml | grep -q "^  ${network}:"; then
-              echo "✅ Network '$network' is defined"
-            else
-              # Alternative check: Use docker-compose config and parse the YAML output
-              if docker-compose -f docker-compose.prod.yml config 2>/dev/null | \
-                 sed -n '/^networks:/,/^[a-z]/p' | grep -q "  ${network}:"; then
-                echo "✅ Network '$network' is defined (via docker-compose config)"
-              else
-                echo "❌ Required network '$network' is missing"
-                echo "Debug: Showing networks section from docker-compose.prod.yml:"
-                sed -n '/^networks:/,/^$/p' docker-compose.prod.yml | head -20
-                exit 1
-              fi
-            fi
-          done
-
-          echo "✅ All required networks are properly defined"
-
-      - name: Validate health checks
-        run: |
-          echo "🔍 Validating health checks..."
-
-          # Services that should have health checks in production
-          services=("api" "db" "redis" "nginx")
-
-          for service in "${services[@]}"; do
-            if docker-compose -f docker-compose.prod.yml config | grep -A 10 "services:.*$service:" | grep -q "healthcheck:"; then
-              echo "✅ Health check defined for $service"
-            else
-              echo "⚠️  Warning: No health check for $service"
-            fi
-          done
-
-      - name: Check for exposed ports
-        run: |
-          echo "🔍 Checking for exposed ports..."
-
-          # In production, only nginx should expose ports
-          echo "Ports exposed in docker-compose.prod.yml:"
-          docker-compose -f docker-compose.prod.yml config | grep -E '^\s+- "[0-9]+:[0-9]+"' || echo "None found"
-
-          # Verify database ports are NOT exposed in production
-          if docker-compose -f docker-compose.prod.yml config | grep -A 5 "services:.*db:" | grep -q "ports:"; then
-            echo "⚠️  Warning: Database ports are exposed in production!"
-          else
-            echo "✅ Database ports are properly isolated"
-          fi
-
-      - name: Clean up test environment file
+      - name: Cleanup
         if: always()
-        run: |
-          echo "🧹 Cleaning up test environment file..."
-          rm -f .env.production || true
-          rm -f .env.test || true
-          echo "✅ Cleanup complete"
+        run: rm -f .env.production
 
-      - name: Generate validation summary
-        if: always()
-        run: |
-          echo "## ✅ Docker Compose Validation Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Files Validated" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ docker-compose.yml - syntax valid" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ docker-compose.prod.yml - syntax valid" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Test environment file created and validated" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Security Checks" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Network isolation verified" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Port exposure checked" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Health checks validated" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Database ports properly isolated" >> $GITHUB_STEP_SUMMARY
-
-  # =============================================================================
-  # Job 2: Validate Nginx Configuration
-  # =============================================================================
-  validate-nginx:
-    name: Validate Nginx Configuration
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Set up Nginx for validation
-        run: |
-          echo "📦 Installing Nginx for configuration validation..."
-          sudo apt-get update
-          sudo apt-get install -y nginx
-          nginx -v
-
-      - name: Create nginx user for validation
-        run: |
-          echo "👤 Checking nginx user for CI validation..."
-          # Create nginx user if it doesn't exist (some CI environments don't have it)
-          if ! id -u nginx &>/dev/null; then
-            echo "ℹ️ nginx user does not exist, creating..."
-            sudo useradd -r -s /bin/false nginx || {
-              echo "⚠️  Failed to create nginx user, will test without user directive"
-            }
-          else
-            echo "✅ nginx user already exists"
-          fi
-
-      - name: Create test directories and SSL certificates
-        run: |
-          echo "📁 Creating test directories for nginx validation..."
-          # Create directories that nginx.conf might reference
-          sudo mkdir -p /etc/letsencrypt/live/example.com
-          sudo mkdir -p /var/www/acme-challenge
-          sudo mkdir -p /usr/share/nginx/html/errors
-          sudo mkdir -p /var/cache/nginx
-          sudo mkdir -p /var/log/nginx
-          sudo mkdir -p /etc/nginx
-
-          echo "🔐 Creating dummy SSL certificates for validation..."
-          # Generate self-signed certificates for validation
-          # nginx-ssl.conf expects these exact files with ${DOMAIN_NAME} placeholder
-          sudo openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
-            -keyout /etc/letsencrypt/live/example.com/privkey.pem \
-            -out /etc/letsencrypt/live/example.com/fullchain.pem \
-            -subj "/CN=example.com"
-
-          # Create chain.pem (same as fullchain for testing)
-          sudo cp /etc/letsencrypt/live/example.com/fullchain.pem \
-            /etc/letsencrypt/live/example.com/chain.pem
-
-          # Generate Diffie-Hellman parameters (required by nginx-ssl.conf)
-          echo "🔐 Generating DH parameters for testing..."
-          sudo openssl dhparam -out /etc/nginx/dhparam.pem 512  # Use 512 bits for fast CI testing
-
-          echo "✅ Test directories and certificates created"
-
-      - name: Add dummy hosts for upstream validation
-        run: |
-          echo "📝 Adding dummy hosts for nginx upstream validation..."
-          # nginx.conf references these Docker service names as upstreams
-          # Add them to /etc/hosts so nginx can resolve them during validation
-          echo "127.0.0.1 api" | sudo tee -a /etc/hosts
-          echo "127.0.0.1 frontend" | sudo tee -a /etc/hosts
-          echo "127.0.0.1 minio" | sudo tee -a /etc/hosts
-          echo "✅ Dummy hosts added for CI validation"
-
-      - name: Validate nginx.conf syntax
-        run: |
-          echo "🔍 Validating nginx.conf..."
-
-          # First check if nginx user exists
-          if id -u nginx &>/dev/null; then
-            echo "✅ nginx user exists, testing with original config"
-            sudo nginx -t -c $(pwd)/nginx/nginx.conf || {
-              echo "❌ nginx.conf validation failed"
-              exit 1
-            }
-          else
-            echo "⚠️  nginx user not available, testing without user directive"
-            # Create a temporary config without the user directive for CI testing
-            grep -v "^user nginx;" nginx/nginx.conf > /tmp/nginx-test.conf
-            sudo nginx -t -c /tmp/nginx-test.conf || {
-              echo "❌ nginx.conf validation failed"
-              exit 1
-            }
-          fi
-          echo "✅ nginx.conf syntax is valid"
-
-      - name: Validate nginx-ssl.conf syntax
-        run: |
-          echo "🔍 Validating nginx-ssl.conf..."
-          if [ -f nginx/nginx-ssl.conf ]; then
-            # Replace ${DOMAIN_NAME} placeholder with example.com for CI testing
-            echo "📝 Preparing nginx-ssl.conf for CI validation..."
-            sed 's/\${DOMAIN_NAME}/example.com/g' nginx/nginx-ssl.conf > /tmp/nginx-ssl-test.conf
-
-            # Check if nginx user exists and prepare config accordingly
-            if id -u nginx &>/dev/null; then
-              echo "✅ nginx user exists, testing with prepared SSL config"
-              output=$(sudo nginx -t -c /tmp/nginx-ssl-test.conf 2>&1) || true
-            else
-              echo "⚠️  nginx user not available, testing SSL config without user directive"
-              # Create a temporary config without the user directive for CI testing
-              grep -v "^user nginx;" /tmp/nginx-ssl-test.conf > /tmp/nginx-ssl-test-nouser.conf
-              output=$(sudo nginx -t -c /tmp/nginx-ssl-test-nouser.conf 2>&1) || true
-            fi
-
-            # Show output for debugging
-            echo "Nginx validation output:"
-            echo "$output"
-            echo "---"
-
-            # Check validation results
-            if echo "$output" | grep -q "syntax is ok"; then
-              echo "✅ nginx-ssl.conf syntax is valid"
-              if echo "$output" | grep -q "warn"; then
-                echo "ℹ️  Warnings detected (expected in CI environment)"
-              fi
-            elif echo "$output" | grep -q "test is successful"; then
-              echo "✅ nginx-ssl.conf test is successful"
-            else
-              # Check for specific error types
-              if echo "$output" | grep -q "SSL_CTX_load_verify_locations"; then
-                echo "❌ Certificate loading failed - check certificate paths"
-                exit 1
-              elif echo "$output" | grep -q "unknown directive"; then
-                echo "❌ Configuration has unknown directives"
-                exit 1
-              elif echo "$output" | grep -q "invalid"; then
-                echo "❌ Configuration has invalid syntax"
-                exit 1
-              else
-                echo "⚠️  nginx-ssl.conf validation completed with warnings"
-                # Don't fail on warnings in CI
-                echo "✅ Treating as success for CI environment"
-              fi
-            fi
-          else
-            echo "⚠️  nginx-ssl.conf not found - skipping SSL validation"
-          fi
-
-      - name: Check for security headers
-        run: |
-          echo "🔍 Checking for security headers..."
-
-          security_headers=(
-            "X-Frame-Options"
-            "X-Content-Type-Options"
-            "X-XSS-Protection"
-            "Referrer-Policy"
-            "Strict-Transport-Security"
-          )
-
-          for header in "${security_headers[@]}"; do
-            if grep -q "$header" nginx/nginx*.conf; then
-              echo "✅ Security header '$header' is configured"
-            else
-              echo "⚠️  Warning: Security header '$header' not found"
-            fi
-          done
-
-      - name: Check for rate limiting
-        run: |
-          echo "🔍 Checking for rate limiting configuration..."
-
-          if grep -q "limit_req_zone\|limit_conn_zone" nginx/nginx*.conf; then
-            echo "✅ Rate limiting is configured"
-          else
-            echo "⚠️  Warning: No rate limiting configuration found"
-          fi
-
-      - name: Check SSL configuration
-        run: |
-          echo "🔍 Checking SSL/TLS configuration..."
-
-          # Check for strong SSL protocols
-          if grep -q "ssl_protocols.*TLSv1.2.*TLSv1.3" nginx/nginx*.conf; then
-            echo "✅ Strong SSL protocols configured (TLS 1.2+)"
-          else
-            echo "⚠️  Warning: Weak or missing SSL protocol configuration"
-          fi
-
-          # Check for cipher suites
-          if grep -q "ssl_ciphers" nginx/nginx*.conf; then
-            echo "✅ SSL cipher suites configured"
-          else
-            echo "⚠️  Warning: No SSL cipher configuration found"
-          fi
-
-      - name: Validate Nginx Dockerfile
-        run: |
-          echo "🔍 Validating Nginx Dockerfile..."
-
-          if [ -f nginx/Dockerfile ]; then
-            # Check for security best practices
-            if grep -q "USER nginx" nginx/Dockerfile; then
-              echo "✅ Non-root user configured"
-            else
-              echo "⚠️  Warning: Consider running as non-root user"
-            fi
-
-            if grep -q "HEALTHCHECK" nginx/Dockerfile; then
-              echo "✅ Health check defined"
-            else
-              echo "⚠️  Warning: No HEALTHCHECK instruction"
-            fi
-          else
-            echo "⚠️  Nginx Dockerfile not found"
-          fi
-
-      - name: Generate Nginx validation summary
-        if: always()
-        run: |
-          echo "## ✅ Nginx Validation Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Configuration Files" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ nginx.conf - syntax validated" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ nginx-ssl.conf - syntax validated" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ nginx user created for CI environment" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Security Features" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Security headers checked" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ SSL/TLS configuration verified" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Rate limiting configuration checked" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Non-root user configuration verified" >> $GITHUB_STEP_SUMMARY
-
-  # =============================================================================
-  # Job 3: Validate Shell Scripts
-  # =============================================================================
-  validate-scripts:
-    name: Validate Shell Scripts
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Install shellcheck
-        run: |
-          echo "📦 Installing shellcheck v${SHELLCHECK_VERSION}..."
-          wget -qO- "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" | tar -xJv
-          sudo cp "shellcheck-v${SHELLCHECK_VERSION}/shellcheck" /usr/bin/
-          shellcheck --version
-
-      - name: Find all shell scripts
-        id: find-scripts
-        run: |
-          echo "🔍 Finding all shell scripts..."
-          scripts=$(find . -type f -name "*.sh" -not -path "./.git/*" -not -path "./node_modules/*" | sort)
-          echo "Found scripts:"
-          echo "$scripts"
-          echo "scripts<<EOF" >> $GITHUB_OUTPUT
-          echo "$scripts" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Validate shell script syntax
-        run: |
-          echo "🔍 Validating shell script syntax..."
-
-          # Scripts to validate
-          scripts=(
-            "scripts/setup-ssl.sh"
-            "scripts/validate-env.sh"
-            "scripts/test-production-local.sh"
-            "scripts/generate-secrets.sh"
-            "scripts/validate-secrets.sh"
-            "scripts/setup-github-secrets.sh"
-            "scripts/manage-branch-protection.sh"
-            "scripts/verify-docker-limits.sh"
-            "nginx/enable-ssl.sh"
-          )
-
-          failed=0
-          for script in "${scripts[@]}"; do
-            if [ -f "$script" ]; then
-              echo "Checking $script..."
-              if bash -n "$script"; then
-                echo "✅ $script: Syntax valid"
-              else
-                echo "❌ $script: Syntax error"
-                failed=$((failed + 1))
-              fi
-            else
-              echo "⚠️  $script: File not found"
-            fi
-          done
-
-          if [ $failed -gt 0 ]; then
-            echo "❌ $failed scripts failed syntax validation"
-            exit 1
-          fi
-
-      - name: Run shellcheck
-        run: |
-          echo "🔍 Running shellcheck..."
-
-          # Scripts to check with shellcheck
-          scripts=(
-            "scripts/setup-ssl.sh"
-            "scripts/validate-env.sh"
-            "scripts/test-production-local.sh"
-            "scripts/generate-secrets.sh"
-            "scripts/validate-secrets.sh"
-            "scripts/setup-github-secrets.sh"
-            "scripts/manage-branch-protection.sh"
-            "scripts/verify-docker-limits.sh"
-            "nginx/enable-ssl.sh"
-          )
-
-          failed=0
-          for script in "${scripts[@]}"; do
-            if [ -f "$script" ]; then
-              echo "Checking $script with shellcheck..."
-              # Exclude some warnings that are acceptable
-              # SC2086: Double quote to prevent globbing (we sometimes want word splitting)
-              # SC2181: Check exit code directly (sometimes cleaner to use $?)
-              if shellcheck -e SC2086,SC2181 "$script"; then
-                echo "✅ $script: No issues found"
-              else
-                echo "⚠️  $script: ShellCheck warnings (non-fatal)"
-              fi
-            fi
-          done
-
-      - name: Check script permissions
-        run: |
-          echo "🔍 Checking script permissions..."
-
-          # All scripts should be executable
-          scripts=(
-            "scripts/setup-ssl.sh"
-            "scripts/validate-env.sh"
-            "scripts/test-production-local.sh"
-            "scripts/generate-secrets.sh"
-            "scripts/validate-secrets.sh"
-            "scripts/setup-github-secrets.sh"
-            "scripts/manage-branch-protection.sh"
-            "scripts/verify-docker-limits.sh"
-            "nginx/enable-ssl.sh"
-          )
-
-          for script in "${scripts[@]}"; do
-            if [ -f "$script" ]; then
-              if [ -x "$script" ]; then
-                echo "✅ $script: Executable"
-              else
-                echo "⚠️  $script: Not executable (chmod +x needed)"
-              fi
-            fi
-          done
-
-      - name: Check for dangerous commands
-        run: |
-          echo "🔍 Checking for potentially dangerous commands..."
-
-          # Check for dangerous patterns
-          dangerous_patterns=(
-            "rm -rf /"
-            "dd if=/dev/zero"
-            ":(){ :|:& };:"
-            "chmod 777"
-            "curl.*\|.*bash"
-            "wget.*\|.*sh"
-          )
-
-          for pattern in "${dangerous_patterns[@]}"; do
-            if grep -r "$pattern" scripts/ nginx/*.sh 2>/dev/null; then
-              echo "⚠️  Warning: Potentially dangerous pattern found: $pattern"
-            fi
-          done
-
-          echo "✅ No critical security issues found"
-
-      - name: Generate script validation summary
-        if: always()
-        run: |
-          echo "## Shell Script Validation Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Scripts Validated" >> $GITHUB_STEP_SUMMARY
-          echo "- Syntax validation: bash -n" >> $GITHUB_STEP_SUMMARY
-          echo "- Static analysis: shellcheck" >> $GITHUB_STEP_SUMMARY
-          echo "- Security patterns checked" >> $GITHUB_STEP_SUMMARY
-          echo "- Permissions verified" >> $GITHUB_STEP_SUMMARY
-
-  # =============================================================================
-  # Job 4: Validate Environment Templates
-  # =============================================================================
-  validate-environment:
-    name: Validate Environment Templates
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Check environment template files exist
-        run: |
-          echo "🔍 Checking for environment template files..."
-
-          templates=(
-            ".env.example"
-            ".env.production.example"
-          )
-
-          for template in "${templates[@]}"; do
-            if [ -f "$template" ]; then
-              echo "✅ $template exists"
-            else
-              echo "❌ $template not found"
-              exit 1
-            fi
-          done
-
-      - name: Create test environment file
-        run: |
-          echo "📝 Creating test environment file..."
-
-          # Create a valid test .env file based on production example
-          cp .env.production.example .env.test
-
-          # Replace CHANGE_ME placeholder values with valid test values
-          # These match the actual values in .env.production.example
-          # Note: Using 'ci_' prefix instead of 'test' to avoid weak password detection
-
-          # Database password (needs to be 20+ chars)
-          sed -i 's/POSTGRES_PASSWORD=CHANGE_ME_GENERATE_RANDOM_32_CHARS/POSTGRES_PASSWORD=ci_postgres_password_32_chars_long_for_validation/g' .env.test
-
-          # Redis password (needs to be 20+ chars and different from Postgres)
-          sed -i 's/REDIS_PASSWORD=CHANGE_ME_GENERATE_RANDOM_32_CHARS/REDIS_PASSWORD=ci_redis_password_different_32_chars_long_unique/g' .env.test
-
-          # S3/MinIO credentials
-          sed -i 's/S3_ACCESS_KEY=CHANGE_ME_20CHARS_MIN/S3_ACCESS_KEY=ci_access_key_20chars_min/g' .env.test
-          sed -i 's/S3_SECRET_KEY=CHANGE_ME_GENERATE_RANDOM_40_CHARS/S3_SECRET_KEY=ci_secret_key_40_characters_long_for_validation/g' .env.test
-
-          # Base64 encoded encryption keys (must be valid base64 of 32 bytes)
-          # Generated with: python -c "import base64; print(base64.b64encode(b'ci_key_for_validation_32_bytes__').decode())"
-          sed -i 's/MINIO_ENCRYPTION_KEY=CHANGE_ME_BASE64_32_BYTES/MINIO_ENCRYPTION_KEY=Y2lfa2V5X2Zvcl92YWxpZGF0aW9uXzMyX2J5dGVzX18=/g' .env.test
-          sed -i 's/ENCRYPTION_MASTER_KEY=CHANGE_ME_BASE64_32_BYTES/ENCRYPTION_MASTER_KEY=ZGlmZmVyZW50X2NpX2tleV8zMl9ieXRlc19mb3JfdmFsaWQ=/g' .env.test
-
-          # Application secrets (SECRET_KEY needs 64+ chars)
-          sed -i 's/SECRET_KEY=CHANGE_ME_GENERATE_RANDOM_64_CHARS/SECRET_KEY=ci_secret_key_64_characters_long_for_validation_only_12345678901/g' .env.test
-          sed -i 's/JWT_SECRET_KEY=CHANGE_ME_GENERATE_RANDOM_32_CHARS/JWT_SECRET_KEY=ci_jwt_secret_key_32_chars_long_for_validation/g' .env.test
-
-          # SMTP password
-          sed -i 's/SMTP_PASSWORD=CHANGE_ME_SENDGRID_API_KEY/SMTP_PASSWORD=ci_smtp_password_for_validation_only/g' .env.test
-
-          # GitHub repository (replace example username)
-          sed -i 's#GITHUB_REPOSITORY=yourusername/pazpaz#GITHUB_REPOSITORY=testuser/pazpaz#g' .env.test
-
-      - name: Run environment validation script (expect failure with example)
-        run: |
-          echo "🔍 Testing validation script with example file (should fail)..."
-
-          if [ -f scripts/validate-env.sh ]; then
-            # This should fail because example has placeholder values
-            if bash scripts/validate-env.sh .env.production.example 2>&1; then
-              echo "⚠️  Validation passed for example file (unexpected)"
-            else
-              echo "✅ Validation correctly failed for example file"
-            fi
-          else
-            echo "⚠️  validate-env.sh not found"
-          fi
-
-      - name: Run environment validation script (expect success with test)
-        run: |
-          echo "🔍 Testing validation script with test file (should pass)..."
-
-          if [ -f scripts/validate-env.sh ]; then
-            # This should pass with our test values
-            if bash scripts/validate-env.sh .env.test; then
-              echo "✅ Validation passed for test file"
-            else
-              echo "❌ Validation failed for test file (unexpected)"
-              exit 1
-            fi
-          else
-            echo "⚠️  validate-env.sh not found"
-          fi
-
-      - name: Check for required variables
-        run: |
-          echo "🔍 Checking for required environment variables..."
-
-          # Critical variables that must be present in .env.production.example
-          # These are the actual variables that exist in the file
-          required_vars=(
-            "POSTGRES_PASSWORD"
-            "REDIS_PASSWORD"
-            "SECRET_KEY"
-            "ENCRYPTION_MASTER_KEY"
-            "JWT_SECRET_KEY"
-            "FRONTEND_URL"
-            "SMTP_HOST"
-            "LOG_LEVEL"
-            "S3_ACCESS_KEY"
-            "S3_SECRET_KEY"
-            "MINIO_ENCRYPTION_KEY"
-          )
-
-          missing=0
-          for var in "${required_vars[@]}"; do
-            if grep -q "^${var}=" .env.production.example; then
-              echo "✅ $var is defined"
-            else
-              echo "❌ $var is missing"
-              missing=$((missing + 1))
-            fi
-          done
-
-          # Also check for important placeholder values that need to be changed
-          echo ""
-          echo "📝 Checking for placeholder values that must be changed in production..."
-
-          placeholders=(
-            "CHANGE_ME"
-            "yourusername/pazpaz"
-          )
-
-          for placeholder in "${placeholders[@]}"; do
-            if grep -q "$placeholder" .env.production.example; then
-              echo "ℹ️  Placeholder '$placeholder' found (expected in example file)"
-            fi
-          done
-
-          if [ $missing -gt 0 ]; then
-            echo "❌ $missing required variables are missing"
-            exit 1
-          else
-            echo "✅ All required variables are present in .env.production.example"
-          fi
-
-      - name: Check for sensitive value patterns
-        run: |
-          echo "🔍 Checking for exposed secrets..."
-
-          # Patterns that might indicate real secrets
-          suspicious_patterns=(
-            "ghp_"  # GitHub personal access token
-            "ghs_"  # GitHub secret
-            "sk-"   # OpenAI API key
-            "pk_"   # Stripe key
-            "aws_"  # AWS credentials
-          )
-
-          for pattern in "${suspicious_patterns[@]}"; do
-            if grep -i "$pattern" .env.production.example; then
-              echo "⚠️  Warning: Suspicious pattern '$pattern' found in example file"
-            fi
-          done
-
-          echo "✅ No obvious secrets found in example files"
-
-      - name: Generate environment validation summary
-        if: always()
-        run: |
-          echo "## Environment Validation Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Files Checked" >> $GITHUB_STEP_SUMMARY
-          echo "- .env.example" >> $GITHUB_STEP_SUMMARY
-          echo "- .env.production.example" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Validation Results" >> $GITHUB_STEP_SUMMARY
-          echo "- Required variables present" >> $GITHUB_STEP_SUMMARY
-          echo "- No exposed secrets found" >> $GITHUB_STEP_SUMMARY
-          echo "- Validation script tested" >> $GITHUB_STEP_SUMMARY
-
-  # =============================================================================
-  # Job 5: Docker Build Test (Optional but Recommended)
-  # =============================================================================
   docker-build-test:
     name: Test Docker Builds
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Only run on main branch or manual dispatch to save resources
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            image=moby/buildkit:latest
-
-      - name: Install Docker Compose
-        run: |
-          echo "📦 Installing Docker Compose v${DOCKER_COMPOSE_VERSION}..."
-          sudo curl -L "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
-          docker-compose version
-
-      - name: Create test .env file
-        run: |
-          echo "📝 Creating test .env file for build..."
-
-          cat > .env << 'EOF'
-          # Test environment for CI
-          ENVIRONMENT=test
-          VERSION=test
-          DATABASE_URL=postgresql://test:test@db:5432/pazpaz_test
-          REDIS_URL=redis://redis:6379/0
-          SECRET_KEY=test_secret_key_for_ci_build_validation_only
-          ENCRYPTION_MASTER_KEY=dGVzdF9rZXlfZm9yX2NpX2V4YWN0bHlfMzJfYnl0ZXM=
-          JWT_SECRET_KEY=test_jwt_secret_for_ci_validation
-          EOF
-
-      - name: Create test .env.production file
-        run: |
-          echo "📝 Creating test .env.production file for Docker Compose validation..."
-
-          cat > .env.production << 'EOF'
-          # Test environment file for CI validation
-          GITHUB_REPOSITORY=testuser/pazpaz
-          IMAGE_TAG=test
-          VERSION=test
-          POSTGRES_PASSWORD=test_postgres_password_32_chars_long_for_ci
-          REDIS_PASSWORD=test_redis_password_32_chars_long_for_ci_test
-          S3_ACCESS_KEY=test_access_key_20chr
-          S3_SECRET_KEY=test_secret_key_40_characters_long_for_ci
-          S3_BUCKET_NAME=pazpaz-attachments
-          S3_REGION=us-east-1
-          MINIO_ENCRYPTION_KEY=dGVzdF9lbmNyeXB0aW9uX2tleV9mb3JfY2lfZXhhY3RseTMyYnl0ZXM=
-          SECRET_KEY=test_secret_key_64_characters_long_for_ci_validation_only_12345
-          JWT_SECRET_KEY=test_jwt_secret_32_chars_for_ci
-          ENCRYPTION_MASTER_KEY=dGVzdF9lbmNyeXB0aW9uX21hc3Rlcl9rZXlfZm9yX2NpXzMyYnl0ZXM=
-          FRONTEND_URL=https://test.pazpaz.com
-          ALLOWED_HOSTS=test.pazpaz.com,api.test.pazpaz.com
-          CORS_ALLOWED_ORIGINS=
-          SMTP_HOST=smtp.test.com
-          SMTP_PORT=587
-          SMTP_USER=testuser
-          SMTP_PASSWORD=test_smtp_password_for_ci
-          SMTP_USE_TLS=true
-          EMAILS_FROM_EMAIL=noreply@test.pazpaz.com
-          EOF
+      - name: Setup Docker Buildx
+        uses: ./.github/actions/setup-docker
 
       - name: Build Nginx image
-        run: |
-          echo "🔨 Building Nginx image..."
+        uses: docker/build-push-action@v6
+        with:
+          context: ./nginx
+          file: ./nginx/Dockerfile
+          tags: pazpaz/nginx:test
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-          docker buildx build \
-            --cache-from type=gha \
-            --cache-to type=gha,mode=max \
-            --tag pazpaz/nginx:test \
-            --file nginx/Dockerfile \
-            --load \
-            nginx/
-
-      - name: Test Docker Compose build (dry run)
-        run: |
-          echo "🔨 Testing Docker Compose build..."
-
-          # Use --no-build to avoid building backend/frontend
-          # Just validate that compose file works with images
-          docker-compose -f docker-compose.prod.yml config > /dev/null || {
-            echo "❌ Docker Compose configuration invalid"
-            exit 1
-          }
-
-          echo "✅ Docker Compose configuration is valid"
-
-      - name: Scan Nginx image for vulnerabilities
-        run: |
-          echo "🔍 Scanning Nginx image for vulnerabilities..."
-
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy image \
-            --severity HIGH,CRITICAL \
-            --no-progress \
-            --ignore-unfixed \
-            pazpaz/nginx:test || {
-            echo "⚠️  Vulnerabilities found (non-blocking)"
-          }
+      - name: Scan Nginx image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: pazpaz/nginx:test
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
 
       - name: Check image size
         run: |
-          echo "📊 Checking image sizes..."
-
           size=$(docker image inspect pazpaz/nginx:test --format='{{.Size}}')
           size_mb=$((size / 1024 / 1024))
           echo "Nginx image size: ${size_mb}MB"
 
           if [ $size_mb -gt 100 ]; then
-            echo "⚠️  Warning: Nginx image is larger than 100MB (${size_mb}MB)"
-          else
-            echo "✅ Nginx image size is reasonable (${size_mb}MB)"
+            echo "::warning::Nginx image is larger than 100MB (${size_mb}MB)"
           fi
 
-      - name: Generate Docker build summary
-        if: always()
-        run: |
-          echo "## Docker Build Test Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Images Built" >> $GITHUB_STEP_SUMMARY
-          echo "- pazpaz/nginx:test" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Security Scan" >> $GITHUB_STEP_SUMMARY
-          echo "- Trivy vulnerability scan completed" >> $GITHUB_STEP_SUMMARY
-
-  # =============================================================================
-  # Summary Job - Ensure all checks pass
-  # =============================================================================
-  infrastructure-ci-success:
+  success:
     name: Infrastructure CI Success
-    needs:
-      - validate-docker-compose
-      - validate-nginx
-      - validate-scripts
-      - validate-environment
+    needs: [validate, docker-build-test]
     runs-on: ubuntu-latest
     if: always()
 
     steps:
-      - name: Check if all required jobs succeeded
+      - name: Check job results
         run: |
-          echo "📊 Checking job results..."
-
-          failed=0
-
-          if [[ "${{ needs.validate-docker-compose.result }}" != "success" ]]; then
-            echo "❌ Docker Compose validation failed"
-            failed=$((failed + 1))
-          else
-            echo "✅ Docker Compose validation passed"
-          fi
-
-          if [[ "${{ needs.validate-nginx.result }}" != "success" ]]; then
-            echo "❌ Nginx validation failed"
-            failed=$((failed + 1))
-          else
-            echo "✅ Nginx validation passed"
-          fi
-
-          if [[ "${{ needs.validate-scripts.result }}" != "success" ]]; then
-            echo "❌ Script validation failed"
-            failed=$((failed + 1))
-          else
-            echo "✅ Script validation passed"
-          fi
-
-          if [[ "${{ needs.validate-environment.result }}" != "success" ]]; then
-            echo "❌ Environment validation failed"
-            failed=$((failed + 1))
-          else
-            echo "✅ Environment validation passed"
-          fi
-
-          echo ""
-          if [ $failed -eq 0 ]; then
-            echo "🎉 All infrastructure CI checks passed!"
-          else
-            echo "❌ $failed job(s) failed"
+          if [[ "${{ needs.validate.result }}" != "success" ]]; then
+            echo "::error::Validation failed"
             exit 1
           fi
 
-      - name: Generate final summary
-        if: always()
-        run: |
-          echo "# Infrastructure CI Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          # Docker build is conditional, so only fail if it ran and failed
+          if [[ "${{ needs.docker-build-test.result }}" == "failure" ]]; then
+            echo "::error::Docker build test failed"
+            exit 1
+          fi
 
-          echo "## Job Status" >> $GITHUB_STEP_SUMMARY
-          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker Compose Validation | ${{ needs.validate-docker-compose.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Nginx Validation | ${{ needs.validate-nginx.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Script Validation | ${{ needs.validate-scripts.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Environment Validation | ${{ needs.validate-environment.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          echo "## Components Validated" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Docker Compose files (docker-compose.yml, docker-compose.prod.yml)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Nginx configuration (nginx.conf, nginx-ssl.conf)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Shell scripts (setup-ssl.sh, validate-env.sh, etc.)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Environment templates (.env.example, .env.production.example)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          echo "## Security Checks" >> $GITHUB_STEP_SUMMARY
-          echo "- Network isolation verified" >> $GITHUB_STEP_SUMMARY
-          echo "- SSL/TLS configuration validated" >> $GITHUB_STEP_SUMMARY
-          echo "- No exposed secrets found" >> $GITHUB_STEP_SUMMARY
-          echo "- Script security patterns checked" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All infrastructure CI checks passed!"
