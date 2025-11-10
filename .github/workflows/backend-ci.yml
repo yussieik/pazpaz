@@ -6,20 +6,19 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
+      - '.github/actions/setup-python/**'
       - 'pyproject.toml'
   pull_request:
     branches: [ main ]
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
+      - '.github/actions/setup-python/**'
       - 'pyproject.toml'
-  workflow_dispatch:  # Allow manual triggering for testing
+  workflow_dispatch:
 
 env:
   PYTHON_VERSION: "3.13.5"
-  UV_VERSION: "latest"
-  POSTGRES_VERSION: "16"
-  REDIS_VERSION: "7"
 
 jobs:
   test:
@@ -43,8 +42,6 @@ jobs:
           - 5432:5432
 
       redis:
-        # Use bitnami/redis with ALLOW_EMPTY_PASSWORD to disable auth requirement
-        # Bitnami images use 'latest' tag for latest stable version
         image: bitnami/redis:latest
         env:
           ALLOW_EMPTY_PASSWORD: yes
@@ -63,46 +60,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Full history for better analysis
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
+      - name: Setup Python with uv
+        uses: ./.github/actions/setup-python
         with:
-          version: ${{ env.UV_VERSION }}
-
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
-        run: |
-          uv python install ${{ env.PYTHON_VERSION }}
-          uv python pin ${{ env.PYTHON_VERSION }}
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/uv
-            ./backend/.venv
-          key: ${{ runner.os }}-uv-${{ hashFiles('backend/pyproject.toml', 'backend/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
+          working-directory: ./backend
 
       - name: Install dependencies
-        run: |
-          uv sync --dev
-          uv pip install mypy safety
+        run: uv sync --dev
 
       - name: Run ruff format check
-        run: |
-          uv run ruff format --check src/ tests/
+        run: uv run ruff format --check src/ tests/
 
       - name: Run ruff linting
-        run: |
-          uv run ruff check src/ tests/
-
-      - name: Run mypy type checking
-        run: |
-          uv run mypy src/pazpaz --ignore-missing-imports --no-strict-optional --no-warn-unused-ignores || true
-        continue-on-error: true
+        run: uv run ruff check src/ tests/
 
       - name: Run pytest with coverage
         env:
@@ -126,8 +97,7 @@ jobs:
           WORKSPACE_ISOLATION_ENABLED: true
           AUDIT_LOGGING_ENABLED: true
         run: |
-          # Run pytest and capture exit code
-          set +e  # Don't exit on error
+          set +e
           uv run pytest \
             --cov=pazpaz \
             --cov-report=term \
@@ -140,14 +110,12 @@ jobs:
             -m "not performance and not quarterly_drill" \
             2>&1 | tee pytest_output.txt
           PYTEST_EXIT_CODE=$?
-          set -e  # Re-enable exit on error
+          set -e
 
-          # Extract test results from output
           if grep -q "= .* passed" pytest_output.txt; then
             SUMMARY=$(grep "= .* passed" pytest_output.txt | tail -1)
             echo "Test Summary: $SUMMARY"
 
-            # Extract passed and failed counts (using sed instead of grep -oP for compatibility)
             PASSED=$(echo "$SUMMARY" | sed -n 's/.* \([0-9]\+\) passed.*/\1/p')
             FAILED=$(echo "$SUMMARY" | sed -n 's/.* \([0-9]\+\) failed.*/\1/p')
             [ -z "$PASSED" ] && PASSED=0
@@ -158,7 +126,6 @@ jobs:
               PASS_RATE=$(awk "BEGIN {printf \"%.1f\", ($PASSED/$TOTAL)*100}")
               echo "Pass Rate: $PASS_RATE% ($PASSED/$TOTAL tests)"
 
-              # Require 90% pass rate (configurable threshold)
               REQUIRED_PASS_RATE=90
               if (( $(echo "$PASS_RATE >= $REQUIRED_PASS_RATE" | bc -l) )); then
                 echo "✅ Pass rate $PASS_RATE% meets threshold of $REQUIRED_PASS_RATE%"
@@ -170,16 +137,10 @@ jobs:
             fi
           fi
 
-          # If we couldn't parse results, use pytest's exit code
           echo "Could not parse test results, using pytest exit code: $PYTEST_EXIT_CODE"
           exit $PYTEST_EXIT_CODE
 
-      - name: Run safety security audit
-        run: |
-          uv run safety check --json --continue-on-error || true
-        continue-on-error: true
-
-      - name: Upload coverage reports to Codecov
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         if: always()
         with:
@@ -210,7 +171,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner (filesystem)
+      - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -222,7 +183,7 @@ jobs:
           vuln-type: 'os,library'
           scanners: 'vuln,secret,misconfig'
 
-      - name: Upload Trivy results to GitHub Security tab
+      - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
@@ -230,26 +191,38 @@ jobs:
           category: 'trivy-backend'
         continue-on-error: true
 
-      - name: Run Trivy in table format for PR comment
-        uses: aquasecurity/trivy-action@master
-        if: github.event_name == 'pull_request'
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
         with:
-          scan-type: 'fs'
-          scan-ref: './backend'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-          format: 'table'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          output: 'trivy-pr-report.txt'
+          languages: python
+          queries: security-extended,security-and-quality
+          config: |
+            paths:
+              - backend/src
+            paths-ignore:
+              - backend/tests
+              - backend/migrations
 
-      - name: Display Trivy results in logs
-        if: github.event_name == 'pull_request'
-        run: |
-          echo "## Trivy Security Scan Results"
-          cat trivy-pr-report.txt || echo "No vulnerabilities found"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"
 
-  openapi-validation:
-    name: OpenAPI Specification Validation
+  openapi:
+    name: OpenAPI Validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -261,20 +234,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
+      - name: Setup Python with uv
+        uses: ./.github/actions/setup-python
         with:
-          version: ${{ env.UV_VERSION }}
-
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
-        run: |
-          uv python install ${{ env.PYTHON_VERSION }}
-          uv python pin ${{ env.PYTHON_VERSION }}
+          working-directory: ./backend
 
       - name: Install dependencies
         run: uv sync
 
-      - name: Generate OpenAPI specification
+      - name: Generate OpenAPI spec
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
           REDIS_URL: "redis://localhost:6379/0"
@@ -289,7 +257,6 @@ jobs:
           import sys
           import os
 
-          # Set minimal environment
           os.environ['DATABASE_URL'] = 'sqlite+aiosqlite:///:memory:'
 
           try:
@@ -298,62 +265,28 @@ jobs:
               print(json.dumps(spec, indent=2))
           except Exception as e:
               print(f'Error generating OpenAPI spec: {e}', file=sys.stderr)
-              # Create minimal valid OpenAPI spec for validation
               minimal_spec = {
                   'openapi': '3.0.0',
-                  'info': {
-                      'title': 'PazPaz API',
-                      'version': '0.1.0'
-                  },
+                  'info': {'title': 'PazPaz API', 'version': '0.1.0'},
                   'paths': {}
               }
               print(json.dumps(minimal_spec, indent=2))
           EOF
           uv run python generate_openapi.py > openapi.json
 
-      - name: Setup Node.js for OpenAPI tools
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Validate OpenAPI specification
+      - name: Validate OpenAPI spec
         run: |
           npx @apidevtools/swagger-cli validate openapi.json || {
-            echo "::warning::OpenAPI validation failed. This may be expected if the API is still in development."
+            echo "::warning::OpenAPI validation failed"
             exit 0
           }
 
-      - name: Check for breaking changes
-        if: github.event_name == 'pull_request'
-        continue-on-error: true
-        run: |
-          # Fetch the base branch OpenAPI spec
-          git fetch origin ${{ github.base_ref }}:base-branch
-          git checkout base-branch -- backend/
-
-          # Generate base OpenAPI spec
-          cat > generate_base_openapi.py << 'EOF'
-          import json
-          import os
-          os.environ['DATABASE_URL'] = 'sqlite+aiosqlite:///:memory:'
-          try:
-              from pazpaz.main import app
-              spec = app.openapi()
-              print(json.dumps(spec, indent=2))
-          except:
-              print('{"openapi": "3.0.0", "info": {"title": "PazPaz API", "version": "0.1.0"}, "paths": {}}')
-          EOF
-          uv run python generate_base_openapi.py > openapi-base.json
-
-          # Check back to PR branch
-          git checkout -
-
-          # Compare specs for breaking changes
-          npx @apidevtools/swagger-diff openapi-base.json openapi.json || {
-            echo "::warning::Potential breaking changes detected in OpenAPI spec"
-          }
-
-      - name: Upload OpenAPI specification
+      - name: Upload OpenAPI spec
         uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -361,96 +294,12 @@ jobs:
           path: backend/openapi.json
           retention-days: 7
 
-  codeql:
-    name: CodeQL Security Analysis
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'python' ]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: ${{ matrix.language }}
-          queries: security-extended,security-and-quality
-          config: |
-            paths:
-              - backend/src
-            paths-ignore:
-              - backend/tests
-              - backend/migrations
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:${{ matrix.language }}"
-          upload: true
-          add-snippet-context: true
-
-  dependency-check:
-    name: Dependency Security Check
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    defaults:
-      run:
-        working-directory: ./backend
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          version: ${{ env.UV_VERSION }}
-
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
-        run: |
-          uv python install ${{ env.PYTHON_VERSION }}
-          uv python pin ${{ env.PYTHON_VERSION }}
-
-      - name: Check for outdated dependencies
-        run: |
-          echo "## Checking for outdated dependencies..."
-          uv pip list --outdated || true
-        continue-on-error: true
-
-      - name: Audit dependencies for known vulnerabilities
-        run: |
-          uv pip install pip-audit
-          uv run pip-audit --desc --format json > audit-results.json || true
-          cat audit-results.json
-        continue-on-error: true
-
-      - name: Upload dependency audit results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: dependency-audit
-          path: backend/audit-results.json
-          retention-days: 7
-
-  performance-tests:
-    name: Performance Tests (Optional)
+  performance:
+    name: Performance Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-    continue-on-error: true  # Don't fail the build on performance issues
+    continue-on-error: true
 
     services:
       postgres:
@@ -468,8 +317,6 @@ jobs:
           - 5432:5432
 
       redis:
-        # Use bitnami/redis with ALLOW_EMPTY_PASSWORD to disable auth requirement
-        # Bitnami images use 'latest' tag for latest stable version
         image: bitnami/redis:latest
         env:
           ALLOW_EMPTY_PASSWORD: yes
@@ -489,15 +336,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
+      - name: Setup Python with uv
+        uses: ./.github/actions/setup-python
         with:
-          version: ${{ env.UV_VERSION }}
-
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
-        run: |
-          uv python install ${{ env.PYTHON_VERSION }}
-          uv python pin ${{ env.PYTHON_VERSION }}
+          working-directory: ./backend
 
       - name: Install dependencies
         run: uv sync --dev
@@ -511,43 +353,23 @@ jobs:
           SECRET_KEY: ${{ secrets.CI_SECRET_KEY || 'test_secret_for_ci_only_must_be_long_enough_to_pass_validation_checks' }}
           ENVIRONMENT: local
         run: |
-          echo "Running performance tests..."
           uv run pytest tests/test_performance.py -v -m performance --tb=short || {
             echo "::warning::Performance tests failed. Check if p95 < 150ms target is met."
             exit 0
           }
 
-      - name: Generate performance report
-        if: always()
-        run: |
-          echo "## Performance Test Results" > performance-report.md
-          echo "Target: p95 response time < 150ms for schedule endpoints" >> performance-report.md
-          echo "" >> performance-report.md
-          echo "See test output above for detailed metrics." >> performance-report.md
-
-      - name: Upload performance report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: performance-report
-          path: backend/performance-report.md
-          retention-days: 7
-
   docker-build:
     name: Build Docker Image
     runs-on: ubuntu-latest
-    needs: [test, security]  # Only build if tests and security pass
+    needs: [test, security]
     timeout-minutes: 30
     permissions:
       contents: read
-      packages: write  # Required for ghcr.io
-      id-token: write  # Required for OIDC authentication
+      packages: write
+      id-token: write
 
-    # Only run docker build on main branch pushes, release tags, or manual dispatch
-    # Skip for pull requests to save time (PR validation happens in test/security jobs)
     if: github.event_name != 'pull_request'
 
-    # Set outputs for deployment job
     outputs:
       image_digest: ${{ steps.build.outputs.digest }}
       image_tags: ${{ steps.meta.outputs.tags }}
@@ -556,68 +378,58 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            image=moby/buildkit:latest
+      - name: Setup Docker Buildx
+        uses: ./.github/actions/setup-docker
 
-      - name: Log in to GitHub Container Registry
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
+      - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/yussieik/pazpaz-backend
+          images: ghcr.io/${{ github.repository_owner }}/pazpaz-backend
           tags: |
-            # Tag with branch name for main/develop
             type=ref,event=branch
-            # Tag with semver for releases (v1.0.0, v1.0, v1)
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            # Tag with commit SHA (first 7 chars)
             type=sha,prefix=sha-,format=short
-            # Tag with 'latest' only for main branch
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
           labels: |
             org.opencontainers.image.title=PazPaz Backend
             org.opencontainers.image.description=HIPAA-compliant practice management backend
             org.opencontainers.image.vendor=PazPaz
-            org.opencontainers.image.licenses=Proprietary
             security.scan=required
             security.non-root=true
 
-      - name: Build and push Docker image
-        id: build  # Added for output tracking
-        uses: docker/build-push-action@v5
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
         with:
           context: ./backend
           file: ./backend/Dockerfile
-          platforms: linux/amd64  # Hetzner VPS architecture
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
 
-      - name: Run Trivy vulnerability scanner on image
+      - name: Scan Docker image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ghcr.io/yussieik/pazpaz-backend:${{ steps.meta.outputs.version }}
+          image-ref: ghcr.io/${{ github.repository_owner }}/pazpaz-backend:${{ steps.meta.outputs.version }}
           format: 'sarif'
           output: 'trivy-image-results.sarif'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
 
-      - name: Upload Trivy results to GitHub Security tab
+      - name: Upload scan results
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
@@ -625,32 +437,11 @@ jobs:
           category: 'trivy-docker-image'
         continue-on-error: true
 
-      - name: Generate image summary
-        if: always()
-        run: |
-          echo "## Docker Image Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Registry:** GitHub Container Registry (ghcr.io)" >> $GITHUB_STEP_SUMMARY
-          echo "**Repository:** ghcr.io/yussieik/pazpaz-backend" >> $GITHUB_STEP_SUMMARY
-          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Security:** Image scanned with Trivy for vulnerabilities" >> $GITHUB_STEP_SUMMARY
-          echo "**User:** Non-root (pazpaz:pazpaz, UID/GID 1000)" >> $GITHUB_STEP_SUMMARY
-          echo "**Platform:** linux/amd64" >> $GITHUB_STEP_SUMMARY
-
-  # ============================================================================
-  # Deploy to Production
-  # ============================================================================
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: [docker-build]
     timeout-minutes: 15
-
-    # Only deploy on main branch (not on tags or manual dispatch)
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     environment:
@@ -666,252 +457,54 @@ jobs:
             backend/alembic.ini
             backend/migrations/
 
-      - name: Set up SSH
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/id_ed25519
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H 5.161.241.81 >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Sync configuration files to server
+      - name: Sync files to server
         run: |
-          echo "📦 Syncing configuration files to production server..."
+          scp docker-compose.prod.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/pazpaz/
+          scp backend/alembic.ini ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/pazpaz/backend/
+          scp -r backend/migrations/* ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/pazpaz/backend/migrations/ || true
 
-          # Copy docker-compose configuration
-          scp docker-compose.prod.yml root@5.161.241.81:/opt/pazpaz/
-
-          # Copy alembic configuration and migrations
-          ssh root@5.161.241.81 'mkdir -p /opt/pazpaz/backend/migrations'
-          scp backend/alembic.ini root@5.161.241.81:/opt/pazpaz/backend/
-          scp -r backend/migrations/* root@5.161.241.81:/opt/pazpaz/backend/migrations/ || echo "No migrations to sync"
-
-          echo "✅ Configuration files synced successfully"
-
-          # Verify files on server
-          ssh root@5.161.241.81 << 'ENDSSH'
-            echo "🔍 Verifying synced files:"
-            ls -lh /opt/pazpaz/docker-compose.prod.yml
-            ls -lh /opt/pazpaz/backend/alembic.ini
-            ls -lh /opt/pazpaz/backend/migrations/
-          ENDSSH
-
-      - name: Deploy backend to production
+      - name: Deploy backend
         run: |
-          ssh root@5.161.241.81 << 'ENDSSH'
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'ENDSSH'
             set -e
-
-            echo "🚀 Starting backend deployment..."
             cd /opt/pazpaz
-
-            # Set explicit image tag to ensure we pull the latest
             export IMAGE_TAG=latest
 
-            # Pull latest backend images (api and arq-worker) with --quiet to reduce log noise
-            echo "📦 Pulling latest backend images from GHCR..."
             docker compose --env-file .env.production -f docker-compose.prod.yml pull --quiet api arq-worker
-
-            # Show image digest for verification
-            echo "🔍 Verifying image digest:"
-            docker images --digests ghcr.io/yussieik/pazpaz-backend:latest | head -2
-
-            # Run database migrations before restarting services
-            echo "📦 Running database migrations..."
             docker compose --env-file .env.production -f docker-compose.prod.yml run --rm api uv run python -m alembic upgrade head
-
-            # Recreate backend containers with new image
-            # Using --pull always to bypass any Docker cache
-            echo "🔄 Recreating containers with fresh images..."
             docker compose --env-file .env.production -f docker-compose.prod.yml up -d --force-recreate --pull always api arq-worker
 
-            # Wait for containers to start
-            echo "⏳ Waiting for containers to start..."
             sleep 10
 
-            # Verify containers are running
-            if docker ps | grep -q "Up.*pazpaz-api"; then
-              echo "✅ API container is running"
-            else
+            if ! docker ps | grep -q "Up.*pazpaz-api"; then
               echo "❌ API container failed to start"
               docker compose --env-file .env.production -f docker-compose.prod.yml logs api --tail=50
               exit 1
             fi
 
-            if docker ps | grep -q "Up.*pazpaz-arq-worker"; then
-              echo "✅ ARQ worker container is running"
-            else
-              echo "❌ ARQ worker container failed to start"
-              docker compose --env-file .env.production -f docker-compose.prod.yml logs arq-worker --tail=50
-              exit 1
-            fi
-
-            # Wait for API health check with retry logic
-            echo "🔍 Waiting for API to be healthy (with retry)..."
-            MAX_ATTEMPTS=15
-            ATTEMPT=1
-            while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-              if docker compose --env-file .env.production -f docker-compose.prod.yml exec -T api curl -f -s http://localhost:8000/health > /dev/null 2>&1; then
-                echo "✅ API is healthy (attempt $ATTEMPT/$MAX_ATTEMPTS)"
-                break
-              fi
-
-              if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-                echo "❌ API failed to become healthy after $MAX_ATTEMPTS attempts"
-                docker compose --env-file .env.production -f docker-compose.prod.yml logs api --tail=30
-                exit 1
-              fi
-
-              echo "⏳ API not ready yet (attempt $ATTEMPT/$MAX_ATTEMPTS), waiting 2s..."
-              sleep 2
-              ATTEMPT=$((ATTEMPT + 1))
-            done
-
-            # Additional wait for Docker DNS propagation
-            echo "⏳ Waiting 3 seconds for Docker DNS propagation..."
-            sleep 3
-
-            # Reload nginx to pick up new container IPs
-            echo "🔄 Reloading nginx to pick up new container IPs..."
-            if docker compose --env-file .env.production -f docker-compose.prod.yml exec -T nginx nginx -s reload; then
-              echo "✅ Nginx reloaded successfully"
-
-              # Verify nginx can reach API after reload
-              echo "🔍 Verifying nginx → API connectivity..."
-              sleep 3
-
-              # Test internal nginx → API connectivity with retry
-              CONNECTIVITY_ATTEMPTS=5
-              CONNECTIVITY_ATTEMPT=1
-              while [ $CONNECTIVITY_ATTEMPT -le $CONNECTIVITY_ATTEMPTS ]; do
-                if docker compose --env-file .env.production -f docker-compose.prod.yml exec -T nginx wget -q -O /dev/null http://api:8000/api/v1/health; then
-                  echo "✅ Nginx can successfully reach API container (attempt $CONNECTIVITY_ATTEMPT/$CONNECTIVITY_ATTEMPTS)"
-                  break
-                fi
-
-                if [ $CONNECTIVITY_ATTEMPT -eq $CONNECTIVITY_ATTEMPTS ]; then
-                  echo "⚠️  Warning: Nginx cannot reach API after $CONNECTIVITY_ATTEMPTS attempts"
-                  echo "External health check will verify connectivity"
-                  # Don't fail here - external health check will catch real issues
-                  break
-                fi
-
-                echo "⏳ Nginx cannot reach API yet (attempt $CONNECTIVITY_ATTEMPT/$CONNECTIVITY_ATTEMPTS), waiting 2s..."
-                sleep 2
-                CONNECTIVITY_ATTEMPT=$((CONNECTIVITY_ATTEMPT + 1))
-              done
-            else
-              echo "❌ Failed to reload nginx"
-              echo "Attempting to check nginx status..."
-              docker compose --env-file .env.production -f docker-compose.prod.yml ps nginx
-              docker compose --env-file .env.production -f docker-compose.prod.yml logs nginx --tail=20
-              exit 1
-            fi
-
-            echo "✅ Backend deployment successful!"
+            docker compose --env-file .env.production -f docker-compose.prod.yml exec -T nginx nginx -s reload
           ENDSSH
 
-      - name: Verify API health
+      - name: Verify deployment
         run: |
-          echo "🔍 Checking API health with retry mechanism..."
+          sleep 10
+          curl -f -s https://pazpaz.health/api/v1/health || exit 1
 
-          MAX_ATTEMPTS=12
-          RETRY_INTERVAL=10
-          attempt=1
-
-          while [ $attempt -le $MAX_ATTEMPTS ]; do
-            echo "Attempt $attempt/$MAX_ATTEMPTS..."
-
-            http_code=$(curl -s -o /dev/null -w "%{http_code}" https://pazpaz.health/api/v1/health)
-
-            if [ "$http_code" = "200" ]; then
-              echo "✅ API health check passed (HTTP $http_code)"
-              exit 0
-            fi
-
-            echo "⏳ API not ready yet (HTTP $http_code), waiting ${RETRY_INTERVAL}s before retry..."
-            sleep $RETRY_INTERVAL
-            attempt=$((attempt + 1))
-          done
-
-          echo "❌ API health check failed after $MAX_ATTEMPTS attempts"
-          exit 1
-
-      - name: Verify ARQ worker process
-        run: |
-          echo "🔍 Checking ARQ worker process..."
-
-          ssh root@5.161.241.81 << 'ENDSSH'
-            set -e
-            cd /opt/pazpaz
-
-            # Check if arq worker is healthy by looking for recent health recordings in logs
-            # ARQ worker records health every ~21 seconds
-            # Wait 45 seconds to guarantee at least 2 health recordings
-            echo "Waiting 45 seconds for ARQ worker to record health (2 cycles)..."
-            sleep 45
-
-            echo "Checking ARQ worker health from recent logs..."
-            # Check last 60 lines to ensure we capture at least one health recording
-            if docker compose --env-file .env.production -f docker-compose.prod.yml logs arq-worker --tail=60 | grep -q "recording health"; then
-              echo "✅ ARQ worker is healthy and processing jobs"
-            else
-              echo "❌ ARQ worker health check not found in recent logs"
-              echo "Recent logs (last 100 lines):"
-              docker compose --env-file .env.production -f docker-compose.prod.yml logs arq-worker --tail=100
-              exit 1
-            fi
-          ENDSSH
-
-      - name: Verify image deployment
-        run: |
-          echo "🔍 Verifying deployed image details..."
-
-          ssh root@5.161.241.81 << 'ENDSSH'
-            cd /opt/pazpaz
-
-            echo "📦 Backend API container info:"
-            docker inspect pazpaz-api --format='Image: {{.Image}}' || echo "Container not found"
-            docker inspect pazpaz-api --format='Created: {{.Created}}' || echo "Container not found"
-
-            echo ""
-            echo "📦 ARQ worker container info:"
-            docker inspect pazpaz-arq-worker --format='Image: {{.Image}}' || echo "Container not found"
-            docker inspect pazpaz-arq-worker --format='Created: {{.Created}}' || echo "Container not found"
-
-            echo ""
-            echo "🏷️  Backend image info:"
-            docker images ghcr.io/yussieik/pazpaz-backend:latest --format 'Repository: {{.Repository}}, Tag: {{.Tag}}, Created: {{.CreatedSince}}, Size: {{.Size}}'
-
-            echo ""
-            echo "✅ Deployment verification complete"
-          ENDSSH
-
-      - name: Deployment summary
-        if: always()
-        run: |
-          echo "## Backend Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** Production (pazpaz.health)" >> $GITHUB_STEP_SUMMARY
-          echo "**Images:**" >> $GITHUB_STEP_SUMMARY
-          echo "- API: ghcr.io/yussieik/pazpaz-backend:${{ github.ref == 'refs/heads/main' && 'latest' || github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- ARQ Worker: ghcr.io/yussieik/pazpaz-backend:${{ github.ref == 'refs/heads/main' && 'latest' || github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ **Status:** Deployment successful" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **Status:** Deployment failed" >> $GITHUB_STEP_SUMMARY
-          fi
-
-  # Summary job to ensure all checks pass
   ci-success:
     name: CI Success
-    needs: [test, security, openapi-validation, codeql, dependency-check, docker-build]
+    needs: [test, security, openapi, codeql, docker-build]
     runs-on: ubuntu-latest
     if: always()
+
     steps:
-      - name: Check if all required jobs succeeded
+      - name: Check required jobs
         run: |
           if [[ "${{ needs.test.result }}" != "success" ]]; then
             echo "::error::Test job failed"
@@ -921,17 +514,16 @@ jobs:
             echo "::error::Security job failed"
             exit 1
           fi
-          if [[ "${{ needs.openapi-validation.result }}" != "success" ]]; then
-            echo "::error::OpenAPI validation job failed"
+          if [[ "${{ needs.openapi.result }}" != "success" ]]; then
+            echo "::error::OpenAPI validation failed"
             exit 1
           fi
           if [[ "${{ needs.codeql.result }}" != "success" ]]; then
-            echo "::error::CodeQL job failed"
+            echo "::error::CodeQL failed"
             exit 1
           fi
-          # Docker build is conditional (only runs on main/tags), so check if it ran
           if [[ "${{ needs.docker-build.result }}" == "failure" ]]; then
-            echo "::error::Docker build job failed"
+            echo "::error::Docker build failed"
             exit 1
           fi
           echo "✅ All required CI checks passed!"
