@@ -11,9 +11,12 @@ export type MessageSchema = typeof en
 
 declare module 'vue-i18n' {
   // Type-safe translation keys
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   export interface DefineLocaleMessage extends MessageSchema {}
 
   // Ensure strict typing for locale codes
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   export interface DefineDateTimeFormat {}
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   export interface DefineNumberFormat {}
 }

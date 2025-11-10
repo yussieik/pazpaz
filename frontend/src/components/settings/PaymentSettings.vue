@@ -67,6 +67,7 @@ const { refreshPaymentConfig } = usePayments()
 const paymentTypeLabel = computed(() => {
   const type = currentConfig.value?.payment_link_type
   if (!type) return ''
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return t(`settings.payments.methods.${type}` as any)
 })
 

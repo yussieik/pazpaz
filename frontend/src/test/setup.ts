@@ -8,7 +8,7 @@
 import { beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest'
 import { config } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
-import { createRouter, createMemoryHistory } from 'vue-router'
+import { createI18n } from 'vue-i18n'
 import nodeCrypto from 'crypto'
 
 // Polyfill for crypto.hash (Node.js 20.11 compatibility with Vite Vue plugin)
@@ -27,18 +27,24 @@ if (!nodeCrypto.hash) {
   }
 }
 
-// Create a mock router for tests
-const router = createRouter({
-  history: createMemoryHistory(),
-  routes: [
-    { path: '/', name: 'home', component: { template: '<div>Home</div>' } },
-    { path: '/login', name: 'login', component: { template: '<div>Login</div>' } },
-    { path: '/:pathMatch(.*)*', name: 'not-found', component: { template: '<div>404</div>' } },
-  ],
+// Create i18n instance for tests with minimal config
+const i18n = createI18n({
+  legacy: false,
+  locale: 'en',
+  fallbackLocale: 'en',
+  messages: {
+    en: {},
+    he: {},
+  },
+  missingWarn: false,
+  fallbackWarn: false,
 })
 
 // Setup Vue Test Utils global config
-config.global.plugins = [router]
+// Note: Router is NOT installed globally - each test file creates its own router
+// as needed to avoid conflicts and allow test-specific routing scenarios
+// i18n IS installed globally since most components need it
+config.global.plugins = [i18n]
 config.global.mocks = {
   // Add global mocks if needed
 }

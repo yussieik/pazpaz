@@ -491,6 +491,7 @@ const calendarOptions = computed(() => ({
   // Prevent accidental duration changes - revert any resize attempts
   // This is a safeguard in case FullCalendar allows resize despite eventDurationEditable: false
   // Should not normally trigger, but protects data integrity if it does
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   eventResize: (info: any) => {
     console.warn('[Calendar] Event resize blocked - duration editing is disabled', {
       eventId: info.event.id,
