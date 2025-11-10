@@ -8,6 +8,7 @@
 import { beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest'
 import { config } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
+import { createRouter, createMemoryHistory } from 'vue-router'
 import nodeCrypto from 'crypto'
 
 // Polyfill for crypto.hash (Node.js 20.11 compatibility with Vite Vue plugin)
@@ -26,7 +27,18 @@ if (!nodeCrypto.hash) {
   }
 }
 
+// Create a mock router for tests
+const router = createRouter({
+  history: createMemoryHistory(),
+  routes: [
+    { path: '/', name: 'home', component: { template: '<div>Home</div>' } },
+    { path: '/login', name: 'login', component: { template: '<div>Login</div>' } },
+    { path: '/:pathMatch(.*)*', name: 'not-found', component: { template: '<div>404</div>' } },
+  ],
+})
+
 // Setup Vue Test Utils global config
+config.global.plugins = [router]
 config.global.mocks = {
   // Add global mocks if needed
 }
