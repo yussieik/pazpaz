@@ -275,9 +275,9 @@ jobs:
 
       - name: Sync files to server
         run: |
-          # Use cat over SSH instead of SCP to avoid permission issues with file overwrites
-          cat docker-compose.prod.yml | ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cat > /opt/pazpaz/docker-compose.prod.yml"
-          cat frontend/nginx.prod.conf | ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cat > /opt/pazpaz/frontend/nginx.prod.conf"
+          # Use cat over SSH with sudo to handle permission issues
+          cat docker-compose.prod.yml | ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "sudo tee /opt/pazpaz/docker-compose.prod.yml > /dev/null"
+          cat frontend/nginx.prod.conf | ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "sudo tee /opt/pazpaz/frontend/nginx.prod.conf > /dev/null"
 
       - name: Deploy frontend
         run: |
