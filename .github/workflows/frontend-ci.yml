@@ -280,6 +280,11 @@ jobs:
 
       - name: Deploy frontend
         run: |
+          # Login to GHCR on remote server
+          echo "${{ secrets.GHCR_TOKEN }}" | ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "docker login ghcr.io -u yussieik --password-stdin"
+
+          # Deploy
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'ENDSSH'
             set -e
             cd /opt/pazpaz
