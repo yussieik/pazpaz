@@ -7,7 +7,7 @@
  */
 
 import * as Sentry from '@sentry/vue'
-import type { Event, EventHint } from '@sentry/vue'
+import type { ErrorEvent, EventHint } from '@sentry/vue'
 import type { App } from 'vue'
 import type { Router } from 'vue-router'
 
@@ -24,7 +24,7 @@ import type { Router } from 'vue-router'
  * @param hint - Additional context from Sentry
  * @returns Sanitized event, or null to drop the event
  */
-function stripPii(event: Event, _hint: EventHint): Event | null {
+function stripPii(event: ErrorEvent, _hint: EventHint): ErrorEvent | null {
   // Remove user email/phone (keep ID only for tracking)
   if (event.user) {
     event.user = { id: event.user.id }
