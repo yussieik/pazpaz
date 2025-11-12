@@ -28,7 +28,7 @@ from pazpaz.core.logging import (
     get_logger,
 )
 from pazpaz.core.redis import close_redis
-from pazpaz.db.session import get_db
+from pazpaz.db.base import get_db
 from pazpaz.middleware.audit import AuditMiddleware
 from pazpaz.middleware.content_type import ContentTypeValidationMiddleware
 from pazpaz.middleware.csrf import CSRFProtectionMiddleware
