@@ -26,6 +26,11 @@ COPY --from=dependencies /app/node_modules ./node_modules
 # Copy source code and configuration files
 COPY . .
 
+# Build arguments for Sentry configuration
+# Must be passed during docker build: --build-arg VITE_SENTRY_DSN=...
+ARG VITE_SENTRY_DSN
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
+
 # Cache bust: Force rebuild for Content-Type header fix (2025-10-27)
 # Build the Vue application
 # Skip TypeScript checking for now (should be fixed in CI/CD pipeline)
