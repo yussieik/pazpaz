@@ -46,6 +46,15 @@ const router = createRouter({
         requiresAuth: false,
       },
     },
+    {
+      path: '/sentry-test',
+      name: 'sentry-test',
+      component: () => import('@/views/SentryTestView.vue'),
+      meta: {
+        title: 'Sentry Test - PazPaz',
+        requiresAuth: false,
+      },
+    },
 
     // Protected Routes (Authentication Required - PHI/PII Access)
     {
