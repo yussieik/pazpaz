@@ -42,3 +42,30 @@ AUDIT_METADATA_SOFT_DELETE = "soft_delete"
 AUDIT_METADATA_AMENDMENT = "amendment"
 AUDIT_METADATA_DELETED_REASON = "deleted_reason"
 AUDIT_METADATA_PERMANENT_DELETE_AFTER = "permanent_delete_after"
+
+# ============================================================================
+# PHI/PII FIELD NAMES (HIPAA COMPLIANCE)
+# ============================================================================
+
+# Fields that contain Protected Health Information (PHI) or Personally
+# Identifiable Information (PII) that must be redacted from logs, errors,
+# and external monitoring systems (Sentry, etc.)
+PHI_FIELDS = {
+    # SOAP Notes (Session content)
+    "subjective",
+    "objective",
+    "assessment",
+    "plan",
+    "medical_history",
+    "notes",
+    "treatment_notes",
+    # Client PII
+    "first_name",
+    "last_name",
+    "email",
+    "phone",
+    "address",
+    "date_of_birth",
+    "ssn",
+    "insurance_id",
+}

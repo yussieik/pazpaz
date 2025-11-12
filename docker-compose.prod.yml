@@ -540,7 +540,9 @@ services:
       # NOTE: No volume mount for /usr/share/nginx/html - files are baked into image
       # This ensures fresh deployments always use the code from the latest image
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      # Check backend API health directly (includes database connectivity check)
+      # Uses curl to check API container, ensuring backend is healthy before marking nginx as healthy
+      test: ["CMD", "curl", "-f", "http://api:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3

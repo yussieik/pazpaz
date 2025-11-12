@@ -605,6 +605,12 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     emails_from_email: str = "noreply@pazpaz.local"
 
+    # Monitoring & Observability
+    sentry_dsn: str | None = Field(
+        default=None,
+        description="Sentry DSN for error tracking (optional, not required for local dev)",
+    )
+
     # Google Calendar OAuth 2.0
     google_oauth_client_id: str = Field(
         default="",

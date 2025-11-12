@@ -4,19 +4,23 @@ import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime
 
-from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from pazpaz.api import api_router
 from pazpaz.api.metrics import router as metrics_router
 from pazpaz.core.config import settings
+from pazpaz.core.constants import PHI_FIELDS
 from pazpaz.core.logging import (
     bind_context,
     clear_context,
@@ -24,6 +28,7 @@ from pazpaz.core.logging import (
     get_logger,
 )
 from pazpaz.core.redis import close_redis
+from pazpaz.db.session import get_db
 from pazpaz.middleware.audit import AuditMiddleware
 from pazpaz.middleware.content_type import ContentTypeValidationMiddleware
 from pazpaz.middleware.csrf import CSRFProtectionMiddleware
@@ -31,6 +36,7 @@ from pazpaz.middleware.json_depth import JSONDepthValidationMiddleware
 from pazpaz.middleware.rate_limit import IPRateLimitMiddleware
 from pazpaz.middleware.request_size import RequestSizeLimitMiddleware
 from pazpaz.middleware.session_activity import SessionActivityMiddleware
+from pazpaz.monitoring.sentry_config import init_sentry
 
 
 @asynccontextmanager
@@ -39,6 +45,20 @@ async def lifespan(app: FastAPI):
     # Startup
     configure_logging(debug=settings.debug)
     logger = get_logger(__name__)
+
+    # Initialize Sentry error tracking (with HIPAA-compliant PII stripping)
+    init_sentry()
+    if settings.sentry_dsn:
+        logger.info(
+            "sentry_initialized",
+            environment=settings.environment,
+            message="Sentry error tracking enabled with PII stripping",
+        )
+    else:
+        logger.info(
+            "sentry_not_configured",
+            message="Sentry DSN not configured, error tracking disabled (acceptable in local dev)",
+        )
 
     # Validate SECRET_KEY configuration
     if settings.secret_key == "change-me-in-production":
@@ -398,26 +418,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 # Centralized exception handling to prevent information disclosure and
 # sanitize error responses. All handlers include request_id for traceability
 # and remove sensitive information (PHI, stack traces, internal details).
-
-
-# PHI/PII fields that should be redacted from validation errors
-PHI_FIELDS = {
-    "subjective",
-    "objective",
-    "assessment",
-    "plan",
-    "medical_history",
-    "notes",
-    "treatment_notes",
-    "first_name",
-    "last_name",
-    "email",
-    "phone",
-    "address",
-    "date_of_birth",
-    "ssn",
-    "insurance_id",
-}
+# PHI_FIELDS imported from pazpaz.core.constants for reuse across modules.
 
 
 @app.exception_handler(Exception)
@@ -730,12 +731,64 @@ app.include_router(metrics_router)
 
 
 @app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {"status": "ok"}
+async def health_check(db: AsyncSession = Depends(get_db)):
+    """
+    Health check endpoint for uptime monitoring.
+
+    Verifies:
+    - Application is running
+    - Database connection is alive
+
+    Returns:
+        200: Healthy (all systems operational)
+        503: Unhealthy (database unavailable)
+    """
+    logger = get_logger(__name__)
+
+    try:
+        # Verify database connection with simple query
+        result = await db.execute(text("SELECT 1"))
+        result.scalar_one()  # Ensure query executed successfully
+
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    except Exception as e:
+        logger.error(
+            "health_check_failed",
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from e
 
 
 @app.get(f"{settings.api_v1_prefix}/health")
 async def api_health_check():
     """API v1 health check endpoint."""
     return {"status": "ok", "version": "v1"}
+
+
+@app.get("/test/sentry")
+async def test_sentry():
+    """
+    Test endpoint to verify Sentry error capture.
+
+    This endpoint intentionally raises an exception to test that:
+    1. Errors are captured and sent to Sentry
+    2. PII stripping is working (no PHI in error details)
+    3. Request context (request_id, endpoint) is included
+
+    **Security:** This endpoint should be removed or protected in production.
+
+    Raises:
+        ValueError: Test exception for Sentry verification
+    """
+    raise ValueError(
+        "Test error for Sentry - if you see this in Sentry dashboard, error tracking is working!"
+    )

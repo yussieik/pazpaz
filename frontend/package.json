@@ -29,6 +29,7 @@
     "@fullcalendar/vue3": "^6.1.19",
     "@headlessui/vue": "^1.7.23",
     "@intlify/unplugin-vue-i18n": "^5.3.1",
+    "@sentry/vue": "^10.25.0",
     "@tailwindcss/typography": "^0.5.19",
     "@vueuse/core": "^13.9.0",
     "@vueuse/integrations": "^13.9.0",

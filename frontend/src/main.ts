@@ -12,6 +12,7 @@ import { configureApiClient } from './api/config'
 import { vRtl } from './directives/rtl'
 import { i18n, getLocaleDirection } from './plugins/i18n'
 import type { SupportedLocale } from './locales'
+import { initSentry } from './monitoring/sentry'
 
 /**
  * Application Bootstrap
@@ -85,6 +86,11 @@ const authStore = useAuthStore()
 authStore.initializeAuth().finally(() => {
   // Mount app after auth check completes (success or failure)
   app.use(router)
+
+  // Initialize Sentry error tracking AFTER app and router are created
+  // This must be called after app.use(router) but before app.mount()
+  initSentry(app, router)
+
   app.mount('#app')
 
   console.debug('[App] Mounted with authentication state:', {
