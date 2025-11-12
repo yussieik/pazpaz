@@ -10,6 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import text
@@ -213,6 +214,18 @@ app = FastAPI(
 # Note: Global IP-based rate limiting is handled by IPRateLimitMiddleware
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
+
+# Prometheus HTTP metrics instrumentation (AFTER app initialization)
+# Reuses existing /metrics endpoint (backend/src/pazpaz/api/metrics.py)
+Instrumentator(
+    should_group_status_codes=False,  # Track 200, 201, 404, 500 separately (not 2xx, 4xx)
+    should_ignore_untemplated=True,  # Ignore dynamic paths like /api/v1/clients/{uuid}
+    should_respect_env_var=True,  # Disable in tests via ENABLE_METRICS=false
+    excluded_handlers=["/metrics", "/health"],  # Don't track monitoring endpoints
+    env_var_name="ENABLE_METRICS",
+    inprogress_name="http_requests_inprogress",
+    inprogress_labels=True,
+).instrument(app).expose(app, include_in_schema=False, endpoint="/metrics")
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

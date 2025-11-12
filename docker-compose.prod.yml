@@ -567,6 +567,145 @@ services:
       - "environment=production"
       - "version=${VERSION:-latest}"
 
+  # =============================================================================
+  # Prometheus - Metrics Storage & Scraping
+  # =============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: pazpaz-prometheus
+    networks:
+      - backend  # Can reach API /metrics endpoint
+    # NO ports exposed to host - internal only (access via SSH tunnel)
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    labels:
+      - "app=pazpaz"
+      - "component=monitoring"
+
+  # =============================================================================
+  # Grafana - Metrics Visualization & Alerting
+  # =============================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: pazpaz-grafana
+    networks:
+      - backend  # Can query Prometheus
+    # NO ports exposed to host - access via SSH tunnel: ssh -L 3001:localhost:3000 root@pazpaz.app
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_ANALYTICS_REPORTING_ENABLED=false  # Privacy-first
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false  # No anonymous access
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    labels:
+      - "app=pazpaz"
+      - "component=monitoring"
+
+  # =============================================================================
+  # PostgreSQL Exporter - Database Metrics for Prometheus
+  # =============================================================================
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: pazpaz-postgres-exporter
+    networks:
+      - database  # Can reach PostgreSQL
+      - backend   # Can be scraped by Prometheus
+    environment:
+      - DATA_SOURCE_NAME=postgresql://pazpaz:${POSTGRES_PASSWORD}@db:5432/pazpaz?sslmode=disable
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "app=pazpaz"
+      - "component=monitoring"
+
+  # =============================================================================
+  # Redis Exporter - Cache Metrics for Prometheus
+  # =============================================================================
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: pazpaz-redis-exporter
+    networks:
+      - database  # Can reach Redis
+      - backend   # Can be scraped by Prometheus
+    environment:
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:9121/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "app=pazpaz"
+      - "component=monitoring"
+
 # =============================================================================
 # VOLUMES (Task 3.9)
 # =============================================================================
@@ -647,6 +786,20 @@ volumes:
       - "type=logs"
       - "component=nginx"
       - "rotation=enabled"
+
+  # Monitoring volumes
+  prometheus-data:
+    driver: local
+    labels:
+      - "app=pazpaz"
+      - "type=monitoring"
+      - "retention=30d"
+
+  grafana-data:
+    driver: local
+    labels:
+      - "app=pazpaz"
+      - "type=monitoring"
 
 # =============================================================================
 # NETWORKS (Task 3.1)

@@ -46,6 +46,7 @@ dependencies = [
     "openai>=2.7.1",
     "mutagen>=1.47.0",
     "sentry-sdk[fastapi]>=2.39.0",
+    "prometheus-fastapi-instrumentator>=7.1.0",
 ]
 
 [tool.hatch.build.targets.wheel]

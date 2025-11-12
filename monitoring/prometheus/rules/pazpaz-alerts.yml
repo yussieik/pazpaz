@@ -1,0 +1,108 @@
+groups:
+  - name: pazpaz_api_alerts
+    interval: 30s
+    rules:
+      # Alert 1: High API Latency (p95 > 150ms)
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="fastapi"}[5m])) by (le, method, handler)) > 0.15
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High API latency detected"
+          description: "The p95 latency for {{ $labels.method }} {{ $labels.handler }} is {{ $value | humanizeDuration }}, which exceeds the 150ms target."
+          runbook_url: "https://docs.pazpaz.com/runbooks/high-api-latency"
+
+      # Alert 2: High Error Rate (>1% of requests)
+      - alert: HighErrorRate
+        expr: (sum(rate(http_requests_total{job="fastapi",status=~"5.."}[5m])) / sum(rate(http_requests_total{job="fastapi"}[5m]))) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High error rate detected"
+          description: "The 5xx error rate is {{ $value | humanizePercentage }}, which exceeds the 1% threshold."
+          runbook_url: "https://docs.pazpaz.com/runbooks/high-error-rate"
+
+  - name: pazpaz_database_alerts
+    interval: 30s
+    rules:
+      # Alert 3: Database Connection Pool Exhausted
+      - alert: DatabaseConnectionPoolExhausted
+        expr: (pg_stat_activity_count / pg_settings_max_connections) > 0.9
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection pool near exhaustion"
+          description: "Connection pool usage is at {{ $value | humanizePercentage }} ({{ $labels.instance }}), approaching max capacity."
+          runbook_url: "https://docs.pazpaz.com/runbooks/db-connection-pool"
+
+      # Alert 4: Database Cache Hit Ratio Low
+      - alert: LowDatabaseCacheHitRatio
+        expr: (rate(pg_stat_database_blks_hit{datname="pazpaz"}[5m]) / (rate(pg_stat_database_blks_hit{datname="pazpaz"}[5m]) + rate(pg_stat_database_blks_read{datname="pazpaz"}[5m]))) < 0.95
+        for: 10m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Database cache hit ratio below target"
+          description: "Cache hit ratio is {{ $value | humanizePercentage }}, below the 95% target. Consider increasing shared_buffers."
+          runbook_url: "https://docs.pazpaz.com/runbooks/db-cache-performance"
+
+  - name: pazpaz_infrastructure_alerts
+    interval: 30s
+    rules:
+      # Alert 5: High Memory Usage (>85%)
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes{job="fastapi"} / process_virtual_memory_max_bytes{job="fastapi"}) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage for {{ $labels.instance }} is at {{ $value | humanizePercentage }}, exceeding 85% threshold."
+          runbook_url: "https://docs.pazpaz.com/runbooks/high-memory-usage"
+
+      # Alert 6: Redis High Memory Usage
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis memory usage is at {{ $value | humanizePercentage }}, approaching max capacity."
+          runbook_url: "https://docs.pazpaz.com/runbooks/redis-memory"
+
+  - name: pazpaz_business_alerts
+    interval: 60s
+    rules:
+      # Alert 7: Unusually High Appointment Cancellation Rate
+      - alert: HighAppointmentCancellationRate
+        expr: (sum(increase(appointments_cancelled_total[1h])) / sum(increase(appointments_created_total[1h]))) > 0.2
+        for: 30m
+        labels:
+          severity: info
+          component: business
+        annotations:
+          summary: "Unusually high appointment cancellation rate"
+          description: "Cancellation rate is {{ $value | humanizePercentage }} in the last hour, which is above the 20% threshold."
+          runbook_url: "https://docs.pazpaz.com/runbooks/high-cancellation-rate"
+
+      # Alert 8: No Activity in Last Hour (System Health Check)
+      - alert: NoRecentActivity
+        expr: (sum(increase(appointments_created_total[1h])) + sum(increase(session_notes_saved_total[1h]))) == 0
+        for: 2h
+        labels:
+          severity: info
+          component: business
+        annotations:
+          summary: "No user activity detected"
+          description: "No appointments or session notes have been created in the last 2 hours. This may indicate a system issue or simply low usage."
+          runbook_url: "https://docs.pazpaz.com/runbooks/no-activity"

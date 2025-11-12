@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from pazpaz.api.business_metrics import appointments_created_total
 from pazpaz.api.deps import (
     get_arq_pool,
     get_current_user,
@@ -384,6 +385,10 @@ async def create_appointment(
         workspace_id=str(workspace_id),
         client_id=str(appointment_data.client_id),
     )
+
+    # Increment appointment creation metric
+    appointments_created_total.labels(workspace_id=str(workspace_id)).inc()
+
     return response_data
 
 
