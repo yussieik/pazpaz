@@ -730,10 +730,12 @@ app.include_router(api_router, prefix=settings.api_v1_prefix)
 app.include_router(metrics_router)
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health_check(db: AsyncSession = Depends(get_db)):
     """
     Health check endpoint for uptime monitoring.
+
+    Supports GET and HEAD methods for compatibility with uptime monitoring services.
 
     Verifies:
     - Application is running
