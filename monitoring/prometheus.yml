@@ -17,12 +17,12 @@ scrape_configs:
   # PostgreSQL database metrics
   - job_name: 'postgres'
     static_configs:
-      - targets: ['postgres-exporter:9187']
+      - targets: ['pazpaz-postgres-exporter:9187']
 
   # Redis cache metrics
   - job_name: 'redis'
     static_configs:
-      - targets: ['redis-exporter:9121']
+      - targets: ['pazpaz-redis-exporter:9121']
 
   # Prometheus self-monitoring
   - job_name: 'prometheus'
