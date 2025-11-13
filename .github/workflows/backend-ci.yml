@@ -500,7 +500,7 @@ jobs:
       - name: Verify deployment
         run: |
           sleep 10
-          curl -f -s https://pazpaz.health/health || exit 1
+          curl -f -s https://pazpaz.health/api/v1/health || exit 1
 
   ci-success:
     name: CI Success
