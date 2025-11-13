@@ -466,9 +466,9 @@ jobs:
 
       - name: Sync files to server
         run: |
-          scp docker-compose.prod.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/root/pazpaz/
-          scp backend/alembic.ini ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/root/pazpaz/backend/
-          scp -r backend/migrations/* ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/root/pazpaz/backend/migrations/ || true
+          scp docker-compose.prod.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/pazpaz/
+          scp backend/alembic.ini ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/pazpaz/backend/
+          scp -r backend/migrations/* ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/pazpaz/backend/migrations/ || true
 
       - name: Deploy backend
         run: |
@@ -479,22 +479,22 @@ jobs:
           # Deploy
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'ENDSSH'
             set -e
-            cd /root/pazpaz
+            cd /opt/pazpaz
             export IMAGE_TAG=latest
 
-            docker compose --env-file .env -f docker-compose.prod.yml pull --quiet api arq-worker
-            docker compose --env-file .env -f docker-compose.prod.yml run --rm api uv run python -m alembic upgrade head
-            docker compose --env-file .env -f docker-compose.prod.yml up -d --force-recreate --pull always api arq-worker
+            docker compose --env-file .env.production -f docker-compose.prod.yml pull --quiet api arq-worker
+            docker compose --env-file .env.production -f docker-compose.prod.yml run --rm api uv run python -m alembic upgrade head
+            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --force-recreate --pull always api arq-worker
 
             sleep 10
 
             if ! docker ps | grep -q "Up.*pazpaz-api"; then
               echo "❌ API container failed to start"
-              docker compose --env-file .env -f docker-compose.prod.yml logs api --tail=50
+              docker compose --env-file .env.production -f docker-compose.prod.yml logs api --tail=50
               exit 1
             fi
 
-            docker compose --env-file .env -f docker-compose.prod.yml exec -T nginx nginx -s reload
+            docker compose --env-file .env.production -f docker-compose.prod.yml exec -T nginx nginx -s reload
           ENDSSH
 
       - name: Verify deployment
