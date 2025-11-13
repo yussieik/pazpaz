@@ -68,6 +68,7 @@ class ContentTypeValidationMiddleware(BaseHTTPMiddleware):
         "/openapi.json",  # OpenAPI schema
         "/docs",  # API documentation
         "/redoc",  # Alternative API docs
+        "/resend-invitation",  # POST with no body (path param only)
     ]
 
     async def dispatch(self, request: Request, call_next):
