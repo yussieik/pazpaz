@@ -290,7 +290,9 @@ services:
     image: pgvector/pgvector:pg16
     container_name: pazpaz-db
     networks:
-      - database  # Internal database network only
+      database:  # Internal database network only
+        aliases:
+          - db  # DNS alias for service discovery
     # NO ports exposed to host - security requirement
     environment:
       - POSTGRES_USER=pazpaz
@@ -364,7 +366,9 @@ services:
     image: redis:7-alpine
     container_name: pazpaz-redis
     networks:
-      - database  # Internal database network only
+      database:  # Internal database network only
+        aliases:
+          - redis  # DNS alias for service discovery
     # NO ports exposed to host
     command: >
       redis-server
@@ -663,8 +667,12 @@ services:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: pazpaz-postgres-exporter
     networks:
-      - database  # Can reach PostgreSQL
-      - backend   # Can be scraped by Prometheus
+      database:  # Can reach PostgreSQL
+        aliases:
+          - postgres-exporter  # DNS alias for Prometheus scraping
+      backend:  # Can be scraped by Prometheus
+        aliases:
+          - postgres-exporter  # DNS alias for Prometheus scraping
     environment:
       - DATA_SOURCE_NAME=postgresql://pazpaz:${POSTGRES_PASSWORD}@db:5432/pazpaz?sslmode=disable
     healthcheck:
@@ -689,8 +697,12 @@ services:
     image: oliver006/redis_exporter:latest
     container_name: pazpaz-redis-exporter
     networks:
-      - database  # Can reach Redis
-      - backend   # Can be scraped by Prometheus
+      database:  # Can reach Redis
+        aliases:
+          - redis-exporter  # DNS alias for service discovery
+      backend:  # Can be scraped by Prometheus
+        aliases:
+          - redis-exporter  # DNS alias for Prometheus scraping
     environment:
       - REDIS_ADDR=redis:6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
