@@ -149,6 +149,9 @@ services:
       # Performance settings
       - WORKERS=4
       - MAX_CONNECTIONS=100
+
+      # Monitoring settings
+      - ENABLE_METRICS=true
     volumes:
       # SSL certificates for database connection
       - ./backend/certs:/app/certs:ro
