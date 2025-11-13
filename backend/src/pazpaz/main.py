@@ -197,26 +197,6 @@ async def lifespan(app: FastAPI):
         # Don't crash on startup - allow app to start but log error
         # File upload endpoints will fail until bucket is created
 
-    # Register database connection pool metrics collector
-    try:
-        from prometheus_client import REGISTRY
-
-        from pazpaz.db.base import engine
-        from pazpaz.db.metrics import ConnectionPoolCollector
-
-        REGISTRY.register(ConnectionPoolCollector(engine))
-        logger.info(
-            "connection_pool_metrics_registered",
-            message="Database connection pool metrics enabled for Prometheus monitoring",
-        )
-    except Exception as e:
-        logger.error(
-            "connection_pool_metrics_registration_failed",
-            error=str(e),
-            error_type=type(e).__name__,
-        )
-        # Don't fail startup for metrics issues
-
     yield
     # Shutdown
     logger.info("application_shutdown", app_name=settings.app_name)
