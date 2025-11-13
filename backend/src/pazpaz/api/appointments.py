@@ -11,7 +11,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from pazpaz.api.business_metrics import appointments_created_total
+from pazpaz.api.business_metrics import (
+    appointments_cancelled_total,
+    appointments_created_total,
+)
 from pazpaz.api.deps import (
     get_arq_pool,
     get_current_user,
@@ -816,6 +819,27 @@ async def update_appointment(
     )
     result = await db.execute(query)
     appointment = result.scalar_one()
+
+    # ============================================================================
+    # Business Metrics: Track Appointment Cancellations
+    # ============================================================================
+    # Increment cancellation metric when appointment status changes to cancelled
+    if "status" in changes and changes["status"]["new"] == "cancelled":
+        # Determine cancellation reason (default to "unknown" if not specified)
+        # In the future, we can add a cancellation_reason field to the model
+        cancellation_reason = "therapist_cancelled"  # Default reason
+
+        appointments_cancelled_total.labels(
+            workspace_id=str(workspace_id),
+            reason=cancellation_reason,
+        ).inc()
+
+        logger.info(
+            "appointment_cancellation_metric_incremented",
+            appointment_id=str(appointment_id),
+            workspace_id=str(workspace_id),
+            reason=cancellation_reason,
+        )
 
     # ============================================================================
     # PHASE 0: Payment Feature Flag Check (STUB - NO ACTUAL PAYMENT PROCESSING)

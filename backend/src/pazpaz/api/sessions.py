@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pazpaz.api.business_metrics import session_notes_saved_total
 from pazpaz.api.deps import (
     get_arq_pool,
     get_current_user,
@@ -1026,6 +1027,15 @@ async def finalize_session(
         workspace_id=str(workspace_id),
         finalized_at=session.finalized_at.isoformat(),
         version_created=1,
+    )
+
+    # Increment business metric for session notes saved
+    session_notes_saved_total.labels(workspace_id=str(workspace_id)).inc()
+
+    logger.info(
+        "session_notes_metric_incremented",
+        session_id=str(session_id),
+        workspace_id=str(workspace_id),
     )
 
     # Enqueue background job to generate embeddings
