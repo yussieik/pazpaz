@@ -137,7 +137,7 @@ class ActiveWorkspacesCollector:
 
         # Create dedicated engine for metrics collection
         engine = create_async_engine(
-            settings.DATABASE_URL,
+            settings.database_url,
             pool_pre_ping=True,
             pool_size=1,  # Minimal pool for metrics
             max_overflow=0,
