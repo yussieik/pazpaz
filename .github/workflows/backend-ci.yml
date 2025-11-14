@@ -482,9 +482,21 @@ jobs:
             cd /opt/pazpaz
             export IMAGE_TAG=latest
 
-            docker compose --env-file .env.production -f docker-compose.prod.yml pull --quiet api arq-worker
+            echo "📥 Pulling latest Docker images..."
+            docker compose --env-file .env.production -f docker-compose.prod.yml pull api arq-worker
+
+            echo "🔄 Running database migrations..."
             docker compose --env-file .env.production -f docker-compose.prod.yml run --rm api uv run python -m alembic upgrade head
-            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --force-recreate --pull always api arq-worker
+
+            echo "🔄 Recreating containers with new images..."
+            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --force-recreate --pull always api arq-worker 2>&1 || {
+              echo "❌ Failed to recreate containers"
+              docker compose --env-file .env.production -f docker-compose.prod.yml logs api arq-worker --tail=50
+              exit 1
+            }
+
+            echo "✅ Containers recreated, verifying status..."
+            docker compose --env-file .env.production -f docker-compose.prod.yml ps api arq-worker
 
             sleep 10
 
@@ -494,7 +506,10 @@ jobs:
               exit 1
             fi
 
+            echo "🔄 Reloading nginx configuration..."
             docker compose --env-file .env.production -f docker-compose.prod.yml exec -T nginx nginx -s reload
+
+            echo "✅ Deployment completed successfully"
           ENDSSH
 
       - name: Verify deployment
