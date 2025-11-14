@@ -112,7 +112,9 @@ class ActiveWorkspacesCollector:
                 loop.close()
         except Exception as e:
             # If query fails, return 0 rather than breaking metrics endpoint
-            logger.error(f"Failed to calculate active_workspaces_24h metric: {e}", exc_info=True)
+            logger.error(
+                f"Failed to calculate active_workspaces_24h metric: {e}", exc_info=True
+            )
             count = 0
 
         # Yield the metric
