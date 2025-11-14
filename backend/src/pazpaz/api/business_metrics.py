@@ -93,8 +93,11 @@ class ActiveWorkspacesCollector:
         """
         # Import here to avoid circular dependency during module load
         import asyncio
+        import logging
 
         from prometheus_client.core import GaugeMetricFamily
+
+        logger = logging.getLogger(__name__)
 
         # Calculate active workspaces
         try:
@@ -104,10 +107,12 @@ class ActiveWorkspacesCollector:
             asyncio.set_event_loop(loop)
             try:
                 count = loop.run_until_complete(self._count_active_workspaces())
+                logger.info(f"Active workspaces metric calculated: {count}")
             finally:
                 loop.close()
-        except Exception:
+        except Exception as e:
             # If query fails, return 0 rather than breaking metrics endpoint
+            logger.error(f"Failed to calculate active_workspaces_24h metric: {e}", exc_info=True)
             count = 0
 
         # Yield the metric
