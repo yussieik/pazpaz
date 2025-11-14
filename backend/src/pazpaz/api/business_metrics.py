@@ -9,7 +9,16 @@ HIPAA Compliance:
 - Aggregations safe for external monitoring
 """
 
-from prometheus_client import Counter, Gauge
+from datetime import UTC, datetime, timedelta
+
+from prometheus_client import REGISTRY, Counter, Gauge
+from sqlalchemy import select, union
+from sqlalchemy.sql import func
+
+from pazpaz.db.base import AsyncSessionLocal
+from pazpaz.models.appointment import Appointment
+from pazpaz.models.client import Client
+from pazpaz.models.session import Session
 
 # =============================================================================
 # Appointment Metrics
@@ -56,18 +65,109 @@ active_websocket_sessions = Gauge(
 # Workspace Activity Metrics
 # =============================================================================
 
-active_workspaces_24h = Gauge(
-    "active_workspaces_24h",
-    "Number of workspaces with activity in last 24 hours",
-)
 
-# Note: This gauge is periodically updated by a background task
-# See: backend/src/pazpaz/workers/metrics_updater.py (future enhancement)
+class ActiveWorkspacesCollector:
+    """
+    Custom Prometheus collector for active_workspaces_24h metric.
+
+    Calculates the number of workspaces with activity in the last 24 hours
+    on-demand when Prometheus scrapes the /metrics endpoint.
+
+    This avoids the multi-process issue where ARQ worker and API server have
+    separate metric registries.
+    """
+
+    def __init__(self):
+        """Initialize the collector and register it with Prometheus."""
+        REGISTRY.register(self)
+
+    def collect(self):
+        """
+        Calculate and yield active workspaces metric.
+
+        Called by Prometheus when scraping /metrics endpoint.
+        Runs a database query to count workspaces with recent activity.
+
+        Yields:
+            GaugeMetricFamily: active_workspaces_24h metric with current value
+        """
+        # Import here to avoid circular dependency during module load
+        import asyncio
+
+        from prometheus_client.core import GaugeMetricFamily
+
+        # Calculate active workspaces
+        try:
+            count = asyncio.run(self._count_active_workspaces())
+        except Exception:
+            # If query fails, return 0 rather than breaking metrics endpoint
+            count = 0
+
+        # Yield the metric
+        gauge = GaugeMetricFamily(
+            "active_workspaces_24h",
+            "Number of workspaces with activity in last 24 hours",
+        )
+        gauge.add_metric([], count)
+        yield gauge
+
+    async def _count_active_workspaces(self) -> int:
+        """
+        Count workspaces with activity in last 24 hours.
+
+        Returns:
+            Number of distinct workspaces with appointments, sessions,
+            or clients created/updated in last 24 hours.
+        """
+        async with AsyncSessionLocal() as db:
+            cutoff_time = datetime.now(UTC) - timedelta(hours=24)
+
+            # Find distinct workspace IDs with any activity in last 24h
+            workspace_ids_appointments = (
+                select(Appointment.workspace_id)
+                .where(
+                    (Appointment.created_at >= cutoff_time)
+                    | (Appointment.updated_at >= cutoff_time)
+                )
+                .distinct()
+            )
+
+            workspace_ids_sessions = (
+                select(Session.workspace_id)
+                .where(
+                    (Session.created_at >= cutoff_time)
+                    | (Session.updated_at >= cutoff_time)
+                )
+                .distinct()
+            )
+
+            workspace_ids_clients = (
+                select(Client.workspace_id)
+                .where(
+                    (Client.created_at >= cutoff_time)
+                    | (Client.updated_at >= cutoff_time)
+                )
+                .distinct()
+            )
+
+            # Union all workspace IDs and count
+            all_active_workspaces = union(
+                workspace_ids_appointments,
+                workspace_ids_sessions,
+                workspace_ids_clients,
+            ).subquery()
+
+            stmt = select(func.count()).select_from(all_active_workspaces)
+            result = await db.execute(stmt)
+            return result.scalar() or 0
+
+
+# Initialize the collector (registers itself with Prometheus)
+_active_workspaces_collector = ActiveWorkspacesCollector()
 
 __all__ = [
     "appointments_created_total",
     "appointments_cancelled_total",
     "session_notes_saved_total",
     "active_websocket_sessions",
-    "active_workspaces_24h",
 ]

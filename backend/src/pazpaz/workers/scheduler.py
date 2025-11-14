@@ -39,10 +39,7 @@ from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from arq.connections import RedisSettings
-from sqlalchemy import select
-from sqlalchemy.sql import func
 
-from pazpaz.api.business_metrics import active_workspaces_24h
 from pazpaz.core.logging import get_logger
 from pazpaz.db.base import AsyncSessionLocal
 from pazpaz.services.email_service import (
@@ -663,99 +660,6 @@ async def send_appointment_reminders(ctx: dict) -> dict:
         raise
 
 
-async def update_active_workspaces_metric(ctx: dict) -> dict:
-    """
-    Update active_workspaces_24h metric.
-
-    This task queries the database to count workspaces that have had any activity
-    in the last 24 hours and updates the Prometheus gauge metric.
-
-    Activity is determined by checking if any appointments, sessions, clients,
-    or other resources were created/updated in the workspace in the last 24 hours.
-
-    Runs every 5 minutes via cron schedule.
-
-    Args:
-        ctx: arq worker context (shared across all jobs)
-
-    Returns:
-        dict: {"active_workspaces": count}
-    """
-    logger.info("update_active_workspaces_metric_starting")
-
-    try:
-        async with AsyncSessionLocal() as db:
-            # Count workspaces with activity in last 24 hours
-            from datetime import timedelta
-
-            from pazpaz.models.appointment import Appointment
-            from pazpaz.models.client import Client
-            from pazpaz.models.session import Session
-
-            cutoff_time = datetime.now(UTC) - timedelta(hours=24)
-
-            # Find distinct workspace IDs with any activity in last 24h
-            # Check appointments, sessions, and clients
-            workspace_ids_appointments = (
-                select(Appointment.workspace_id)
-                .where(
-                    (Appointment.created_at >= cutoff_time)
-                    | (Appointment.updated_at >= cutoff_time)
-                )
-                .distinct()
-            )
-
-            workspace_ids_sessions = (
-                select(Session.workspace_id)
-                .where(
-                    (Session.created_at >= cutoff_time)
-                    | (Session.updated_at >= cutoff_time)
-                )
-                .distinct()
-            )
-
-            workspace_ids_clients = (
-                select(Client.workspace_id)
-                .where(
-                    (Client.created_at >= cutoff_time)
-                    | (Client.updated_at >= cutoff_time)
-                )
-                .distinct()
-            )
-
-            # Union all workspace IDs and count
-            from sqlalchemy import union
-
-            all_active_workspaces = union(
-                workspace_ids_appointments,
-                workspace_ids_sessions,
-                workspace_ids_clients,
-            ).subquery()
-
-            stmt = select(func.count()).select_from(all_active_workspaces)
-            result = await db.execute(stmt)
-            count = result.scalar() or 0
-
-            # Update Prometheus metric
-            active_workspaces_24h.set(count)
-
-            logger.info(
-                "update_active_workspaces_metric_completed",
-                active_workspaces=count,
-                cutoff_time=cutoff_time.isoformat(),
-            )
-
-            return {"active_workspaces": count}
-
-    except Exception as e:
-        logger.error(
-            "update_active_workspaces_metric_failed",
-            error=str(e),
-            exc_info=True,
-        )
-        raise
-
-
 async def startup(ctx: dict) -> None:
     """
     Worker startup hook - executed once when worker starts.
@@ -1039,13 +943,6 @@ class WorkerSettings:
             send_appointment_reminders,
             minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
             run_at_startup=False,
-        ),
-        # Active workspaces metric update - every 5 minutes
-        # Updates Prometheus metric for business metrics dashboard
-        cron(
-            update_active_workspaces_metric,
-            minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
-            run_at_startup=True,
         ),
     ]
 
