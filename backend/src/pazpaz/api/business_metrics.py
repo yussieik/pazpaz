@@ -15,7 +15,6 @@ from prometheus_client import REGISTRY, Counter, Gauge
 from sqlalchemy import select, union
 from sqlalchemy.sql import func
 
-from pazpaz.db.base import AsyncSessionLocal
 from pazpaz.models.appointment import Appointment
 from pazpaz.models.client import Client
 from pazpaz.models.session import Session
@@ -141,8 +140,8 @@ class ActiveWorkspacesCollector:
         )
 
         try:
-            SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
-            async with SessionLocal() as db:
+            session_local = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_local() as db:
                 cutoff_time = datetime.now(UTC) - timedelta(hours=24)
 
                 # Find distinct workspace IDs with any activity in last 24h
