@@ -45,7 +45,6 @@ from sqlalchemy.sql import func
 from pazpaz.api.business_metrics import active_workspaces_24h
 from pazpaz.core.logging import get_logger
 from pazpaz.db.base import AsyncSessionLocal
-from pazpaz.models.workspace import Workspace
 from pazpaz.services.email_service import (
     send_appointment_reminder,
     send_daily_digest,
