@@ -768,7 +768,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         return {
             "status": "healthy",
             "database": "connected",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now().isoformat(),
         }
     except Exception as e:
         logger.error(
@@ -784,9 +784,42 @@ async def health_check(db: AsyncSession = Depends(get_db)):
 
 
 @app.get(f"{settings.api_v1_prefix}/health")
-async def api_health_check():
-    """API v1 health check endpoint."""
-    return {"status": "ok", "version": "v1"}
+async def api_health_check(db: AsyncSession = Depends(get_db)):
+    """
+    API v1 health check endpoint for uptime monitoring.
+
+    Verifies:
+    - Application is running
+    - Database connection is alive
+
+    Returns:
+        200: Healthy (all systems operational)
+        503: Unhealthy (database unavailable)
+    """
+    logger = get_logger(__name__)
+
+    try:
+        # Verify database connection with simple query
+        result = await db.execute(text("SELECT 1"))
+        result.scalar_one()  # Ensure query executed successfully
+
+        return {
+            "status": "ok",
+            "version": "v1",
+            "database": "connected",
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.error(
+            "api_health_check_failed",
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from e
 
 
 @app.get("/test/sentry")
