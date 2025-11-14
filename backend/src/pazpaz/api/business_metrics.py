@@ -94,7 +94,6 @@ class ActiveWorkspacesCollector:
         # Import here to avoid circular dependency during module load
         import asyncio
         import concurrent.futures
-        import traceback
 
         from prometheus_client.core import GaugeMetricFamily
 
@@ -105,11 +104,8 @@ class ActiveWorkspacesCollector:
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(asyncio.run, self._count_active_workspaces())
                 count = future.result(timeout=5.0)  # 5 second timeout
-                print(f"[METRICS DEBUG] Active workspaces calculated: {count}")
-        except Exception as e:
+        except Exception:
             # If query fails, return 0 rather than breaking metrics endpoint
-            print(f"[METRICS ERROR] Failed to calculate active_workspaces_24h: {e}")
-            traceback.print_exc()
             count = 0
 
         # Yield the metric
