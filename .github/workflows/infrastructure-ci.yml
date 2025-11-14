@@ -70,9 +70,6 @@ jobs:
           LOG_LEVEL=INFO
           WORKERS=4
           MAX_CONNECTIONS=100
-          DB_POOL_SIZE=20
-          DB_MAX_OVERFLOW=40
-          REDIS_MAX_CONNECTIONS=50
           ENABLE_2FA=true
           ENABLE_FILE_UPLOADS=true
           ENABLE_EMAIL_NOTIFICATIONS=true
