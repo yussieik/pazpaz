@@ -128,47 +128,68 @@ class ActiveWorkspacesCollector:
             Number of distinct workspaces with appointments, sessions,
             or clients created/updated in last 24 hours.
         """
-        async with AsyncSessionLocal() as db:
-            cutoff_time = datetime.now(UTC) - timedelta(hours=24)
+        # Create fresh engine and session for this thread
+        # to avoid asyncpg connection pool issues across threads
+        from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-            # Find distinct workspace IDs with any activity in last 24h
-            workspace_ids_appointments = (
-                select(Appointment.workspace_id)
-                .where(
-                    (Appointment.created_at >= cutoff_time)
-                    | (Appointment.updated_at >= cutoff_time)
+        from pazpaz.core.config import settings
+        from pazpaz.db.base import _get_engine_connect_args
+
+        # Create dedicated engine for metrics collection
+        engine = create_async_engine(
+            settings.DATABASE_URL,
+            pool_pre_ping=True,
+            pool_size=1,  # Minimal pool for metrics
+            max_overflow=0,
+            connect_args=_get_engine_connect_args(),
+        )
+
+        try:
+            SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+            async with SessionLocal() as db:
+                cutoff_time = datetime.now(UTC) - timedelta(hours=24)
+
+                # Find distinct workspace IDs with any activity in last 24h
+                workspace_ids_appointments = (
+                    select(Appointment.workspace_id)
+                    .where(
+                        (Appointment.created_at >= cutoff_time)
+                        | (Appointment.updated_at >= cutoff_time)
+                    )
+                    .distinct()
                 )
-                .distinct()
-            )
 
-            workspace_ids_sessions = (
-                select(Session.workspace_id)
-                .where(
-                    (Session.created_at >= cutoff_time)
-                    | (Session.updated_at >= cutoff_time)
+                workspace_ids_sessions = (
+                    select(Session.workspace_id)
+                    .where(
+                        (Session.created_at >= cutoff_time)
+                        | (Session.updated_at >= cutoff_time)
+                    )
+                    .distinct()
                 )
-                .distinct()
-            )
 
-            workspace_ids_clients = (
-                select(Client.workspace_id)
-                .where(
-                    (Client.created_at >= cutoff_time)
-                    | (Client.updated_at >= cutoff_time)
+                workspace_ids_clients = (
+                    select(Client.workspace_id)
+                    .where(
+                        (Client.created_at >= cutoff_time)
+                        | (Client.updated_at >= cutoff_time)
+                    )
+                    .distinct()
                 )
-                .distinct()
-            )
 
-            # Union all workspace IDs and count
-            all_active_workspaces = union(
-                workspace_ids_appointments,
-                workspace_ids_sessions,
-                workspace_ids_clients,
-            ).subquery()
+                # Union all workspace IDs and count
+                all_active_workspaces = union(
+                    workspace_ids_appointments,
+                    workspace_ids_sessions,
+                    workspace_ids_clients,
+                ).subquery()
 
-            stmt = select(func.count()).select_from(all_active_workspaces)
-            result = await db.execute(stmt)
-            return result.scalar() or 0
+                stmt = select(func.count()).select_from(all_active_workspaces)
+                result = await db.execute(stmt)
+                return result.scalar() or 0
+        finally:
+            # Clean up engine connections
+            await engine.dispose()
 
 
 # Initialize the collector (registers itself with Prometheus)
