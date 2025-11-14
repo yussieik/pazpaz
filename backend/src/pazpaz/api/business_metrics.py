@@ -93,21 +93,19 @@ class ActiveWorkspacesCollector:
         """
         # Import here to avoid circular dependency during module load
         import asyncio
+        import concurrent.futures
         import traceback
 
         from prometheus_client.core import GaugeMetricFamily
 
         # Calculate active workspaces
         try:
-            # Create new event loop since Prometheus collector runs in sync context
-            # but we need to call async database code
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                count = loop.run_until_complete(self._count_active_workspaces())
+            # Run async code in separate thread since Prometheus collector
+            # runs in FastAPI's async context where event loop is already running
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, self._count_active_workspaces())
+                count = future.result(timeout=5.0)  # 5 second timeout
                 print(f"[METRICS DEBUG] Active workspaces calculated: {count}")
-            finally:
-                loop.close()
         except Exception as e:
             # If query fails, return 0 rather than breaking metrics endpoint
             print(f"[METRICS ERROR] Failed to calculate active_workspaces_24h: {e}")
