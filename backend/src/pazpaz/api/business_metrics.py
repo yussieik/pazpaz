@@ -98,7 +98,14 @@ class ActiveWorkspacesCollector:
 
         # Calculate active workspaces
         try:
-            count = asyncio.run(self._count_active_workspaces())
+            # Create new event loop since Prometheus collector runs in sync context
+            # but we need to call async database code
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                count = loop.run_until_complete(self._count_active_workspaces())
+            finally:
+                loop.close()
         except Exception:
             # If query fails, return 0 rather than breaking metrics endpoint
             count = 0
